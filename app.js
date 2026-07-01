@@ -561,10 +561,12 @@ function initSettingsPanel(){
   bindInput('default-fill','color',styleConfig.default,'fillColor',refreshMapStyles);
   bindInput('default-stroke','color',styleConfig.default,'strokeColor',refreshMapStyles);
   bindInput('default-fill-opacity','range',styleConfig.default,'fillOpacity',refreshMapStyles);
+  bindInput('default-stroke-opacity','range',styleConfig.default,'strokeOpacity',refreshMapStyles);
   bindInput('default-stroke-weight','range',styleConfig.default,'strokeWeight',refreshMapStyles);
   bindInput('highlight-fill','color',styleConfig.highlight,'fillColor',refreshMapStyles);
   bindInput('highlight-stroke','color',styleConfig.highlight,'strokeColor',refreshMapStyles);
   bindInput('highlight-fill-opacity','range',styleConfig.highlight,'fillOpacity',refreshMapStyles);
+  bindInput('highlight-stroke-opacity','range',styleConfig.highlight,'strokeOpacity',refreshMapStyles);
   bindInput('highlight-stroke-weight','range',styleConfig.highlight,'strokeWeight',refreshMapStyles);
 
   document.getElementById('smooth-toggle').addEventListener('change',function(){smoothEnabled=this.checked;applyGeoJsonToMap();});
