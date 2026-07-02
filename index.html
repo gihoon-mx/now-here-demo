@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0" />
   <meta name="description" content="대한민국 동 단위 행정구역 경계를 Google Maps 위에 인터랙티브하게 표시하는 데모 페이지" />
   <title>동 단위 행정구역 경계 뷰어 – Now Here</title>
-  <link rel="stylesheet" href="style.css?v=1.1.7" />
+  <link rel="stylesheet" href="style.css?v=1.1.8" />
 </head>
 <body>
 
@@ -25,7 +25,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.1.7</span>
+        <span id="app-version">v1.1.8</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -131,7 +131,12 @@
 
   <!-- 모바일 미러 (Galaxy S25 Ultra 비율) -->
   <div id="phone-mirror">
-    <button id="phone-toggle" class="phone-toggle" aria-label="모바일 미리보기 접기" title="모바일 미리보기 접기" aria-expanded="true"></button>
+    <div class="phone-rail">
+      <button id="phone-drag" class="phone-rail-btn phone-drag" title="드래그하여 이동" aria-label="이동">⠿</button>
+      <button id="phone-bigger" class="phone-rail-btn" title="크게" aria-label="크게">＋</button>
+      <button id="phone-smaller" class="phone-rail-btn" title="작게" aria-label="작게">－</button>
+      <button id="phone-toggle" class="phone-rail-btn phone-toggle" aria-label="모바일 미리보기 접기" title="모바일 미리보기 접기" aria-expanded="true"></button>
+    </div>
     <div class="phone-frame">
       <div class="phone-screen">
         <div class="phone-notch"></div>
@@ -146,22 +151,34 @@
             <span class="pa-mode" id="phone-mode-chip">📍 로컬</span>
           </div>
         </div>
-        <div class="phone-sheet">
-          <div class="ph-grip"></div>
-          <div id="phone-sheet-body"></div>
-        </div>
         <div class="phone-navbar">
-          <span class="pn-item active">🏠</span>
-          <span class="pn-item">🗺️</span>
-          <span class="pn-item pn-add">＋</span>
-          <span class="pn-item">🔔</span>
-          <span class="pn-item">👤</span>
+          <div class="pn-group">
+            <button class="pn-item active" type="button" data-nav="map">
+              <span class="pn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.2v13.8l6-2.2 6 2.2 6-2.2V4l-6 2.2L9 4Z"/><path d="M9 4v13.8M15 6.2V20"/></svg></span>
+              <span class="pn-lb">지도</span>
+            </button>
+            <button class="pn-item" type="button" data-nav="feed">
+              <span class="pn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4.5" width="16" height="6" rx="1.6"/><rect x="4" y="13.5" width="16" height="6" rx="1.6"/></svg></span>
+              <span class="pn-lb">피드</span>
+            </button>
+            <button class="pn-item" type="button" data-nav="mission">
+              <span class="pn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/></svg></span>
+              <span class="pn-lb">미션</span>
+            </button>
+            <button class="pn-item" type="button" data-nav="community">
+              <span class="pn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c0-3 2.5-5.2 5.5-5.2s5.5 2.2 5.5 5.2"/><circle cx="17.2" cy="9.5" r="2.2"/><path d="M16 14.2c2.4.2 4.5 2 4.5 4.8"/></svg></span>
+              <span class="pn-lb">커뮤니티</span>
+            </button>
+          </div>
+          <button class="pn-ai" type="button" data-nav="agent" title="AI Agent" aria-label="AI Agent">
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2.5l1.7 4.4a3 3 0 0 0 1.8 1.8L20 10.4l-4.5 1.7a3 3 0 0 0-1.8 1.8L12 18.3l-1.7-4.4a3 3 0 0 0-1.8-1.8L4 10.4l4.5-1.7a3 3 0 0 0 1.8-1.8L12 2.5Z"/><path d="M18.6 15.4l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6.6-1.6Z"/></svg>
+          </button>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="config.js?v=1.1.7"></script>
-  <script src="app.js?v=1.1.7"></script>
+  <script src="config.js?v=1.1.8"></script>
+  <script src="app.js?v=1.1.8"></script>
 </body>
 </html>

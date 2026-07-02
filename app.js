@@ -330,32 +330,58 @@ function refreshPhoneZoneLabels(){phoneZoneOverlays.forEach(function(o){if(o.lab
 function updatePhoneUI(){
   var chip=document.getElementById('phone-mode-chip');
   if(chip)chip.textContent=currentMode==='trend'?'⬡ 트렌드':'📍 로컬';
-  var body=document.getElementById('phone-sheet-body');if(!body)return;
-  if(currentMode==='local'){
-    if(selectedFeatureName){
-      body.innerHTML='<div class="ph-place-name">'+escHtml(selectedFeatureName)+'</div><div class="ph-place-sub">이 동네의 소식을 확인해보세요</div>'+
-        '<div class="ph-feed-hint">📣 동네 피드 (준비 중)</div>';
-    }else{
-      body.innerHTML='<div class="ph-place-name">내 주변</div><div class="ph-place-sub">지도를 눌러 동네를 선택하세요</div>'+
-        '<div class="ph-feed-hint">📣 동네 피드 (준비 중)</div>';
-    }
-  }else{
-    var n=trendZones.length;
-    body.innerHTML='<div class="ph-place-name">트렌드 존 '+n+'개</div><div class="ph-place-sub">지역별 인기 트렌드</div>'+
-      (n?trendZones.slice(0,4).map(function(z){return '<div class="ph-zone-row"><span class="ph-dot" style="background:'+z.color+'"></span>'+escHtml(z.name)+'<span class="ph-cnt">'+z.hexCenters.length+'</span></div>';}).join(''):'<div class="ph-feed-hint">존을 만들면 여기에 표시됩니다</div>');
-  }
 }
-function initPhoneToggle(){
-  var mirror=document.getElementById('phone-mirror'),btn=document.getElementById('phone-toggle');
-  if(!mirror||!btn)return;
-  btn.addEventListener('click',function(){
+
+/* ========== 폰 컨트롤 (드래그/크기/접기/네비) ========== */
+var phoneWidth=244;
+function phoneMirrorEl(){return document.getElementById('phone-mirror');}
+function clampPhonePos(x,y){
+  var m=phoneMirrorEl();if(!m)return;var r=m.getBoundingClientRect();
+  var maxX=Math.max(6,window.innerWidth-r.width-6), maxY=Math.max(6,window.innerHeight-r.height-6);
+  x=Math.max(6,Math.min(x,maxX)); y=Math.max(6,Math.min(y,maxY));
+  m.style.left=x+'px';m.style.top=y+'px';m.style.right='auto';m.style.transform='none';
+}
+function reclampPhone(){var m=phoneMirrorEl();if(!m||!m.style.left)return;var r=m.getBoundingClientRect();clampPhonePos(r.left,r.top);}
+function phoneResizeMap(){if(!phoneMap)return;setTimeout(function(){google.maps.event.trigger(phoneMap,'resize');var c=map&&map.getCenter();if(c)phoneMap.setCenter(c);if(map)phoneMap.setZoom(map.getZoom());},90);}
+function setPhoneWidth(w){
+  phoneWidth=Math.max(224,Math.min(360,w));
+  var m=phoneMirrorEl();if(m)m.style.setProperty('--phone-w',phoneWidth+'px');
+  reclampPhone();phoneResizeMap();
+}
+function initPhoneControls(){
+  var mirror=phoneMirrorEl();if(!mirror)return;
+  // 접기/펼치기
+  var tg=document.getElementById('phone-toggle');
+  if(tg)tg.addEventListener('click',function(){
     var c=mirror.classList.toggle('collapsed');
-    btn.setAttribute('aria-expanded',c?'false':'true');
-    btn.setAttribute('aria-label',c?'모바일 미리보기 펼치기':'모바일 미리보기 접기');
-    btn.setAttribute('title',c?'모바일 미리보기 펼치기':'모바일 미리보기 접기');
-    // 펼칠 때 지도 리사이즈 반영
-    if(!c&&phoneMap)setTimeout(function(){google.maps.event.trigger(phoneMap,'resize');var cc=map.getCenter();if(cc)phoneMap.setCenter(cc);phoneMap.setZoom(map.getZoom());},420);
+    tg.setAttribute('aria-expanded',c?'false':'true');
+    tg.setAttribute('aria-label',c?'모바일 미리보기 펼치기':'모바일 미리보기 접기');
+    tg.setAttribute('title',c?'모바일 미리보기 펼치기':'모바일 미리보기 접기');
+    if(!c){reclampPhone();phoneResizeMap();}
   });
+  // 크기 조절
+  var bg=document.getElementById('phone-bigger'),sm=document.getElementById('phone-smaller');
+  if(bg)bg.addEventListener('click',function(){setPhoneWidth(phoneWidth+22);});
+  if(sm)sm.addEventListener('click',function(){setPhoneWidth(phoneWidth-22);});
+  // 드래그 이동 (화면 밖으로 나가지 않도록 clamp)
+  var handle=document.getElementById('phone-drag');
+  var dragging=false,sx,sy,ox,oy;
+  function pt(e){return e.touches&&e.touches[0]?e.touches[0]:e;}
+  function down(e){dragging=true;var r=mirror.getBoundingClientRect();var p=pt(e);sx=p.clientX;sy=p.clientY;ox=r.left;oy=r.top;
+    mirror.classList.add('dragging');if(e.cancelable)e.preventDefault();
+    document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);
+    document.addEventListener('touchmove',move,{passive:false});document.addEventListener('touchend',up);}
+  function move(e){if(!dragging)return;var p=pt(e);clampPhonePos(ox+(p.clientX-sx),oy+(p.clientY-sy));if(e.cancelable)e.preventDefault();}
+  function up(){dragging=false;mirror.classList.remove('dragging');
+    document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);
+    document.removeEventListener('touchmove',move);document.removeEventListener('touchend',up);}
+  if(handle){handle.addEventListener('mousedown',down);handle.addEventListener('touchstart',down,{passive:false});}
+  // 하단 네비 활성 전환
+  mirror.querySelectorAll('.pn-item').forEach(function(b){b.addEventListener('click',function(){
+    mirror.querySelectorAll('.pn-item').forEach(function(x){x.classList.remove('active');});b.classList.add('active');
+  });});
+  // 창 크기 변경 시 화면 밖 방지
+  window.addEventListener('resize',reclampPhone);
 }
 
 /* ========== 트렌드 존 CRUD ========== */
@@ -895,7 +921,7 @@ function mapStyles(){return [{elementType:'geometry',stylers:[{color:'#1d2c4d'}]
 (function(){
   // 패널/폰미러 접기·펼치기는 지도 로드 성공 여부와 무관하게 항상 동작
   initPanelCollapse();
-  initPhoneToggle();
+  initPhoneControls();
   if(typeof CONFIG==='undefined'||!CONFIG.GOOGLE_MAPS_API_KEY){document.getElementById('info-text').textContent='⚠️ config.js에 API 키를 설정해 주세요.';hideMapLoading();return;}
   if(CONFIG.GOOGLE_MAPS_API_KEY==='YOUR_API_KEY'){document.getElementById('info-text').textContent='⚠️ config.js에 실제 API 키를 입력해 주세요.';hideMapLoading();return;}
   var s=document.createElement('script');s.src='https://maps.googleapis.com/maps/api/js?key='+CONFIG.GOOGLE_MAPS_API_KEY+'&callback=initMap';s.async=true;s.defer=true;document.head.appendChild(s);
