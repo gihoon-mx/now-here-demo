@@ -416,14 +416,14 @@ function setPhoneWidth(w){
 }
 function initPhoneControls(){
   var mirror=phoneMirrorEl();if(!mirror)return;
-  // 접기/펼치기
-  var tg=document.getElementById('phone-toggle');
-  if(tg)tg.addEventListener('click',function(){
+  // 폰 화면 접기/펴기
+  var pc=document.getElementById('phone-collapse');
+  if(pc)pc.addEventListener('click',function(){
     var c=mirror.classList.toggle('collapsed');
-    tg.setAttribute('aria-expanded',c?'false':'true');
-    tg.setAttribute('aria-label',c?'모바일 미리보기 펼치기':'모바일 미리보기 접기');
-    tg.setAttribute('title',c?'모바일 미리보기 펼치기':'모바일 미리보기 접기');
-    if(!c){reclampPhone();phoneResizeMap();}
+    pc.setAttribute('aria-expanded',c?'false':'true');
+    pc.setAttribute('aria-label',c?'폰 화면 펴기':'폰 화면 접기');
+    pc.setAttribute('title',c?'폰 화면 펴기':'폰 화면 접기');
+    if(!c)phoneResizeMap();
     updatePhoneViewportOverlay();
   });
   // 크기 조절
