@@ -20,8 +20,16 @@ git push
 ```
 
 - **push 전 반드시 `git pull`** 먼저 (다른 PC에서 올린 변경과 충돌 방지).
-- 이 repo는 **`main` 브랜치 루트에서 GitHub Pages 자동 배포**됨 → main에 push하면 1~2분 뒤 배포 반영.
-- 배포 URL: **https://gihoon-mx.github.io/now-here-map-demo-pages/**
+- 이 repo는 **`main` 브랜치 루트에서 GitHub Pages(legacy, deploy-from-branch) 배포**됨.
+- 배포 URL: **https://gihoon-mx.github.io/now-here-demo/**
+
+> ⚠️ **repo 이전됨(2026-07-03)**: `gihoon-mx/now-here-map-demo-pages` → **`gihoon-mx/now-here-demo`**.
+> 다른 PC에서는 remote를 새 repo로 바꾸거나 새로 clone:
+> ```bash
+> git remote set-url origin https://github.com/gihoon-mx/now-here-demo.git   # 기존 clone 재지정
+> # 또는:  gh repo clone gihoon-mx/now-here-demo
+> ```
+> (이전 repo는 GitHub Pages 배포 큐가 꼬여서 새 repo로 이전. 같은 `gihoon-mx.github.io` 호스트라 GCP/Firebase 도메인은 그대로 유효 — 경로만 `/now-here-demo/`로 바뀜.)
 
 ### 🔢 버전 규칙 (코드/스타일 바꿀 때마다 필수)
 제작(코드·스타일·기능 변경)마다 버전을 올리고 **3곳을 동기화**:
@@ -89,6 +97,7 @@ git push
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **repo 이전: `now-here-map-demo-pages` → `now-here-demo`** (배포 URL `/now-here-demo/`). 기존 repo의 GitHub Pages 배포가 계속 큐에서 멈춰(당시 **GitHub Pages 전체 장애 `degraded_performance`** 진행 중이던 영향) 깨끗한 새 repo로 이전. 새 repo는 legacy(브랜치 직접) 배포 + Actions 비활성 + `.nojekyll`. GitHub 장애 복구되면 자동 배포됨. 로컬 origin은 새 repo로 전환(기존은 `oldrepo` remote로 보존).
 - **v1.4.0 — 사이드바/폰/역할/모바일 4종 개선**:
   - **사이드바 폭 드래그 조절**(map↔sidebar 사이 `#sidebar-resizer`) → 폰 크기 변경. 폰 내부 UI는 `.phone-screen`을 `container-type:inline-size`로 만들고 상태바/앱바/네비를 **cqw 단위**로 바꿔 **폭이 바뀌어도 비율 유지**. 폭은 localStorage(`nowhere_sidebarW`) 저장.
   - **폰 하단 네비 정리**: navbar/그룹/아이템/AI를 cqw 기반으로 일관 정리.
