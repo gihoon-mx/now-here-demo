@@ -34,6 +34,13 @@ var trendZones = [];
 var editingZoneId = null;
 var editingZoneBackup = null;
 
+/* ========== 라벨 설정 ========== */
+var localLabelConfig = { enabled:false, fontSize:12, textColor:'#ffffff', bgColor:'#111318', bgOpacity:0.72 };
+var zoneLabelConfig  = { fontSize:11, textColor:'#ffffff', bgOpacity:1.0 };
+var localLabel = null;          // 로컬모드 선택 구역 라벨 오버레이
+var selectedFeatureName = null; // 현재 선택 구역 표시명
+var colorControls = [];         // 색상 트리거 재도색용 레지스트리
+
 /* ========== 로컬 스타일 ========== */
 function getDefaultStyle() {
   return { strokeColor:styleConfig.default.strokeColor, strokeWeight:Number(styleConfig.default.strokeWeight),
@@ -47,6 +54,8 @@ function getHighlightStyle() {
 }
 function refreshMapStyles() {
   if (!map) return;
+  // hover 시 overrideStyle로 남는 스타일이 setStyle보다 우선시돼 설정 변경이 반영 안 되는 문제 방지
+  map.data.revertStyle();
   map.data.setStyle(function(f) { return f === selectedFeature ? getHighlightStyle() : getDefaultStyle(); });
 }
 
@@ -80,7 +89,7 @@ function smoothGeoJson(gj, factor) {
 }
 function applyGeoJsonToMap() {
   if (!map||!originalGeoJson) return;
-  selectedFeature = null; updateInfoPanel(null);
+  selectedFeature = null; selectedFeatureName = null; updateInfoPanel(null); removeLocalLabel();
   map.data.forEach(function(f){map.data.remove(f);});
   map.data.addGeoJson(smoothEnabled ? smoothGeoJson(originalGeoJson,smoothIntensity) : originalGeoJson);
   refreshMapStyles();
@@ -231,14 +240,37 @@ function updateZoneSaveUI() {
   }
 }
 
-/* ========== 커스텀 라벨 오버레이 ========== */
-function ZoneLabel(pos,text,color,m){this.position=pos;this.text=text;this.color=color;this.div=null;this.setMap(m);}
-function initZoneLabelClass(){
-  ZoneLabel.prototype=new google.maps.OverlayView();
-  ZoneLabel.prototype.onAdd=function(){var d=document.createElement('div');d.className='zone-label-tag';d.style.backgroundColor=this.color;d.textContent=this.text;this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);};
-  ZoneLabel.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}};
-  ZoneLabel.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
+/* ========== 색상 유틸 ========== */
+function hexToRgb(hex){hex=(hex||'#000000').replace('#','');if(hex.length===3)hex=hex.split('').map(function(c){return c+c;}).join('');return {r:parseInt(hex.slice(0,2),16),g:parseInt(hex.slice(2,4),16),b:parseInt(hex.slice(4,6),16)};}
+function hexToRgba(hex,a){var c=hexToRgb(hex);return 'rgba('+c.r+','+c.g+','+c.b+','+(a==null?1:a)+')';}
+function mergeInto(target,src){if(target&&src)Object.keys(src).forEach(function(k){target[k]=src[k];});}
+
+/* ========== 커스텀 라벨 오버레이 (범용) ========== */
+function MapLabel(pos,text,style,m){this.position=pos;this.text=text;this.style=style||{};this.div=null;this.setMap(m);}
+function initMapLabelClass(){
+  MapLabel.prototype=new google.maps.OverlayView();
+  MapLabel.prototype._apply=function(d){var s=this.style||{};if(s.bg)d.style.backgroundColor=s.bg;if(s.color)d.style.color=s.color;if(s.fontSize)d.style.fontSize=s.fontSize+'px';};
+  MapLabel.prototype.onAdd=function(){var d=document.createElement('div');d.className='map-label-tag';this._apply(d);d.textContent=this.text;this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);};
+  MapLabel.prototype.updateStyle=function(style){this.style=style||{};if(this.div)this._apply(this.div);};
+  MapLabel.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}};
+  MapLabel.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
 }
+
+/* ========== 로컬모드 선택 라벨 ========== */
+function featureCentroid(feature){try{var b=new google.maps.LatLngBounds();feature.getGeometry().forEachLatLng(function(ll){b.extend(ll);});return b.getCenter();}catch(e){return null;}}
+function localLabelStyle(){return {bg:hexToRgba(localLabelConfig.bgColor,Number(localLabelConfig.bgOpacity)),color:localLabelConfig.textColor,fontSize:Number(localLabelConfig.fontSize)};}
+function showLocalLabel(){
+  removeLocalLabel();
+  if(currentMode!=='local'||!localLabelConfig.enabled||!selectedFeature)return;
+  var c=featureCentroid(selectedFeature);if(!c)return;
+  localLabel=new MapLabel(c,selectedFeatureName||'',localLabelStyle(),map);
+}
+function removeLocalLabel(){if(localLabel){localLabel.setMap(null);localLabel=null;}}
+function updateLocalLabelStyle(){if(localLabel)localLabel.updateStyle(localLabelStyle());else showLocalLabel();}
+
+/* ========== 존 라벨 스타일 ========== */
+function zoneLabelStyle(zoneColor){return {bg:hexToRgba(zoneColor,Number(zoneLabelConfig.bgOpacity)),color:zoneLabelConfig.textColor,fontSize:Number(zoneLabelConfig.fontSize)};}
+function refreshZoneLabels(){trendZones.forEach(function(z){if(z.label)z.label.updateStyle(zoneLabelStyle(z.color));});}
 
 /* ========== 트렌드 존 CRUD ========== */
 function saveTrendZone(name, color) {
@@ -266,7 +298,7 @@ function renderZoneOnMap(zone) {
     sumLat+=c.lat; sumLng+=c.lng;
   });
   if (zone.hexCenters.length>0) {
-    zone.label=new ZoneLabel(new google.maps.LatLng(sumLat/zone.hexCenters.length,sumLng/zone.hexCenters.length),zone.name,zone.color,map);
+    zone.label=new MapLabel(new google.maps.LatLng(sumLat/zone.hexCenters.length,sumLng/zone.hexCenters.length),zone.name,zoneLabelStyle(zone.color),map);
   }
 }
 
@@ -446,7 +478,9 @@ function exportZones() {
       hexStyleConfig: hexStyleConfig,
       smoothEnabled: smoothEnabled,
       smoothIntensity: smoothIntensity,
-      hexRadiusKm: hexRadiusKm
+      hexRadiusKm: hexRadiusKm,
+      localLabelConfig: localLabelConfig,
+      zoneLabelConfig: zoneLabelConfig
     },
     exportedAt: new Date().toISOString()
   };
@@ -468,49 +502,21 @@ function importZones(file) {
       
       if (data.settings) {
         var s = data.settings;
-        if(s.styleConfig) styleConfig = JSON.parse(JSON.stringify(s.styleConfig));
-        if(s.hexStyleConfig) hexStyleConfig = JSON.parse(JSON.stringify(s.hexStyleConfig));
+        // 객체 참조를 유지하기 위해 재할당이 아닌 병합(makeColorControl/bindInput 클로저가 참조를 캡처하므로)
+        if(s.styleConfig){ mergeInto(styleConfig.default,s.styleConfig.default); mergeInto(styleConfig.highlight,s.styleConfig.highlight); }
+        if(s.hexStyleConfig){ mergeInto(hexStyleConfig.default,s.hexStyleConfig.default); mergeInto(hexStyleConfig.selected,s.hexStyleConfig.selected); }
         if(s.smoothEnabled !== undefined) smoothEnabled = s.smoothEnabled;
         if(s.smoothIntensity !== undefined) smoothIntensity = s.smoothIntensity;
         if(s.hexRadiusKm !== undefined) hexRadiusKm = s.hexRadiusKm;
-        
-        document.getElementById('default-fill').value = styleConfig.default.fillColor;
-        document.getElementById('default-stroke').value = styleConfig.default.strokeColor;
-        document.getElementById('default-fill-opacity').value = styleConfig.default.fillOpacity;
-        if(document.getElementById('default-fill-opacity').nextElementSibling) document.getElementById('default-fill-opacity').nextElementSibling.textContent = Number(styleConfig.default.fillOpacity).toFixed(2);
-        document.getElementById('default-stroke-opacity').value = styleConfig.default.strokeOpacity;
-        if(document.getElementById('default-stroke-opacity').nextElementSibling) document.getElementById('default-stroke-opacity').nextElementSibling.textContent = Number(styleConfig.default.strokeOpacity).toFixed(2);
-        document.getElementById('default-stroke-weight').value = styleConfig.default.strokeWeight;
-        if(document.getElementById('default-stroke-weight').nextElementSibling) document.getElementById('default-stroke-weight').nextElementSibling.textContent = Number(styleConfig.default.strokeWeight).toFixed(1);
+        if(s.localLabelConfig) mergeInto(localLabelConfig,s.localLabelConfig);
+        if(s.zoneLabelConfig) mergeInto(zoneLabelConfig,s.zoneLabelConfig);
 
-        document.getElementById('highlight-fill').value = styleConfig.highlight.fillColor;
-        document.getElementById('highlight-stroke').value = styleConfig.highlight.strokeColor;
-        document.getElementById('highlight-fill-opacity').value = styleConfig.highlight.fillOpacity;
-        if(document.getElementById('highlight-fill-opacity').nextElementSibling) document.getElementById('highlight-fill-opacity').nextElementSibling.textContent = Number(styleConfig.highlight.fillOpacity).toFixed(2);
-        document.getElementById('highlight-stroke-opacity').value = styleConfig.highlight.strokeOpacity;
-        if(document.getElementById('highlight-stroke-opacity').nextElementSibling) document.getElementById('highlight-stroke-opacity').nextElementSibling.textContent = Number(styleConfig.highlight.strokeOpacity).toFixed(2);
-        document.getElementById('highlight-stroke-weight').value = styleConfig.highlight.strokeWeight;
-        if(document.getElementById('highlight-stroke-weight').nextElementSibling) document.getElementById('highlight-stroke-weight').nextElementSibling.textContent = Number(styleConfig.highlight.strokeWeight).toFixed(1);
-
-        document.getElementById('smooth-toggle').checked = smoothEnabled;
-        document.getElementById('smooth-intensity').value = smoothIntensity;
-        if(document.getElementById('smooth-intensity').nextElementSibling) document.getElementById('smooth-intensity').nextElementSibling.textContent = Number(smoothIntensity).toFixed(1);
-
-        document.getElementById('hex-radius').value = hexRadiusKm;
-        document.getElementById('hex-radius-label').textContent = Number(hexRadiusKm).toFixed(1)+'km';
-
-        document.getElementById('hex-fill').value = hexStyleConfig.default.fillColor;
-        document.getElementById('hex-stroke').value = hexStyleConfig.default.strokeColor;
-        document.getElementById('hex-fill-opacity').value = hexStyleConfig.default.fillOpacity;
-        if(document.getElementById('hex-fill-opacity').nextElementSibling) document.getElementById('hex-fill-opacity').nextElementSibling.textContent = Number(hexStyleConfig.default.fillOpacity).toFixed(2);
-        
-        document.getElementById('hex-sel-fill').value = hexStyleConfig.selected.fillColor;
-        document.getElementById('hex-sel-opacity').value = hexStyleConfig.selected.fillOpacity;
-        if(document.getElementById('hex-sel-opacity').nextElementSibling) document.getElementById('hex-sel-opacity').nextElementSibling.textContent = Number(hexStyleConfig.selected.fillOpacity).toFixed(2);
-
+        syncSettingsUI();
         refreshMapStyles();
         refreshHexStyles();
         applyGeoJsonToMap();
+        refreshZoneLabels();
+        updateLocalLabelStyle();
       }
 
       zones.forEach(function(d) {
@@ -556,6 +562,7 @@ function loadZonesFromStorage(){
 function switchMode(mode){
   if(mode===currentMode) return; if(editingZoneId) finishEditZone();
   currentMode=mode;
+  removeLocalLabel(); selectedFeatureName=null;
   document.querySelectorAll('.mode-btn').forEach(function(b){b.classList.toggle('active',b.dataset.mode===mode);});
   document.querySelector('.mode-indicator').classList.toggle('right',mode==='trend');
   document.getElementById('local-settings').style.display=mode==='local'?'':'none';
@@ -576,14 +583,14 @@ function switchMode(mode){
 
 /* ========== 초기화 ========== */
 function initMap(){
-  initZoneLabelClass();
+  initMapLabelClass();
   var opts={center:{lat:CONFIG.MAP_CENTER_LAT,lng:CONFIG.MAP_CENTER_LNG},zoom:CONFIG.MAP_ZOOM,disableDefaultUI:false,zoomControl:true,mapTypeControl:false,streetViewControl:false,fullscreenControl:true};
   if(CONFIG.MAP_ID&&CONFIG.MAP_ID.length>0) opts.mapId=CONFIG.MAP_ID; else opts.styles=mapStyles();
   map=new google.maps.Map(document.getElementById('map'),opts);
   fetch(CONFIG.GEOJSON_PATH).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(geo){originalGeoJson=geo;applyGeoJsonToMap();fitBoundsToData();loadZonesFromStorage();hideMapLoading();}).catch(function(err){hideMapLoading();var el=document.getElementById('info-text');if(el)el.textContent='⚠️ 경계 데이터를 불러오지 못했습니다. ('+err.message+')';});
   refreshMapStyles();
-  map.data.addListener('click',function(e){if(currentMode!=='local')return;var f=e.feature;if(selectedFeature===f){selectedFeature=null;refreshMapStyles();updateInfoPanel(null);return;}selectedFeature=f;refreshMapStyles();var raw=f.getProperty('adm_nm')||f.getProperty('name')||'(이름 없음)';var p=raw.split(' ');updateInfoPanel(p.length>2?p.slice(2).join(' '):raw);});
-  map.addListener('click',function(){if(currentMode==='local'&&selectedFeature){selectedFeature=null;refreshMapStyles();updateInfoPanel(null);}});
+  map.data.addListener('click',function(e){if(currentMode!=='local')return;var f=e.feature;if(selectedFeature===f){selectedFeature=null;selectedFeatureName=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();return;}selectedFeature=f;refreshMapStyles();var raw=f.getProperty('adm_nm')||f.getProperty('name')||'(이름 없음)';var p=raw.split(' ');selectedFeatureName=p.length>2?p.slice(2).join(' '):raw;updateInfoPanel(selectedFeatureName);showLocalLabel();});
+  map.addListener('click',function(){if(currentMode==='local'&&selectedFeature){selectedFeature=null;selectedFeatureName=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();}});
   map.data.addListener('mouseover',function(e){if(currentMode!=='local'||e.feature===selectedFeature)return;map.data.overrideStyle(e.feature,{strokeWeight:Number(styleConfig.default.strokeWeight)+2,fillOpacity:Number(styleConfig.default.fillOpacity)+0.08});});
   map.data.addListener('mouseout',function(e){if(currentMode!=='local'||e.feature===selectedFeature)return;map.data.revertStyle(e.feature);});
   initSettingsPanel();initModeToggle();initZoneForm();initZoneEditBar();initZoneIO();
@@ -613,20 +620,135 @@ function initZoneIO(){
   document.getElementById('zone-import-file').addEventListener('change',function(e){if(e.target.files.length>0){importZones(e.target.files[0]);e.target.value='';}});
 }
 
+/* ========== 색상 팝업 (HSV 스펙트럼 + 알파 + 헥스 + 프리셋) ========== */
+var CP = null;
+function clamp01(v){return v<0?0:v>1?1:v;}
+function hsvToRgb(h,s,v){h/=360;var i=Math.floor(h*6),f=h*6-i,p=v*(1-s),q=v*(1-f*s),t=v*(1-(1-f)*s),r,g,b;switch(i%6){case 0:r=v;g=t;b=p;break;case 1:r=q;g=v;b=p;break;case 2:r=p;g=v;b=t;break;case 3:r=p;g=q;b=v;break;case 4:r=t;g=p;b=v;break;default:r=v;g=p;b=q;}return {r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)};}
+function rgbToHsv(r,g,b){r/=255;g/=255;b/=255;var max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min,h,s=max===0?0:d/max,v=max;if(d===0)h=0;else if(max===r)h=((g-b)/d)%6;else if(max===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;if(h<0)h+=360;return {h:h,s:s,v:v};}
+function rgbToHex(r,g,b){return '#'+[r,g,b].map(function(x){return ('0'+x.toString(16)).slice(-2);}).join('');}
+function cpHex(){var c=hsvToRgb(CP.h,CP.s,CP.v);return rgbToHex(c.r,c.g,c.b);}
+
+function buildColorPopup(){
+  if(CP)return CP;
+  var pop=document.createElement('div');pop.className='color-popup';pop.style.display='none';
+  pop.innerHTML=
+    '<div class="cp-sv"><div class="cp-thumb cp-sv-thumb"></div></div>'+
+    '<div class="cp-slider cp-hue"><div class="cp-thumb cp-hue-thumb"></div></div>'+
+    '<div class="cp-slider cp-alpha"><div class="cp-alpha-grad"></div><div class="cp-thumb cp-alpha-thumb"></div></div>'+
+    '<div class="cp-inputs"><span class="cp-preview"><i class="cp-fill"></i></span><input class="cp-hex" spellcheck="false" maxlength="7" /><input class="cp-anum" type="number" min="0" max="100" step="1" /><span class="cp-apct">%</span></div>'+
+    '<div class="cp-presets"></div>';
+  document.body.appendChild(pop);
+  CP={el:pop,sv:pop.querySelector('.cp-sv'),svThumb:pop.querySelector('.cp-sv-thumb'),
+    hue:pop.querySelector('.cp-hue'),hueThumb:pop.querySelector('.cp-hue-thumb'),
+    alpha:pop.querySelector('.cp-alpha'),alphaGrad:pop.querySelector('.cp-alpha-grad'),alphaThumb:pop.querySelector('.cp-alpha-thumb'),
+    fill:pop.querySelector('.cp-fill'),hex:pop.querySelector('.cp-hex'),anum:pop.querySelector('.cp-anum'),apct:pop.querySelector('.cp-apct'),
+    h:0,s:1,v:1,a:1,alphaEnabled:true,anchor:null,onInput:null};
+  var presets=['#DE2F2A','#F2862E','#F2C53D','#9DC64C','#4fc3f7','#0288d1','#ff9800','#ab47bc','#ffffff','#9e9e9e','#455a64','#111318'];
+  var pc=pop.querySelector('.cp-presets');
+  presets.forEach(function(col){var b=document.createElement('button');b.type='button';b.className='cp-preset';b.style.backgroundColor=col;b.addEventListener('click',function(){cpSetFromHex(col);});pc.appendChild(b);});
+  wireCPDrag();
+  CP.hex.addEventListener('input',function(){var v=CP.hex.value.trim().replace('#','');if(/^[0-9a-fA-F]{6}$/.test(v))cpSetFromHex('#'+v);});
+  CP.anum.addEventListener('input',function(){var n=Math.max(0,Math.min(100,parseFloat(CP.anum.value)||0));CP.a=n/100;cpRender();cpFire();});
+  document.addEventListener('mousedown',function(e){if(CP.el.style.display!=='none'&&!CP.el.contains(e.target)&&!(CP.anchor&&CP.anchor.contains(e.target)))closeColorPopup();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeColorPopup();});
+  return CP;
+}
+function wireCPDrag(){
+  function attach(el,onMove){
+    var active=false;
+    function pt(e){return e.touches&&e.touches[0]?e.touches[0]:e;}
+    function move(e){if(!active)return;var r=el.getBoundingClientRect();var p=pt(e);onMove(r,p.clientX,p.clientY);}
+    el.addEventListener('mousedown',function(e){active=true;move(e);e.preventDefault();});
+    el.addEventListener('touchstart',function(e){active=true;move(e);},{passive:true});
+    document.addEventListener('mousemove',move);
+    document.addEventListener('touchmove',move,{passive:true});
+    document.addEventListener('mouseup',function(){active=false;});
+    document.addEventListener('touchend',function(){active=false;});
+  }
+  attach(CP.sv,function(r,x,y){CP.s=clamp01((x-r.left)/r.width);CP.v=1-clamp01((y-r.top)/r.height);cpRender();cpFire();});
+  attach(CP.hue,function(r,x){CP.h=clamp01((x-r.left)/r.width)*360;cpRender();cpFire();});
+  attach(CP.alpha,function(r,x){CP.a=clamp01((x-r.left)/r.width);cpRender();cpFire();});
+}
+function cpRender(){
+  CP.sv.style.backgroundColor='hsl('+CP.h+',100%,50%)';
+  CP.svThumb.style.left=(CP.s*100)+'%';CP.svThumb.style.top=((1-CP.v)*100)+'%';
+  CP.hueThumb.style.left=(CP.h/360*100)+'%';
+  var hex=cpHex();var rgb=hexToRgb(hex);
+  CP.svThumb.style.backgroundColor=hex;
+  CP.fill.style.backgroundColor=hexToRgba(hex,CP.alphaEnabled?CP.a:1);
+  CP.alphaGrad.style.background='linear-gradient(to right,rgba('+rgb.r+','+rgb.g+','+rgb.b+',0),rgb('+rgb.r+','+rgb.g+','+rgb.b+'))';
+  CP.alphaThumb.style.left=(CP.a*100)+'%';
+  if(document.activeElement!==CP.hex)CP.hex.value=hex;
+  if(document.activeElement!==CP.anum)CP.anum.value=Math.round(CP.a*100);
+}
+function cpFire(){if(CP.onInput)CP.onInput(cpHex(),CP.alphaEnabled?CP.a:null);}
+function cpSetFromHex(hex){var rgb=hexToRgb(hex);var hsv=rgbToHsv(rgb.r,rgb.g,rgb.b);CP.h=hsv.h;CP.s=hsv.s;CP.v=hsv.v;cpRender();cpFire();}
+function openColorPopup(anchor,opts){
+  buildColorPopup();
+  CP.anchor=anchor;CP.onInput=opts.onInput;CP.alphaEnabled=(opts.alpha!=null);CP.a=CP.alphaEnabled?opts.alpha:1;
+  var rgb=hexToRgb(opts.color||'#000000');var hsv=rgbToHsv(rgb.r,rgb.g,rgb.b);CP.h=hsv.h;CP.s=hsv.s;CP.v=hsv.v;
+  CP.alpha.style.display=CP.alphaEnabled?'':'none';
+  CP.anum.style.display=CP.alphaEnabled?'':'none';
+  CP.apct.style.display=CP.alphaEnabled?'':'none';
+  CP.el.style.display='';cpRender();positionCP(anchor);
+}
+function positionCP(anchor){
+  var r=anchor.getBoundingClientRect();var pop=CP.el;pop.style.left='0px';pop.style.top='0px';
+  var pw=pop.offsetWidth,ph=pop.offsetHeight;var left=r.right-pw,top=r.bottom+6;
+  if(left<8)left=8;if(left+pw>window.innerWidth-8)left=window.innerWidth-pw-8;
+  if(top+ph>window.innerHeight-8)top=r.top-ph-6;if(top<8)top=8;
+  pop.style.left=left+'px';pop.style.top=top+'px';
+}
+function closeColorPopup(){if(CP&&CP.el)CP.el.style.display='none';}
+
+/* ========== 색상 트리거 컨트롤 ========== */
+function makeColorControl(id,obj,colorProp,alphaProp,cb){
+  var btn=document.getElementById(id);if(!btn)return;
+  var sw=btn.querySelector('.ct-fill');
+  function paint(){if(sw)sw.style.backgroundColor=alphaProp?hexToRgba(obj[colorProp],Number(obj[alphaProp])):obj[colorProp];}
+  paint();colorControls.push({paint:paint});
+  btn.addEventListener('click',function(e){e.stopPropagation();
+    openColorPopup(btn,{color:obj[colorProp],alpha:alphaProp?Number(obj[alphaProp]):null,
+      onInput:function(hex,a){obj[colorProp]=hex;if(alphaProp&&a!=null)obj[alphaProp]=a;paint();cb();}});
+  });
+}
+
+/* ========== 설정 UI 동기화 (불러오기 후 컨트롤 갱신) ========== */
+function formatByStep(el,val){var s=el.getAttribute('step')||'1';var dec=s.indexOf('.')>=0?s.split('.')[1].length:0;return Number(val).toFixed(dec);}
+function setRange(id,val,fmt){var el=document.getElementById(id);if(!el)return;el.value=val;var lbl=el.nextElementSibling;if(lbl&&lbl.classList&&lbl.classList.contains('range-val'))lbl.textContent=fmt?fmt(Number(val)):formatByStep(el,val);}
+function setCheck(id,val){var el=document.getElementById(id);if(el)el.checked=!!val;}
+function syncSettingsUI(){
+  colorControls.forEach(function(c){c.paint();});
+  setRange('default-stroke-weight',styleConfig.default.strokeWeight);
+  setRange('highlight-stroke-weight',styleConfig.highlight.strokeWeight);
+  setCheck('smooth-toggle',smoothEnabled);
+  setRange('smooth-intensity',smoothIntensity);
+  setRange('hex-radius',hexRadiusKm,function(v){return v.toFixed(1)+'km';});
+  setCheck('local-label-toggle',localLabelConfig.enabled);
+  setRange('local-label-size',localLabelConfig.fontSize);
+  setRange('zone-label-size',zoneLabelConfig.fontSize);
+  setRange('zone-label-bg-opacity',zoneLabelConfig.bgOpacity);
+}
+
 function initSettingsPanel(){
   var toggle=document.getElementById('settings-toggle');
   var section=document.getElementById('settings-section');
   toggle.addEventListener('click',function(){var open=section.style.display!=='none';section.style.display=open?'none':'';toggle.classList.toggle('open',!open);});
 
-  bindInput('default-fill','color',styleConfig.default,'fillColor',refreshMapStyles);
-  bindInput('default-stroke','color',styleConfig.default,'strokeColor',refreshMapStyles);
-  bindInput('default-fill-opacity','range',styleConfig.default,'fillOpacity',refreshMapStyles);
-  bindInput('default-stroke-opacity','range',styleConfig.default,'strokeOpacity',refreshMapStyles);
+  // 색상+투명도 통합 컨트롤 (팝업에서 색상/알파 동시 조절)
+  makeColorControl('ct-default-fill',styleConfig.default,'fillColor','fillOpacity',refreshMapStyles);
+  makeColorControl('ct-default-stroke',styleConfig.default,'strokeColor','strokeOpacity',refreshMapStyles);
+  makeColorControl('ct-highlight-fill',styleConfig.highlight,'fillColor','fillOpacity',refreshMapStyles);
+  makeColorControl('ct-highlight-stroke',styleConfig.highlight,'strokeColor','strokeOpacity',refreshMapStyles);
+  makeColorControl('ct-hex-fill',hexStyleConfig.default,'fillColor','fillOpacity',refreshHexStyles);
+  makeColorControl('ct-hex-stroke',hexStyleConfig.default,'strokeColor','strokeOpacity',refreshHexStyles);
+  makeColorControl('ct-hex-sel-fill',hexStyleConfig.selected,'fillColor','fillOpacity',refreshHexStyles);
+  makeColorControl('ct-local-label-text',localLabelConfig,'textColor',null,updateLocalLabelStyle);
+  makeColorControl('ct-local-label-bg',localLabelConfig,'bgColor','bgOpacity',updateLocalLabelStyle);
+  makeColorControl('ct-zone-label-text',zoneLabelConfig,'textColor',null,refreshZoneLabels);
+
+  // 선 굵기 (투명도가 아니므로 슬라이더 유지)
   bindInput('default-stroke-weight','range',styleConfig.default,'strokeWeight',refreshMapStyles);
-  bindInput('highlight-fill','color',styleConfig.highlight,'fillColor',refreshMapStyles);
-  bindInput('highlight-stroke','color',styleConfig.highlight,'strokeColor',refreshMapStyles);
-  bindInput('highlight-fill-opacity','range',styleConfig.highlight,'fillOpacity',refreshMapStyles);
-  bindInput('highlight-stroke-opacity','range',styleConfig.highlight,'strokeOpacity',refreshMapStyles);
   bindInput('highlight-stroke-weight','range',styleConfig.highlight,'strokeWeight',refreshMapStyles);
 
   document.getElementById('smooth-toggle').addEventListener('change',function(){smoothEnabled=this.checked;applyGeoJsonToMap();});
@@ -640,11 +762,11 @@ function initSettingsPanel(){
     if(currentMode==='trend'){selectedHexes.clear();if(editingZoneId)cancelEditZone();rezoneAllToCurrentRadius();generateHexagons();updateZoneSaveUI();}
   });
 
-  bindInput('hex-fill','color',hexStyleConfig.default,'fillColor',refreshHexStyles);
-  bindInput('hex-stroke','color',hexStyleConfig.default,'strokeColor',refreshHexStyles);
-  bindInput('hex-fill-opacity','range',hexStyleConfig.default,'fillOpacity',refreshHexStyles);
-  bindInput('hex-sel-fill','color',hexStyleConfig.selected,'fillColor',refreshHexStyles);
-  bindInput('hex-sel-opacity','range',hexStyleConfig.selected,'fillOpacity',refreshHexStyles);
+  // 라벨 옵션
+  document.getElementById('local-label-toggle').addEventListener('change',function(){localLabelConfig.enabled=this.checked;if(this.checked)showLocalLabel();else removeLocalLabel();});
+  bindInput('local-label-size','range',localLabelConfig,'fontSize',updateLocalLabelStyle);
+  bindInput('zone-label-size','range',zoneLabelConfig,'fontSize',refreshZoneLabels);
+  bindInput('zone-label-bg-opacity','range',zoneLabelConfig,'bgOpacity',refreshZoneLabels);
 }
 
 function bindInput(id,type,obj,prop,cb){
