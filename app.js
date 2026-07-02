@@ -722,6 +722,7 @@ function saveZonesToStorage(){
       originalCenters:z.originalCenters,originalRadiusKm:z.originalRadiusKm};
   });
   try{localStorage.setItem('nowhere_trendZones',JSON.stringify(data));}catch(e){}
+  markCloudDirty();
 }
 function loadZonesFromStorage(){
   try{
@@ -766,7 +767,7 @@ function initMap(){
   var opts={center:{lat:CONFIG.MAP_CENTER_LAT,lng:CONFIG.MAP_CENTER_LNG},zoom:CONFIG.MAP_ZOOM,disableDefaultUI:false,zoomControl:true,mapTypeControl:false,streetViewControl:false,fullscreenControl:true};
   if(CONFIG.MAP_ID&&CONFIG.MAP_ID.length>0) opts.mapId=CONFIG.MAP_ID; else opts.styles=mapStyles();
   map=new google.maps.Map(document.getElementById('map'),opts);
-  fetch(CONFIG.GEOJSON_PATH).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(geo){originalGeoJson=geo;applyGeoJsonToMap();fitBoundsToData();loadZonesFromStorage();hideMapLoading();}).catch(function(err){hideMapLoading();var el=document.getElementById('info-text');if(el)el.textContent='⚠️ 경계 데이터를 불러오지 못했습니다. ('+err.message+')';});
+  fetch(CONFIG.GEOJSON_PATH).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(geo){originalGeoJson=geo;applyGeoJsonToMap();fitBoundsToData();loadZonesFromStorage();hideMapLoading();mapReady=true;if(cloudData)applyCloudData(cloudData);}).catch(function(err){hideMapLoading();var el=document.getElementById('info-text');if(el)el.textContent='⚠️ 경계 데이터를 불러오지 못했습니다. ('+err.message+')';});
   refreshMapStyles();
   map.data.addListener('click',function(e){if(currentMode!=='local')return;var f=e.feature;if(selectedFeature===f){selectedFeature=null;selectedFeatureName=null;selectedFeatureId=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();updatePhoneUI();return;}selectedFeature=f;var raw=f.getProperty('adm_nm')||f.getProperty('name')||'(이름 없음)';var p=raw.split(' ');selectedFeatureName=p.length>2?p.slice(2).join(' '):raw;selectedFeatureId=featKey(f);refreshMapStyles();updateInfoPanel(selectedFeatureName);showLocalLabel();updatePhoneUI();});
   map.addListener('click',function(){if(currentMode==='local'&&selectedFeature){selectedFeature=null;selectedFeatureName=null;selectedFeatureId=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();updatePhoneUI();}});
@@ -889,7 +890,7 @@ function makeColorControl(id,obj,colorProp,alphaProp,cb){
   paint();colorControls.push({paint:paint});
   btn.addEventListener('click',function(e){e.stopPropagation();
     openColorPopup(btn,{color:obj[colorProp],alpha:alphaProp?Number(obj[alphaProp]):null,
-      onInput:function(hex,a){obj[colorProp]=hex;if(alphaProp&&a!=null)obj[alphaProp]=a;paint();cb();}});
+      onInput:function(hex,a){obj[colorProp]=hex;if(alphaProp&&a!=null)obj[alphaProp]=a;paint();cb();markCloudDirty();}});
   });
 }
 
@@ -931,15 +932,16 @@ function initSettingsPanel(){
   bindInput('default-stroke-weight','range',styleConfig.default,'strokeWeight',refreshMapStyles);
   bindInput('highlight-stroke-weight','range',styleConfig.highlight,'strokeWeight',refreshMapStyles);
 
-  document.getElementById('smooth-toggle').addEventListener('change',function(){smoothEnabled=this.checked;applyGeoJsonToMap();});
+  document.getElementById('smooth-toggle').addEventListener('change',function(){smoothEnabled=this.checked;applyGeoJsonToMap();markCloudDirty();});
   document.getElementById('smooth-intensity').addEventListener('input',function(){
     smoothIntensity=parseFloat(this.value);this.nextElementSibling.textContent=smoothIntensity.toFixed(1);
-    if(smoothEnabled) applyGeoJsonToMap();
+    if(smoothEnabled) applyGeoJsonToMap();markCloudDirty();
   });
 
   document.getElementById('hex-radius').addEventListener('input',function(){
     hexRadiusKm=parseFloat(this.value);document.getElementById('hex-radius-label').textContent=hexRadiusKm.toFixed(1)+'km';
     if(currentMode==='trend'){selectedHexes.clear();if(editingZoneId)cancelEditZone();rezoneAllToCurrentRadius();generateHexagons();updateZoneSaveUI();}
+    markCloudDirty();
   });
 
   // 폰 표시영역 오버레이 토글 (관리자)
@@ -947,7 +949,7 @@ function initSettingsPanel(){
   if(vpToggle){vpToggle.checked=phoneViewportOn;vpToggle.addEventListener('change',function(){phoneViewportOn=this.checked;updatePhoneViewportOverlay();});}
 
   // 라벨 옵션
-  document.getElementById('local-label-toggle').addEventListener('change',function(){localLabelConfig.enabled=this.checked;if(this.checked)showLocalLabel();else removeLocalLabel();});
+  document.getElementById('local-label-toggle').addEventListener('change',function(){localLabelConfig.enabled=this.checked;if(this.checked)showLocalLabel();else removeLocalLabel();markCloudDirty();});
   bindInput('local-label-size','range',localLabelConfig,'fontSize',updateLocalLabelStyle);
   bindInput('zone-label-size','range',zoneLabelConfig,'fontSize',refreshZoneLabels);
   bindInput('zone-label-bg-opacity','range',zoneLabelConfig,'bgOpacity',refreshZoneLabels);
@@ -958,7 +960,7 @@ function bindInput(id,type,obj,prop,cb){
   el.addEventListener('input',function(){
     obj[prop]=type==='range'?parseFloat(this.value):this.value;
     if(type==='range'&&this.nextElementSibling) this.nextElementSibling.textContent=parseFloat(this.value).toFixed(this.step&&this.step.indexOf('.')>=0?this.step.split('.')[1].length:0);
-    cb();
+    cb(); markCloudDirty();
   });
 }
 
@@ -987,11 +989,143 @@ function updateInfoPanel(content){
 
 function mapStyles(){return [{elementType:'geometry',stylers:[{color:'#1d2c4d'}]},{elementType:'labels.text.fill',stylers:[{color:'#8ec3b9'}]},{elementType:'labels.text.stroke',stylers:[{color:'#1a3646'}]},{featureType:'administrative',elementType:'geometry',stylers:[{visibility:'off'}]},{featureType:'landscape',elementType:'geometry',stylers:[{color:'#1d3044'}]},{featureType:'poi',elementType:'geometry',stylers:[{color:'#263c3f'}]},{featureType:'road',elementType:'geometry',stylers:[{color:'#304a7d'}]},{featureType:'road.highway',elementType:'geometry',stylers:[{color:'#2c6675'}]},{featureType:'water',elementType:'geometry',stylers:[{color:'#0e1626'}]}];}
 
+/* ========== 인증 · 계정 (Firebase) ========== */
+var fbAuth=null, fbDb=null, currentUser=null, currentRole=null;
+var cloudData=null, mapReady=false, cloudSaveTimer=null, mapBootStarted=false;
+
+function bootMap(){
+  if(mapBootStarted)return; mapBootStarted=true;
+  var s=document.createElement('script');
+  s.src='https://maps.googleapis.com/maps/api/js?key='+CONFIG.GOOGLE_MAPS_API_KEY+'&callback=initMap';
+  s.async=true;s.defer=true;document.head.appendChild(s);
+}
+function adminEmail(){return (CONFIG.ADMIN_EMAIL||'gihoon.mx@gmail.com').toLowerCase();}
+
+function showAuthOverlay(state,user,msg){
+  var ov=document.getElementById('auth-overlay');if(!ov)return;
+  ov.classList.remove('hidden');
+  var sub=document.getElementById('auth-sub'),login=document.getElementById('google-login-btn'),
+      status=document.getElementById('auth-status'),logout=document.getElementById('auth-logout');
+  status.classList.remove('deny');
+  var email=(user&&user.email)?user.email:'';
+  if(state==='signedout'){sub.textContent='위치 기반 하이퍼로컬 · 접근 권한이 필요합니다';login.style.display='';status.innerHTML='';logout.style.display='none';}
+  else if(state==='checking'){login.style.display='none';status.innerHTML='<span class="auth-spinner"></span>확인 중…';logout.style.display='none';}
+  else if(state==='denied'){login.style.display='none';status.classList.add('deny');status.innerHTML='⛔ 접근 권한이 없는 계정입니다.<br><span class="em">'+escHtml(email)+'</span>'+(msg?'<br>'+escHtml(msg):'');logout.style.display='';logout.textContent='다른 계정으로 로그인';}
+  else if(state==='demo'){login.style.display='none';status.innerHTML='🚧 데모 모드는 준비 중입니다.<br><span class="em">'+escHtml(email)+'</span>';logout.style.display='';logout.textContent='로그아웃';}
+}
+function hideAuthOverlay(){var ov=document.getElementById('auth-overlay');if(ov)ov.classList.add('hidden');}
+function showUserChip(user,role){
+  var row=document.getElementById('account-row');if(!row)return;
+  row.style.display='';
+  document.getElementById('account-email').textContent=(user.email||'')+(role==='admin'?' · 관리자':'');
+  document.getElementById('allowlist-btn').style.display=(role==='admin')?'':'none';
+}
+
+function initAuth(){
+  if(typeof firebase==='undefined'||!CONFIG.FIREBASE){hideAuthOverlay();bootMap();return;} // Firebase 미설정 폴백
+  firebase.initializeApp(CONFIG.FIREBASE);
+  fbAuth=firebase.auth();fbDb=firebase.firestore();
+  try{fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch(e){}
+  showAuthOverlay('checking');
+  document.getElementById('google-login-btn').addEventListener('click',function(){
+    showAuthOverlay('checking');
+    fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(err){showAuthOverlay('signedout');console.warn('login fail',err);});
+  });
+  document.getElementById('auth-logout').addEventListener('click',function(){fbAuth.signOut();});
+  var lo=document.getElementById('logout-btn');if(lo)lo.addEventListener('click',function(){fbAuth.signOut();});
+  var alBtn=document.getElementById('allowlist-btn');if(alBtn)alBtn.addEventListener('click',openAllowlistManager);
+  initAllowlistModal();
+  fbAuth.onAuthStateChanged(handleAuth);
+}
+function handleAuth(user){
+  currentUser=user;
+  if(!user){currentRole=null;var row=document.getElementById('account-row');if(row)row.style.display='none';showAuthOverlay('signedout');return;}
+  showAuthOverlay('checking');
+  var email=(user.email||'').toLowerCase();
+  if(email===adminEmail()){grantAccess(user,'admin');return;}
+  fbDb.collection('allowlist').doc(email).get().then(function(doc){
+    if(doc.exists){grantAccess(user,doc.data().role==='admin'?'admin':'user');}
+    else{showAuthOverlay('denied',user);}
+  }).catch(function(err){showAuthOverlay('denied',user,'권한 확인 실패: '+err.message);});
+}
+function grantAccess(user,role){
+  currentRole=role;
+  if(role==='admin'){hideAuthOverlay();showUserChip(user,'admin');bootMap();loadCloudData(user.uid);}
+  else{showAuthOverlay('demo',user);} // 데모 모드(추후 정의) 플레이스홀더
+}
+
+function loadCloudData(uid){
+  if(!fbDb)return;
+  fbDb.collection('users').doc(uid).get().then(function(doc){
+    if(doc.exists){cloudData=doc.data();if(mapReady)applyCloudData(cloudData);}
+  }).catch(function(e){console.warn('cloud load fail',e);});
+}
+function applyCloudData(d){
+  if(!d)return;
+  if(d.settings){var s=d.settings;
+    if(s.styleConfig){mergeInto(styleConfig.default,s.styleConfig.default);mergeInto(styleConfig.highlight,s.styleConfig.highlight);}
+    if(s.hexStyleConfig){mergeInto(hexStyleConfig.default,s.hexStyleConfig.default);mergeInto(hexStyleConfig.selected,s.hexStyleConfig.selected);}
+    if(s.localLabelConfig)mergeInto(localLabelConfig,s.localLabelConfig);
+    if(s.zoneLabelConfig)mergeInto(zoneLabelConfig,s.zoneLabelConfig);
+    if(s.smoothEnabled!==undefined)smoothEnabled=s.smoothEnabled;
+    if(s.smoothIntensity!==undefined)smoothIntensity=s.smoothIntensity;
+    if(s.hexRadiusKm!==undefined)hexRadiusKm=s.hexRadiusKm;
+  }
+  if(Array.isArray(d.zones)){
+    trendZones.slice().forEach(function(z){removeZoneFromMap(z);});
+    trendZones=[];
+    d.zones.forEach(function(z){trendZones.push({id:z.id||('tz_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)),name:z.name,color:z.color,radiusKm:z.radiusKm||hexRadiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters||JSON.parse(JSON.stringify(z.hexCenters)),originalRadiusKm:z.originalRadiusKm||z.radiusKm||hexRadiusKm,polygons:[],label:null});});
+  }
+  syncSettingsUI();refreshMapStyles();refreshHexStyles();applyGeoJsonToMap();
+  if(currentMode==='trend'){showAllZonesOnMap();generateHexagons();}
+  renderZoneList();refreshZoneLabels();updateLocalLabelStyle();
+}
+function markCloudDirty(){
+  if(!fbDb||!currentUser||currentRole!=='admin')return;
+  clearTimeout(cloudSaveTimer);cloudSaveTimer=setTimeout(cloudSave,1500);
+}
+function cloudSave(){
+  if(!fbDb||!currentUser)return;
+  var payload={updatedAt:firebase.firestore.FieldValue.serverTimestamp(),email:currentUser.email||'',
+    settings:{styleConfig:styleConfig,hexStyleConfig:hexStyleConfig,localLabelConfig:localLabelConfig,zoneLabelConfig:zoneLabelConfig,smoothEnabled:smoothEnabled,smoothIntensity:smoothIntensity,hexRadiusKm:hexRadiusKm},
+    zones:trendZones.map(function(z){return {id:z.id,name:z.name,color:z.color,radiusKm:z.radiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters,originalRadiusKm:z.originalRadiusKm};})};
+  fbDb.collection('users').doc(currentUser.uid).set(payload,{merge:true}).catch(function(e){console.warn('cloud save fail',e);});
+}
+
+/* ========== 접근권한(allowlist) 관리 ========== */
+function initAllowlistModal(){
+  var modal=document.getElementById('allowlist-modal');if(!modal)return;
+  document.getElementById('allowlist-close').addEventListener('click',function(){modal.style.display='none';});
+  modal.addEventListener('click',function(e){if(e.target===modal)modal.style.display='none';});
+  document.getElementById('al-add-btn').addEventListener('click',addAllowlistEntry);
+  document.getElementById('al-email').addEventListener('keydown',function(e){if(e.key==='Enter')addAllowlistEntry();});
+}
+function openAllowlistManager(){var modal=document.getElementById('allowlist-modal');if(!modal)return;modal.style.display='flex';renderAllowlist();}
+function renderAllowlist(){
+  var list=document.getElementById('al-list');if(!list||!fbDb)return;
+  list.innerHTML='<div class="al-empty">불러오는 중…</div>';
+  fbDb.collection('allowlist').get().then(function(snap){
+    list.innerHTML='';
+    if(snap.empty){list.innerHTML='<div class="al-empty">등록된 유저가 없습니다.</div>';return;}
+    snap.forEach(function(doc){
+      var role=doc.data().role==='admin'?'admin':'user';
+      var item=document.createElement('div');item.className='al-item';
+      item.innerHTML='<span class="al-mail">'+escHtml(doc.id)+'</span><span class="al-tag '+role+'">'+(role==='admin'?'관리자':'데모유저')+'</span><button class="al-del" title="삭제">🗑️</button>';
+      item.querySelector('.al-del').addEventListener('click',function(){fbDb.collection('allowlist').doc(doc.id).delete().then(renderAllowlist);});
+      list.appendChild(item);
+    });
+  }).catch(function(e){list.innerHTML='<div class="al-empty">불러오기 실패: '+escHtml(e.message)+'</div>';});
+}
+function addAllowlistEntry(){
+  var emailEl=document.getElementById('al-email'),roleEl=document.getElementById('al-role');
+  var email=(emailEl.value||'').trim().toLowerCase();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){emailEl.focus();return;}
+  fbDb.collection('allowlist').doc(email).set({role:roleEl.value,addedBy:currentUser?currentUser.email:'',addedAt:firebase.firestore.FieldValue.serverTimestamp()}).then(function(){emailEl.value='';renderAllowlist();}).catch(function(e){alert('추가 실패: '+e.message);});
+}
+
 (function(){
-  // 패널/폰미러 접기·펼치기는 지도 로드 성공 여부와 무관하게 항상 동작
   initPanelCollapse();
   initPhoneControls();
-  if(typeof CONFIG==='undefined'||!CONFIG.GOOGLE_MAPS_API_KEY){document.getElementById('info-text').textContent='⚠️ config.js에 API 키를 설정해 주세요.';hideMapLoading();return;}
-  if(CONFIG.GOOGLE_MAPS_API_KEY==='YOUR_API_KEY'){document.getElementById('info-text').textContent='⚠️ config.js에 실제 API 키를 입력해 주세요.';hideMapLoading();return;}
-  var s=document.createElement('script');s.src='https://maps.googleapis.com/maps/api/js?key='+CONFIG.GOOGLE_MAPS_API_KEY+'&callback=initMap';s.async=true;s.defer=true;document.head.appendChild(s);
+  if(typeof CONFIG==='undefined'||!CONFIG.GOOGLE_MAPS_API_KEY){var it=document.getElementById('info-text');if(it)it.textContent='⚠️ config.js에 API 키를 설정해 주세요.';hideMapLoading();hideAuthOverlay();return;}
+  initAuth();
 })();

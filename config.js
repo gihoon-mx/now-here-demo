@@ -10,4 +10,13 @@ const CONFIG = {
   MAP_CENTER_LNG: 127.05,
   MAP_ZOOM: 11,
   GEOJSON_PATH: 'dong_boundary.geojson',
+  ADMIN_EMAIL: 'gihoon.mx@gmail.com',
+  FIREBASE: {
+    apiKey: "AIzaSyCF633b0Bjsln4lEf2DJ35k9bUzI5QGXY8",
+    authDomain: "now-here-demo.firebaseapp.com",
+    projectId: "now-here-demo",
+    storageBucket: "now-here-demo.firebasestorage.app",
+    messagingSenderId: "377718237179",
+    appId: "1:377718237179:web:3f2fe8db8ed214a73a8d5e"
+  },
 };

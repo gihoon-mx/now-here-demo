@@ -8,9 +8,22 @@
   <meta http-equiv="Expires" content="0" />
   <meta name="description" content="대한민국 동 단위 행정구역 경계를 Google Maps 위에 인터랙티브하게 표시하는 데모 페이지" />
   <title>동 단위 행정구역 경계 뷰어 – Now Here</title>
-  <link rel="stylesheet" href="style.css?v=1.1.10" />
+  <link rel="stylesheet" href="style.css?v=1.2.0" />
 </head>
 <body>
+
+  <!-- 인증 게이트 -->
+  <div id="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-logo">Now Here</div>
+      <p class="auth-sub" id="auth-sub">위치 기반 하이퍼로컬 · 접근 권한이 필요합니다</p>
+      <button id="google-login-btn" class="google-btn" type="button">
+        <span class="g-ico" aria-hidden="true">G</span> Google로 계속하기
+      </button>
+      <div id="auth-status" class="auth-status"></div>
+      <button id="auth-logout" class="auth-logout" type="button" style="display:none;">다른 계정으로 로그인</button>
+    </div>
+  </div>
 
   <div id="map"></div>
 
@@ -25,9 +38,16 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.1.10</span>
+        <span id="app-version">v1.2.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
+    </div>
+
+    <div id="account-row" style="display:none;">
+      <span class="acct-dot"></span>
+      <span id="account-email" class="acct-email"></span>
+      <button id="allowlist-btn" class="acct-btn" type="button" title="접근 권한 관리" style="display:none;">👥</button>
+      <button id="logout-btn" class="acct-btn" type="button" title="로그아웃">⎋</button>
     </div>
 
     <!-- 모드 토글 -->
@@ -202,7 +222,23 @@
     </div>
   </div>
 
-  <script src="config.js?v=1.1.10"></script>
-  <script src="app.js?v=1.1.10"></script>
+  <!-- 접근 권한 관리 (관리자) -->
+  <div id="allowlist-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head"><span>접근 권한 관리</span><button id="allowlist-close" class="acct-btn" type="button">✕</button></div>
+      <div class="al-add">
+        <input id="al-email" type="email" placeholder="user@gmail.com" autocomplete="off" />
+        <select id="al-role"><option value="user">데모유저</option><option value="admin">관리자</option></select>
+        <button id="al-add-btn" class="action-btn accent small" type="button">추가</button>
+      </div>
+      <div id="al-list" class="al-list"></div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="config.js?v=1.2.0"></script>
+  <script src="app.js?v=1.2.0"></script>
 </body>
 </html>

@@ -210,6 +210,55 @@ button:focus:not(:focus-visible){outline:none;}
 .cp-preset{width:100%;aspect-ratio:1;border-radius:5px;border:1px solid rgba(255,255,255,0.12);cursor:pointer;transition:transform .12s ease;padding:0;}
 .cp-preset:hover{transform:scale(1.12);}
 
+/* ========== 인증 게이트 ========== */
+#auth-overlay{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(120% 120% at 50% 0%,#141a2e 0%,#0b0d16 60%,#070810 100%);}
+#auth-overlay.hidden{display:none;}
+.auth-card{width:min(340px,86vw);padding:34px 28px;border-radius:20px;text-align:center;
+  background:rgba(20,22,32,0.7);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);
+  border:1px solid rgba(255,255,255,0.1);box-shadow:0 24px 70px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.06);
+  animation:panelIn .5s cubic-bezier(.22,1,.36,1) both;}
+.auth-logo{font-size:1.5rem;font-weight:800;letter-spacing:.01em;background:linear-gradient(135deg,#8ed0ff,#a78bfa);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#a7c8ff;}
+.auth-sub{margin-top:8px;font-size:.78rem;line-height:1.5;color:#9ca3af;}
+.google-btn{margin-top:22px;width:100%;padding:11px 16px;display:flex;align-items:center;justify-content:center;gap:9px;
+  border:1px solid rgba(255,255,255,0.16);border-radius:11px;background:#fff;color:#1f2430;font-family:inherit;font-size:.86rem;font-weight:700;cursor:pointer;transition:all .18s ease;}
+.google-btn:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,0.35);}
+.google-btn:active{transform:scale(.98);}
+.google-btn .g-ico{width:20px;height:20px;border-radius:50%;background:conic-gradient(from -45deg,#ea4335 0 25%,#fbbc05 0 50%,#34a853 0 75%,#4285f4 0);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:.8rem;}
+.auth-status{margin-top:16px;font-size:.78rem;line-height:1.5;color:#c7cbd1;min-height:1px;}
+.auth-status .em{color:#8ed0ff;font-weight:600;}
+.auth-status.deny{color:#ff9a9a;}
+.auth-logout{margin-top:14px;background:none;border:none;color:#6b7280;font-family:inherit;font-size:.74rem;text-decoration:underline;cursor:pointer;}
+.auth-logout:hover{color:#9ca3af;}
+.auth-spinner{display:inline-block;width:13px;height:13px;vertical-align:-2px;margin-right:6px;border-radius:50%;border:2px solid rgba(110,198,255,0.25);border-top-color:#6ec6ff;animation:spin .7s linear infinite;}
+
+/* ========== 계정 바 ========== */
+#account-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);}
+.acct-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 2px rgba(74,222,128,0.18);flex-shrink:0;}
+.acct-email{flex:1;font-size:.68rem;color:#c1c6d0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.acct-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:7px;color:#9ca3af;font-size:.75rem;cursor:pointer;padding:3px 6px;transition:all .18s ease;line-height:1;}
+.acct-btn:hover{background:rgba(255,255,255,0.1);color:#e0ecff;}
+
+/* ========== 모달 (접근권한 관리) ========== */
+.modal-overlay{position:fixed;inset:0;z-index:100001;display:flex;align-items:center;justify-content:center;background:rgba(6,8,14,0.6);backdrop-filter:blur(4px);}
+.modal-card{width:min(380px,90vw);max-height:80vh;overflow-y:auto;padding:18px;border-radius:16px;color:#e8eaed;
+  background:rgba(20,22,32,0.94);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,0.1);box-shadow:0 24px 70px rgba(0,0,0,0.6);animation:panelIn .35s cubic-bezier(.22,1,.36,1) both;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;font-size:.9rem;font-weight:700;margin-bottom:14px;}
+.al-add{display:flex;gap:6px;margin-bottom:12px;}
+.al-add input{flex:1;min-width:0;padding:7px 10px;border:1px solid rgba(255,255,255,0.12);border-radius:8px;background:rgba(255,255,255,0.05);color:#e8eaed;font-family:inherit;font-size:.76rem;outline:none;}
+.al-add input:focus{border-color:rgba(110,198,255,0.4);}
+.al-add select{padding:6px 6px;border:1px solid rgba(255,255,255,0.12);border-radius:8px;background:rgba(30,32,42,0.9);color:#e8eaed;font-family:inherit;font-size:.72rem;outline:none;cursor:pointer;}
+.al-list{display:flex;flex-direction:column;gap:5px;}
+.al-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;background:rgba(255,255,255,0.03);font-size:.76rem;}
+.al-item .al-mail{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.al-item .al-tag{font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:10px;flex-shrink:0;}
+.al-item .al-tag.admin{background:rgba(167,139,250,0.18);color:#c4b5fd;}
+.al-item .al-tag.user{background:rgba(110,198,255,0.15);color:#8ed0ff;}
+.al-item .al-del{background:none;border:none;color:#ff8a8a;cursor:pointer;opacity:.6;font-size:.85rem;padding:2px;}
+.al-item .al-del:hover{opacity:1;}
+.al-empty{font-size:.74rem;color:#6b7280;text-align:center;padding:14px;}
+
 /* ========== 모바일 미러 (Galaxy S25 Ultra) ========== */
 #phone-mirror{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:15;--phone-w:244px;display:flex;flex-direction:column;align-items:center;gap:8px;}
 #phone-mirror.dragging{user-select:none;}
