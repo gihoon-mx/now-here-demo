@@ -45,6 +45,47 @@ git push
 
 ---
 
+## 📸 현재 상태 스냅샷 (2026-07-03)
+
+**최신 v1.6.0 · 라이브 정상.** 완료된 기능:
+- **인증/역할**: Google 로그인(Firebase) + allowlist 접근제어. `관리자`(admin) / `데모유저`(user) 역할.
+- **레이아웃**: 좌 전체화면 지도 / 우 사이드바(폰 미러). 사이드바 폭 드래그 조절 → 폰 크기 변경(내부 UI는 `cqw`로 비율 유지).
+- **폰 미러(앱처럼)**: 상단 좌 햄버거(→설정 드로어)·우 로컬/트렌드 모드토글, 하단 네비(지도/피드/미션/커뮤니티/AI), 접기 버튼.
+- **로컬 모드**: 동 경계 하이라이트 + 선택 라벨 + **스팟 메시지**(이모지+말풍선, 관리자 생성).
+- **트렌드 모드**: 헥사곤 그리드 + 트렌드 존.
+- **데모유저**: 뷰잉 + 로컬/트렌드 전환만. 관리자가 만든 존·스팟 **열람 가능**(편집 불가).
+- **모바일 접속**: 폰 화면만 전체표시(폰맵 터치 조작).
+- **저장**: `shared/mapContent` 공유 문서(관리자 쓰기 / 로그인 사용자 모두 읽기). **Firestore `shared` 규칙 콘솔 배포 완료.**
+- **외부 설정(GCP/Firebase)**: `gihoon-mx.github.io` 호스트 기준 완료 — 추가 조치 불필요.
+
+---
+
+## 🤝 다른 PC에서 이어서 작업 시작하기
+
+**1) 터미널 준비:**
+```bash
+gh auth switch --user gihoon-mx           # push 권한 계정으로
+gh repo clone gihoon-mx/now-here-demo      # 처음이면 clone (기존 clone이면 생략)
+cd now-here-demo && git pull
+git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
+```
+
+**2) Claude Code에 붙여넣을 시작 프롬프트 (예시 — 대괄호만 바꿔 사용):**
+> now-here-demo 프로젝트를 이어서 작업할 거야. 먼저 repo 루트의 `WORKLOG.md`를 읽고 현재 상태(v1.6.0)와 규칙을 파악해줘:
+> - 버전: 코드/스타일 바꿀 때마다 3곳(app-version, `?v=` 캐시버스트, 커밋메시지) 동기화해서 올리기
+> - 배포: `main`에 push하면 GitHub Pages 자동 배포 (반영 1~15분)
+> - 저장: 관리자 콘텐츠는 `shared/mapContent` 공유 문서 (데모유저 열람용)
+> - 데모유저는 뷰잉+모드전환만, 편집 UI는 `role-user`로 숨김
+>
+> 그다음 **[여기에 하고 싶은 작업]**을 진행해줘. 작업 중 로컬 프리뷰로 검증하고, 끝나면 버전 올리고 WORKLOG 갱신 후 commit·push 해줘.
+>
+> _작업 예시_: "스팟 메시지에 목록·편집 기능 추가" / "데모 로그인 화면 디자인 개선" / "트렌드 존 색상 프리셋" / "폰 피드/미션 탭 실제 화면 구현" 등
+
+**핵심 흐름**: ① WORKLOG 먼저 읽기 → ② 작업(+프리뷰 검증) → ③ 버전업 + WORKLOG 갱신 + commit/push.
+- GCP/Firebase는 손댈 것 없음(같은 호스트). 로그인이 안 되면 아래 ☁️ 외부설정의 `firebaseapp.com` 리퍼러 주의 참고.
+
+---
+
 ## 🔐 계정 / 인증 (중요)
 
 - GitHub repo 소유: **`gihoon-mx`** (2026-07-02에 `gihoonmx-source`에서 rename됨).
@@ -104,7 +145,7 @@ git push
 - **v1.6.0 — 폰 앱화 (햄버거 메뉴 + 모드 토글)**: 폰 상단바에 **좌=햄버거(≡)**, **우=로컬/트렌드 모드 토글** 추가. 햄버거 클릭 시 기존 "폰 아래 설정 패널"(`#left-panel`)이 **폰 안 드로어**로 슬라이드 인(닫기 X 버튼). 패널을 런타임에 `#phone-drawer`로 이동(`initPhoneMenu`). 데모 노출 규칙 동일 — 햄버거·모드토글은 노출, 설정·스팟추가 등은 `role-user`로 숨김. (부수효과: 데스크톱 사이드바 하단이 비게 됨 — 폰 중심 UI)
 - **v1.5.0 — 스팟 메시지(관리자 기능)**: 로컬모드에서 지도 위 위치에 **이모지+말풍선** 메시지. `💬 스팟 메시지 추가`(설정 위, 관리자만)→지도 클릭으로 위치 선택→이모지 선택+텍스트 입력→등록. 스팟 클릭 시 삭제(관리자). 설정: 최대 글자수/글자크기/이모지 크기/글자색/배경색·투명도. 메인+폰 지도 양쪽 렌더(`SpotBubble` OverlayView).
   - **저장 구조 변경**: 관리자 콘텐츠(존+스팟+설정)를 `users/{uid}` → **`shared/mapContent`** 공유 문서로 이전. 관리자만 쓰기, **로그인 사용자(데모 포함) 모두 읽기** → 데모유저도 관리자가 만든 존/스팟을 볼 수 있음.
-  - ⚠️⚠️ **Firestore 규칙 배포 필요**: `firestore.rules`에 `match /shared/{docId}`(관리자 쓰기/로그인 읽기) 추가함. **Firebase 콘솔(Firestore→규칙)에 이 규칙을 배포해야** 스팟 저장·데모 뷰잉이 동작. 미배포 시 저장이 조용히 실패(`console.warn('shared save fail')`).
+  - ✅ **Firestore 규칙**: `firestore.rules`에 `match /shared/{docId}`(관리자 쓰기/로그인 읽기) 추가 → **콘솔 배포 완료(2026-07-03)**. 스팟 저장·데모 뷰잉 동작.
 - **v1.4.1 — 폰 UI 6종 개선**: ①폰을 사이드바 상단 `position:sticky`로 고정(설정 스크롤해도 폰 유지) ②폰 화면 접기/펴기 버튼(`#phone-collapse`) 추가 ③하단 네비 좌우 끝 여백 추가(균형 정렬) ④비선택 아이콘 컴팩트(패딩 축소, 선택 항목만 라벨 확장) ⑤AI 버튼 무채색화(그라데이션 #aab3c0→#7b8494, 눈/입 #2b3038) ⑥폰 버튼 탭 시 선택박스 안 뜨게(user-select:none + tap-highlight 투명).
 - **repo 이전: `now-here-map-demo-pages` → `now-here-demo`** (배포 URL `/now-here-demo/`). 기존 repo의 GitHub Pages 배포가 계속 큐에서 멈춰(당시 **GitHub Pages 전체 장애 `degraded_performance`** 진행 중이던 영향) 깨끗한 새 repo로 이전. 새 repo는 legacy(브랜치 직접) 배포 + Actions 비활성 + `.nojekyll`. GitHub 장애 복구되면 자동 배포됨. 로컬 origin은 새 repo로 전환(기존은 `oldrepo` remote로 보존).
 - **v1.4.0 — 사이드바/폰/역할/모바일 4종 개선**:
