@@ -370,6 +370,17 @@ function initSpotUI(){
   makeColorControl('ct-spot-text',spotConfig,'textColor',null,refreshSpotStyles);
   makeColorControl('ct-spot-bg',spotConfig,'bgColor','bgOpacity',refreshSpotStyles);
 }
+/* 폰 햄버거 메뉴: 설정 패널을 폰 내부 드로어로 이동 + 토글, 폰 모드 토글 */
+function initPhoneMenu(){
+  var body=document.getElementById('phone-drawer-body'),panel=document.getElementById('left-panel');
+  if(body&&panel)body.appendChild(panel);
+  var drawer=document.getElementById('phone-drawer');
+  var ham=document.getElementById('phone-hamburger');
+  var close=document.getElementById('phone-drawer-close');
+  if(ham)ham.addEventListener('click',function(){if(drawer)drawer.classList.toggle('open');});
+  if(close)close.addEventListener('click',function(){if(drawer)drawer.classList.remove('open');});
+  document.querySelectorAll('#phone-mode .pm-btn').forEach(function(b){b.addEventListener('click',function(){switchMode(this.dataset.mode);});});
+}
 
 /* ========== 로컬모드 선택 라벨 ========== */
 function featureCentroid(feature){try{var b=new google.maps.LatLngBounds();feature.getGeometry().forEachLatLng(function(ll){b.extend(ll);});return b.getCenter();}catch(e){return null;}}
@@ -847,6 +858,7 @@ function switchMode(mode){
   removeLocalLabel(); selectedFeatureName=null; selectedFeatureId=null;
   placingSpot=false; cancelSpotForm(); var _mc=document.getElementById('map'); if(_mc)_mc.style.cursor='';
   document.querySelectorAll('.mode-btn').forEach(function(b){b.classList.toggle('active',b.dataset.mode===mode);});
+  document.querySelectorAll('#phone-mode .pm-btn').forEach(function(b){b.classList.toggle('active',b.dataset.mode===mode);});
   document.querySelector('.mode-indicator').classList.toggle('right',mode==='trend');
   document.getElementById('local-settings').style.display=mode==='local'?'':'none';
   document.getElementById('trend-settings').style.display=mode==='trend'?'':'none';
@@ -1271,6 +1283,7 @@ function addAllowlistEntry(){
   initPanelCollapse();
   initPhoneControls();
   initSidebarResize();
+  initPhoneMenu();
   if(typeof CONFIG==='undefined'||!CONFIG.GOOGLE_MAPS_API_KEY){var it=document.getElementById('info-text');if(it)it.textContent='⚠️ config.js에 API 키를 설정해 주세요.';hideMapLoading();hideAuthOverlay();return;}
   initAuth();
 })();

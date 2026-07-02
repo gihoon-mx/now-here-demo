@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0" />
   <meta name="description" content="대한민국 동 단위 행정구역 경계를 Google Maps 위에 인터랙티브하게 표시하는 데모 페이지" />
   <title>동 단위 행정구역 경계 뷰어 – Now Here</title>
-  <link rel="stylesheet" href="style.css?v=1.5.0" />
+  <link rel="stylesheet" href="style.css?v=1.6.0" />
 </head>
 <body>
 
@@ -42,7 +42,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.5.0</span>
+        <span id="app-version">v1.6.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -193,7 +193,12 @@
             <span class="ps-icons"><i class="ps-signal"></i><i class="ps-wifi"></i><i class="ps-batt"></i></span>
           </div>
           <div class="phone-appbar">
+            <button class="pa-btn" id="phone-hamburger" type="button" aria-label="메뉴 열기" title="메뉴"><span></span><span></span><span></span></button>
             <span class="pa-loc" id="phone-loc"><svg class="pa-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg><span class="pa-loc-name">···</span></span>
+            <div class="pa-mode" id="phone-mode">
+              <button class="pm-btn active" type="button" data-mode="local">로컬</button>
+              <button class="pm-btn" type="button" data-mode="trend">트렌드</button>
+            </div>
           </div>
         </div>
         <div class="phone-navbar">
@@ -240,6 +245,10 @@
             </svg>
           </button>
         </div>
+        <div id="phone-drawer">
+          <div class="phone-drawer-head"><span>메뉴 · 설정</span><button id="phone-drawer-close" type="button" aria-label="닫기">✕</button></div>
+          <div id="phone-drawer-body"></div>
+        </div>
       </div>
   </div>
   </aside>
@@ -261,7 +270,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.5.0"></script>
-  <script src="app.js?v=1.5.0"></script>
+  <script src="config.js?v=1.6.0"></script>
+  <script src="app.js?v=1.6.0"></script>
 </body>
 </html>

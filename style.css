@@ -321,8 +321,15 @@ button:focus:not(:focus-visible){outline:none;}
 .ps-signal{width:3.2cqw;height:2.4cqw;clip-path:polygon(0 100%,20% 100%,20% 60%,45% 60%,45% 35%,70% 35%,70% 12%,100% 12%,100% 100%);}
 .ps-wifi{width:3cqw;height:2.4cqw;clip-path:polygon(50% 0,100% 42%,82% 60%,50% 30%,18% 60%,0 42%);}
 .ps-batt{width:4.4cqw;height:2.4cqw;border-radius:1px;}
-.phone-appbar{display:flex;align-items:center;justify-content:center;margin-top:1.8cqw;pointer-events:none;}
-.pa-loc{display:inline-flex;align-items:center;gap:1.2cqw;max-width:82%;font-size:3.6cqw;font-weight:700;color:#fff;
+.phone-appbar{display:flex;align-items:center;justify-content:space-between;gap:1.6cqw;margin-top:1.8cqw;pointer-events:none;}
+.pa-btn{pointer-events:auto;flex-shrink:0;width:8.6cqw;height:8.6cqw;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5cqw;padding:0;border-radius:2.6cqw;cursor:pointer;
+  background:rgba(20,22,30,0.5);backdrop-filter:blur(12px) saturate(1.6);-webkit-backdrop-filter:blur(12px) saturate(1.6);border:1px solid rgba(255,255,255,0.16);box-shadow:0 2px 8px rgba(0,0,0,0.25);}
+.pa-btn span{display:block;width:4.4cqw;height:0.75cqw;border-radius:1px;background:#fff;}
+.pa-mode{pointer-events:auto;flex-shrink:0;display:flex;gap:0.4cqw;padding:0.7cqw;border-radius:5cqw;
+  background:rgba(20,22,30,0.5);backdrop-filter:blur(12px) saturate(1.6);-webkit-backdrop-filter:blur(12px) saturate(1.6);border:1px solid rgba(255,255,255,0.16);box-shadow:0 2px 8px rgba(0,0,0,0.25);}
+.pm-btn{border:none;background:transparent;color:#dfe4ec;font-family:inherit;font-weight:700;font-size:2.8cqw;padding:1cqw 2.6cqw;border-radius:4cqw;cursor:pointer;white-space:nowrap;transition:background .2s ease,color .2s ease;}
+.pm-btn.active{background:#fff;color:#14203a;}
+.pa-loc{display:inline-flex;align-items:center;gap:1.2cqw;flex:0 1 auto;min-width:0;max-width:40cqw;font-size:3.4cqw;font-weight:700;color:#fff;
   padding:0.9cqw 3.4cqw 0.9cqw 2.6cqw;border-radius:6cqw;
   background:rgba(20,22,30,0.5);backdrop-filter:blur(12px) saturate(1.6);-webkit-backdrop-filter:blur(12px) saturate(1.6);
   border:1px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.1),0 2px 8px rgba(0,0,0,0.25);}
@@ -344,6 +351,19 @@ button:focus:not(:focus-visible){outline:none;}
 .pn-ai svg{width:100%;height:100%;display:block;}
 .pn-ai:hover{transform:translateY(-2px) scale(1.06) rotate(-3deg);}
 .pn-ai:active{transform:scale(.92);}
+
+/* ========== 폰 내 메뉴·설정 드로어 (햄버거) ========== */
+#phone-drawer{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;background:rgba(10,10,16,0.98);
+  transform:translateX(-102%);transition:transform .3s cubic-bezier(.22,1,.36,1);overflow:hidden;}
+#phone-drawer.open{transform:translateX(0);}
+.phone-drawer-head{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-bottom:1px solid rgba(255,255,255,0.08);font-size:.78rem;font-weight:700;color:#cdd3db;letter-spacing:.02em;}
+#phone-drawer-close{width:26px;height:26px;flex-shrink:0;border:1px solid rgba(255,255,255,0.1);border-radius:7px;background:rgba(255,255,255,0.05);color:#c7cbd1;font-size:.75rem;cursor:pointer;}
+#phone-drawer-close:hover{background:rgba(255,255,255,0.1);color:#e0ecff;}
+#phone-drawer-body{flex:1;overflow-y:auto;padding:12px;}
+#phone-drawer-body::-webkit-scrollbar{width:6px;}
+#phone-drawer-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:3px;}
+#phone-drawer #left-panel{position:static;width:100%;padding:0;border:none;background:none;box-shadow:none;animation:none;order:0;max-height:none;overflow:visible;}
+#phone-drawer #panel-header .panel-collapse-btn{display:none;}
 
 /* 데모유저: 편집/설정 UI 숨김 (뷰잉 + 모드전환만) */
 body.role-user #settings-toggle-row,
