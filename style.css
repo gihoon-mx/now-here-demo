@@ -1,7 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100%;height:100%;overflow:hidden;font-family:'Inter','Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,-apple-system,sans-serif;background:#0f0f0f;}
-#map{width:100%;height:100%;}
+#app-shell{display:flex;width:100%;height:100%;}
+#map{flex:1 1 auto;height:100%;min-width:0;}
+#sidebar{flex:0 0 380px;width:380px;height:100%;overflow-y:auto;overflow-x:hidden;
+  display:flex;flex-direction:column;gap:12px;padding:12px;
+  background:rgba(10,10,16,0.96);border-left:1px solid rgba(255,255,255,0.07);}
+#sidebar::-webkit-scrollbar{width:8px;}
+#sidebar::-webkit-scrollbar-track{background:transparent;}
+#sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px;}
 
 /* 키보드 포커스 표시 (접근성) */
 :focus-visible{outline:2px solid rgba(110,198,255,0.7);outline-offset:1px;border-radius:4px;}
@@ -23,8 +30,7 @@ button:focus:not(:focus-visible){outline:none;}
 
 /* ========== Left Panel ========== */
 #left-panel{
-  position:fixed;top:16px;left:16px;z-index:10;
-  width:270px;max-height:calc(100vh - 32px);overflow-y:auto;
+  position:static;order:1;width:100%;overflow:visible;
   padding:14px 16px 16px;border-radius:14px;
   background:rgba(12,12,20,0.78);
   backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);
@@ -260,8 +266,7 @@ button:focus:not(:focus-visible){outline:none;}
 .al-empty{font-size:.74rem;color:#6b7280;text-align:center;padding:14px;}
 
 /* ========== 모바일 미러 (Galaxy S25 Ultra) ========== */
-#phone-mirror{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:15;--phone-w:244px;display:flex;flex-direction:column;align-items:center;gap:8px;}
-#phone-mirror.dragging{user-select:none;}
+#phone-mirror{position:relative;order:-1;width:100%;display:flex;flex-direction:column;align-items:stretch;}
 
 /* 상단 컨트롤 레일 (드래그/크기/접기) — 글래스모피즘 */
 .phone-rail{display:flex;flex-direction:row;align-items:center;gap:6px;padding:5px 7px;border-radius:15px;
@@ -282,8 +287,9 @@ button:focus:not(:focus-visible){outline:none;}
   background:linear-gradient(155deg,#3a3b45,#141419);
   box-shadow:0 22px 60px rgba(0,0,0,0.6),inset 0 0 0 1px rgba(255,255,255,0.09),inset 0 0 0 2.5px #0a0a0e;}
 #phone-mirror.collapsed .phone-frame{display:none;}
-.phone-screen{position:relative;width:var(--phone-w);aspect-ratio:9/19.5;border-radius:34px;overflow:hidden;background:#0b0b10;}
-.phone-notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:#000;z-index:6;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.14);}
+.phone-screen{position:relative;width:100%;flex-shrink:0;aspect-ratio:9/19.5;border-radius:28px;overflow:hidden;background:#0b0b10;
+  border:1px solid rgba(255,255,255,0.08);box-shadow:0 10px 30px rgba(0,0,0,0.45);}
+.phone-notch{display:none;}
 .phone-map{position:absolute;inset:0;z-index:0;background:#0b0b10;}
 
 .phone-topscrim{position:absolute;top:0;left:0;right:0;z-index:2;padding:6px 14px 14px;pointer-events:none;
@@ -318,12 +324,15 @@ button:focus:not(:focus-visible){outline:none;}
 .pn-ai:hover{transform:translateY(-2px) scale(1.06) rotate(-3deg);}
 .pn-ai:active{transform:scale(.92);}
 
-@media (max-width:900px){#phone-mirror{display:none;}}
+@media (max-width:900px){
+  #app-shell{flex-direction:column;}
+  #map{flex:none;height:50vh;}
+  #sidebar{flex:none;width:100%;height:auto;border-left:none;border-top:1px solid rgba(255,255,255,0.07);}
+}
 
 /* ========== 모바일 / 반응형 ========== */
 @media(max-width:480px){
-  #left-panel{top:10px;left:10px;right:10px;width:auto;max-width:none;padding:12px 14px;max-height:52vh;}
-  #left-panel.collapsed{max-height:none;right:auto;width:auto;}
+  #left-panel{padding:12px 14px;}
   #map-loading{bottom:16px;font-size:.72rem;}
   /* 터치 조작 편의: 버튼·입력 탭 타겟 확대 */
   .action-btn{padding:7px 14px;font-size:.74rem;}
