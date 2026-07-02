@@ -1,7 +1,11 @@
-# WORKLOG — now-here-map-demo-pages
+# WORKLOG — now-here-demo
 
 > 여러 PC를 오가며 작업하기 위한 **단일 상태 소스**입니다.
 > 새 PC에서 시작할 때 이 파일을 먼저 읽고, 작업을 마치면 아래 규칙대로 갱신·push 하세요.
+
+> ✅ **정식 repo: `gihoon-mx/now-here-demo`** — https://github.com/gihoon-mx/now-here-demo
+> 새 PC에서는 이것만 clone 하세요: `gh repo clone gihoon-mx/now-here-demo`
+> (구 repo `now-here-map-demo-pages`는 **폐기(deprecated)** — 더 쓰지 않음. 상세는 아래 이전 이력 참고.)
 
 ---
 
