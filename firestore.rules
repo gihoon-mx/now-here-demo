@@ -28,6 +28,11 @@ service cloud.firestore {
       allow read:  if signedIn() && (isAdmin() || docId == email());
       allow write: if isAdmin();
     }
+    // 공유 맵 콘텐츠(존/스팟): 관리자 생성, 로그인 사용자(데모 포함) 모두 열람
+    match /shared/{docId} {
+      allow read:  if signedIn();
+      allow write: if isAdmin();
+    }
     match /users/{uid} {
       allow read, write: if isAllowed() && (request.auth.uid == uid || isAdmin());
       match /{document=**} {
