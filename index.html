@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.23.0" />
+  <link rel="stylesheet" href="style.css?v=1.23.1" />
 </head>
 <body>
 
@@ -58,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.23.0</span>
+        <span id="app-version">v1.23.1</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -124,10 +124,14 @@
       </div>
       <div class="settings-section">
         <h4>동네소식 (지면 이미지)</h4>
-        <button id="news-add-btn" class="action-btn accent" type="button">🖼 이미지 추가</button>
+        <button id="news-add-btn" class="action-btn accent" type="button">🖼 이미지 업로드</button>
         <input type="file" id="news-file" accept="image/*" multiple hidden />
+        <div class="news-url-row">
+          <input type="url" id="news-url-input" placeholder="이미지 링크(https://...) 붙여넣기" />
+          <button id="news-url-btn" class="action-btn accent small" type="button">링크</button>
+        </div>
         <div id="news-list"></div>
-        <p class="section-hint">폰 상단 지면에 좌우 스와이프로 넘겨보는 이미지 게시물이에요. 순서 이동/삭제 가능.</p>
+        <p class="section-hint">업로드(이미지 저장) 또는 이미지 링크(URL만 저장 → 저장부담 거의 0). 폰 지면에서 좌우 스와이프, 순서 이동/삭제 가능.</p>
       </div>
     </div>
 
@@ -331,7 +335,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.23.0"></script>
-  <script src="app.js?v=1.23.0"></script>
+  <script src="config.js?v=1.23.1"></script>
+  <script src="app.js?v=1.23.1"></script>
 </body>
 </html>

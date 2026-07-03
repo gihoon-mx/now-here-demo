@@ -723,6 +723,11 @@ function initContentPage(){
   var addBtn=document.getElementById('news-add-btn'),file=document.getElementById('news-file');
   loadNews();
   if(addBtn)addBtn.addEventListener('click',function(){if(currentRole==='admin'&&file)file.click();});
+  // 이미지 링크(URL)로 추가 — URL만 저장(저장부담 거의 0)
+  var urlBtn=document.getElementById('news-url-btn'),urlIn=document.getElementById('news-url-input');
+  var addUrl=function(){if(currentRole!=='admin'||!urlIn)return;var v=urlIn.value;urlIn.value='';addNewsUrl(v);};
+  if(urlBtn)urlBtn.addEventListener('click',addUrl);
+  if(urlIn)urlIn.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addUrl();}});
   if(file)file.addEventListener('change',function(){
     var arr=Array.prototype.slice.call(this.files||[]);this.value=''; // 파일을 먼저 배열로 복사(value='' 시 FileList 비워짐)
     if(!arr.length)return;
@@ -779,6 +784,16 @@ function renderNewsList(){
 function newsMove(i,dir){var j=i+dir;if(j<0||j>=newsItems.length)return;var t=newsItems[i];newsItems[i]=newsItems[j];newsItems[j]=t;saveNews();renderNews();}
 function newsDelete(i){newsItems.splice(i,1);saveNews();renderNews();}
 function newsTotalBytes(){var t=0;newsItems.forEach(function(it){t+=(it.src||'').length;});return t;}
+// 이미지 링크(URL) 추가: https 검증 + 실제 로드 확인 후 URL만 저장
+function addNewsUrl(url){
+  url=(url||'').trim();
+  if(!/^https:\/\/\S+/i.test(url)){alert('https:// 로 시작하는 이미지 링크를 넣어주세요. (구글 이미지는 "이미지 주소 복사"로 얻은 직접 주소)');return;}
+  if(newsItems.length>=NEWS_MAX_COUNT){alert('동네소식은 최대 '+NEWS_MAX_COUNT+'장까지예요. 기존 이미지를 지운 뒤 추가해 주세요.');return;}
+  var probe=new Image();
+  probe.onload=function(){newsItems.push({id:'n_'+(newsSeq++),src:url});saveNews();renderNews();};
+  probe.onerror=function(){alert('이 링크의 이미지를 불러올 수 없어요. 직접 이미지 주소(끝이 .jpg/.png 등, https)인지, 외부 링크 허용 사이트인지 확인해 주세요.');};
+  probe.src=url;
+}
 // 900px로 줄이고, 1장 상한 초과 시 품질을 낮춰가며 압축(그래도 크면 null=거부)
 function compressNews(file,cb){
   var r=new FileReader();

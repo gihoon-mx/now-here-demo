@@ -422,6 +422,11 @@ button:focus:not(:focus-visible){outline:none;}
 #cp-dots{position:absolute;left:0;right:0;bottom:2.2cqw;display:flex;justify-content:center;gap:1.4cqw;pointer-events:none;}
 #cp-dots .cp-dot{width:1.6cqw;height:1.6cqw;border-radius:50%;background:rgba(255,255,255,0.55);box-shadow:0 0 0 1px rgba(0,0,0,0.18);}
 #cp-dots .cp-dot.active{background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,0.28);}
+/* 동네소식: 링크(URL) 입력 행 */
+.news-url-row{display:flex;gap:6px;margin-top:8px;}
+.news-url-row #news-url-input{flex:1;min-width:0;padding:7px 9px;border:1px solid rgba(255,255,255,0.12);border-radius:8px;background:rgba(255,255,255,0.05);color:#e6e9ee;font-size:.74rem;font-family:inherit;}
+.news-url-row #news-url-input::placeholder{color:#7b828c;}
+.news-url-row #news-url-btn{flex-shrink:0;}
 /* 동네소식 리스트 (사이드바 컨텐츠 설정) */
 #news-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
 .news-item{display:flex;align-items:center;gap:8px;padding:6px;border:1px solid rgba(255,255,255,0.08);border-radius:9px;background:rgba(255,255,255,0.03);}
