@@ -496,13 +496,13 @@ button:focus:not(:focus-visible){outline:none;}
 .pn-item .pn-ic{width:5.4cqw;height:5.4cqw;display:flex;flex-shrink:0;}
 .pn-item .pn-ic svg{width:100%;height:100%;}
 .pn-lb{max-width:0;overflow:hidden;white-space:nowrap;font-size:3cqw;font-weight:700;opacity:0;transition:max-width .28s cubic-bezier(.22,1,.36,1),opacity .2s ease,margin .28s ease;}
-.pn-item.active{background:rgba(255,255,255,0.22);color:#fff;padding:0 2.6cqw;}
-.pn-item.active .pn-lb{max-width:11cqw;opacity:1;margin-left:1.4cqw;}
-/* 선택된 네비: 아이콘만 3색(은은) · 글자는 흰색 유지(시인성) */
-.pn-item.active .pn-lb{color:#fff;}
-.pn-item.active[data-nav="map"] .pn-ic{color:#78a6e6;}
-.pn-item.active[data-nav="feed"] .pn-ic{color:#5fbf95;}
-.pn-item.active[data-nav="social"] .pn-ic{color:#e0a077;}
+/* 선택된 네비: 칩 배경을 3색으로, 아이콘·글자는 흰색(대비 확실) */
+.pn-item.active{background:rgba(255,255,255,0.2);color:#fff;padding:0 2.6cqw;}
+.pn-item.active .pn-lb{max-width:11cqw;opacity:1;margin-left:1.4cqw;color:#fff;}
+.pn-item.active .pn-ic{color:#fff;}
+.pn-item.active[data-nav="map"]{background:#3f7fd6;box-shadow:0 0.4cqw 1.6cqw rgba(63,127,214,0.45);}
+.pn-item.active[data-nav="feed"]{background:#2ea36c;box-shadow:0 0.4cqw 1.6cqw rgba(46,163,108,0.45);}
+.pn-item.active[data-nav="social"]{background:#d0774a;box-shadow:0 0.4cqw 1.6cqw rgba(208,119,74,0.45);}
 .pn-ai{width:13.4cqw;height:13.4cqw;flex-shrink:0;border:1px solid rgba(255,255,255,0.08);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:1.8cqw;
   background:rgba(24,26,34,0.58);backdrop-filter:blur(22px) saturate(1.35);-webkit-backdrop-filter:blur(22px) saturate(1.35);transition:transform .18s ease;}
 .pn-ai svg{width:100%;height:100%;display:block;}
