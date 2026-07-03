@@ -47,14 +47,16 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.9.0**
+- **현재 최신: v1.10.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.9.0 · 라이브 정상.** 완료된 기능:
-- **관리자 설정 패널**: 폰 미리보기 **하단 사이드바에 상시 배치**(더 이상 폰 햄버거 안에 있지 않음). "⚙ 관리자 설정" 버튼 → 열면 **아코디언 섹션**(탭처럼 펼침/접힘, 기본 접힘). 모든 슬라이더 옆 **숫자 직접입력** 가능. 폰 햄버거 드로어는 데모 앱 '메뉴'(계정/버전/로그아웃)만.
+**최신 v1.10.0 · 라이브 정상.** 완료된 기능:
+- **사이드바 관리자 UI = 두 개 최상위 메뉴**(폰 미리보기 하단): **🗂 컨텐츠 설정**(스팟 메시지 추가 · 트렌드 존 관리) + **⚙ 관리자 설정**(서비스 스타일 전부, 모드 무관 항상 표시). 각 섹션 아코디언. 모든 슬라이더 옆 숫자 직접입력.
+- **모드 토글 = 지도 전환 전용**(설정 안 딸림). 로컬/트렌드 스타일 설정은 하나로 합쳐 관리자 설정에 상시 표시.
+- **스팟 추가 UX**: 버튼→커서 crosshair(추가중 표시)→지도 클릭→**그 포인트 옆 팝업**(이모지+메시지)으로 입력. 트렌드 존 JSON 내보내기/불러오기 제거(콘텐츠 자동 저장).
 - **스팟 줌 스케일**: 지도에 붙어 보이도록 기준 줌 이상은 설정 크기 유지, 줌아웃 시 축소, 관리자가 정한 **점 전환 줌** 미만은 점 표시.
 - **인증/역할**: Google 로그인(Firebase) + allowlist 접근제어. `관리자`(admin) / `데모유저`(user) 역할.
 - **레이아웃**: 좌 전체화면 지도 / 우 사이드바(폰 미러). 사이드바 폭 드래그 조절 → 폰 크기 변경(내부 UI는 `cqw`로 비율 유지).
@@ -150,6 +152,12 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.10.0 — 컨텐츠/관리자 설정 분리 + 모드 토글 단순화 + 스팟 지도 팝업**:
+  - **최상위 메뉴 2개**로 재편(같은 레벨): **🗂 컨텐츠 설정**(`#content-toggle`/`#content-section`, `initContentPanel`) = ①스팟 메시지(추가 버튼) ②트렌드 존 관리(존 저장/편집/목록). **⚙ 관리자 설정**(`#settings-section`) = 서비스 스타일 9섹션.
+  - **모드 토글은 지도 전환 전용**: `#local-settings`/`#trend-settings` 래퍼 제거 → 두 모드 스타일 설정을 `#settings-section`에 평면화해 **모드 무관 항상 표시**(`switchMode`에서 display 토글 삭제). 존 목록(`renderZoneList`)도 모드 게이트 제거—어느 모드서든 열람, 존 편집(수정) 클릭 시 트렌드 모드 자동 전환.
+  - **스팟 추가 = 지도 위 팝업**(`SpotComposer` OverlayView, `initSpotComposerClass`): 버튼→`map.setOptions({draggableCursor:'crosshair'})`(타일 위에서도 커서 확실 변경)→지도 클릭→**클릭한 포인트 옆 팝업**(이모지 픽커+메시지+등록/취소, 앵커 점+꼬리). 사이드바 입력폼(`#spot-form`) 및 `confirmSpot/showSpotForm/cancelSpotForm` 제거. 이모지 픽커는 `buildEmojiPicker`로 재사용화. 스팟은 로컬 콘텐츠라 추가 시 로컬 모드 자동 전환.
+  - **JSON 내보내기/불러오기 제거**: `exportZones/importZones/initZoneIO` + `#zone-io-row` 삭제(콘텐츠가 Firestore `shared/mapContent`에 자동 저장돼 불필요).
+  - 데모(role-user) 숨김 목록을 `#content-toggle-row`/`#content-section`/`#settings-*`로 갱신.
 - **v1.9.0 — 관리자 설정 UI 정비 + 스팟 줌 스케일 + 숫자 직접입력**:
   - **설정 패널을 폰 미리보기 하단으로 분리**: `initPhoneMenu`에서 `#left-panel`을 폰 드로어로 옮기던 로직 제거 → 사이드바(폰 아래)에 상시 표시. `#settings-toggle` 라벨 "⚙ 설정"→**"⚙ 관리자 설정"**. 폰 햄버거 드로어는 이제 데모 앱 '메뉴'(계정 블록)만 담당(`drawer-account` 관리자도 노출).
   - **설정 섹션 아코디언화**(`initSettingsAccordion`): `#settings-section` 내 모든 `.settings-section`을 `.acc-section`으로, `h4`를 클릭 헤더(`.acc-head`, ▾ 회전)로. **기본 접힘**—탭처럼 필요한 것만 펼침. 9개 섹션 UX 일관화.

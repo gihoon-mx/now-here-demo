@@ -165,6 +165,20 @@ button:focus:not(:focus-visible){outline:none;}
 .spot-emoji{line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45));}
 .spot-marker.spot-admin:hover .spot-bubble{box-shadow:0 4px 14px rgba(0,0,0,0.4),0 0 0 2px rgba(255,120,120,0.7);}
 
+/* ========== 스팟 입력 팝업 (지도 위, 클릭한 포인트 옆) ========== */
+.spot-composer{position:absolute;transform:translate(-50%,calc(-100% - 15px));z-index:90;width:214px;padding:11px;border-radius:13px;
+  background:rgba(18,18,28,0.97);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);
+  border:1px solid rgba(255,255,255,0.12);box-shadow:0 12px 34px rgba(0,0,0,0.55);color:#e8eaed;
+  animation:cpIn .16s cubic-bezier(.22,1,.36,1) both;-webkit-user-select:none;user-select:none;}
+.spot-composer .sc-arrow{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);border:8px solid transparent;border-top-color:rgba(18,18,28,0.97);border-bottom:0;}
+.spot-composer .sc-dot{position:absolute;left:50%;bottom:-15px;transform:translate(-50%,50%);width:11px;height:11px;border-radius:50%;background:#6ec6ff;box-shadow:0 0 0 3px rgba(110,198,255,0.3),0 1px 4px rgba(0,0,0,0.5);}
+.spot-composer .sc-emoji{margin-bottom:8px;max-height:98px;overflow-y:auto;}
+.spot-composer .sc-emoji::-webkit-scrollbar{width:5px;}
+.spot-composer .sc-emoji::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.14);border-radius:3px;}
+.spot-composer .sc-text{width:100%;margin-bottom:9px;padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:#e8eaed;font-family:inherit;font-size:.8rem;outline:none;}
+.spot-composer .sc-text:focus{border-color:rgba(110,198,255,0.5);}
+.spot-composer .sc-actions{display:flex;justify-content:flex-end;gap:6px;}
+
 /* 스팟 추가 폼 */
 .spot-add-row{margin-top:4px;}
 #spot-add-btn{width:100%;}
@@ -183,11 +197,13 @@ button:focus:not(:focus-visible){outline:none;}
 
 /* ========== Settings Toggle ========== */
 .settings-toggle-row{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);}
-#settings-toggle{width:100%;padding:6px 0;border:none;border-radius:7px;background:rgba(255,255,255,0.03);color:#6b7280;font-family:inherit;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s ease;display:flex;align-items:center;justify-content:center;gap:4px;}
-#settings-toggle:hover{background:rgba(255,255,255,0.06);color:#9ca3af;}
-#settings-toggle.open{color:#6ec6ff;}
+#settings-toggle,#content-toggle{width:100%;padding:6px 0;border:none;border-radius:7px;background:rgba(255,255,255,0.03);color:#6b7280;font-family:inherit;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s ease;display:flex;align-items:center;justify-content:center;gap:4px;}
+#settings-toggle:hover,#content-toggle:hover{background:rgba(255,255,255,0.06);color:#9ca3af;}
+#settings-toggle.open,#content-toggle.open{color:#6ec6ff;}
 .toggle-arrow{font-size:.6rem;transition:transform .3s ease;display:inline-block;}
-#settings-toggle.open .toggle-arrow{transform:rotate(180deg);}
+#settings-toggle.open .toggle-arrow,#content-toggle.open .toggle-arrow{transform:rotate(180deg);}
+/* 섹션 안내 문구 */
+.section-hint{font-size:.66rem;line-height:1.45;color:#6b7280;margin-top:6px;}
 
 /* ========== Settings Section ========== */
 #settings-section{margin-top:8px;}
@@ -425,12 +441,10 @@ button:focus:not(:focus-visible){outline:none;}
 #phone-drawer #panel-header .panel-collapse-btn{display:none;}
 
 /* 데모유저: 편집/설정 UI 숨김 (뷰잉 + 모드전환만) */
+body.role-user #content-toggle-row,
+body.role-user #content-section,
 body.role-user #settings-toggle-row,
 body.role-user #settings-section,
-body.role-user #zone-save-area,
-body.role-user #zone-edit-bar,
-body.role-user #zone-list-area,
-body.role-user #spot-add-row,
 body.role-user #allowlist-btn{display:none!important;}
 
 /* 태블릿(769~900px): 세로 스택 */
