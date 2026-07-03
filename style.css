@@ -594,11 +594,13 @@ body.role-user #allowlist-btn{display:none!important;}
   #sidebar-resizer{display:none;}
   #app-shell{display:block;height:100%;}
   #map,#left-panel,#map-loading,#scale-legend{display:none!important;}
-  #sidebar{position:fixed;inset:0;width:100%!important;height:100%;padding:0;margin:0;gap:0;border:none;overflow:hidden;background:#000;}
+  /* 세이프에어리어(노치/홈 인디케이터)로 지도가 안 닿는 가장자리는 검정 대신 지도색과 비슷한 밝은 회색으로 → 이음새 없이 보이게 */
+  #sidebar{position:fixed;inset:0;width:100%!important;height:100%;padding:0;margin:0;gap:0;border:none;overflow:hidden;background:#e8eaed;}
   #phone-mirror{position:static;height:100%;order:0;padding:0;background:none;}
   .phone-bar{display:none;}
   /* 풀스크린: 고정된 #sidebar(inset:0)를 그대로 채움 → iOS 웹앱에서 100dvh가 남기던 하단 빈공간 제거 */
   .phone-screen{position:absolute;inset:0;width:auto;height:auto;aspect-ratio:auto;border-radius:0;border:none;box-shadow:none;}
+  .phone-map{background:#e8eaed;}   /* 타일 로딩 전/미도달 영역도 밝게 */
   /* 전체화면(PWA/노치) 안전영역: 상단바·하단 네비가 노치/홈 인디케이터에 가리지 않게 */
   .phone-header{padding-top:calc(5.5cqw + env(safe-area-inset-top));}
   .phone-navbar{padding-bottom:calc(5.5cqw + env(safe-area-inset-bottom));}
