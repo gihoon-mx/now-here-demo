@@ -14,7 +14,7 @@ var originalGeoJson = null;
 
 var styleConfig = {
   default: { strokeColor:'#999999', fillColor:'#cccccc', strokeWeight:1, strokeOpacity:0.6, fillOpacity:0.12 },
-  highlight: { strokeColor:'#ff3333', fillColor:'#ff3333', strokeWeight:4, strokeOpacity:1, fillOpacity:0.4 },
+  highlight: { strokeColor:'#ff3333', fillColor:'#ff3333', strokeWeight:4, strokeOpacity:1, fillOpacity:0.4, spotMaxDongs:6 },
 };
 
 /* ========== 트렌드 모드 ========== */
@@ -40,8 +40,7 @@ var zoneLabelConfig  = { fontSize:11, textColor:'#ffffff', bgOpacity:1.0 };
 var localLabel = null;          // 로컬모드 선택 구역 라벨 오버레이
 var selectedFeatureName = null; // 현재 선택 구역 표시명
 var selectedFeatureId = null;   // 폰 미러용 선택 구역 식별자
-var basicSpotlightKey = null;   // 베이직 폰: 화면에 동이 적을 때 센터가 속한 동 강조 키(featKey)
-var BASIC_SPOTLIGHT_MAX_DONGS = 6; // 폰 화면에 보이는 동 개수가 이 값 이하일 때 센터 동 외곽 강조 + 주변 그레이 (튜닝 가능)
+var basicSpotlightKey = null;   // 베이직 폰: 화면에 동이 적을 때 센터가 속한 동 강조 키(featKey). 임계값=styleConfig.highlight.spotMaxDongs
 var colorControls = [];         // 색상 트리거 재도색용 레지스트리
 
 /* ========== 스팟 메시지 (로컬모드, 관리자 생성 · 데모 뷰잉) ========== */
@@ -83,11 +82,7 @@ function getHighlightStyle() {
     strokeOpacity:Number(styleConfig.highlight.strokeOpacity), fillColor:styleConfig.highlight.fillColor,
     fillOpacity:Number(styleConfig.highlight.fillOpacity) };
 }
-// 베이직 폰 스포트라이트: 센터 동(외곽 강조) / 그 외 동(그레이 처리)
-function getBasicCenterStyle() {
-  return { strokeColor:styleConfig.highlight.strokeColor, strokeWeight:Math.max(3,Number(styleConfig.highlight.strokeWeight)),
-    strokeOpacity:1, fillColor:styleConfig.highlight.fillColor, fillOpacity:0.14, zIndex:5, cursor:'pointer' };
-}
+// 베이직 폰 스포트라이트: 센터 동은 '선택 구역' 스타일(getHighlightStyle) 그대로, 그 외 동은 그레이 처리
 function getBasicDimStyle() {
   return { strokeColor:'#6b7078', strokeWeight:0.8, strokeOpacity:0.55, fillColor:'#33373f', fillOpacity:0.42, zIndex:1, cursor:'pointer' };
 }
@@ -732,9 +727,8 @@ function refreshPhoneMapStyles(){
   if(!phoneMap)return;
   phoneMap.data.setStyle(function(f){
     var k=featKey(f);
-    if(basicSpotlightKey){                       // 베이직: 센터 동 강조 + 주변 그레이
-      if(k===basicSpotlightKey)return getBasicCenterStyle();
-      if(k===selectedFeatureId)return getHighlightStyle();
+    if(basicSpotlightKey){                       // 베이직: 센터 동 강조(=선택 구역 스타일) + 주변 그레이
+      if(k===basicSpotlightKey||k===selectedFeatureId)return getHighlightStyle();
       return getBasicDimStyle();
     }
     return k===selectedFeatureId?getHighlightStyle():getDefaultStyle();
@@ -873,7 +867,8 @@ function updatePhoneBasicSpotlight(){
     return;
   }
   var b=phoneMap.getBounds(),c=phoneMap.getCenter(),newKey=null;
-  if(b&&c&&countVisibleDongs(b)<=BASIC_SPOTLIGHT_MAX_DONGS){
+  var maxDongs=Number(styleConfig.highlight.spotMaxDongs); if(!(maxDongs>0))maxDongs=6;
+  if(b&&c&&countVisibleDongs(b)<=maxDongs){
     var d=regionAt(c.lat(),c.lng());
     if(d)newKey=d.key||null;
   }
@@ -1369,6 +1364,7 @@ function syncSettingsUI(){
   colorControls.forEach(function(c){c.paint();});
   setRange('default-stroke-weight',styleConfig.default.strokeWeight);
   setRange('highlight-stroke-weight',styleConfig.highlight.strokeWeight);
+  setRange('highlight-spot-max',styleConfig.highlight.spotMaxDongs);
   setCheck('smooth-toggle',smoothEnabled);
   setRange('smooth-intensity',smoothIntensity);
   setRange('hex-radius',hexRadiusKm,function(v){return v.toFixed(1)+'km';});
@@ -1409,6 +1405,7 @@ function initSettingsPanel(){
   // 선 굵기 (투명도가 아니므로 슬라이더 유지)
   bindInput('default-stroke-weight','range',styleConfig.default,'strokeWeight',refreshMapStyles);
   bindInput('highlight-stroke-weight','range',styleConfig.highlight,'strokeWeight',refreshMapStyles);
+  bindInput('highlight-spot-max','range',styleConfig.highlight,'spotMaxDongs',updatePhoneBasicSpotlight);
 
   document.getElementById('smooth-toggle').addEventListener('change',function(){smoothEnabled=this.checked;applyGeoJsonToMap();markCloudDirty();});
   document.getElementById('smooth-intensity').addEventListener('input',function(){
