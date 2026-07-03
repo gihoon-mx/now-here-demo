@@ -47,7 +47,7 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.11.0**
+- **현재 최신: v1.11.1**
 
 ---
 
@@ -153,6 +153,7 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.11.1 — 전체 폰트 Pretendard로 교체**: `style.css` 상단 `@import`를 Inter(Google Fonts)→**Pretendard Variable**(jsDelivr `orioncactus/pretendard@v1.3.9`)로, `html,body` font-family를 `'Pretendard Variable','Pretendard',…`로. 나머지는 전부 `font-family:inherit`라 body만 바꿔 전체 적용(커스텀 지도 오버레이 `.map-label-tag`/`.spot-bubble` 포함). Google Maps 타일 자체 텍스트는 구글 관할이라 무관.
 - **v1.11.0 — 베이직 리네임 + 메뉴 블록화 + 스팟 배율/점옵션 + 존 스포트라이트 + 동 라벨**:
   - **로컬→베이직 리네임**(모드 토글·폰 토글 UI 텍스트만; `data-mode="local"`/`currentMode='local'` 등 내부 식별자·CSS 클래스는 그대로).
   - **메뉴 가독성**: 아코디언 섹션을 **블록(카드)**으로(`.acc-section` 테두리+배경+라운드, 헤더 크게·소문자·펼침 시 하이라이트). 최상위 토글(`#content-toggle`/`#settings-toggle`)도 큰 카드 버튼으로.
