@@ -240,7 +240,10 @@ button:focus:not(:focus-visible){outline:none;}
 .range-num{width:44px;flex-shrink:0;padding:3px 5px;border:1px solid rgba(255,255,255,0.12);border-radius:6px;background:rgba(255,255,255,0.05);color:#6ec6ff;font-family:inherit;font-size:.68rem;font-weight:600;text-align:right;outline:none;-moz-appearance:textfield;font-variant-numeric:tabular-nums;}
 .range-num::-webkit-outer-spin-button,.range-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 .range-num:focus{border-color:rgba(110,198,255,0.5);background:rgba(110,198,255,0.08);}
+.range-num{width:52px;}
 .range-unit{font-size:.6rem;color:#6b7280;flex-shrink:0;margin-left:-1px;}
+/* 슬라이더 제거 후 입력 주의(정수/소수·범위) 문구 — 숫자칸 왼쪽, 우측 정렬 */
+.num-hint{margin-left:auto;font-size:.6rem;color:#6b7280;flex-shrink:0;white-space:nowrap;font-variant-numeric:tabular-nums;}
 .toggle-switch{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;}
 .toggle-switch input{opacity:0;width:0;height:0;}
 .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.1);border-radius:20px;transition:all .3s ease;}
@@ -391,7 +394,21 @@ button:focus:not(:focus-visible){outline:none;}
 
 /* 하단 네비: 알약 그룹(활성=라벨 확장) + AI 원형 */
 /* [그룹+AI] 통째로 가운데. 그룹은 고정폭 → 메뉴 바꿔도 크기 불변(팝핑 방지) */
-.phone-navbar{position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;align-items:center;justify-content:center;gap:2.6cqw;padding:0 3cqw 3.6cqw;}
+.phone-navbar{position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:2.6cqw;padding:0 3cqw 3.6cqw;}
+/* 컨텐츠 추가 버튼(네비 왼쪽, AI 버튼과 동일한 원형 칩) */
+.pn-add{width:13.4cqw;height:13.4cqw;flex-shrink:0;border:1px solid rgba(255,255,255,0.08);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:3.1cqw;color:#e6e9ef;
+  background:rgba(22,24,32,0.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:transform .18s ease,background .2s ease,border-color .2s ease;}
+.pn-add svg{width:100%;height:100%;display:block;}
+.pn-add:hover{transform:scale(1.05);}
+.pn-add:active{transform:scale(.9);}
+.pn-add.open{background:linear-gradient(135deg,rgba(142,208,255,0.42),rgba(167,139,250,0.42));border-color:rgba(167,139,250,0.55);color:#fff;transform:rotate(45deg);}
+/* 컨텐츠 추가 팝업 (스팟 메시지 / 사진) */
+.content-add-menu{position:absolute;left:3cqw;bottom:19cqw;z-index:7;display:none;flex-direction:column;gap:1.2cqw;padding:2cqw;border-radius:3.6cqw;
+  background:rgba(20,22,30,0.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.1);box-shadow:0 2cqw 6cqw rgba(0,0,0,0.42);}
+.content-add-menu.open{display:flex;animation:aiPop .34s cubic-bezier(.2,1.5,.4,1) both;transform-origin:14% bottom;}
+.cam-item{display:flex;align-items:center;gap:2cqw;padding:2.4cqw 3.2cqw;border:none;border-radius:2.4cqw;background:transparent;color:#e6e9ef;font-family:inherit;font-size:3.2cqw;font-weight:600;white-space:nowrap;cursor:pointer;text-align:left;transition:background .15s ease;}
+.cam-item:hover,.cam-item:active{background:rgba(255,255,255,0.1);}
+.cam-item .cam-ic{font-size:3.9cqw;line-height:1;}
 /* 라벨 균일(2자)이라 hug-content여도 크기 불변 → 아이콘간격==외곽마진 항상 동일 */
 .pn-group{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:3.4cqw;height:13.4cqw;padding:0 3.4cqw;border-radius:7cqw;
   background:rgba(22,24,32,0.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.08);}
@@ -447,6 +464,62 @@ button:focus:not(:focus-visible){outline:none;}
 #phone-drawer-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:3px;}
 #phone-drawer #left-panel{position:static;width:100%;padding:0;border:none;background:none;box-shadow:none;animation:none;order:0;max-height:none;overflow:visible;}
 #phone-drawer #panel-header .panel-collapse-btn{display:none;}
+
+/* ========== 설정 패널 Light 테마 (검은 배경 → 밝게, 가독성) ========== */
+#left-panel{background:#f4f6f9;border:1px solid rgba(0,0,0,0.09);color:#242832;
+  box-shadow:0 10px 30px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.7);}
+#left-panel::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);}
+#left-panel #app-version{color:#8b919c;}
+#left-panel .panel-collapse-btn{background:rgba(0,0,0,0.045);border-color:rgba(0,0,0,0.1);color:#5b626d;}
+#left-panel .panel-collapse-btn:hover{background:rgba(0,0,0,0.09);color:#1f2530;}
+#left-panel #account-row{background:rgba(0,0,0,0.035);border-color:rgba(0,0,0,0.07);}
+#left-panel .acct-email{color:#3b414b;}
+#left-panel .acct-btn{background:rgba(0,0,0,0.05);border-color:rgba(0,0,0,0.1);color:#5b626d;}
+#left-panel .acct-btn:hover{background:rgba(0,0,0,0.1);color:#1f2530;}
+#left-panel #mode-toggle{background:rgba(0,0,0,0.055);}
+#left-panel .mode-btn{color:#8b919c;}
+#left-panel .mode-btn.active{color:#182233;}
+#left-panel .mode-indicator{background:#fff;border-color:rgba(0,0,0,0.06);box-shadow:0 1px 5px rgba(0,0,0,0.14);}
+#left-panel #info-text{color:#5b626d;}
+#left-panel #info-text.highlighted{color:#1f2530;}
+#left-panel #info-text .hex-info{color:#2f7bd6;}
+#left-panel #content-toggle,#left-panel #settings-toggle{background:#fff;border-color:rgba(0,0,0,0.11);color:#242832;}
+#left-panel #content-toggle:hover,#left-panel #settings-toggle:hover{background:#eef1f5;border-color:rgba(0,0,0,0.18);color:#0f1216;}
+#left-panel #content-toggle.open,#left-panel #settings-toggle.open{color:#1d4ed8;background:rgba(37,99,235,0.09);border-color:rgba(37,99,235,0.3);}
+#left-panel .toggle-arrow{color:#9aa0ac;}
+#left-panel .acc-section{background:#fff;border-color:rgba(0,0,0,0.09);}
+#left-panel .acc-section:not(.collapsed){background:#f9fafc;}
+#left-panel .acc-section>.acc-head{color:#3b414b;}
+#left-panel .acc-section>.acc-head:hover{color:#0f1216;}
+#left-panel .acc-section>.acc-head::after{color:#9aa0ac;}
+#left-panel .acc-section:not(.collapsed)>.acc-head{color:#1d4ed8;border-bottom-color:rgba(0,0,0,0.08);}
+#left-panel .settings-section h4{color:#8b919c;}
+#left-panel .setting-row label{color:#5b626d;}
+#left-panel .range-num{background:#fff;border-color:rgba(0,0,0,0.16);color:#1d4ed8;}
+#left-panel .range-num:focus{border-color:#2563eb;background:#eff5ff;}
+#left-panel .num-hint,#left-panel .range-unit,#left-panel .section-hint{color:#9aa0ac;}
+#left-panel .mini-select{background:#fff;border-color:rgba(0,0,0,0.16);color:#242832;}
+#left-panel .mini-select:focus{border-color:#2563eb;}
+#left-panel .action-btn{background:#fff;border-color:rgba(0,0,0,0.12);color:#3b414b;}
+#left-panel .action-btn:hover{background:#eef1f5;border-color:rgba(0,0,0,0.2);color:#0f1216;}
+#left-panel .action-btn.accent{border-color:rgba(37,99,235,0.35);color:#1d4ed8;}
+#left-panel .action-btn.accent:hover{background:rgba(37,99,235,0.09);}
+#left-panel .action-btn.danger{border-color:rgba(210,55,55,0.32);color:#c0392b;}
+#left-panel .action-btn.danger:hover{background:rgba(210,55,55,0.09);}
+#left-panel .toggle-slider{background:rgba(0,0,0,0.2);}
+#left-panel .toggle-slider::before{background:#fff;}
+#left-panel .toggle-switch input:checked+.toggle-slider{background:rgba(37,99,235,0.5);}
+#left-panel .color-trigger{border-color:rgba(0,0,0,0.18);}
+#left-panel .color-trigger:hover{border-color:#2563eb;}
+#left-panel #zone-name-input,#left-panel .zi-name{background:#fff;border-color:rgba(0,0,0,0.16);color:#242832;}
+#left-panel #zone-name-input::placeholder{color:#a7adb7;}
+#left-panel .zone-item{background:rgba(0,0,0,0.025);}
+#left-panel .zone-item:hover{background:rgba(0,0,0,0.055);}
+#left-panel .zone-item.editing{background:rgba(37,99,235,0.07);border-color:rgba(37,99,235,0.16);}
+#left-panel .zone-name-text{color:#3b414b;}
+#left-panel .zone-count{color:#8b919c;}
+#left-panel #zone-edit-bar{background:rgba(37,99,235,0.06);border-color:rgba(37,99,235,0.16);}
+#left-panel #zone-edit-label{color:#1d4ed8;}
 
 /* 데모유저: 편집/설정 UI 숨김 (뷰잉 + 모드전환만) */
 body.role-user #content-toggle-row,

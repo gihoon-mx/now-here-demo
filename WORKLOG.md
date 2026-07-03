@@ -47,13 +47,15 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.11.1**
+- **현재 최신: v1.12.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.11.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.12.0 · 라이브 정상.** 완료된 기능:
+- **설정 = 숫자 직접입력 전용**(슬라이더 제거) + 정수/소수·범위 주의문구. **설정 패널 Light 테마**. 스팟은 **지도에 고정된 실제 크기**(줌해도 같은 미터 범위 유지). 스팟은 **베이직·트렌드 양쪽 모두 표시**(모드는 지도 구획 방식일 뿐).
+- **폰 하단 네비**: 지도/피드/소셜(미션 제거) + **네비 왼쪽 컨텐츠 추가(+) 버튼**(누르면 스팟 메시지/사진 올리기 팝업).
 - **모드 이름: 로컬→베이직**(UI만, 내부 식별자 `local` 유지). 모드 토글=지도 전환 전용, 스타일 설정은 관리자 설정에 통합 상시 표시.
 - **사이드바 관리자 UI = 두 최상위 메뉴**(블록 카드로 가독성↑): **🗂 컨텐츠 설정**(스팟 추가·트렌드 존 관리) + **⚙ 관리자 설정**(스타일 9블록 아코디언). 슬라이더 옆 숫자 직접입력.
 - **스팟 추가**: 커서 crosshair + 클릭 포인트 옆 지도 팝업 입력. **스팟은 지도 배율에 붙음**(줌인 확대·줌아웃 축소), 점 전환 줌 미만은 **점 또는 이모지**(옵션)로, **점 색상**도 설정.
@@ -153,6 +155,13 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.12.0 — 숫자입력 전용 + Light 설정테마 + 스팟 고정크기 + 모드무관 스팟 + 폰 네비/컨텐츠추가**:
+  - **모든 수치 설정 슬라이더 제거 → 숫자 직접입력만**(`enhanceRangeInputs`가 range를 `display:none`, `.range-num`만). 각 칸 옆 **주의문구**(`.num-hint`: `정수/소수` + `min~max`, 음수 여부는 범위로 표시). 정수 필드는 입력 시 반올림·clamp. 기존 range 핸들러는 `input` 이벤트 디스패치로 재사용(로직 유지).
+  - **설정 패널 Light 테마**: `#left-panel` 및 하위(계정/모드토글/토글버튼/아코디언/입력/버튼/토글스위치/존관리)를 밝은 배경+어두운 글자로 오버라이드(`#left-panel …` 스코프). 폰 미러·색상팝업·모달은 기존 다크 유지.
+  - **스팟 = 지도 고정 크기**: `SPOT_REF_ZOOM` 14→**16**, 클램프 0.02~40으로 넓혀 사실상 무제한 → `2^(z-16)` 순수 배율(줌아웃=절반씩 축소, 줌인=2배씩). 설정 크기가 어느 줌에서도 같은 '미터 범위'를 덮음(건물 블럭 크기 유지).
+  - **스팟 모드 무관 표시**: `renderSpots`의 `currentMode!=='local'` 게이트 제거, `switchMode` 트렌드 분기 `clearSpots→renderSpots`, `applyCloudData`/`initPhoneMirror`도 항상 `renderSpots`. 모드는 지도 구획(동경계 vs 헥사곤)만 바꾸고 스팟 등 컨텐츠는 양쪽 유지.
+  - **폰 하단 네비 개편**: `미션` 탭 제거(지도/피드/소셜). 네비 왼쪽에 **컨텐츠 추가(+) 버튼**(`.pn-add`, AI 버튼과 동일 원형칩) → 클릭 시 `#content-add-menu` 팝업 2개: **스팟 메시지**(`startPlacingSpot`) / **사진 올리기**(`#feed-photo-input` 파일선택, 피드 업로드는 데모 alert). `.phone-navbar` justify-content center→space-between(+ 좌 / 그룹 / AI 우).
+  - **스팟 배치 폰맵 지원**: `SpotComposer(latLng,targetMap)`·`onMapClickForSpot(latLng,targetMap)`로 클릭한 지도 위에 팝업. 커서(crosshair)를 메인·폰 지도 둘 다 적용(`setPlaceCursor`). 폰맵 click 리스너에 placing 분기 추가(모바일 배치).
 - **v1.11.1 — 전체 폰트 Pretendard로 교체**: `style.css` 상단 `@import`를 Inter(Google Fonts)→**Pretendard Variable**(jsDelivr `orioncactus/pretendard@v1.3.9`)로, `html,body` font-family를 `'Pretendard Variable','Pretendard',…`로. 나머지는 전부 `font-family:inherit`라 body만 바꿔 전체 적용(커스텀 지도 오버레이 `.map-label-tag`/`.spot-bubble` 포함). Google Maps 타일 자체 텍스트는 구글 관할이라 무관.
 - **v1.11.0 — 베이직 리네임 + 메뉴 블록화 + 스팟 배율/점옵션 + 존 스포트라이트 + 동 라벨**:
   - **로컬→베이직 리네임**(모드 토글·폰 토글 UI 텍스트만; `data-mode="local"`/`currentMode='local'` 등 내부 식별자·CSS 클래스는 그대로).

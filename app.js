@@ -47,9 +47,10 @@ var spotMessages = [];          // [{id,lat,lng,text,emoji}]
 var spotConfig = { maxChars:40, fontSize:13, textColor:'#ffffff', bgColor:'#1c66e5', bgOpacity:0.92, emojiSize:26,
   emojiPos:'bottom', emojiGap:2, emojiLetterSpacing:0, bubbleRadius:13, tail:true, dotZoom:13, dotStyle:'dot', dotColor:'#6ec6ff',
   emojis:['💬','📍','⭐','🔥','❤️','😀','🎉','📢','☕','🍜','🐶','🌸'] };
-// 스팟은 지도에 붙어 기준 줌에서 설정 크기(1배), 줌아웃=배율만큼 축소·줌인=배율만큼 확대.
-var SPOT_REF_ZOOM = (typeof CONFIG!=='undefined'&&CONFIG.MAP_ZOOM)?CONFIG.MAP_ZOOM+3:14;
-var SPOT_SCALE_MIN = 0.16, SPOT_SCALE_MAX = 6;   // 줌 1레벨당 2배, 과도 방지 상·하한만
+// 스팟은 지도에 '고정된 실제 크기'처럼 동작 — 기준 줌(16)에서 설정한 px가 1배, 줌 1레벨당 2배(줌아웃=절반).
+// = 항상 같은 미터 범위를 덮음(건물 블럭 1개 크기면 어느 줌에서도 그 블럭 크기 유지). 안전 한계만 아주 넓게.
+var SPOT_REF_ZOOM = 16;
+var SPOT_SCALE_MIN = 0.02, SPOT_SCALE_MAX = 40;
 function spotDotZoom(){var z=Number(spotConfig.dotZoom);return isNaN(z)?13:z;}
 function spotScale(z){var s=Math.pow(2,z-SPOT_REF_ZOOM);if(s<SPOT_SCALE_MIN)s=SPOT_SCALE_MIN;if(s>SPOT_SCALE_MAX)s=SPOT_SCALE_MAX;return s;}
 var spotOverlays = [];          // 메인 지도 SpotBubble
@@ -391,7 +392,7 @@ function buildEmojiPicker(container,getSel,onSel){
 }
 
 /* ========== 스팟 입력 팝업 오버레이 (지도 위, 추가한 포인트 옆) ========== */
-function SpotComposer(latLng){this.position=latLng;this.div=null;this.emoji=currentSpotEmoji||((spotConfig.emojis&&spotConfig.emojis[0])||'💬');this.setMap(map);}
+function SpotComposer(latLng,targetMap){this.position=latLng;this.div=null;this.emoji=currentSpotEmoji||((spotConfig.emojis&&spotConfig.emojis[0])||'💬');this.setMap(targetMap||map);}
 function initSpotComposerClass(){
   SpotComposer.prototype=new google.maps.OverlayView();
   SpotComposer.prototype.onAdd=function(){
@@ -426,7 +427,7 @@ function closeComposer(){if(composerOverlay)composerOverlay.close();}
 /* ========== 스팟 메시지 렌더/CRUD ========== */
 function renderSpots(){
   clearSpots();
-  if(currentMode!=='local')return;
+  // 스팟 메시지는 모드(베이직/트렌드) 무관하게 항상 표시 — 모드는 지도 구획 방식일 뿐
   spotMessages.forEach(function(s){
     spotOverlays.push(new SpotBubble(s,spotConfig,map));
     if(phoneMap)phoneSpotOverlays.push(new SpotBubble(s,spotConfig,phoneMap));
@@ -437,23 +438,24 @@ function clearSpots(){
   phoneSpotOverlays.forEach(function(o){o.setMap(null);});phoneSpotOverlays=[];
 }
 function refreshSpotStyles(){spotOverlays.concat(phoneSpotOverlays).forEach(function(o){o.update(spotConfig);if(o.draw)o.draw();});}
+function setPlaceCursor(c){if(map)map.setOptions({draggableCursor:c});if(phoneMap)phoneMap.setOptions({draggableCursor:c});}
 function startPlacingSpot(){
   if(currentRole!=='admin')return;
-  if(currentMode!=='local')switchMode('local'); // 스팟은 로컬 콘텐츠 → 자동 전환
+  if(currentMode!=='local')switchMode('local'); // 배치는 베이직 모드(헥사곤 클릭 간섭 방지)
   closeComposer();
   placingSpot=true;
-  if(map)map.setOptions({draggableCursor:'crosshair'}); // 추가 중 커서 변경(타일 위에서도 확실히 적용)
+  setPlaceCursor('crosshair'); // 추가 중 커서 변경(메인·폰 지도 둘 다, 타일 위에서도 확실히)
   var el=document.getElementById('info-text');if(el)el.innerHTML='📍 지도를 클릭해 스팟 위치를 선택하세요. <span class="hex-info">(ESC 취소)</span>';
 }
-function onMapClickForSpot(latLng){
+function onMapClickForSpot(latLng,targetMap){
   if(!latLng)return;
-  placingSpot=false;if(map)map.setOptions({draggableCursor:null});
+  placingSpot=false;setPlaceCursor(null);
   closeComposer();
-  composerOverlay=new SpotComposer(latLng); // 클릭한 포인트 옆에 입력 팝업
+  composerOverlay=new SpotComposer(latLng,targetMap||map); // 클릭한 포인트 옆에 입력 팝업(클릭한 지도 위)
 }
 function removeSpot(id){spotMessages=spotMessages.filter(function(s){return s.id!==id;});renderSpots();markCloudDirty();}
 function promptDeleteSpot(id){if(confirm('이 스팟 메시지를 삭제할까요?'))removeSpot(id);}
-function cancelPlacingSpot(){placingSpot=false;if(map)map.setOptions({draggableCursor:null});closeComposer();if(currentMode==='local')updateInfoPanel(selectedFeatureName);}
+function cancelPlacingSpot(){placingSpot=false;setPlaceCursor(null);closeComposer();if(currentMode==='local')updateInfoPanel(selectedFeatureName);}
 /* ========== 스팟 편집 모달 (관리자: 개별 스팟 수정) ========== */
 var editingSpotId=null;
 function curEditSpot(){return spotMessages.find(function(x){return x.id===editingSpotId;});}
@@ -587,11 +589,14 @@ function initPhoneMirror(){
   map.addListener('zoom_changed',sync);
   map.addListener('idle',function(){sync();updatePhoneLocation();updatePhoneViewportOverlay();updateScaleLegend();});
   phoneMap.addListener('idle',function(){updatePhoneViewportOverlay();updatePhoneLocation();});
-  phoneMap.addListener('click',function(){clearPhoneSpotlight();}); // 빈 곳 클릭 = 존 강조 해제
+  phoneMap.addListener('click',function(e){
+    if(placingSpot){onMapClickForSpot(e.latLng,phoneMap);return;} // 폰에서 스팟 배치(모바일)
+    clearPhoneSpotlight(); // 빈 곳 클릭 = 존 강조 해제
+  });
   sync();
   if(originalGeoJson){buildDongIndex();applyGeoJsonToPhone();}
   phoneDataVisibility();syncPhoneZones();updatePhoneUI();updatePhoneLocation();updatePhoneViewportOverlay();
-  if(currentMode==='local')renderSpots();
+  renderSpots();
 }
 function applyGeoJsonToPhone(){
   if(!phoneMap||!originalGeoJson)return;
@@ -797,6 +802,24 @@ function initPhoneControls(){
       clearTimeout(aiBub._t);aiBub._t=setTimeout(hideAi,5000);
     });
   }
+  // 컨텐츠 추가 버튼(네비 왼쪽): 누르면 [스팟 메시지 / 사진 올리기] 팝업
+  var addBtn=mirror.querySelector('.pn-add'),addMenu=document.getElementById('content-add-menu');
+  if(addBtn&&addMenu){
+    addBtn.addEventListener('click',function(e){e.stopPropagation();addMenu.classList.toggle('open');});
+    addMenu.addEventListener('click',function(e){e.stopPropagation();});
+    addMenu.querySelectorAll('.cam-item').forEach(function(it){
+      it.addEventListener('click',function(){
+        addMenu.classList.remove('open');
+        if(it.dataset.add==='spot'){startPlacingSpot();}
+        else if(it.dataset.add==='photo'){var fi=document.getElementById('feed-photo-input');if(fi)fi.click();}
+      });
+    });
+    document.addEventListener('click',function(){addMenu.classList.remove('open');});
+  }
+  var photoInput=document.getElementById('feed-photo-input');
+  if(photoInput)photoInput.addEventListener('change',function(){
+    if(this.files&&this.files.length){alert('사진이 선택되었습니다 (피드 업로드는 데모): '+this.files[0].name);this.value='';}
+  });
   // 창 크기 변경 시 화면 밖 방지
   window.addEventListener('resize',reclampPhone);
 }
@@ -1040,7 +1063,7 @@ function switchMode(mode){
     showAllZonesOnMap(); generateHexagons();
     var dt; boundsListener=map.addListener('idle',function(){clearTimeout(dt);dt=setTimeout(function(){if(currentMode==='trend')generateHexagons();},350);});
     updateZoneSaveUI(); renderZoneList();
-    clearSpots();
+    renderSpots();   // 트렌드 모드에서도 스팟 유지
   }
   phoneDataVisibility(); syncPhoneZones(); updatePhoneUI();
 }
@@ -1259,31 +1282,37 @@ function bindInput(id,type,obj,prop,cb){
   });
 }
 
-/* ========== 슬라이더 옆 숫자 직접 입력 (모든 range 공통) ========== */
+/* ========== 슬라이더 제거 + 숫자 직접 입력 (모든 수치 설정) ========== */
 function fmtStepStr(step,val){var st=String(step||'1');var dec=st.indexOf('.')>=0?st.split('.')[1].length:0;return Number(val).toFixed(dec);}
 function enhanceRangeInputs(){
   var ranges=document.querySelectorAll('#settings-section .setting-row input[type="range"]');
   ranges.forEach(function(r){
     if(r._num)return;
     var step=r.getAttribute('step')||'1';
-    var disp=r.nextElementSibling; // .range-val 표시 스팬 → 숨기고 숫자 입력으로 대체
-    if(disp&&disp.classList&&disp.classList.contains('range-val'))disp.style.display='none';else disp=null;
+    var dec=String(step).indexOf('.')>=0?String(step).split('.')[1].length:0;
+    var mn=r.min!==''?parseFloat(r.min):null, mx=r.max!==''?parseFloat(r.max):null;
+    r.style.display='none';                       // 슬라이더 제거(직접 입력만)
+    var disp=r.nextElementSibling; if(disp&&disp.classList&&disp.classList.contains('range-val'))disp.style.display='none';else disp=null;
+    // 입력 주의 문구: 정수/소수 + 허용 범위(음수 여부는 범위로 드러남)
+    var hint=document.createElement('span');hint.className='num-hint';
+    hint.textContent=(dec>0?'소수':'정수')+' '+(mn!=null?mn:'')+'~'+(mx!=null?mx:'');
     var num=document.createElement('input');
     num.type='number';num.className='range-num';
-    if(r.min!=='')num.min=r.min;if(r.max!=='')num.max=r.max;num.step=step;
+    if(mn!=null)num.min=mn;if(mx!=null)num.max=mx;num.step=step;
     num.value=fmtStepStr(step,r.value);
     var ref=disp||r;
-    ref.parentNode.insertBefore(num,ref.nextSibling);
+    ref.parentNode.insertBefore(hint,ref.nextSibling);
+    hint.parentNode.insertBefore(num,hint.nextSibling);
     if(r.id==='hex-radius'){var u=document.createElement('span');u.className='range-unit';u.textContent='km';num.parentNode.insertBefore(u,num.nextSibling);}
     r._num=num;
     r.addEventListener('input',function(){num.value=fmtStepStr(step,r.value);});
     function commit(){
       var v=parseFloat(num.value);
       if(isNaN(v)){num.value=fmtStepStr(step,r.value);return;}
-      var mn=r.min!==''?parseFloat(r.min):-Infinity, mx=r.max!==''?parseFloat(r.max):Infinity;
-      if(v<mn)v=mn;if(v>mx)v=mx;
+      if(dec===0)v=Math.round(v);                 // 정수 필드는 정수로 강제
+      if(mn!=null&&v<mn)v=mn;if(mx!=null&&v>mx)v=mx;
       r.value=v;num.value=fmtStepStr(step,r.value);
-      r.dispatchEvent(new Event('input',{bubbles:true}));   // 기존 range 핸들러 재사용
+      r.dispatchEvent(new Event('input',{bubbles:true})); // 기존 range 핸들러 재사용
     }
     num.addEventListener('change',commit);
     num.addEventListener('keydown',function(e){if(e.key==='Enter'){commit();num.blur();}});
@@ -1465,7 +1494,7 @@ function applyCloudData(d){
   if(d.spotConfig)mergeInto(spotConfig,d.spotConfig);
   syncSettingsUI();refreshMapStyles();refreshHexStyles();applyGeoJsonToMap();
   if(currentMode==='trend'){showAllZonesOnMap();generateHexagons();}
-  else renderSpots();
+  renderSpots();   // 모드 무관 항상 스팟 표시
   renderZoneList();refreshZoneLabels();updateLocalLabelStyle();
 }
 function markCloudDirty(){
