@@ -194,6 +194,14 @@ button:focus:not(:focus-visible){outline:none;}
 .settings-section{margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.04);}
 .settings-section:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
 .settings-section h4{font-size:.65rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
+/* 아코디언 헤더(탭처럼 펼침/접힘) */
+.acc-head{display:flex;align-items:center;justify-content:space-between;cursor:pointer;-webkit-user-select:none;user-select:none;padding:2px 0;transition:color .2s ease;}
+.acc-head:hover{color:#9ca3af;}
+.acc-head::after{content:'▾';font-size:.62rem;color:#6b7280;margin-left:8px;transition:transform .25s cubic-bezier(.22,1,.36,1);}
+.acc-section.collapsed>.acc-head{margin-bottom:0;}
+.acc-section.collapsed>.acc-head::after{transform:rotate(-90deg);}
+.acc-section:not(.collapsed)>.acc-head{color:#8ed0ff;}
+.acc-section.collapsed>:not(.acc-head){display:none!important;}
 .setting-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
 .setting-row:last-child{margin-bottom:0;}
 .setting-row label{font-size:.72rem;color:#9ca3af;min-width:48px;flex-shrink:0;}
@@ -204,6 +212,11 @@ button:focus:not(:focus-visible){outline:none;}
 .setting-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:13px;height:13px;border-radius:50%;background:#6ec6ff;border:2px solid rgba(12,12,20,0.9);cursor:pointer;transition:transform .15s ease;}
 .setting-row input[type="range"]::-webkit-slider-thumb:hover{transform:scale(1.25);}
 .range-val{font-size:.66rem;color:#6ec6ff;min-width:32px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;}
+/* 슬라이더 옆 직접 입력 숫자 필드 */
+.range-num{width:44px;flex-shrink:0;padding:3px 5px;border:1px solid rgba(255,255,255,0.12);border-radius:6px;background:rgba(255,255,255,0.05);color:#6ec6ff;font-family:inherit;font-size:.68rem;font-weight:600;text-align:right;outline:none;-moz-appearance:textfield;font-variant-numeric:tabular-nums;}
+.range-num::-webkit-outer-spin-button,.range-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.range-num:focus{border-color:rgba(110,198,255,0.5);background:rgba(110,198,255,0.08);}
+.range-unit{font-size:.6rem;color:#6b7280;flex-shrink:0;margin-left:-1px;}
 .toggle-switch{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;}
 .toggle-switch input{opacity:0;width:0;height:0;}
 .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.1);border-radius:20px;transition:all .3s ease;}

@@ -45,9 +45,12 @@ var colorControls = [];         // 색상 트리거 재도색용 레지스트리
 /* ========== 스팟 메시지 (로컬모드, 관리자 생성 · 데모 뷰잉) ========== */
 var spotMessages = [];          // [{id,lat,lng,text,emoji}]
 var spotConfig = { maxChars:40, fontSize:13, textColor:'#ffffff', bgColor:'#1c66e5', bgOpacity:0.92, emojiSize:26,
-  emojiPos:'bottom', emojiGap:2, emojiLetterSpacing:0, bubbleRadius:13, tail:true,
+  emojiPos:'bottom', emojiGap:2, emojiLetterSpacing:0, bubbleRadius:13, tail:true, dotZoom:13,
   emojis:['💬','📍','⭐','🔥','❤️','😀','🎉','📢','☕','🍜','🐶','🌸'] };
-var SPOT_DOT_ZOOM = 13;   // 이 줌 미만이면 스팟을 점으로만 표시
+// 스팟은 지도에 붙어 이 기준 줌에서 관리자가 설정한 크기(1배)로 보이고, 줌아웃하면 비례해 작아짐.
+var SPOT_REF_ZOOM = (typeof CONFIG!=='undefined'&&CONFIG.MAP_ZOOM)?CONFIG.MAP_ZOOM+3:14;
+var SPOT_SCALE_MIN = 0.16, SPOT_SCALE_MAX = 1;   // 기준 줌 이상에선 1배 유지, 줌아웃 시 축소
+function spotDotZoom(){var z=Number(spotConfig.dotZoom);return isNaN(z)?13:z;}
 var spotOverlays = [];          // 메인 지도 SpotBubble
 var phoneSpotOverlays = [];     // 폰 지도 SpotBubble
 var placingSpot = false;        // 관리자 스팟 배치 모드
@@ -348,7 +351,24 @@ function initSpotBubbleClass(){
     this.div.classList.toggle('spot-admin',currentRole==='admin');
   };
   SpotBubble.prototype.update=function(cfg){this.cfg=cfg||this.cfg;if(this.div)this._render();};
-  SpotBubble.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;var pos=p.fromLatLngToDivPixel(this.position);if(pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}var m=this.getMap();if(m){var z=m.getZoom();this.div.classList.toggle('spot-dot',z!=null&&z<SPOT_DOT_ZOOM);}};
+  SpotBubble.prototype.draw=function(){
+    var p=this.getProjection();if(!p||!this.div)return;
+    var pos=p.fromLatLngToDivPixel(this.position);
+    if(pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}
+    var m=this.getMap();if(!m)return;var z=m.getZoom();if(z==null)return;
+    var isDot=z<spotDotZoom();
+    this.div.classList.toggle('spot-dot',isDot);
+    if(isDot){
+      this.div.style.transformOrigin='50% 50%';
+      this.div.style.transform='translate(-50%,-50%)';
+    }else{
+      // 지도에 붙어 보이도록 기준 줌 대비 배율 적용(줌아웃=축소). 기준 줌 이상은 1배 유지.
+      var s=Math.pow(2,z-SPOT_REF_ZOOM);
+      if(s<SPOT_SCALE_MIN)s=SPOT_SCALE_MIN;if(s>SPOT_SCALE_MAX)s=SPOT_SCALE_MAX;
+      this.div.style.transformOrigin='50% 100%';
+      this.div.style.transform='translate(-50%,-100%) scale('+s+')';
+    }
+  };
   SpotBubble.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
 }
 
@@ -365,7 +385,7 @@ function clearSpots(){
   spotOverlays.forEach(function(o){o.setMap(null);});spotOverlays=[];
   phoneSpotOverlays.forEach(function(o){o.setMap(null);});phoneSpotOverlays=[];
 }
-function refreshSpotStyles(){spotOverlays.concat(phoneSpotOverlays).forEach(function(o){o.update(spotConfig);});}
+function refreshSpotStyles(){spotOverlays.concat(phoneSpotOverlays).forEach(function(o){o.update(spotConfig);if(o.draw)o.draw();});}
 function startPlacingSpot(){
   if(currentRole!=='admin'||currentMode!=='local')return;
   cancelSpotForm();
@@ -447,6 +467,7 @@ function initSpotUI(){
   bindInput('spot-bubble-radius','range',spotConfig,'bubbleRadius',refreshSpotStyles);
   bindInput('spot-emoji-gap','range',spotConfig,'emojiGap',refreshSpotStyles);
   bindInput('spot-emoji-letter','range',spotConfig,'emojiLetterSpacing',refreshSpotStyles);
+  bindInput('spot-dot-zoom','range',spotConfig,'dotZoom',refreshSpotStyles);
   var tailEl=document.getElementById('spot-tail');if(tailEl)tailEl.addEventListener('change',function(){spotConfig.tail=this.checked;refreshSpotStyles();markCloudDirty();});
   var posEl=document.getElementById('spot-emoji-pos');if(posEl)posEl.addEventListener('change',function(){spotConfig.emojiPos=this.value;refreshSpotStyles();markCloudDirty();});
   makeColorControl('ct-spot-text',spotConfig,'textColor',null,refreshSpotStyles);
@@ -487,8 +508,8 @@ function updateScaleLegend(){
 }
 /* 폰 햄버거 메뉴: 설정 패널을 폰 내부 드로어로 이동 + 토글, 폰 모드 토글 */
 function initPhoneMenu(){
-  var body=document.getElementById('phone-drawer-body'),panel=document.getElementById('left-panel');
-  if(body&&panel)body.appendChild(panel);
+  // 관리자 설정 패널(#left-panel)은 폰 드로어로 옮기지 않고 사이드바(폰 미리보기 하단)에 그대로 둔다.
+  // 폰 햄버거 드로어는 데모 앱의 '메뉴'(계정/버전/로그아웃)만 담당.
   var drawer=document.getElementById('phone-drawer');
   var ham=document.getElementById('phone-hamburger');
   var close=document.getElementById('phone-drawer-close');
@@ -1165,7 +1186,7 @@ function makeColorControl(id,obj,colorProp,alphaProp,cb){
 
 /* ========== 설정 UI 동기화 (불러오기 후 컨트롤 갱신) ========== */
 function formatByStep(el,val){var s=el.getAttribute('step')||'1';var dec=s.indexOf('.')>=0?s.split('.')[1].length:0;return Number(val).toFixed(dec);}
-function setRange(id,val,fmt){var el=document.getElementById(id);if(!el)return;el.value=val;var lbl=el.nextElementSibling;if(lbl&&lbl.classList&&lbl.classList.contains('range-val'))lbl.textContent=fmt?fmt(Number(val)):formatByStep(el,val);}
+function setRange(id,val,fmt){var el=document.getElementById(id);if(!el)return;el.value=val;var lbl=el.nextElementSibling;if(lbl&&lbl.classList&&lbl.classList.contains('range-val'))lbl.textContent=fmt?fmt(Number(val)):formatByStep(el,val);if(el._num)el._num.value=formatByStep(el,el.value);}
 function setCheck(id,val){var el=document.getElementById(id);if(el)el.checked=!!val;}
 function syncSettingsUI(){
   colorControls.forEach(function(c){c.paint();});
@@ -1184,6 +1205,7 @@ function syncSettingsUI(){
   setRange('spot-bubble-radius',spotConfig.bubbleRadius);
   setRange('spot-emoji-gap',spotConfig.emojiGap);
   setRange('spot-emoji-letter',spotConfig.emojiLetterSpacing);
+  setRange('spot-dot-zoom',spotConfig.dotZoom);
   setCheck('spot-tail',spotConfig.tail);
   var _sp=document.getElementById('spot-emoji-pos');if(_sp)_sp.value=spotConfig.emojiPos||'bottom';
   if(typeof renderSpotEmojiPicker==='function')renderSpotEmojiPicker();
@@ -1231,14 +1253,60 @@ function initSettingsPanel(){
   bindInput('local-label-size','range',localLabelConfig,'fontSize',updateLocalLabelStyle);
   bindInput('zone-label-size','range',zoneLabelConfig,'fontSize',refreshZoneLabels);
   bindInput('zone-label-bg-opacity','range',zoneLabelConfig,'bgOpacity',refreshZoneLabels);
+
+  enhanceRangeInputs();      // 슬라이더 옆 숫자 직접 입력 추가
+  initSettingsAccordion();   // 설정 섹션 아코디언화
 }
 
 function bindInput(id,type,obj,prop,cb){
   var el=document.getElementById(id);if(!el)return;
   el.addEventListener('input',function(){
     obj[prop]=type==='range'?parseFloat(this.value):this.value;
-    if(type==='range'&&this.nextElementSibling) this.nextElementSibling.textContent=parseFloat(this.value).toFixed(this.step&&this.step.indexOf('.')>=0?this.step.split('.')[1].length:0);
+    if(type==='range'&&this.nextElementSibling&&this.nextElementSibling.classList&&this.nextElementSibling.classList.contains('range-val')) this.nextElementSibling.textContent=parseFloat(this.value).toFixed(this.step&&this.step.indexOf('.')>=0?this.step.split('.')[1].length:0);
     cb(); markCloudDirty();
+  });
+}
+
+/* ========== 슬라이더 옆 숫자 직접 입력 (모든 range 공통) ========== */
+function fmtStepStr(step,val){var st=String(step||'1');var dec=st.indexOf('.')>=0?st.split('.')[1].length:0;return Number(val).toFixed(dec);}
+function enhanceRangeInputs(){
+  var ranges=document.querySelectorAll('#settings-section .setting-row input[type="range"]');
+  ranges.forEach(function(r){
+    if(r._num)return;
+    var step=r.getAttribute('step')||'1';
+    var disp=r.nextElementSibling; // .range-val 표시 스팬 → 숨기고 숫자 입력으로 대체
+    if(disp&&disp.classList&&disp.classList.contains('range-val'))disp.style.display='none';else disp=null;
+    var num=document.createElement('input');
+    num.type='number';num.className='range-num';
+    if(r.min!=='')num.min=r.min;if(r.max!=='')num.max=r.max;num.step=step;
+    num.value=fmtStepStr(step,r.value);
+    var ref=disp||r;
+    ref.parentNode.insertBefore(num,ref.nextSibling);
+    if(r.id==='hex-radius'){var u=document.createElement('span');u.className='range-unit';u.textContent='km';num.parentNode.insertBefore(u,num.nextSibling);}
+    r._num=num;
+    r.addEventListener('input',function(){num.value=fmtStepStr(step,r.value);});
+    function commit(){
+      var v=parseFloat(num.value);
+      if(isNaN(v)){num.value=fmtStepStr(step,r.value);return;}
+      var mn=r.min!==''?parseFloat(r.min):-Infinity, mx=r.max!==''?parseFloat(r.max):Infinity;
+      if(v<mn)v=mn;if(v>mx)v=mx;
+      r.value=v;num.value=fmtStepStr(step,r.value);
+      r.dispatchEvent(new Event('input',{bubbles:true}));   // 기존 range 핸들러 재사용
+    }
+    num.addEventListener('change',commit);
+    num.addEventListener('keydown',function(e){if(e.key==='Enter'){commit();num.blur();}});
+  });
+}
+
+/* ========== 설정 섹션 아코디언 (탭처럼 펼침/접힘) ========== */
+function initSettingsAccordion(){
+  document.querySelectorAll('#settings-section .settings-section').forEach(function(sec){
+    var h=sec.querySelector('h4');if(!h||h._acc)return;h._acc=true;
+    sec.classList.add('acc-section','collapsed');
+    h.classList.add('acc-head');h.setAttribute('role','button');h.setAttribute('tabindex','0');
+    function toggle(){sec.classList.toggle('collapsed');}
+    h.addEventListener('click',toggle);
+    h.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
   });
 }
 
@@ -1330,7 +1398,7 @@ function showUserChip(user,role){
   if(da){
     var de=document.getElementById('drawer-email');if(de)de.textContent=label;
     var dv=document.getElementById('drawer-version'),av=document.getElementById('app-version');if(dv&&av)dv.textContent=av.textContent;
-    da.style.display=(role==='user')?'':'none';
+    da.style.display='';   // 관리자·데모 모두 폰 햄버거 메뉴에 계정 블록 노출
   }
 }
 

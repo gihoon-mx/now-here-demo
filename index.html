@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0" />
   <meta name="description" content="대한민국 동 단위 행정구역 경계를 Google Maps 위에 인터랙티브하게 표시하는 데모 페이지" />
   <title>동 단위 행정구역 경계 뷰어 – Now Here</title>
-  <link rel="stylesheet" href="style.css?v=1.8.1" />
+  <link rel="stylesheet" href="style.css?v=1.9.0" />
 </head>
 <body>
 
@@ -43,7 +43,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.8.1</span>
+        <span id="app-version">v1.9.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -115,7 +115,7 @@
 
     <!-- 설정 토글 -->
     <div class="settings-toggle-row" id="settings-toggle-row">
-      <button id="settings-toggle">⚙ 설정 <span class="toggle-arrow">▾</span></button>
+      <button id="settings-toggle">⚙ 관리자 설정 <span class="toggle-arrow">▾</span></button>
     </div>
 
     <!-- 설정 패널 (좌측 내장) -->
@@ -127,13 +127,14 @@
       <div class="settings-section">
         <h4>스팟 메시지 기본 스타일</h4>
         <div class="setting-row"><label>이모지 위치</label><select id="spot-emoji-pos" class="mini-select"><option value="bottom">아래</option><option value="top">위</option><option value="left">왼쪽</option><option value="right">오른쪽</option></select></div>
-        <div class="setting-row"><label>이모지 자간</label><input type="range" id="spot-emoji-letter" min="0" max="16" step="1" value="0" /><span class="range-val">0</span></div>
+        <div class="setting-row"><label>이모지 자간</label><input type="range" id="spot-emoji-letter" min="-8" max="16" step="1" value="0" /><span class="range-val">0</span></div>
         <div class="setting-row"><label>버블 간격</label><input type="range" id="spot-emoji-gap" min="0" max="14" step="1" value="2" /><span class="range-val">2</span></div>
         <div class="setting-row"><label>말풍선 둥글기</label><input type="range" id="spot-bubble-radius" min="0" max="24" step="1" value="13" /><span class="range-val">13</span></div>
         <div class="setting-row"><label>꼬리 표시</label><label class="toggle-switch"><input type="checkbox" id="spot-tail" checked /><span class="toggle-slider"></span></label></div>
         <div class="setting-row"><label>최대 글자수</label><input type="range" id="spot-max-chars" min="10" max="120" step="5" value="40" /><span class="range-val">40</span></div>
         <div class="setting-row"><label>글자 크기</label><input type="range" id="spot-font-size" min="9" max="22" step="1" value="13" /><span class="range-val">13</span></div>
         <div class="setting-row"><label>이모지 크기</label><input type="range" id="spot-emoji-size" min="16" max="48" step="2" value="26" /><span class="range-val">26</span></div>
+        <div class="setting-row"><label>점 전환 줌</label><input type="range" id="spot-dot-zoom" min="8" max="18" step="1" value="13" /><span class="range-val">13</span></div>
         <div class="setting-row"><label>글자색</label><button type="button" class="color-trigger" id="ct-spot-text"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
         <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-spot-bg"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
       </div>
@@ -290,7 +291,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.8.1"></script>
-  <script src="app.js?v=1.8.1"></script>
+  <script src="config.js?v=1.9.0"></script>
+  <script src="app.js?v=1.9.0"></script>
 </body>
 </html>
