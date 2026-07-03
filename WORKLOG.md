@@ -47,13 +47,13 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.8.0**
+- **현재 최신: v1.8.1**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.8.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.8.1 · 라이브 정상.** 완료된 기능:
 - **인증/역할**: Google 로그인(Firebase) + allowlist 접근제어. `관리자`(admin) / `데모유저`(user) 역할.
 - **레이아웃**: 좌 전체화면 지도 / 우 사이드바(폰 미러). 사이드바 폭 드래그 조절 → 폰 크기 변경(내부 UI는 `cqw`로 비율 유지).
 - **폰 미러(앱처럼)**: 상단 좌 햄버거(→설정 드로어)·우 로컬/트렌드 모드토글, 하단 네비(지도/피드/미션/커뮤니티/AI), 접기 버튼.
@@ -148,6 +148,7 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.8.1 — 스팟/네비/AI 디테일 개선**: ①스팟 기본스타일 메뉴를 `#local-settings` 밖으로 이동→**모드 무관 항상 표시**(트렌드에서 사라지던 문제 해결) ②스팟 **이모지 자간**(`emojiLetterSpacing`, 2개+ 이모지 간격) 추가 ③스팟 편집 시 **컬러팝업 z-index 100010**로 모달 위에 표시 ④**줌아웃(z<`SPOT_DOT_ZOOM`=13) 시 스팟을 약한 점**으로 표시(`.spot-dot`, draw에서 토글) ⑤**데모 드로어 계정 블록**(`#drawer-account`: 이메일·버전·로그아웃, role-user만) ⑥하단 네비 커뮤니티→**소셜**(라벨 2자 균일)로 hug-content→**아이콘간격==외곽마진 항상 동일·팝핑 없음** ⑦AI 말풍선 꼬리를 **AI 아이콘 중심 위**(right 6.7cqw) 정렬 ⑧AI 클릭 시 **아이콘 360° 회전+AI색(블롭 stop #8ed0ff→#a78bfa, .ai-on 틴트)**, 재클릭/타임아웃 시 말풍선 사라지며 원복.
 - **v1.8.0 — 스팟 편집/드래그 + 네비 고정폭 + AI 말풍선 + 플랫화**:
   - **하단 네비 고정폭**(`.pn-group` width:58cqw, justify center) → 메뉴 전환해도 바 크기 불변(팝핑 방지). gap==padding(3cqw) 균등·확대. [그룹+AI] 통째 가운데.
   - **스팟 메시지 편집/이동(관리자)**: 메인지도에서 스팟을 **드래그로 이동**(`SpotBubble._onDown`, fromContainerPixelToLatLng), **이동 없이 클릭하면 편집 모달**(`#spot-edit-modal`)—해당 스팟의 **텍스트·버블색·이모지** 개별 수정 + 삭제. per-spot `color` 필드 추가(`_render`가 `s.color||bgColor`), cloudSave/applyCloudData에 color 포함.

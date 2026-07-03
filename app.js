@@ -45,8 +45,9 @@ var colorControls = [];         // 색상 트리거 재도색용 레지스트리
 /* ========== 스팟 메시지 (로컬모드, 관리자 생성 · 데모 뷰잉) ========== */
 var spotMessages = [];          // [{id,lat,lng,text,emoji}]
 var spotConfig = { maxChars:40, fontSize:13, textColor:'#ffffff', bgColor:'#1c66e5', bgOpacity:0.92, emojiSize:26,
-  emojiPos:'bottom', emojiGap:2, bubbleRadius:13, tail:true,
+  emojiPos:'bottom', emojiGap:2, emojiLetterSpacing:0, bubbleRadius:13, tail:true,
   emojis:['💬','📍','⭐','🔥','❤️','😀','🎉','📢','☕','🍜','🐶','🌸'] };
+var SPOT_DOT_ZOOM = 13;   // 이 줌 미만이면 스팟을 점으로만 표시
 var spotOverlays = [];          // 메인 지도 SpotBubble
 var phoneSpotOverlays = [];     // 폰 지도 SpotBubble
 var placingSpot = false;        // 관리자 스팟 배치 모드
@@ -292,9 +293,10 @@ function initSpotBubbleClass(){
     var wrap=document.createElement('div');wrap.className='spot-marker';
     var bubble=document.createElement('div');bubble.className='spot-bubble';
     var emoji=document.createElement('div');emoji.className='spot-emoji';
-    wrap.appendChild(bubble);wrap.appendChild(emoji);
+    var dot=document.createElement('div');dot.className='spot-dotmark';
+    wrap.appendChild(bubble);wrap.appendChild(emoji);wrap.appendChild(dot);
     wrap.addEventListener('mousedown',function(e){self._onDown(e);});
-    this.div=wrap;this.bubbleEl=bubble;this.emojiEl=emoji;
+    this.div=wrap;this.bubbleEl=bubble;this.emojiEl=emoji;this.dotEl=dot;
     this._render();
     this.getPanes().overlayMouseTarget.appendChild(wrap);
   };
@@ -325,6 +327,8 @@ function initSpotBubbleClass(){
     var t=(s.text||''),max=Number(c.maxChars)||40;if(t.length>max)t=t.slice(0,max)+'…';
     this.emojiEl.textContent=s.emoji||'💬';
     this.emojiEl.style.fontSize=(Number(c.emojiSize)||26)+'px';
+    this.emojiEl.style.letterSpacing=(Number(c.emojiLetterSpacing)||0)+'px';
+    if(this.dotEl)this.dotEl.style.background=hexToRgba(s.color||c.bgColor||'#1c66e5',1);
     this.bubbleEl.textContent=t;
     this.bubbleEl.style.display=t?'':'none';
     this.bubbleEl.style.color=c.textColor||'#fff';
@@ -344,7 +348,7 @@ function initSpotBubbleClass(){
     this.div.classList.toggle('spot-admin',currentRole==='admin');
   };
   SpotBubble.prototype.update=function(cfg){this.cfg=cfg||this.cfg;if(this.div)this._render();};
-  SpotBubble.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;var pos=p.fromLatLngToDivPixel(this.position);if(pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}};
+  SpotBubble.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;var pos=p.fromLatLngToDivPixel(this.position);if(pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}var m=this.getMap();if(m){var z=m.getZoom();this.div.classList.toggle('spot-dot',z!=null&&z<SPOT_DOT_ZOOM);}};
   SpotBubble.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
 }
 
@@ -442,6 +446,7 @@ function initSpotUI(){
   bindInput('spot-emoji-size','range',spotConfig,'emojiSize',refreshSpotStyles);
   bindInput('spot-bubble-radius','range',spotConfig,'bubbleRadius',refreshSpotStyles);
   bindInput('spot-emoji-gap','range',spotConfig,'emojiGap',refreshSpotStyles);
+  bindInput('spot-emoji-letter','range',spotConfig,'emojiLetterSpacing',refreshSpotStyles);
   var tailEl=document.getElementById('spot-tail');if(tailEl)tailEl.addEventListener('change',function(){spotConfig.tail=this.checked;refreshSpotStyles();markCloudDirty();});
   var posEl=document.getElementById('spot-emoji-pos');if(posEl)posEl.addEventListener('change',function(){spotConfig.emojiPos=this.value;refreshSpotStyles();markCloudDirty();});
   makeColorControl('ct-spot-text',spotConfig,'textColor',null,refreshSpotStyles);
@@ -687,13 +692,23 @@ function initPhoneControls(){
   mirror.querySelectorAll('.pn-item').forEach(function(b){b.addEventListener('click',function(){
     mirror.querySelectorAll('.pn-item').forEach(function(x){x.classList.remove('active');});b.classList.add('active');
   });});
-  // AI 버튼: 말풍선 팝업(데모)
+  // AI 버튼: 말풍선 팝업 + 아이콘 회전/AI색상(데모)
   var aiBtn=mirror.querySelector('.pn-ai'),aiBub=document.getElementById('ai-bubble');
-  if(aiBtn&&aiBub){aiBtn.addEventListener('click',function(e){e.stopPropagation();
-    if(aiBub.classList.contains('show')){aiBub.classList.remove('show');clearTimeout(aiBub._t);return;}
-    aiBub.classList.remove('show');void aiBub.offsetWidth;aiBub.classList.add('show');
-    clearTimeout(aiBub._t);aiBub._t=setTimeout(function(){aiBub.classList.remove('show');},4500);
-  });}
+  if(aiBtn&&aiBub){
+    var aiStops=document.querySelectorAll('#aiBlob stop');
+    function setAiActive(on){
+      aiBtn.classList.toggle('ai-on',on);
+      if(aiStops[0]&&aiStops[1]){aiStops[0].setAttribute('stop-color',on?'#8ed0ff':'#cbd0d8');aiStops[1].setAttribute('stop-color',on?'#a78bfa':'#cbd0d8');}
+    }
+    function hideAi(){aiBub.classList.remove('show');clearTimeout(aiBub._t);setAiActive(false);}
+    aiBtn.addEventListener('click',function(e){e.stopPropagation();
+      if(aiBub.classList.contains('show')){hideAi();return;}
+      aiBub.classList.remove('show');void aiBub.offsetWidth;aiBub.classList.add('show');
+      aiBtn.classList.remove('spin');void aiBtn.offsetWidth;aiBtn.classList.add('spin');
+      setAiActive(true);
+      clearTimeout(aiBub._t);aiBub._t=setTimeout(hideAi,5000);
+    });
+  }
   // 창 크기 변경 시 화면 밖 방지
   window.addEventListener('resize',reclampPhone);
 }
@@ -1168,6 +1183,7 @@ function syncSettingsUI(){
   setRange('spot-emoji-size',spotConfig.emojiSize);
   setRange('spot-bubble-radius',spotConfig.bubbleRadius);
   setRange('spot-emoji-gap',spotConfig.emojiGap);
+  setRange('spot-emoji-letter',spotConfig.emojiLetterSpacing);
   setCheck('spot-tail',spotConfig.tail);
   var _sp=document.getElementById('spot-emoji-pos');if(_sp)_sp.value=spotConfig.emojiPos||'bottom';
   if(typeof renderSpotEmojiPicker==='function')renderSpotEmojiPicker();
@@ -1306,8 +1322,16 @@ function hideAuthOverlay(){var ov=document.getElementById('auth-overlay');if(ov)
 function showUserChip(user,role){
   var row=document.getElementById('account-row');if(!row)return;
   row.style.display='';
-  document.getElementById('account-email').textContent=(user.email||'')+(role==='admin'?' · 관리자':' · 뷰어');
+  var label=(user.email||'')+(role==='admin'?' · 관리자':' · 뷰어');
+  document.getElementById('account-email').textContent=label;
   document.getElementById('allowlist-btn').style.display=(role==='admin')?'':'none';
+  // 폰 드로어 계정 블록: 데모(뷰어)일 때 버전+이메일+로그아웃 노출
+  var da=document.getElementById('drawer-account');
+  if(da){
+    var de=document.getElementById('drawer-email');if(de)de.textContent=label;
+    var dv=document.getElementById('drawer-version'),av=document.getElementById('app-version');if(dv&&av)dv.textContent=av.textContent;
+    da.style.display=(role==='user')?'':'none';
+  }
 }
 
 function initAuth(){
@@ -1322,6 +1346,7 @@ function initAuth(){
   });
   document.getElementById('auth-logout').addEventListener('click',function(){fbAuth.signOut();});
   var lo=document.getElementById('logout-btn');if(lo)lo.addEventListener('click',function(){fbAuth.signOut();});
+  var dlo=document.getElementById('drawer-logout');if(dlo)dlo.addEventListener('click',function(){fbAuth.signOut();});
   var alBtn=document.getElementById('allowlist-btn');if(alBtn)alBtn.addEventListener('click',openAllowlistManager);
   initAllowlistModal();
   fbAuth.onAuthStateChanged(handleAuth);
