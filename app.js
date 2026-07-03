@@ -508,7 +508,8 @@ function buildDongIndex(){
     polys.forEach(function(poly){poly[0].forEach(function(pt){if(pt[0]<minx)minx=pt[0];if(pt[0]>maxx)maxx=pt[0];if(pt[1]<miny)miny=pt[1];if(pt[1]>maxy)maxy=pt[1];});});
     var raw=(f.properties&&(f.properties.adm_nm||f.properties.name))||'';
     var p=raw.split(' ');var shortName=p.length>2?p.slice(2).join(' '):raw;
-    return {name:shortName,bbox:[minx,miny,maxx,maxy],polys:polys};
+    var gu=(f.properties&&f.properties.sggnm)||(p.length>1?p[1]:shortName);
+    return {name:shortName,gu:gu,bbox:[minx,miny,maxx,maxy],polys:polys};
   });
 }
 function pointInRing(x,y,ring){
@@ -519,7 +520,7 @@ function pointInRing(x,y,ring){
   }
   return inside;
 }
-function dongAt(lat,lng){
+function regionAt(lat,lng){
   if(!dongIndex)return null;
   for(var i=0;i<dongIndex.length;i++){
     var d=dongIndex[i],b=d.bbox;
@@ -529,8 +530,22 @@ function dongAt(lat,lng){
       if(pointInRing(lng,lat,poly[0])){
         var inHole=false;
         for(var h=1;h<poly.length;h++){if(pointInRing(lng,lat,poly[h])){inHole=true;break;}}
-        if(!inHole)return d.name;
+        if(!inHole)return d;
       }
+    }
+  }
+  return null;
+}
+function dongAt(lat,lng){var d=regionAt(lat,lng);return d?d.name:null;}
+function guAt(lat,lng){var d=regionAt(lat,lng);return d?d.gu:null;}
+// 트렌드 모드: 중심이 포함된 트렌드 존 이름
+function zoneAtCenter(lat,lng){
+  for(var i=0;i<trendZones.length;i++){
+    var z=trendZones[i];if(!z.hexCenters||!z.hexCenters.length)continue;
+    var gp=getHexGridParams(z.radiusKm);
+    for(var j=0;j<z.hexCenters.length;j++){
+      var hc=z.hexCenters[j];
+      if(Math.abs(hc.lat-lat)<gp.R_lat*1.15&&Math.abs(hc.lng-lng)<gp.R_lng*1.15)return z.name;
     }
   }
   return null;
@@ -540,8 +555,11 @@ function updatePhoneLocation(){
   var nameEl=el.querySelector('.pa-loc-name')||el;
   if(!map){nameEl.textContent='···';return;}
   var c=map.getCenter();if(!c){nameEl.textContent='···';return;}
-  var name=dongAt(c.lat(),c.lng());
-  nameEl.textContent=name||'위치 확인 중';
+  if(currentMode==='trend'){
+    nameEl.textContent=zoneAtCenter(c.lat(),c.lng())||'트렌드';
+    return;
+  }
+  nameEl.textContent=guAt(c.lat(),c.lng())||'위치 확인 중';
 }
 
 /* ========== 관리자 지도: 폰 표시영역 오버레이 ========== */

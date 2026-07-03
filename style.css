@@ -325,10 +325,10 @@ button:focus:not(:focus-visible){outline:none;}
 .phone-notch{display:none;}
 .phone-map{position:absolute;inset:0;z-index:0;background:#0b0b10;}
 
-/* 상단 흰색 헤더 (cqw = 폰 폭의 1%) */
+/* 상단 흰색 헤더 (cqw = 폰 폭의 1%) — 상단 여백 넉넉 + 요소 세로 가운데 */
 .phone-header{position:absolute;top:0;left:0;right:0;z-index:2;background:#fff;
-  padding:2.6cqw 4cqw 2cqw;box-shadow:0 0.4cqw 1.6cqw rgba(0,0,0,0.08);}
-.phone-appbar{display:flex;align-items:center;justify-content:space-between;gap:1.6cqw;}
+  padding:5.5cqw 4cqw 3cqw;box-shadow:0 0.4cqw 1.6cqw rgba(0,0,0,0.08);}
+.phone-appbar{display:flex;align-items:center;justify-content:space-between;gap:1.6cqw;min-height:9cqw;}
 /* 햄버거: 배경 제거 · 어두운 라인 */
 .pa-btn{flex-shrink:0;width:8.4cqw;height:8.4cqw;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5cqw;padding:0;border:none;background:transparent;border-radius:2.4cqw;cursor:pointer;transition:background .15s ease;}
 .pa-btn:active{background:rgba(0,0,0,0.06);}
@@ -346,20 +346,23 @@ button:focus:not(:focus-visible){outline:none;}
 .phone-header-slot:empty{min-height:5cqw;margin-top:1.2cqw;}
 
 /* 하단 네비: 알약 그룹(활성=라벨 확장) + AI 원형 */
-.phone-navbar{position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;align-items:center;gap:1.8cqw;padding:0 3cqw 3.6cqw;}
-.pn-group{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:0.6cqw;height:13.4cqw;padding:0 2cqw;border-radius:7cqw;
+/* 그룹은 아이콘에 맞춰 컴팩트, [그룹+AI] 통째로 가운데 정렬 */
+.phone-navbar{position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;align-items:center;justify-content:center;gap:2cqw;padding:0 3cqw 3.6cqw;}
+.pn-group{flex:0 0 auto;min-width:0;max-width:100%;display:flex;align-items:center;justify-content:center;gap:1.7cqw;height:13.4cqw;padding:0 3cqw;border-radius:7cqw;
   background:rgba(18,20,28,0.55);backdrop-filter:blur(22px) saturate(1.7);-webkit-backdrop-filter:blur(22px) saturate(1.7);
   border:1px solid rgba(255,255,255,0.13);box-shadow:0 2cqw 6cqw rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.09);}
-.pn-item{flex:0 0 auto;display:flex;align-items:center;justify-content:center;height:10cqw;padding:0 0.6cqw;border:none;background:transparent;color:#c1c6d0;cursor:pointer;border-radius:5cqw;overflow:hidden;transition:background .25s ease,color .25s ease,padding .28s cubic-bezier(.22,1,.36,1);}
+.pn-item{flex:0 0 auto;display:flex;align-items:center;justify-content:center;height:10cqw;padding:0 0.4cqw;border:none;background:transparent;color:#c1c6d0;cursor:pointer;border-radius:5cqw;overflow:hidden;transition:background .25s ease,color .25s ease,padding .28s cubic-bezier(.22,1,.36,1);}
 .pn-item .pn-ic{width:5.4cqw;height:5.4cqw;display:flex;flex-shrink:0;}
 .pn-item .pn-ic svg{width:100%;height:100%;}
 .pn-lb{max-width:0;overflow:hidden;white-space:nowrap;font-size:3cqw;font-weight:700;opacity:0;transition:max-width .28s cubic-bezier(.22,1,.36,1),opacity .2s ease,margin .28s ease;}
 .pn-item.active{background:rgba(255,255,255,0.2);color:#fff;padding:0 2.4cqw;box-shadow:inset 0 1px 0 rgba(255,255,255,0.15);}
 .pn-item.active .pn-lb{max-width:18cqw;opacity:1;margin-left:1.2cqw;}
-.pn-ai{width:13.4cqw;height:13.4cqw;flex-shrink:0;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.3));transition:transform .2s cubic-bezier(.22,1,.36,1);}
+.pn-ai{width:13.4cqw;height:13.4cqw;flex-shrink:0;border:1px solid rgba(255,255,255,0.13);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:1.8cqw;
+  background:rgba(18,20,28,0.55);backdrop-filter:blur(22px) saturate(1.7);-webkit-backdrop-filter:blur(22px) saturate(1.7);
+  box-shadow:0 2cqw 6cqw rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.09);transition:transform .18s ease;}
 .pn-ai svg{width:100%;height:100%;display:block;}
-.pn-ai:hover{transform:translateY(-2px) scale(1.06) rotate(-3deg);}
-.pn-ai:active{transform:scale(.92);}
+.pn-ai:hover{transform:scale(1.05);}
+.pn-ai:active{transform:scale(.9);}
 
 /* ========== 폰 내 메뉴·설정 드로어 (햄버거) ========== */
 #phone-drawer{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;background:rgba(10,10,16,0.98);

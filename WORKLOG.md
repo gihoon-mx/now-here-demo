@@ -41,13 +41,13 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.7.0**
+- **현재 최신: v1.7.1**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.7.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.7.1 · 라이브 정상.** 완료된 기능:
 - **인증/역할**: Google 로그인(Firebase) + allowlist 접근제어. `관리자`(admin) / `데모유저`(user) 역할.
 - **레이아웃**: 좌 전체화면 지도 / 우 사이드바(폰 미러). 사이드바 폭 드래그 조절 → 폰 크기 변경(내부 UI는 `cqw`로 비율 유지).
 - **폰 미러(앱처럼)**: 상단 좌 햄버거(→설정 드로어)·우 로컬/트렌드 모드토글, 하단 네비(지도/피드/미션/커뮤니티/AI), 접기 버튼.
@@ -142,6 +142,7 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.7.1 — 폰 UI 미세조정**: ①하단 네비 그룹을 아이콘에 맞춰 컴팩트(`.pn-group` flex:0 0 auto), [그룹+AI] 통째로 가운데(`.phone-navbar` justify-content:center) ②네비 아이콘 간격 확대(gap 1.7cqw) ③상단 헤더 상단여백 확대(padding-top 5.5cqw)+앱바 세로중앙(min-height 9cqw, align-items center) ④상단 위치표시=로컬은 **구(sggnm)**, 트렌드는 **중심 트렌드존**(`regionAt`/`guAt`/`zoneAtCenter`, dongIndex에 gu 추가) ⑤AI 버튼을 좌측 네비와 통일—다크 글래스 원형+플랫 라이트 블롭(#cbd0d8, 그라디언트/그림자 제거).
 - **v1.7.0 — 폰 UI 정리 + 스팟 디자인 메뉴 + 축척 범례**:
   - **폰 상단 = 흰색 헤더**: 상태바(시간/신호/배터리) 제거. `.phone-topscrim`(어두운 스크림) → `.phone-header`(불투명 흰색). 햄버거·위치라벨·모드토글을 흰배경용으로 배경 제거+재스타일(햄버거 라인 #33373f, 위치 텍스트 #1f2430, 모드토글 라이트 세그먼트). 헤더 하단에 **예약 흰색 슬롯 `#phone-header-slot`**(추후 컨텐츠에 따라 가변).
   - **하단 네비 컴팩트**: `.pn-group` space-between→center+gap축소로 아이콘 중앙 클러스터, 활성 라벨 확장 시 밀착.
