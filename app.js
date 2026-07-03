@@ -45,12 +45,13 @@ var colorControls = [];         // 색상 트리거 재도색용 레지스트리
 /* ========== 스팟 메시지 (로컬모드, 관리자 생성 · 데모 뷰잉) ========== */
 var spotMessages = [];          // [{id,lat,lng,text,emoji}]
 var spotConfig = { maxChars:40, fontSize:13, textColor:'#ffffff', bgColor:'#1c66e5', bgOpacity:0.92, emojiSize:26,
-  emojiPos:'bottom', emojiGap:2, emojiLetterSpacing:0, bubbleRadius:13, tail:true, dotZoom:13,
+  emojiPos:'bottom', emojiGap:2, emojiLetterSpacing:0, bubbleRadius:13, tail:true, dotZoom:13, dotStyle:'dot', dotColor:'#6ec6ff',
   emojis:['💬','📍','⭐','🔥','❤️','😀','🎉','📢','☕','🍜','🐶','🌸'] };
-// 스팟은 지도에 붙어 이 기준 줌에서 관리자가 설정한 크기(1배)로 보이고, 줌아웃하면 비례해 작아짐.
+// 스팟은 지도에 붙어 기준 줌에서 설정 크기(1배), 줌아웃=배율만큼 축소·줌인=배율만큼 확대.
 var SPOT_REF_ZOOM = (typeof CONFIG!=='undefined'&&CONFIG.MAP_ZOOM)?CONFIG.MAP_ZOOM+3:14;
-var SPOT_SCALE_MIN = 0.16, SPOT_SCALE_MAX = 1;   // 기준 줌 이상에선 1배 유지, 줌아웃 시 축소
+var SPOT_SCALE_MIN = 0.16, SPOT_SCALE_MAX = 6;   // 줌 1레벨당 2배, 과도 방지 상·하한만
 function spotDotZoom(){var z=Number(spotConfig.dotZoom);return isNaN(z)?13:z;}
+function spotScale(z){var s=Math.pow(2,z-SPOT_REF_ZOOM);if(s<SPOT_SCALE_MIN)s=SPOT_SCALE_MIN;if(s>SPOT_SCALE_MAX)s=SPOT_SCALE_MAX;return s;}
 var spotOverlays = [];          // 메인 지도 SpotBubble
 var phoneSpotOverlays = [];     // 폰 지도 SpotBubble
 var placingSpot = false;        // 관리자 스팟 배치 모드
@@ -331,7 +332,7 @@ function initSpotBubbleClass(){
     this.emojiEl.textContent=s.emoji||'💬';
     this.emojiEl.style.fontSize=(Number(c.emojiSize)||26)+'px';
     this.emojiEl.style.letterSpacing=(Number(c.emojiLetterSpacing)||0)+'px';
-    if(this.dotEl)this.dotEl.style.background=hexToRgba(s.color||c.bgColor||'#1c66e5',1);
+    if(this.dotEl)this.dotEl.style.background=hexToRgba(c.dotColor||s.color||c.bgColor||'#1c66e5',1);
     this.bubbleEl.textContent=t;
     this.bubbleEl.style.display=t?'':'none';
     this.bubbleEl.style.color=c.textColor||'#fff';
@@ -357,16 +358,19 @@ function initSpotBubbleClass(){
     if(pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}
     var m=this.getMap();if(!m)return;var z=m.getZoom();if(z==null)return;
     var isDot=z<spotDotZoom();
+    var emojiDot=isDot&&(spotConfig.dotStyle==='emoji'); // 작을 때 이모지로 표시 옵션
+    var s=spotScale(z); // 지도 배율에 붙어 확대/축소
     this.div.classList.toggle('spot-dot',isDot);
-    if(isDot){
+    this.div.classList.toggle('spot-dot-emoji',emojiDot);
+    if(isDot&&!emojiDot){
       this.div.style.transformOrigin='50% 50%';
-      this.div.style.transform='translate(-50%,-50%)';
+      this.div.style.transform='translate(-50%,-50%)';           // 고정 크기 점
+    }else if(emojiDot){
+      this.div.style.transformOrigin='50% 50%';
+      this.div.style.transform='translate(-50%,-50%) scale('+s+')'; // 이모지만 배율로
     }else{
-      // 지도에 붙어 보이도록 기준 줌 대비 배율 적용(줌아웃=축소). 기준 줌 이상은 1배 유지.
-      var s=Math.pow(2,z-SPOT_REF_ZOOM);
-      if(s<SPOT_SCALE_MIN)s=SPOT_SCALE_MIN;if(s>SPOT_SCALE_MAX)s=SPOT_SCALE_MAX;
       this.div.style.transformOrigin='50% 100%';
-      this.div.style.transform='translate(-50%,-100%) scale('+s+')';
+      this.div.style.transform='translate(-50%,-100%) scale('+s+')'; // 말풍선 배율로
     }
   };
   SpotBubble.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
@@ -502,8 +506,10 @@ function initSpotUI(){
   bindInput('spot-dot-zoom','range',spotConfig,'dotZoom',refreshSpotStyles);
   var tailEl=document.getElementById('spot-tail');if(tailEl)tailEl.addEventListener('change',function(){spotConfig.tail=this.checked;refreshSpotStyles();markCloudDirty();});
   var posEl=document.getElementById('spot-emoji-pos');if(posEl)posEl.addEventListener('change',function(){spotConfig.emojiPos=this.value;refreshSpotStyles();markCloudDirty();});
+  var dsEl=document.getElementById('spot-dot-style');if(dsEl)dsEl.addEventListener('change',function(){spotConfig.dotStyle=this.value;refreshSpotStyles();markCloudDirty();});
   makeColorControl('ct-spot-text',spotConfig,'textColor',null,refreshSpotStyles);
   makeColorControl('ct-spot-bg',spotConfig,'bgColor','bgOpacity',refreshSpotStyles);
+  makeColorControl('ct-spot-dot',spotConfig,'dotColor',null,refreshSpotStyles);
 }
 function renderSpotEmojiPicker(){
   var pick=document.getElementById('spot-emoji-pick');if(!pick)return;
@@ -580,7 +586,8 @@ function initPhoneMirror(){
   map.addListener('center_changed',sync);
   map.addListener('zoom_changed',sync);
   map.addListener('idle',function(){sync();updatePhoneLocation();updatePhoneViewportOverlay();updateScaleLegend();});
-  phoneMap.addListener('idle',function(){updatePhoneViewportOverlay();});
+  phoneMap.addListener('idle',function(){updatePhoneViewportOverlay();updatePhoneLocation();});
+  phoneMap.addListener('click',function(){clearPhoneSpotlight();}); // 빈 곳 클릭 = 존 강조 해제
   sync();
   if(originalGeoJson){buildDongIndex();applyGeoJsonToPhone();}
   phoneDataVisibility();syncPhoneZones();updatePhoneUI();updatePhoneLocation();updatePhoneViewportOverlay();
@@ -599,6 +606,7 @@ function refreshPhoneMapStyles(){
 function phoneDataVisibility(){if(phoneMap)phoneMap.data.setMap(currentMode==='local'?phoneMap:null);}
 function syncPhoneZones(){
   if(!phoneMap)return;
+  clearPhoneSpotlight();
   phoneZoneOverlays.forEach(function(o){o.polygons.forEach(function(p){p.setMap(null);});if(o.label)o.label.setMap(null);});
   phoneZoneOverlays=[];
   if(currentMode!=='trend')return;
@@ -606,13 +614,39 @@ function syncPhoneZones(){
     if(zone.id===editingZoneId)return;
     var gp=getHexGridParams(zone.radiusKm),polys=[],sumLat=0,sumLng=0;
     zone.hexCenters.forEach(function(c){
-      var poly=new google.maps.Polygon({paths:hexVertices(c.lng,c.lat,gp.R_lat,gp.R_lng),fillColor:zone.color,fillOpacity:0.35,strokeColor:zone.color,strokeWeight:2,strokeOpacity:0.8,clickable:false,zIndex:3});
+      var poly=new google.maps.Polygon({paths:hexVertices(c.lng,c.lat,gp.R_lat,gp.R_lng),fillColor:zone.color,fillOpacity:0.35,strokeColor:zone.color,strokeWeight:2,strokeOpacity:0.8,clickable:true,zIndex:3});
       poly.setMap(phoneMap);polys.push(poly);sumLat+=c.lat;sumLng+=c.lng;
+      poly.addListener('click',(function(z){return function(){selectPhoneZone(z);};})(zone)); // 데모: 존 클릭→강조
     });
     var label=null;
     if(zone.hexCenters.length>0)label=new MapLabel(new google.maps.LatLng(sumLat/zone.hexCenters.length,sumLng/zone.hexCenters.length),zone.name,zoneLabelStyle(zone.color),phoneMap);
-    phoneZoneOverlays.push({polygons:polys,label:label,color:zone.color});
+    phoneZoneOverlays.push({polygons:polys,label:label,color:zone.color,zoneId:zone.id});
   });
+}
+
+/* ========== 폰(데모): 트렌드 존 선택 → 화면 맞춤 + 주변 그레이 처리 강조 ========== */
+var phoneSpotlight=null, phoneSelectedZoneId=null;
+function clearPhoneSpotlight(){if(phoneSpotlight){phoneSpotlight.setMap(null);phoneSpotlight=null;}phoneSelectedZoneId=null;}
+function selectPhoneZone(zone){
+  if(!phoneMap||!zone||!zone.hexCenters||!zone.hexCenters.length)return;
+  if(phoneSelectedZoneId===zone.id){clearPhoneSpotlight();return;} // 재클릭 = 강조 해제
+  if(phoneSpotlight){phoneSpotlight.setMap(null);phoneSpotlight=null;}
+  phoneSelectedZoneId=zone.id;
+  var gp=getHexGridParams(zone.radiusKm);
+  var b=new google.maps.LatLngBounds(), holes=[];
+  zone.hexCenters.forEach(function(c){
+    var v=hexVertices(c.lng,c.lat,gp.R_lat,gp.R_lng);
+    v.forEach(function(p){b.extend(p);});
+    holes.push(v);   // 존 셀들을 구멍으로 → 그 안만 밝게
+  });
+  // 바깥 링은 존 주변을 넉넉히 덮는 사각형(전세계 링은 안/밖 모호로 반전됨). 시계방향, 헥사곤 구멍은 반시계방향(반대 감김) → 구멍으로 렌더.
+  var ne=b.getNorthEast(), sw=b.getSouthWest();
+  var pad=Math.max(ne.lat()-sw.lat(), ne.lng()-sw.lng())*8 + 0.05;
+  var outer=[{lat:sw.lat()-pad,lng:sw.lng()-pad},{lat:ne.lat()+pad,lng:sw.lng()-pad},{lat:ne.lat()+pad,lng:ne.lng()+pad},{lat:sw.lat()-pad,lng:ne.lng()+pad}];
+  phoneSpotlight=new google.maps.Polygon({paths:[outer].concat(holes),strokeWeight:0,fillColor:'#0a0c14',fillOpacity:0.62,clickable:false,zIndex:20});
+  phoneSpotlight.setMap(phoneMap);
+  phoneMap.fitBounds(b,26);   // 존 전체가 한 화면에
+  updatePhoneLocation();
 }
 function refreshPhoneZoneLabels(){phoneZoneOverlays.forEach(function(o){if(o.label)o.label.updateStyle(zoneLabelStyle(o.color));});}
 
@@ -672,13 +706,14 @@ function zoneAtCenter(lat,lng){
 function updatePhoneLocation(){
   var el=document.getElementById('phone-loc');if(!el)return;
   var nameEl=el.querySelector('.pa-loc-name')||el;
-  if(!map){nameEl.textContent='···';return;}
-  var c=map.getCenter();if(!c){nameEl.textContent='···';return;}
+  var src=phoneMap||map;                    // 폰 화면(실제 사용자 뷰)의 센터 기준
+  if(!src){nameEl.textContent='···';return;}
+  var c=src.getCenter();if(!c){nameEl.textContent='···';return;}
   if(currentMode==='trend'){
     nameEl.textContent=zoneAtCenter(c.lat(),c.lng())||'트렌드';
     return;
   }
-  nameEl.textContent=guAt(c.lat(),c.lng())||'위치 확인 중';
+  nameEl.textContent=dongAt(c.lat(),c.lng())||'위치 확인 중';   // 베이직 모드 = 센터가 속한 '동'
 }
 
 /* ========== 관리자 지도: 폰 표시영역 오버레이 ========== */
@@ -1164,6 +1199,7 @@ function syncSettingsUI(){
   setRange('spot-dot-zoom',spotConfig.dotZoom);
   setCheck('spot-tail',spotConfig.tail);
   var _sp=document.getElementById('spot-emoji-pos');if(_sp)_sp.value=spotConfig.emojiPos||'bottom';
+  var _sds=document.getElementById('spot-dot-style');if(_sds)_sds.value=spotConfig.dotStyle||'dot';
   if(typeof renderSpotEmojiPicker==='function')renderSpotEmojiPicker();
 }
 
