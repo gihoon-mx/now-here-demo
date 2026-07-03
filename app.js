@@ -382,9 +382,25 @@ function initSpotBubbleClass(){
 function buildEmojiPicker(container,getSel,onSel){
   container.innerHTML='';container.classList.add('spot-emoji-pick');
   var list=(spotConfig.emojis&&spotConfig.emojis.length)?spotConfig.emojis:SPOT_EMOJIS;
+  // 이모지 꾹 누르기(롱프레스)/우클릭 → 삭제
+  function delEmoji(em){
+    if(!Array.isArray(spotConfig.emojis))spotConfig.emojis=SPOT_EMOJIS.slice();
+    if(spotConfig.emojis.length<=1)return; // 최소 1개 유지
+    var i=spotConfig.emojis.indexOf(em);if(i<0)return;
+    spotConfig.emojis.splice(i,1);markCloudDirty();
+    if(getSel&&getSel()===em&&onSel)onSel(spotConfig.emojis[0]);
+    buildEmojiPicker(container,getSel,onSel); // 다시 그림
+    if(typeof renderSpotEmojiPicker==='function')renderSpotEmojiPicker();
+  }
   list.forEach(function(em){
-    var b=document.createElement('button');b.type='button';b.className='spot-emoji-btn'+(em===getSel()?' active':'');b.textContent=em;
+    var b=document.createElement('button');b.type='button';b.className='spot-emoji-btn'+(em===getSel()?' active':'');b.textContent=em;b.title='길게 눌러 삭제';
     b.addEventListener('click',function(){onSel(em);container.querySelectorAll('.spot-emoji-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');});
+    b.addEventListener('contextmenu',function(e){e.preventDefault();delEmoji(em);});
+    var lt=null;
+    b.addEventListener('touchstart',function(){clearTimeout(lt);lt=setTimeout(function(){delEmoji(em);},500);},{passive:true});
+    b.addEventListener('touchend',function(){clearTimeout(lt);},{passive:true});
+    b.addEventListener('touchmove',function(){clearTimeout(lt);},{passive:true});
+    b.addEventListener('touchcancel',function(){clearTimeout(lt);},{passive:true});
     container.appendChild(b);
   });
   var add=document.createElement('button');add.type='button';add.className='spot-emoji-add';add.textContent='＋';add.title='이모지 추가';
@@ -410,10 +426,11 @@ function initSpotComposerClass(){
     wrap.querySelector('.sc-ok').addEventListener('click',function(){self.commit();});
     wrap.querySelector('.sc-cancel').addEventListener('click',function(){self.close();});
     this.textEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();self.commit();}else if(e.key==='Escape'){e.preventDefault();self.close();}});
-    this.getPanes().floatPane.appendChild(wrap);
+    // 벡터 지도(mapId)에선 fromLatLngToDivPixel이 불안정 → 컨테이너 픽셀 + 지도 컨테이너에 부착
+    this.getMap().getDiv().appendChild(wrap);
     setTimeout(function(){if(self.textEl)self.textEl.focus();},30);
   };
-  SpotComposer.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;var pos=p.fromLatLngToDivPixel(this.position);if(pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}};
+  SpotComposer.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;var px=p.fromLatLngToContainerPixel(this.position);if(!px)return;var w=this.div.offsetWidth||214,h=this.div.offsetHeight||190;this.div.style.left=(px.x-w/2)+'px';this.div.style.top=(px.y-h-24)+'px';}; // 팝업 하단(점)이 생성점에 오도록
   SpotComposer.prototype.commit=function(){
     var text=(this.textEl?this.textEl.value:'').trim();
     var spot={id:'sp_'+Date.now(),lat:this.position.lat(),lng:this.position.lng(),text:text,emoji:this.emoji||'💬'};
@@ -434,7 +451,7 @@ function renderSpots(){
     spotOverlays.push(new SpotBubble(s,spotConfig,map));
     if(phoneMap)phoneSpotOverlays.push(new SpotBubble(s,spotConfig,phoneMap));
   });
-  renderSpotList();
+  renderSpotList();if(typeof renderDrawerDemo==='function')renderDrawerDemo();
 }
 /* ========== 스팟 메시지 목록(관리자 · 컨텐츠 설정) ========== */
 function renderSpotList(){
@@ -612,14 +629,48 @@ function updateScaleLegend(){
 }
 /* 폰 햄버거 메뉴: 설정 패널을 폰 내부 드로어로 이동 + 토글, 폰 모드 토글 */
 function initPhoneMenu(){
-  // 관리자 설정 패널(#left-panel)은 폰 드로어로 옮기지 않고 사이드바(폰 미리보기 하단)에 그대로 둔다.
-  // 폰 햄버거 드로어는 데모 앱의 '메뉴'(계정/버전/로그아웃)만 담당.
   var drawer=document.getElementById('phone-drawer');
+  var body=document.getElementById('phone-drawer-body');
+  if(body){
+    // 데모용 리스트(트렌드 존 · 스팟 메시지) — 데모 모드에서 노출
+    var demo=document.createElement('div');demo.id='drawer-demo';
+    demo.innerHTML='<div class="drawer-sec"><h4>📍 트렌드 존</h4><div id="drawer-zone-list" class="drawer-list"></div></div>'+
+                   '<div class="drawer-sec"><h4>💬 스팟 메시지</h4><div id="drawer-spot-list" class="drawer-list"></div></div>';
+    body.appendChild(demo);
+    // 관리자 설정/컨텐츠 메뉴를 햄버거 드로어로 이동(관리자만 노출; 데모는 role-user로 숨김)
+    ['content-toggle-row','content-section','settings-toggle-row','settings-section'].forEach(function(id){var el=document.getElementById(id);if(el)body.appendChild(el);});
+  }
   var ham=document.getElementById('phone-hamburger');
   var close=document.getElementById('phone-drawer-close');
-  if(ham)ham.addEventListener('click',function(){if(drawer)drawer.classList.toggle('open');});
+  if(ham)ham.addEventListener('click',function(){if(drawer){var willOpen=!drawer.classList.contains('open');drawer.classList.toggle('open');if(willOpen)renderDrawerDemo();}});
   if(close)close.addEventListener('click',function(){if(drawer)drawer.classList.remove('open');});
   document.querySelectorAll('#phone-mode .pm-btn').forEach(function(b){b.addEventListener('click',function(){switchMode(this.dataset.mode);});});
+}
+function closeDrawer(){var d=document.getElementById('phone-drawer');if(d)d.classList.remove('open');}
+// 드로어 데모 리스트(트렌드 존/스팟) 렌더 — 데모·관리자 모두 데이터로 채움
+function renderDrawerDemo(){
+  var zl=document.getElementById('drawer-zone-list');
+  if(zl){zl.innerHTML='';
+    if(!trendZones.length){zl.innerHTML='<div class="drawer-empty">등록된 트렌드 존이 없어요.</div>';}
+    else trendZones.forEach(function(z){
+      var it=document.createElement('button');it.type='button';it.className='drawer-item';
+      it.innerHTML='<span class="di-dot"></span><span class="di-name"></span>';
+      it.querySelector('.di-dot').style.background=z.color;it.querySelector('.di-name').textContent=z.name;
+      it.addEventListener('click',function(){if(currentMode!=='trend')switchMode('trend');selectPhoneZone(z);closeDrawer();});
+      zl.appendChild(it);
+    });
+  }
+  var sl=document.getElementById('drawer-spot-list');
+  if(sl){sl.innerHTML='';
+    if(!spotMessages.length){sl.innerHTML='<div class="drawer-empty">등록된 스팟 메시지가 없어요.</div>';}
+    else spotMessages.forEach(function(s){
+      var it=document.createElement('button');it.type='button';it.className='drawer-item';
+      it.innerHTML='<span class="di-emoji"></span><span class="di-name"></span>';
+      it.querySelector('.di-emoji').textContent=s.emoji||'💬';it.querySelector('.di-name').textContent=(s.text||'').trim()||'(빈 메시지)';
+      it.addEventListener('click',function(){focusSpot(s);closeDrawer();});
+      sl.appendChild(it);
+    });
+  }
 }
 
 /* ========== 로컬모드 선택 라벨 ========== */
@@ -1039,6 +1090,7 @@ function cancelEditZone() {
 /* ========== 존 리스트 UI ========== */
 function renderZoneList() {
   syncPhoneZones(); updatePhoneUI();
+  if(typeof renderDrawerDemo==='function')renderDrawerDemo();
   var area=document.getElementById('zone-list-area');
   var list=document.getElementById('zone-list'); list.innerHTML='';
   if(trendZones.length===0){area.style.display='none';return;}

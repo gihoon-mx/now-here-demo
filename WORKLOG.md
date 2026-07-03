@@ -47,13 +47,15 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.15.1**
+- **현재 최신: v1.16.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.15.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.16.0 · 라이브 정상.** 완료된 기능:
+- **스팟 생성 위치 버그 수정**: 벡터 지도(mapId)에서 컴포저 팝업이 실제 생성점과 어긋나던 문제 → 생성점에 **펄스 점** + 그 위에 입력 팝업. 이모지 **꾹 눌러 삭제**.
+- **폰 햄버거 메뉴**: 데모도 **트렌드 존/스팟 메시지 리스트**(탭→포커스/강조), 관리자는 **관리자 설정 메뉴**가 드로어에. ⚠️ 관리자 설정이 사이드바→**폰 햄버거 드로어로 이동**(데스크톱도 햄버거로 접근).
 - **앱 아이콘/파비콘 = 마스코트 이미지**(구름 캐릭터). 페이지 타이틀 'Now Here Demo'. **UI 약한 글래스**(설정패널·폰 헤더 반투명+블러).
 - **스팟 롤오버/선택 시 살짝 커지며 강조**(테두리 대신 스케일). **스팟 추가 = 화면 롱프레스/우클릭 → 좌측하단 컨텐츠 추가 팝업**, 또는 좌측하단 **+버튼** → 현재 보는 지도 센터에 추가(클릭 배치 폐지).
 - **스팟**: 점 색상 = 버블 색상 자동(개별 색 포함). **데모(뷰어)도 스팟 추가 가능**(이 기기 localStorage 저장). **스팟 목록 관리**(컨텐츠 설정 > 스팟 메시지: 이동/삭제). 버블 좌우 여백 축소.
@@ -160,6 +162,10 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.16.0 — 컴포저 위치버그 수정 + 이모지 삭제 + 햄버거 메뉴(데모 리스트·관리자 설정)**:
+  - **컴포저 위치 버그(핵심)**: `mapId`(벡터 지도)에선 `fromLatLngToDivPixel`이 (0,0) 반환·pane 정렬 안 됨. 게다가 `.spot-composer`의 `animation:cpIn ... both` 최종 키프레임 `transform:none`이 위치용 `transform:translate(-50%,-100%…)`을 **덮어써서** 팝업이 생성점 우하단으로 밀림. → 컴포저를 **지도 컨테이너(`getMap().getDiv()`)에 부착 + `draw()`가 `fromLatLngToContainerPixel`로 left/top 직접 계산**(팝업 하단=생성점, transform 미사용, `scFade` 애니메이션으로 교체). 생성점에 **펄스 점**(`.sc-dot::after`) 강조. (검증: 점이 지도 센터와 오차 −1px)
+  - **이모지 삭제**: `buildEmojiPicker`의 각 이모지에 **롱프레스(500ms)/우클릭 → 삭제**(`delEmoji`, 최소 1개 유지, 삭제 후 재렌더+공유문서 저장).
+  - **폰 햄버거 드로어 = 메뉴 허브**: `initPhoneMenu`가 `#content-*`/`#settings-*`(관리자 설정)를 **드로어로 이동**, 상단에 `#drawer-demo`(트렌드 존/스팟 리스트) 생성. `renderDrawerDemo`가 `trendZones`/`spotMessages`로 리스트 렌더(존 탭→트렌드 전환+`selectPhoneZone`, 스팟 탭→`focusSpot`, 후 드로어 닫힘). 역할별: `body.role-admin #drawer-demo{display:none}`(관리자는 실제 섹션), 데모는 role-user CSS로 섹션 숨김·리스트만. ⚠️ **관리자 설정이 이제 사이드바가 아니라 폰 햄버거에** 있음(데스크톱 사이드바엔 계정/모드/안내만).
 - **v1.15.1 — 스팟 추가 버그픽스(누른 지점 팝업·유지) + 글래스 조정**:
   - **롱프레스/우클릭 = 누른 지점에 팝업 + 그 자리에 생성**: 이전엔 팝업이 좌하단 고정이라 손 떼면 사라져 추가 불가. 이제 `positionAddMenuAt`으로 **누른 좌표(폰스크린 기준)에 팝업**을 띄우고, `ProjHelper`(OverlayView) `getProjection().fromContainerPixelToLatLng`로 **누른 지점 latLng**를 구해 그 자리에 컴포저. **자동닫힘 방지**: 롱프레스 직후 emulated click이 닫던 문제 → document click 핸들러에 `Date.now()-addMenuOpenedAt<600` 가드.
   - **+버튼/사이드바 버튼 = 화면 센터**: `addSpotContent`가 `addAtLatLng`(제스처) 있으면 그 자리, 없으면 `m.getCenter()`. (지오메트릭 센터로 단순화 — visibleCenter는 헤더>네비라 오히려 아래로 치우쳐 제거.)
