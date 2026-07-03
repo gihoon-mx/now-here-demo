@@ -40,6 +40,8 @@ var zoneLabelConfig  = { fontSize:11, textColor:'#ffffff', bgOpacity:1.0 };
 var localLabel = null;          // 로컬모드 선택 구역 라벨 오버레이
 var selectedFeatureName = null; // 현재 선택 구역 표시명
 var selectedFeatureId = null;   // 폰 미러용 선택 구역 식별자
+var basicSpotlightKey = null;   // 베이직 폰: 화면에 동이 적을 때 센터가 속한 동 강조 키(featKey)
+var BASIC_SPOTLIGHT_MAX_DONGS = 6; // 폰 화면에 보이는 동 개수가 이 값 이하일 때 센터 동 외곽 강조 + 주변 그레이 (튜닝 가능)
 var colorControls = [];         // 색상 트리거 재도색용 레지스트리
 
 /* ========== 스팟 메시지 (로컬모드, 관리자 생성 · 데모 뷰잉) ========== */
@@ -80,6 +82,14 @@ function getHighlightStyle() {
   return { strokeColor:styleConfig.highlight.strokeColor, strokeWeight:Number(styleConfig.highlight.strokeWeight),
     strokeOpacity:Number(styleConfig.highlight.strokeOpacity), fillColor:styleConfig.highlight.fillColor,
     fillOpacity:Number(styleConfig.highlight.fillOpacity) };
+}
+// 베이직 폰 스포트라이트: 센터 동(외곽 강조) / 그 외 동(그레이 처리)
+function getBasicCenterStyle() {
+  return { strokeColor:styleConfig.highlight.strokeColor, strokeWeight:Math.max(3,Number(styleConfig.highlight.strokeWeight)),
+    strokeOpacity:1, fillColor:styleConfig.highlight.fillColor, fillOpacity:0.14, zIndex:5, cursor:'pointer' };
+}
+function getBasicDimStyle() {
+  return { strokeColor:'#6b7078', strokeWeight:0.8, strokeOpacity:0.55, fillColor:'#33373f', fillOpacity:0.42, zIndex:1, cursor:'pointer' };
 }
 function refreshMapStyles() {
   if (!map) return;
@@ -704,12 +714,12 @@ function initPhoneMirror(){
   map.addListener('center_changed',sync);
   map.addListener('zoom_changed',sync);
   map.addListener('idle',function(){sync();updatePhoneLocation();updatePhoneViewportOverlay();updateScaleLegend();});
-  phoneMap.addListener('idle',function(){updatePhoneViewportOverlay();updatePhoneLocation();});
+  phoneMap.addListener('idle',function(){updatePhoneViewportOverlay();updatePhoneLocation();updatePhoneBasicSpotlight();});
   phoneMap.addListener('click',function(){ clearPhoneSpotlight(); }); // 빈 곳 클릭 = 존 강조 해제
   attachAddGestures(el,phoneMap); // 폰 지도 롱프레스/우클릭 → 컨텐츠 추가 팝업
   sync();
   if(originalGeoJson){buildDongIndex();applyGeoJsonToPhone();}
-  phoneDataVisibility();syncPhoneZones();updatePhoneUI();updatePhoneLocation();updatePhoneViewportOverlay();
+  phoneDataVisibility();syncPhoneZones();updatePhoneUI();updatePhoneLocation();updatePhoneViewportOverlay();updatePhoneBasicSpotlight();
   renderSpots();
 }
 function applyGeoJsonToPhone(){
@@ -720,7 +730,15 @@ function applyGeoJsonToPhone(){
 }
 function refreshPhoneMapStyles(){
   if(!phoneMap)return;
-  phoneMap.data.setStyle(function(f){return featKey(f)===selectedFeatureId?getHighlightStyle():getDefaultStyle();});
+  phoneMap.data.setStyle(function(f){
+    var k=featKey(f);
+    if(basicSpotlightKey){                       // 베이직: 센터 동 강조 + 주변 그레이
+      if(k===basicSpotlightKey)return getBasicCenterStyle();
+      if(k===selectedFeatureId)return getHighlightStyle();
+      return getBasicDimStyle();
+    }
+    return k===selectedFeatureId?getHighlightStyle():getDefaultStyle();
+  });
 }
 function phoneDataVisibility(){if(phoneMap)phoneMap.data.setMap(currentMode==='local'?phoneMap:null);}
 function syncPhoneZones(){
@@ -781,7 +799,8 @@ function buildDongIndex(){
     var raw=(f.properties&&(f.properties.adm_nm||f.properties.name))||'';
     var p=raw.split(' ');var shortName=p.length>2?p.slice(2).join(' '):raw;
     var gu=(f.properties&&f.properties.sggnm)||(p.length>1?p[1]:shortName);
-    return {name:shortName,gu:gu,bbox:[minx,miny,maxx,maxy],polys:polys};
+    var key=(f.properties&&(f.properties.adm_cd||f.properties.adm_nm))||null; // featKey와 동일 규칙
+    return {name:shortName,gu:gu,key:key,bbox:[minx,miny,maxx,maxy],polys:polys};
   });
 }
 function pointInRing(x,y,ring){
@@ -833,6 +852,32 @@ function updatePhoneLocation(){
     return;
   }
   nameEl.textContent=dongAt(c.lat(),c.lng())||'위치 확인 중';   // 베이직 모드 = 센터가 속한 '동'
+}
+
+/* 폰 화면 뷰포트에 bbox가 걸치는 동 개수 (대략치) */
+function countVisibleDongs(bounds){
+  if(!dongIndex||!bounds)return 0;
+  var ne=bounds.getNorthEast(),sw=bounds.getSouthWest();
+  var minLng=sw.lng(),maxLng=ne.lng(),minLat=sw.lat(),maxLat=ne.lat();
+  var n=0;
+  for(var i=0;i<dongIndex.length;i++){var b=dongIndex[i].bbox; // [minLng,minLat,maxLng,maxLat]
+    if(b[2]<minLng||b[0]>maxLng||b[3]<minLat||b[1]>maxLat)continue; // 뷰포트와 겹치지 않음
+    n++;
+  }
+  return n;
+}
+/* 베이직 폰: 화면에 보이는 동이 임계값 이하면 센터 동을 강조(외곽)하고 나머지는 그레이 처리 */
+function updatePhoneBasicSpotlight(){
+  if(!phoneMap||currentMode!=='local'){
+    if(basicSpotlightKey!==null){basicSpotlightKey=null;refreshPhoneMapStyles();}
+    return;
+  }
+  var b=phoneMap.getBounds(),c=phoneMap.getCenter(),newKey=null;
+  if(b&&c&&countVisibleDongs(b)<=BASIC_SPOTLIGHT_MAX_DONGS){
+    var d=regionAt(c.lat(),c.lng());
+    if(d)newKey=d.key||null;
+  }
+  if(newKey!==basicSpotlightKey){basicSpotlightKey=newKey;refreshPhoneMapStyles();}
 }
 
 /* ========== 관리자 지도: 폰 표시영역 오버레이 ========== */
@@ -1180,7 +1225,7 @@ function switchMode(mode){
     updateZoneSaveUI(); renderZoneList();
     renderSpots();   // 트렌드 모드에서도 스팟 유지
   }
-  phoneDataVisibility(); syncPhoneZones(); updatePhoneUI();
+  phoneDataVisibility(); syncPhoneZones(); updatePhoneUI(); updatePhoneBasicSpotlight();
 }
 
 /* ========== 초기화 ========== */
