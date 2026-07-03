@@ -47,13 +47,15 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.13.1**
+- **현재 최신: v1.14.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.13.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.14.0 · 라이브 정상.** 완료된 기능:
+- **스팟**: 점 색상 = 버블 색상 자동(개별 색 포함). **데모(뷰어)도 스팟 추가 가능**(이 기기 localStorage 저장). **스팟 목록 관리**(컨텐츠 설정 > 스팟 메시지: 이동/삭제). 버블 좌우 여백 축소.
+- **폰 상단바 3분할**: 햄버거(좌)·**모드토글(가운데)**·**위치(우)**. 하단 네비 살짝 위로. 스팟 외 모든 수치 설정 범위 시스템 최대로 확대.
 - **PWA(홈 화면에 추가 → 전체화면 앱)**: manifest+아이콘+메타태그. 폰에서 브라우저 크롬 없이 standalone 실행, 노치/홈인디케이터 안전영역 처리.
 - **설정 = 숫자 직접입력 전용**(슬라이더 제거) + 정수/소수·범위 주의문구. **설정 패널 Light 테마**. 스팟은 **지도에 고정된 실제 크기**(줌해도 같은 미터 범위 유지). 스팟은 **베이직·트렌드 양쪽 모두 표시**(모드는 지도 구획 방식일 뿐).
 - **폰 하단 네비**: 지도/피드/소셜(미션 제거) + **네비 왼쪽 컨텐츠 추가(+) 버튼**(누르면 스팟 메시지/사진 올리기 팝업).
@@ -156,6 +158,14 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.14.0 — 스팟 점색=버블색 + 데모 스팟추가 + 스팟목록 + 상단바 3분할 + 범위확대 + 버블여백**:
+  - **점 색상 = 버블 색상 자동**: `dotColor` 설정/컨트롤(`ct-spot-dot`) 제거, `_render`가 `s.color||bgColor`로(개별 변경 색 포함).
+  - **데모(뷰어)도 스팟 추가**: `startPlacingSpot`의 admin 게이트 제거(로그인만 요구). 데모가 만든 스팟은 `local:true` 플래그로 이 기기 `localStorage('nowhere_localSpots')`에 저장(`persistSpotChange`=admin→클라우드/데모→로컬). `applyCloudData`·초기로드에서 `loadLocalSpotsInto`로 병합, `cloudSave`는 `!local`만 저장(공유문서 오염 방지). ⚠️ **Firestore 규칙은 그대로**(공유문서 쓰기=관리자만). 데모 스팟을 '공유'로 하려면 규칙 완화+콘솔 배포 필요(보안 검토).
+  - **스팟 메시지 목록**(`renderSpotList`/`focusSpot`, `#spot-list-area` 컨텐츠 설정 내): 이모지·텍스트·색점 + 이동(panTo)/삭제. `renderSpots` 끝에서 갱신.
+  - **스팟 외 수치 설정 범위 확대**(시스템 최대): 선굵기 →0~50, 헥사곤 반경 →0.1~50, 로컬/존 라벨 크기 →4~200. (스팟 설정은 이전 요청대로 별도.)
+  - **버블 좌우 여백 축소**: `.spot-bubble` padding 5px 10px→**4px 7px**.
+  - **하단 네비 위로**: `.phone-navbar` padding-bottom 3.6cqw→**5.5cqw**(모바일 safe-area calc도), ai버블·컨텐츠추가 팝업 bottom 19→21cqw.
+  - **상단바 3분할**: `.phone-appbar` flex→**grid `1fr auto 1fr`**. 햄버거 `justify-self:start`(좌), 모드토글 `justify-self:center`(가운데), 위치 `justify-self:end`(우). HTML도 순서 재배치(hamburger→pa-mode→pa-loc). 위치 폰트/핀 약간 축소.
 - **v1.13.1 — 스팟 글자/이모지 크기 범위 확대**: 너무 큰 최소값 제한 완화. `spot-font-size` 9~22→**4~80**, `spot-emoji-size` 16~48(step2)→**4~120(step1)**. 숫자 입력이라 주의문구(`정수 4~80` 등)·clamp도 자동 반영.
 - **v1.13.0 — PWA(전체화면 앱처럼)**: 폰에서 '홈 화면에 추가' 시 브라우저 크롬 없이 전체화면(standalone) 실행.
   - 신규 파일: `manifest.webmanifest`(display:standalone, portrait, theme_color #fff, background #0b0d16, 아이콘 3개), `icon-192.png`/`icon-512.png`(any+maskable)/`apple-touch-icon.png`(180). 아이콘은 위치핀(블루→퍼플 그라디언트+흰점, 다크 그라디언트 배경) — 스크래치패드 `genicons.js`(zlib로 PNG 직접 인코딩)로 생성(스크립트는 repo에 없음, 재생성 시 참고).

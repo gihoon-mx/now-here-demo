@@ -45,7 +45,7 @@ var colorControls = [];         // 색상 트리거 재도색용 레지스트리
 /* ========== 스팟 메시지 (로컬모드, 관리자 생성 · 데모 뷰잉) ========== */
 var spotMessages = [];          // [{id,lat,lng,text,emoji}]
 var spotConfig = { maxChars:40, fontSize:13, textColor:'#ffffff', bgColor:'#1c66e5', bgOpacity:0.92, emojiSize:26,
-  emojiPos:'bottom', emojiGap:2, emojiLetterSpacing:0, bubbleRadius:13, tail:true, dotZoom:13, dotStyle:'dot', dotColor:'#6ec6ff',
+  emojiPos:'bottom', emojiGap:2, emojiLetterSpacing:0, bubbleRadius:13, tail:true, dotZoom:13, dotStyle:'dot',
   emojis:['💬','📍','⭐','🔥','❤️','😀','🎉','📢','☕','🍜','🐶','🌸'] };
 // 스팟은 지도에 '고정된 실제 크기'처럼 동작 — 기준 줌(16)에서 설정한 px가 1배, 줌 1레벨당 2배(줌아웃=절반).
 // = 항상 같은 미터 범위를 덮음(건물 블럭 1개 크기면 어느 줌에서도 그 블럭 크기 유지). 안전 한계만 아주 넓게.
@@ -333,7 +333,7 @@ function initSpotBubbleClass(){
     this.emojiEl.textContent=s.emoji||'💬';
     this.emojiEl.style.fontSize=(Number(c.emojiSize)||26)+'px';
     this.emojiEl.style.letterSpacing=(Number(c.emojiLetterSpacing)||0)+'px';
-    if(this.dotEl)this.dotEl.style.background=hexToRgba(c.dotColor||s.color||c.bgColor||'#1c66e5',1);
+    if(this.dotEl)this.dotEl.style.background=hexToRgba(s.color||c.bgColor||'#1c66e5',1); // 점 색상 = 버블 색상(개별 변경 포함)
     this.bubbleEl.textContent=t;
     this.bubbleEl.style.display=t?'':'none';
     this.bubbleEl.style.color=c.textColor||'#fff';
@@ -416,8 +416,9 @@ function initSpotComposerClass(){
   SpotComposer.prototype.commit=function(){
     var text=(this.textEl?this.textEl.value:'').trim();
     var spot={id:'sp_'+Date.now(),lat:this.position.lat(),lng:this.position.lng(),text:text,emoji:this.emoji||'💬'};
+    if(currentRole!=='admin')spot.local=true; // 데모가 추가한 스팟은 이 기기에 저장
     spotMessages.push(spot);currentSpotEmoji=this.emoji;
-    this.close();renderSpots();markCloudDirty();
+    this.close();renderSpots();persistSpotChange();
   };
   SpotComposer.prototype.close=function(){this.setMap(null);if(composerOverlay===this)composerOverlay=null;if(currentMode==='local')updateInfoPanel(selectedFeatureName);};
   SpotComposer.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
@@ -432,6 +433,29 @@ function renderSpots(){
     spotOverlays.push(new SpotBubble(s,spotConfig,map));
     if(phoneMap)phoneSpotOverlays.push(new SpotBubble(s,spotConfig,phoneMap));
   });
+  renderSpotList();
+}
+/* ========== 스팟 메시지 목록(관리자 · 컨텐츠 설정) ========== */
+function renderSpotList(){
+  var area=document.getElementById('spot-list-area'),list=document.getElementById('spot-list');
+  if(!list)return;
+  list.innerHTML='';
+  if(!spotMessages.length){if(area)area.style.display='none';return;}
+  if(area)area.style.display='';
+  spotMessages.forEach(function(s){
+    var item=document.createElement('div');item.className='spot-item';
+    item.innerHTML='<span class="spot-item-emoji"></span><span class="spot-item-text"></span><span class="spot-item-dot"></span><button class="spot-act" data-act="focus" title="이동">📍</button><button class="spot-act" data-act="del" title="삭제">🗑️</button>';
+    item.querySelector('.spot-item-emoji').textContent=s.emoji||'💬';
+    item.querySelector('.spot-item-text').textContent=(s.text||'').trim()||'(빈 메시지)';
+    item.querySelector('.spot-item-dot').style.background=hexToRgba(s.color||spotConfig.bgColor||'#1c66e5',1);
+    item.querySelector('[data-act="focus"]').addEventListener('click',function(){focusSpot(s);});
+    item.querySelector('[data-act="del"]').addEventListener('click',function(){removeSpot(s.id);});
+    list.appendChild(item);
+  });
+}
+function focusSpot(s){
+  if(!s)return;
+  [map,phoneMap].forEach(function(m){if(!m)return;m.panTo({lat:s.lat,lng:s.lng});if(m.getZoom()<15)m.setZoom(16);});
 }
 function clearSpots(){
   spotOverlays.forEach(function(o){o.setMap(null);});spotOverlays=[];
@@ -440,7 +464,7 @@ function clearSpots(){
 function refreshSpotStyles(){spotOverlays.concat(phoneSpotOverlays).forEach(function(o){o.update(spotConfig);if(o.draw)o.draw();});}
 function setPlaceCursor(c){if(map)map.setOptions({draggableCursor:c});if(phoneMap)phoneMap.setOptions({draggableCursor:c});}
 function startPlacingSpot(){
-  if(currentRole!=='admin')return;
+  if(!currentRole)return; // 로그인 사용자면 데모(뷰어)도 스팟 추가 가능
   if(currentMode!=='local')switchMode('local'); // 배치는 베이직 모드(헥사곤 클릭 간섭 방지)
   closeComposer();
   placingSpot=true;
@@ -453,7 +477,24 @@ function onMapClickForSpot(latLng,targetMap){
   closeComposer();
   composerOverlay=new SpotComposer(latLng,targetMap||map); // 클릭한 포인트 옆에 입력 팝업(클릭한 지도 위)
 }
-function removeSpot(id){spotMessages=spotMessages.filter(function(s){return s.id!==id;});renderSpots();markCloudDirty();}
+function removeSpot(id){spotMessages=spotMessages.filter(function(s){return s.id!==id;});renderSpots();persistSpotChange();}
+/* 데모(뷰어) 추가 스팟은 이 기기 localStorage에(공유문서는 관리자만 쓰기), 관리자는 클라우드에 저장 */
+function persistSpotChange(){ if(currentRole==='admin')markCloudDirty(); else saveLocalSpots(); }
+function saveLocalSpots(){
+  try{localStorage.setItem('nowhere_localSpots',JSON.stringify(
+    spotMessages.filter(function(s){return s.local;}).map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};})
+  ));}catch(e){}
+}
+function loadLocalSpotsInto(){
+  if(currentRole==='admin')return; // 관리자 세션엔 로컬 스팟 병합 안 함(공유문서로 오염 방지)
+  try{
+    var arr=JSON.parse(localStorage.getItem('nowhere_localSpots')||'[]');
+    arr.forEach(function(s){
+      if(!spotMessages.some(function(x){return x.id===s.id;}))
+        spotMessages.push({id:s.id,lat:s.lat,lng:s.lng,text:s.text||'',emoji:s.emoji||'💬',color:s.color||null,local:true});
+    });
+  }catch(e){}
+}
 function promptDeleteSpot(id){if(confirm('이 스팟 메시지를 삭제할까요?'))removeSpot(id);}
 function cancelPlacingSpot(){placingSpot=false;setPlaceCursor(null);closeComposer();if(currentMode==='local')updateInfoPanel(selectedFeatureName);}
 /* ========== 스팟 편집 모달 (관리자: 개별 스팟 수정) ========== */
@@ -511,7 +552,6 @@ function initSpotUI(){
   var dsEl=document.getElementById('spot-dot-style');if(dsEl)dsEl.addEventListener('change',function(){spotConfig.dotStyle=this.value;refreshSpotStyles();markCloudDirty();});
   makeColorControl('ct-spot-text',spotConfig,'textColor',null,refreshSpotStyles);
   makeColorControl('ct-spot-bg',spotConfig,'bgColor','bgOpacity',refreshSpotStyles);
-  makeColorControl('ct-spot-dot',spotConfig,'dotColor',null,refreshSpotStyles);
 }
 function renderSpotEmojiPicker(){
   var pick=document.getElementById('spot-emoji-pick');if(!pick)return;
@@ -1076,7 +1116,7 @@ function initMap(){
   var opts={center:{lat:CONFIG.MAP_CENTER_LAT,lng:CONFIG.MAP_CENTER_LNG},zoom:CONFIG.MAP_ZOOM,disableDefaultUI:false,zoomControl:true,mapTypeControl:false,streetViewControl:false,fullscreenControl:true};
   if(CONFIG.MAP_ID&&CONFIG.MAP_ID.length>0) opts.mapId=CONFIG.MAP_ID; else opts.styles=mapStyles();
   map=new google.maps.Map(document.getElementById('map'),opts);
-  fetch(CONFIG.GEOJSON_PATH).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(geo){originalGeoJson=geo;applyGeoJsonToMap();fitBoundsToData();loadZonesFromStorage();hideMapLoading();mapReady=true;if(cloudData)applyCloudData(cloudData);}).catch(function(err){hideMapLoading();var el=document.getElementById('info-text');if(el)el.textContent='⚠️ 경계 데이터를 불러오지 못했습니다. ('+err.message+')';});
+  fetch(CONFIG.GEOJSON_PATH).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(geo){originalGeoJson=geo;applyGeoJsonToMap();fitBoundsToData();loadZonesFromStorage();hideMapLoading();mapReady=true;if(cloudData)applyCloudData(cloudData);else{loadLocalSpotsInto();renderSpots();}}).catch(function(err){hideMapLoading();var el=document.getElementById('info-text');if(el)el.textContent='⚠️ 경계 데이터를 불러오지 못했습니다. ('+err.message+')';});
   refreshMapStyles();
   map.data.addListener('click',function(e){if(placingSpot){onMapClickForSpot(e.latLng);return;}if(currentMode!=='local')return;var f=e.feature;if(selectedFeature===f){selectedFeature=null;selectedFeatureName=null;selectedFeatureId=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();updatePhoneUI();return;}selectedFeature=f;var raw=f.getProperty('adm_nm')||f.getProperty('name')||'(이름 없음)';var p=raw.split(' ');selectedFeatureName=p.length>2?p.slice(2).join(' '):raw;selectedFeatureId=featKey(f);refreshMapStyles();updateInfoPanel(selectedFeatureName);showLocalLabel();updatePhoneUI();});
   map.addListener('click',function(e){if(placingSpot){onMapClickForSpot(e.latLng);return;}if(currentMode==='local'&&selectedFeature){selectedFeature=null;selectedFeatureName=null;selectedFeatureId=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();updatePhoneUI();}});
@@ -1491,6 +1531,7 @@ function applyCloudData(d){
     d.zones.forEach(function(z){trendZones.push({id:z.id||('tz_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)),name:z.name,color:z.color,radiusKm:z.radiusKm||hexRadiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters||JSON.parse(JSON.stringify(z.hexCenters)),originalRadiusKm:z.originalRadiusKm||z.radiusKm||hexRadiusKm,polygons:[],label:null});});
   }
   if(Array.isArray(d.spots)){spotMessages=d.spots.map(function(s){return {id:s.id||('sp_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)),lat:s.lat,lng:s.lng,text:s.text||'',emoji:s.emoji||'💬',color:s.color||null};});}
+  loadLocalSpotsInto();   // 데모가 이 기기에 추가한 스팟 병합
   if(d.spotConfig)mergeInto(spotConfig,d.spotConfig);
   syncSettingsUI();refreshMapStyles();refreshHexStyles();applyGeoJsonToMap();
   if(currentMode==='trend'){showAllZonesOnMap();generateHexagons();}
@@ -1506,7 +1547,7 @@ function cloudSave(){
   var payload={updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||'',
     settings:{styleConfig:styleConfig,hexStyleConfig:hexStyleConfig,localLabelConfig:localLabelConfig,zoneLabelConfig:zoneLabelConfig,smoothEnabled:smoothEnabled,smoothIntensity:smoothIntensity,hexRadiusKm:hexRadiusKm},
     zones:trendZones.map(function(z){return {id:z.id,name:z.name,color:z.color,radiusKm:z.radiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters,originalRadiusKm:z.originalRadiusKm};}),
-    spots:spotMessages.map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};}),
+    spots:spotMessages.filter(function(s){return !s.local;}).map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};}),
     spotConfig:spotConfig};
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
 }
