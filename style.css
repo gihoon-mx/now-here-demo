@@ -545,6 +545,10 @@ body.role-user #allowlist-btn{display:none!important;}
   #phone-mirror{position:static;height:100%;order:0;padding:0;background:none;}
   .phone-bar{display:none;}
   .phone-screen{width:100vw;height:100dvh;aspect-ratio:auto;border-radius:0;border:none;box-shadow:none;flex-shrink:1;}
+  /* 전체화면(PWA/노치) 안전영역: 상단바·하단 네비가 노치/홈 인디케이터에 가리지 않게 */
+  .phone-header{padding-top:calc(5.5cqw + env(safe-area-inset-top));}
+  .phone-navbar{padding-bottom:calc(3.6cqw + env(safe-area-inset-bottom));}
+  #phone-drawer .phone-drawer-head{padding-top:calc(11px + env(safe-area-inset-top));}
 }
 
 /* ========== 모바일 / 반응형 ========== */

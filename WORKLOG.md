@@ -47,13 +47,14 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.12.0**
+- **현재 최신: v1.13.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.12.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.13.0 · 라이브 정상.** 완료된 기능:
+- **PWA(홈 화면에 추가 → 전체화면 앱)**: manifest+아이콘+메타태그. 폰에서 브라우저 크롬 없이 standalone 실행, 노치/홈인디케이터 안전영역 처리.
 - **설정 = 숫자 직접입력 전용**(슬라이더 제거) + 정수/소수·범위 주의문구. **설정 패널 Light 테마**. 스팟은 **지도에 고정된 실제 크기**(줌해도 같은 미터 범위 유지). 스팟은 **베이직·트렌드 양쪽 모두 표시**(모드는 지도 구획 방식일 뿐).
 - **폰 하단 네비**: 지도/피드/소셜(미션 제거) + **네비 왼쪽 컨텐츠 추가(+) 버튼**(누르면 스팟 메시지/사진 올리기 팝업).
 - **모드 이름: 로컬→베이직**(UI만, 내부 식별자 `local` 유지). 모드 토글=지도 전환 전용, 스타일 설정은 관리자 설정에 통합 상시 표시.
@@ -155,6 +156,12 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.13.0 — PWA(전체화면 앱처럼)**: 폰에서 '홈 화면에 추가' 시 브라우저 크롬 없이 전체화면(standalone) 실행.
+  - 신규 파일: `manifest.webmanifest`(display:standalone, portrait, theme_color #fff, background #0b0d16, 아이콘 3개), `icon-192.png`/`icon-512.png`(any+maskable)/`apple-touch-icon.png`(180). 아이콘은 위치핀(블루→퍼플 그라디언트+흰점, 다크 그라디언트 배경) — 스크래치패드 `genicons.js`(zlib로 PNG 직접 인코딩)로 생성(스크립트는 repo에 없음, 재생성 시 참고).
+  - `index.html <head>`: viewport에 `viewport-fit=cover, user-scalable=no` 추가, `theme-color`, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style=black-translucent`, `apple-mobile-web-app-title`, `manifest`/`apple-touch-icon`/`icon` 링크.
+  - CSS(≤768px): `.phone-header` top / `.phone-navbar` bottom / 드로어 헤드에 `env(safe-area-inset-*)` 안전영역 패딩(노치·홈인디케이터 대비).
+  - **서비스워커는 의도적으로 미포함** — 자주 배포하는 데모라 캐시 구버전 문제 회피. iOS는 SW 없이도 '홈 화면 추가' 전체화면 됨(안드로이드도 메뉴에서 수동 추가 시 standalone). 자동 설치배너만 없음.
+  - ⚠️ 알려진 한계: standalone(iOS)에서는 `signInWithPopup`이 막힐 수 있음(팝업 차단). 실제 모바일 PWA 로그인까지 필요해지면 `signInWithRedirect`로 전환 검토.
 - **v1.12.0 — 숫자입력 전용 + Light 설정테마 + 스팟 고정크기 + 모드무관 스팟 + 폰 네비/컨텐츠추가**:
   - **모든 수치 설정 슬라이더 제거 → 숫자 직접입력만**(`enhanceRangeInputs`가 range를 `display:none`, `.range-num`만). 각 칸 옆 **주의문구**(`.num-hint`: `정수/소수` + `min~max`, 음수 여부는 범위로 표시). 정수 필드는 입력 시 반올림·clamp. 기존 range 핸들러는 `input` 이벤트 디스패치로 재사용(로직 유지).
   - **설정 패널 Light 테마**: `#left-panel` 및 하위(계정/모드토글/토글버튼/아코디언/입력/버튼/토글스위치/존관리)를 밝은 배경+어두운 글자로 오버라이드(`#left-panel …` 스코프). 폰 미러·색상팝업·모달은 기존 다크 유지.
