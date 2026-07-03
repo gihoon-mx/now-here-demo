@@ -47,7 +47,7 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.15.0**
+- **현재 최신: v1.15.1**
 
 ---
 
@@ -160,6 +160,11 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.15.1 — 스팟 추가 버그픽스(누른 지점 팝업·유지) + 글래스 조정**:
+  - **롱프레스/우클릭 = 누른 지점에 팝업 + 그 자리에 생성**: 이전엔 팝업이 좌하단 고정이라 손 떼면 사라져 추가 불가. 이제 `positionAddMenuAt`으로 **누른 좌표(폰스크린 기준)에 팝업**을 띄우고, `ProjHelper`(OverlayView) `getProjection().fromContainerPixelToLatLng`로 **누른 지점 latLng**를 구해 그 자리에 컴포저. **자동닫힘 방지**: 롱프레스 직후 emulated click이 닫던 문제 → document click 핸들러에 `Date.now()-addMenuOpenedAt<600` 가드.
+  - **+버튼/사이드바 버튼 = 화면 센터**: `addSpotContent`가 `addAtLatLng`(제스처) 있으면 그 자리, 없으면 `m.getCenter()`. (지오메트릭 센터로 단순화 — visibleCenter는 헤더>네비라 오히려 아래로 치우쳐 제거.)
+  - `attachAddGestures(el,mapObj)`가 contextmenu·롱프레스에서 `clientToLatLng`로 좌표 산출. `ProjHelper` 인스턴스는 `mapProjHelper`/`phoneProjHelper`(각 지도 생성 직후).
+  - **글래스 조정**: 설정 패널(`#left-panel`) 글래스 **원복(불투명 `#f4f6f9`)**. 폰 메뉴 버튼은 **프로스티드 글래스**로 — 하단 네비/+/AI `rgba(24,26,34,0.58)+blur(22px)`, 모드토글 `rgba(255,255,255,0.42)+blur(8px)`. 폰 헤더 글래스는 유지.
 - **v1.15.0 — 마스코트 아이콘 + 타이틀 + 스팟 강조/추가방식 개편 + 글래스**:
   - **앱 아이콘/파비콘 교체**: 첨부 마스코트(구름) 이미지 → `icon-512.jpg`/`icon-192.jpg`/`apple-touch-icon.jpg`/`favicon.jpg`. 브라우저 canvas로 마스코트 중심 크롭·리사이즈(sx300 sy180 1500²)해 JPEG 생성(툴 없이). manifest 아이콘 png→jpg(image/jpeg), HTML apple-touch/icon 링크·`?v` 갱신. 옛 `icon-*.png` 제거.
   - **페이지 타이틀** '동 단위 행정구역…' → **'Now Here Demo'**.
