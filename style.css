@@ -498,10 +498,11 @@ button:focus:not(:focus-visible){outline:none;}
 .pn-lb{max-width:0;overflow:hidden;white-space:nowrap;font-size:3cqw;font-weight:700;opacity:0;transition:max-width .28s cubic-bezier(.22,1,.36,1),opacity .2s ease,margin .28s ease;}
 .pn-item.active{background:rgba(255,255,255,0.22);color:#fff;padding:0 2.6cqw;}
 .pn-item.active .pn-lb{max-width:11cqw;opacity:1;margin-left:1.4cqw;}
-/* 선택된 네비 아이콘 색상 (3색 · 은은하게) */
-.pn-item.active[data-nav="map"]{color:#78a6e6;}
-.pn-item.active[data-nav="feed"]{color:#5fbf95;}
-.pn-item.active[data-nav="social"]{color:#e0a077;}
+/* 선택된 네비: 아이콘만 3색(은은) · 글자는 흰색 유지(시인성) */
+.pn-item.active .pn-lb{color:#fff;}
+.pn-item.active[data-nav="map"] .pn-ic{color:#78a6e6;}
+.pn-item.active[data-nav="feed"] .pn-ic{color:#5fbf95;}
+.pn-item.active[data-nav="social"] .pn-ic{color:#e0a077;}
 .pn-ai{width:13.4cqw;height:13.4cqw;flex-shrink:0;border:1px solid rgba(255,255,255,0.08);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:1.8cqw;
   background:rgba(24,26,34,0.58);backdrop-filter:blur(22px) saturate(1.35);-webkit-backdrop-filter:blur(22px) saturate(1.35);transition:transform .18s ease;}
 .pn-ai svg{width:100%;height:100%;display:block;}
