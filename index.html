@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.16.0" />
+  <link rel="stylesheet" href="style.css?v=1.17.0" />
 </head>
 <body>
 
@@ -52,7 +52,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.16.0</span>
+        <span id="app-version">v1.17.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -198,8 +198,8 @@
           <div class="phone-appbar">
             <button class="pa-btn" id="phone-hamburger" type="button" aria-label="메뉴 열기" title="메뉴"><span></span><span></span><span></span></button>
             <div class="pa-mode" id="phone-mode">
-              <button class="pm-btn active" type="button" data-mode="local">베이직</button>
-              <button class="pm-btn" type="button" data-mode="trend">트렌드</button>
+              <button class="pm-btn active" type="button" data-mode="local"><span class="pm-ic">📍</span>베이직</button>
+              <button class="pm-btn" type="button" data-mode="trend"><span class="pm-ic pm-ic-fire">🔥</span>트렌드</button>
             </div>
             <span class="pa-loc" id="phone-loc"><svg class="pa-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg><span class="pa-loc-name">···</span></span>
           </div>
@@ -296,7 +296,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.16.0"></script>
-  <script src="app.js?v=1.16.0"></script>
+  <script src="config.js?v=1.17.0"></script>
+  <script src="app.js?v=1.17.0"></script>
 </body>
 </html>

@@ -390,6 +390,13 @@ button:focus:not(:focus-visible){outline:none;}
 .phone-navbar button{-webkit-user-select:none;user-select:none;}
 .phone-notch{display:none;}
 .phone-map{position:absolute;inset:0;z-index:0;background:#0b0b10;}
+/* 폰 미리보기 지도: 구글 로고/저작권/약관 숨김 (실제 앱 UI처럼 · 데스크톱 메인 #map 저작권은 유지) */
+.phone-map .gm-style-cc,
+.phone-map .gmnoprint,
+.phone-map a[href^="https://maps.google.com/maps"],
+.phone-map a[href^="https://www.google.com/maps"],
+.phone-map a[title^="Open this area"],
+.phone-map img[alt="Google"]{display:none!important;}
 
 /* 상단 흰색 헤더 (cqw = 폰 폭의 1%) — 상단 여백 넉넉 + 요소 세로 가운데 */
 .phone-header{position:absolute;top:0;left:0;right:0;z-index:2;background:rgba(255,255,255,0.8);
@@ -406,9 +413,16 @@ button:focus:not(:focus-visible){outline:none;}
 .pa-pin{width:3.7cqw;height:3.7cqw;flex-shrink:0;color:#2f7bff;}
 .pa-loc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 /* 모드 토글(가운데): 라이트 세그먼트 */
-.pa-mode{justify-self:center;flex-shrink:0;display:flex;gap:0.4cqw;padding:0.7cqw;border-radius:5cqw;background:rgba(255,255,255,0.42);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.55);}
-.pm-btn{border:none;background:transparent;color:#727783;font-family:inherit;font-weight:700;font-size:2.9cqw;padding:1cqw 3cqw;border-radius:4cqw;cursor:pointer;white-space:nowrap;transition:background .2s ease,color .2s ease;}
-.pm-btn.active{background:#fff;color:#14203a;}
+.pa-mode{justify-self:center;flex-shrink:0;display:flex;gap:0.5cqw;padding:0.7cqw;border-radius:5cqw;background:rgba(0,0,0,0.055);border:1px solid rgba(0,0,0,0.06);}
+.pm-btn{display:inline-flex;align-items:center;gap:1cqw;border:none;background:transparent;color:#6b7079;font-family:inherit;font-weight:700;font-size:2.9cqw;padding:1cqw 3cqw;border-radius:4cqw;cursor:pointer;white-space:nowrap;transition:background .22s ease,color .22s ease,box-shadow .22s ease;}
+.pm-ic{font-size:2.9cqw;line-height:1;filter:grayscale(1) opacity(.5);transition:filter .22s ease;}
+/* 베이직 = 차분한 블루 */
+.pm-btn.active[data-mode="local"]{background:#2f7bff;color:#fff;box-shadow:0 0.5cqw 1.6cqw rgba(47,123,255,0.42);}
+/* 트렌드 = Hot (오렌지→레드 플랫 + 은은한 불빛 글로우) */
+.pm-btn.active[data-mode="trend"]{background:linear-gradient(135deg,#ff9d42,#ff3d5e);color:#fff;box-shadow:0 0.5cqw 1.8cqw rgba(255,74,74,0.45);}
+.pm-btn.active .pm-ic{filter:grayscale(0) opacity(1);}
+.pm-btn.active[data-mode="trend"] .pm-ic-fire{filter:grayscale(0) opacity(1) drop-shadow(0 0 1.2cqw rgba(255,140,40,0.9));animation:pmFlame 1.4s ease-in-out infinite;}
+@keyframes pmFlame{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-0.35cqw) scale(1.12);}}
 /* 예약 흰색 슬롯 (추후 컨텐츠에 따라 가변) */
 .phone-header-slot{min-height:6cqw;margin-top:1.8cqw;}
 .phone-header-slot:empty{min-height:5cqw;margin-top:1.2cqw;}
@@ -468,7 +482,8 @@ button:focus:not(:focus-visible){outline:none;}
 .se-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;}
 
 /* ========== 폰 내 메뉴·설정 드로어 (햄버거) ========== */
-#phone-drawer{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;background:rgba(10,10,16,0.98);
+#phone-drawer{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;
+  background:rgba(14,16,24,0.6);backdrop-filter:blur(26px) saturate(1.5);-webkit-backdrop-filter:blur(26px) saturate(1.5);
   transform:translateX(-102%);transition:transform .3s cubic-bezier(.22,1,.36,1);overflow:hidden;}
 #phone-drawer.open{transform:translateX(0);}
 .phone-drawer-head{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-bottom:1px solid rgba(255,255,255,0.08);font-size:.78rem;font-weight:700;color:#cdd3db;letter-spacing:.02em;}
@@ -582,7 +597,8 @@ body.role-user #allowlist-btn{display:none!important;}
   #sidebar{position:fixed;inset:0;width:100%!important;height:100%;padding:0;margin:0;gap:0;border:none;overflow:hidden;background:#000;}
   #phone-mirror{position:static;height:100%;order:0;padding:0;background:none;}
   .phone-bar{display:none;}
-  .phone-screen{width:100vw;height:100dvh;aspect-ratio:auto;border-radius:0;border:none;box-shadow:none;flex-shrink:1;}
+  /* 풀스크린: 고정된 #sidebar(inset:0)를 그대로 채움 → iOS 웹앱에서 100dvh가 남기던 하단 빈공간 제거 */
+  .phone-screen{position:absolute;inset:0;width:auto;height:auto;aspect-ratio:auto;border-radius:0;border:none;box-shadow:none;}
   /* 전체화면(PWA/노치) 안전영역: 상단바·하단 네비가 노치/홈 인디케이터에 가리지 않게 */
   .phone-header{padding-top:calc(5.5cqw + env(safe-area-inset-top));}
   .phone-navbar{padding-bottom:calc(5.5cqw + env(safe-area-inset-bottom));}
