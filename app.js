@@ -522,7 +522,9 @@ function setSelectedSpot(id){selectedSpotId=id;refreshSpotStyles();}
 function focusSpot(s){
   if(!s)return;
   setSelectedSpot(s.id); // 선택 강조
-  [map,phoneMap].forEach(function(m){if(!m)return;m.panTo({lat:s.lat,lng:s.lng});if(m.getZoom()<15)m.setZoom(16);});
+  if(map){map.panTo({lat:s.lat,lng:s.lng});if(map.getZoom()<15)map.setZoom(16);}
+  if(phoneMap){phoneMap.panTo({lat:s.lat,lng:s.lng});if(phoneMap.getZoom()<15)phoneMap.setZoom(16);
+    var ins=phoneMapInsets();phoneMap.panBy(0,-(ins.top-ins.bottom)/2);}  // 헤더에 가리지 않게 보이는 영역 중앙으로
 }
 function clearSpots(){
   spotOverlays.forEach(function(o){o.setMap(null);});spotOverlays=[];
@@ -739,7 +741,7 @@ function initContentPage(){
     take.forEach(function(f){compressNews(f,function(url){
       if(!url)alert('이미지가 너무 커서 추가하지 못했어요. 더 작은 사진을 사용해 주세요.');
       else if(newsTotalBytes()+url.length>NEWS_DOC_BUDGET)alert('저장 용량 한도에 도달했어요(무료 범위 보호). 기존 이미지를 지운 뒤 추가해 주세요.');
-      else newsItems.push({id:'n_'+(newsSeq++),src:url});
+      else newsItems.push({id:'n_'+(newsSeq++),src:url,region:currentCenterDong()});
       if(--pending===0){saveNews();renderNews();}
     });});
   });
@@ -773,24 +775,27 @@ function renderNewsList(){
   newsItems.forEach(function(it,i){
     var row=document.createElement('div');row.className='news-item';
     var th=document.createElement('img');th.className='ni-thumb';th.src=it.src;
+    var reg=document.createElement('input');reg.className='ni-region';reg.type='text';reg.placeholder='구역(동)';reg.value=it.region||'';
+    reg.addEventListener('change',function(){newsItems[i].region=this.value.trim();saveNews();});
     var act=document.createElement('div');act.className='ni-actions';
     var up=mkBtn('↑'),dn=mkBtn('↓'),del=mkBtn('🗑');
     up.onclick=function(){newsMove(i,-1);};dn.onclick=function(){newsMove(i,1);};del.onclick=function(){newsDelete(i);};
     act.appendChild(up);act.appendChild(dn);act.appendChild(del);
-    row.appendChild(th);row.appendChild(act);list.appendChild(row);
+    row.appendChild(th);row.appendChild(reg);row.appendChild(act);list.appendChild(row);
   });
   function mkBtn(t){var b=document.createElement('button');b.type='button';b.textContent=t;return b;}
 }
 function newsMove(i,dir){var j=i+dir;if(j<0||j>=newsItems.length)return;var t=newsItems[i];newsItems[i]=newsItems[j];newsItems[j]=t;saveNews();renderNews();}
 function newsDelete(i){newsItems.splice(i,1);saveNews();renderNews();}
 function newsTotalBytes(){var t=0;newsItems.forEach(function(it){t+=(it.src||'').length;});return t;}
+function currentCenterDong(){var m=map||phoneMap;if(!m)return '';var c=m.getCenter();return c?(dongAt(c.lat(),c.lng())||''):'';} // 업로드 시점 지도 중심 동
 // 이미지 링크(URL) 추가: https 검증 + 실제 로드 확인 후 URL만 저장
 function addNewsUrl(url){
   url=(url||'').trim();
   if(!/^https:\/\/\S+/i.test(url)){alert('https:// 로 시작하는 이미지 링크를 넣어주세요. (구글 이미지는 "이미지 주소 복사"로 얻은 직접 주소)');return;}
   if(newsItems.length>=NEWS_MAX_COUNT){alert('동네소식은 최대 '+NEWS_MAX_COUNT+'장까지예요. 기존 이미지를 지운 뒤 추가해 주세요.');return;}
   var probe=new Image();
-  probe.onload=function(){newsItems.push({id:'n_'+(newsSeq++),src:url});saveNews();renderNews();};
+  probe.onload=function(){newsItems.push({id:'n_'+(newsSeq++),src:url,region:currentCenterDong()});saveNews();renderNews();};
   probe.onerror=function(){alert('이 링크의 이미지를 불러올 수 없어요. 직접 이미지 주소(끝이 .jpg/.png 등, https)인지, 외부 링크 허용 사이트인지 확인해 주세요.');};
   probe.src=url;
 }
@@ -816,7 +821,7 @@ function markNewsDirty(){if(!fbDb||!currentUser||currentRole!=='admin')return;cl
 function newsCloudSave(){
   if(!fbDb||!currentUser||currentRole!=='admin')return;
   var total=0,items=[];
-  for(var i=0;i<newsItems.length&&items.length<NEWS_MAX_COUNT;i++){var s=newsItems[i].src||'';if(total+s.length>NEWS_DOC_BUDGET)break;total+=s.length;items.push({id:newsItems[i].id,src:s});}
+  for(var i=0;i<newsItems.length&&items.length<NEWS_MAX_COUNT;i++){var s=newsItems[i].src||'';if(total+s.length>NEWS_DOC_BUDGET)break;total+=s.length;items.push({id:newsItems[i].id,src:s,region:newsItems[i].region||''});}
   fbDb.collection('shared').doc('news').set({items:items,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||''})
     .catch(function(e){console.warn('news save fail',e);alert('동네소식 공유 저장 실패(용량 초과 가능): '+e.message);});
 }
@@ -825,7 +830,7 @@ function loadNewsFromCloud(){
   if(!fbDb)return;
   fbDb.collection('shared').doc('news').get().then(function(doc){
     if(!doc.exists)return;var d=doc.data();if(!d||!Array.isArray(d.items))return;
-    newsItems=d.items.map(function(it){return {id:it.id||('n_'+(newsSeq++)),src:it.src};});
+    newsItems=d.items.map(function(it){return {id:it.id||('n_'+(newsSeq++)),src:it.src,region:it.region||''};});
     try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));}catch(e){}
     newsIndex=0;renderNews();
   }).catch(function(e){console.warn('news load fail',e);});
@@ -959,7 +964,7 @@ function selectPhoneZone(zone){
   var outer=[{lat:sw.lat()-pad,lng:sw.lng()-pad},{lat:ne.lat()+pad,lng:sw.lng()-pad},{lat:ne.lat()+pad,lng:ne.lng()+pad},{lat:sw.lat()-pad,lng:ne.lng()+pad}];
   phoneSpotlight=new google.maps.Polygon({paths:[outer].concat(holes),strokeWeight:0,fillColor:'#0a0c14',fillOpacity:0.62,clickable:false,zIndex:20});
   phoneSpotlight.setMap(phoneMap);
-  phoneMap.fitBounds(b,26);   // 존 전체가 한 화면에
+  phoneMap.fitBounds(b, phoneFitPadding());   // 실제 보이는 영역(헤더/네비 제외) 안에 존 전체가 들어오게
   updatePhoneLocation();
 }
 function refreshPhoneZoneLabels(){phoneZoneOverlays.forEach(function(o){if(o.label)o.label.updateStyle(zoneLabelStyle(o.color));});}
@@ -1018,12 +1023,28 @@ function zoneAtCenter(lat,lng){
   }
   return null;
 }
+// 폰 지도에서 헤더/네비에 가려지지 않고 '실제로 보이는' 영역의 인셋(px)과 중심
+function phoneMapInsets(){
+  var scr=document.querySelector('#phone-mirror .phone-screen')||document.querySelector('.phone-screen');
+  var hd=scr?scr.querySelector('.phone-header'):null, nv=scr?scr.querySelector('.phone-navbar'):null;
+  return {top:hd?hd.offsetHeight:0, bottom:nv?nv.offsetHeight:0};
+}
+function phoneFitPadding(){var ins=phoneMapInsets();return {top:ins.top+14, bottom:ins.bottom+14, left:18, right:18};}
+function phoneVisibleCenter(){
+  if(!phoneMap)return null;
+  var b=phoneMap.getBounds();if(!b)return phoneMap.getCenter();
+  var el=document.getElementById('phone-map');var H=el?el.offsetHeight:0;if(!H)return phoneMap.getCenter();
+  var ins=phoneMapInsets();
+  var yFrac=((ins.top+(H-ins.bottom))/2)/H;                 // 보이는 영역 세로 중앙 비율
+  var ne=b.getNorthEast(), sw=b.getSouthWest();
+  return new google.maps.LatLng(ne.lat()-(ne.lat()-sw.lat())*yFrac, (ne.lng()+sw.lng())/2);
+}
 function updatePhoneLocation(){
   var el=document.getElementById('phone-loc');if(!el)return;
   var nameEl=el.querySelector('.pa-loc-name')||el;
   var src=phoneMap||map;                    // 폰 화면(실제 사용자 뷰)의 센터 기준
   if(!src){nameEl.textContent='···';return;}
-  var c=src.getCenter();if(!c){nameEl.textContent='···';return;}
+  var c=(src===phoneMap)?phoneVisibleCenter():src.getCenter();if(!c){nameEl.textContent='···';return;}
   if(currentMode==='trend'){
     nameEl.textContent=zoneAtCenter(c.lat(),c.lng())||'트렌드';
     return;
@@ -1037,7 +1058,7 @@ function updatePhoneBasicSpotlight(){
     if(basicSpotlightKey!==null){basicSpotlightKey=null;refreshPhoneMapStyles();}
     return;
   }
-  var c=phoneMap.getCenter(),mpp=mapMpp(phoneMap),newKey=null;
+  var c=phoneVisibleCenter(),mpp=mapMpp(phoneMap),newKey=null;
   var thr=Number(styleConfig.highlight.spotScaleM); if(!(thr>0))thr=200;
   if(c&&mpp&&(mpp*64)<=thr){   // 축척 자(64px 기준) 거리가 임계값 이하 = 충분히 확대
     var d=regionAt(c.lat(),c.lng());
