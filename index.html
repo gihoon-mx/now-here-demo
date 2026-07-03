@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.20.0" />
+  <link rel="stylesheet" href="style.css?v=1.21.0" />
 </head>
 <body>
 
@@ -58,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.20.0</span>
+        <span id="app-version">v1.21.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -214,11 +214,25 @@
               <button class="pm-btn active" type="button" data-mode="local"><span class="pm-ic">📍</span>베이직</button>
               <button class="pm-btn" type="button" data-mode="trend"><span class="pm-ic pm-ic-fire">🔥</span>트렌드</button>
             </div>
+            <button class="pa-profile" id="phone-profile" type="button" aria-label="프로필 · 계정" title="계정"><img id="pa-profile-img" alt="" /><span id="pa-profile-initial">P</span></button>
           </div>
+          <!-- 지역 콘텐츠 지면 (공간 확보 · 관리자만 이미지 업로드/크롭) -->
+          <div id="phone-content-page">
+            <div id="cp-frame">
+              <img id="cp-image" alt="" draggable="false" />
+              <span id="cp-placeholder">지역 콘텐츠 지면</span>
+            </div>
+            <div id="cp-admin">
+              <button type="button" id="cp-upload-btn" class="cp-btn">🖼 이미지 올리기</button>
+              <input type="range" id="cp-zoom" min="1" max="3" step="0.01" value="1" aria-label="이미지 크기 조절" />
+              <button type="button" id="cp-clear-btn" class="cp-btn cp-btn-x" title="이미지 삭제" aria-label="이미지 삭제">✕</button>
+            </div>
+            <input type="file" id="cp-file" accept="image/*" hidden />
+          </div>
+          <!-- 지도 위 오버레이(헤더 하단 앵커): 축척(좌) · 위치칩(중앙) 가로 정렬 -->
+          <span class="pa-loc" id="phone-loc"><svg class="pa-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg><span class="pa-loc-name">···</span></span>
+          <div id="phone-scale" aria-hidden="true"></div>
         </div>
-        <!-- 지도 위 오버레이: 현재 위치(상단 중앙) · 축척(작게) -->
-        <span class="pa-loc" id="phone-loc"><svg class="pa-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg><span class="pa-loc-name">···</span></span>
-        <div id="phone-scale" aria-hidden="true"></div>
         <div class="phone-navbar">
           <button class="pn-add" type="button" data-nav="add" title="컨텐츠 추가" aria-label="컨텐츠 추가">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -269,12 +283,13 @@
           <button type="button" class="cam-item" data-add="photo"><span class="cam-ic">📷</span> 사진 올리기</button>
         </div>
         <input type="file" id="feed-photo-input" accept="image/*" style="display:none" />
+        <!-- 프로필 메뉴(우상단 P 클릭) : 계정 정보 + 로그아웃 -->
+        <div id="phone-profile-menu" aria-hidden="true">
+          <div class="ppm-top"><span class="acct-dot"></span><span id="ppm-email" class="ppm-email"></span></div>
+          <div class="ppm-bot"><span id="ppm-version" class="ppm-ver"></span><button id="ppm-logout" class="action-btn small" type="button">로그아웃</button></div>
+        </div>
         <div id="phone-drawer">
           <div class="phone-drawer-head"><span>메뉴</span><button id="phone-drawer-close" type="button" aria-label="닫기">✕</button></div>
-          <div id="drawer-account" style="display:none;">
-            <div class="da-top"><span class="acct-dot"></span><span id="drawer-email" class="da-email"></span></div>
-            <div class="da-bot"><span id="drawer-version" class="da-ver"></span><button id="drawer-logout" class="action-btn small" type="button">로그아웃</button></div>
-          </div>
           <div id="phone-drawer-body"></div>
         </div>
       </div>
@@ -309,7 +324,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.20.0"></script>
-  <script src="app.js?v=1.20.0"></script>
+  <script src="config.js?v=1.21.0"></script>
+  <script src="app.js?v=1.21.0"></script>
 </body>
 </html>

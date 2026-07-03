@@ -667,7 +667,55 @@ function initPhoneMenu(){
   if(pcBtn)pcBtn.addEventListener('click',function(){var d=document.getElementById('pc-drawer');if(d&&d.classList.contains('open'))d.classList.remove('open');else openPcDrawer();});
   if(pcClose)pcClose.addEventListener('click',closeDrawer);
   document.querySelectorAll('#phone-mode .pm-btn').forEach(function(b){b.addEventListener('click',function(){switchMode(this.dataset.mode);});});
+  // 우상단 프로필 → 계정/로그아웃 메뉴 토글
+  var prof=document.getElementById('phone-profile'),pmenu=document.getElementById('phone-profile-menu');
+  if(prof&&pmenu){
+    prof.addEventListener('click',function(e){e.stopPropagation();pmenu.classList.toggle('open');});
+    document.addEventListener('click',function(e){if(pmenu.classList.contains('open')&&!pmenu.contains(e.target)&&!prof.contains(e.target))pmenu.classList.remove('open');});
+  }
+  initContentPage();
 }
+/* ===== 지역 콘텐츠 지면: 이미지 업로드 + 크기조절/크롭(팬·줌) — 관리자만 편집 ===== */
+var cpState={src:null,scale:1,x:0,y:0};
+function initContentPage(){
+  var frame=document.getElementById('cp-frame'),file=document.getElementById('cp-file'),
+      up=document.getElementById('cp-upload-btn'),clr=document.getElementById('cp-clear-btn'),zoom=document.getElementById('cp-zoom');
+  if(!frame)return;
+  loadContentImage();
+  if(up)up.addEventListener('click',function(){if(currentRole==='admin'&&file)file.click();});
+  if(file)file.addEventListener('change',function(){
+    var f=this.files&&this.files[0];this.value='';if(!f)return;
+    var r=new FileReader();
+    r.onload=function(e){
+      var im=new Image();
+      im.onload=function(){ // 저장부담↓: 최대 1000px JPEG로 다운스케일
+        var max=1000,w=im.width,h=im.height;if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}
+        var cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);
+        cpState={src:cv.toDataURL('image/jpeg',0.85),scale:1,x:0,y:0};applyContentImage();saveContentImage();
+      };
+      im.src=e.target.result;
+    };
+    r.readAsDataURL(f);
+  });
+  if(zoom)zoom.addEventListener('input',function(){cpState.scale=parseFloat(this.value)||1;applyContentImage();saveContentImage();});
+  if(clr)clr.addEventListener('click',function(){cpState={src:null,scale:1,x:0,y:0};applyContentImage();saveContentImage();});
+  // 드래그(팬)로 크롭 위치 조정 (관리자·이미지 있을 때)
+  var drag=null;
+  frame.addEventListener('pointerdown',function(e){if(currentRole!=='admin'||!cpState.src)return;drag={sx:e.clientX,sy:e.clientY,ox:cpState.x,oy:cpState.y};try{frame.setPointerCapture(e.pointerId);}catch(_){}});
+  frame.addEventListener('pointermove',function(e){if(!drag)return;cpState.x=drag.ox+(e.clientX-drag.sx);cpState.y=drag.oy+(e.clientY-drag.sy);applyContentImage();});
+  var endDrag=function(){if(drag){drag=null;saveContentImage();}};
+  frame.addEventListener('pointerup',endDrag);frame.addEventListener('pointercancel',endDrag);
+}
+function applyContentImage(){
+  var frame=document.getElementById('cp-frame'),img=document.getElementById('cp-image'),zoom=document.getElementById('cp-zoom');
+  if(!frame||!img)return;
+  if(cpState&&cpState.src){img.src=cpState.src;frame.classList.add('has-img');
+    img.style.transform='translate(-50%,-50%) translate('+(cpState.x||0)+'px,'+(cpState.y||0)+'px) scale('+(cpState.scale||1)+')';
+    if(zoom)zoom.value=cpState.scale||1;
+  }else{img.removeAttribute('src');frame.classList.remove('has-img');if(zoom)zoom.value=1;}
+}
+function saveContentImage(){try{localStorage.setItem('nowhere_contentImg',JSON.stringify(cpState));}catch(e){}}
+function loadContentImage(){try{var s=localStorage.getItem('nowhere_contentImg');if(s){var o=JSON.parse(s);if(o)cpState=o;}}catch(e){}applyContentImage();}
 // 공유 메뉴 바디를 여는 드로어로 옮겨 렌더 (한 번에 하나만 열림 → 동일 DOM = 싱크)
 function openPhoneDrawer(){var d=document.getElementById('phone-drawer'),b=document.getElementById('phone-drawer-body'),pc=document.getElementById('pc-drawer');if(!d)return;if(pc)pc.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
 function openPcDrawer(){var d=document.getElementById('pc-drawer'),b=document.getElementById('phone-drawer-body'),ph=document.getElementById('phone-drawer');if(!d)return;if(ph)ph.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
@@ -1588,18 +1636,21 @@ function showAuthOverlay(state,user,msg){
 }
 function hideAuthOverlay(){var ov=document.getElementById('auth-overlay');if(ov)ov.classList.add('hidden');}
 function showUserChip(user,role){
-  var row=document.getElementById('account-row');if(!row)return;
-  row.style.display='';
   var label=(user.email||'')+(role==='admin'?' · 관리자':' · 뷰어');
-  document.getElementById('account-email').textContent=label;
-  document.getElementById('allowlist-btn').style.display=(role==='admin')?'':'none';
-  // 폰 드로어 계정 블록: 데모(뷰어)일 때 버전+이메일+로그아웃 노출
-  var da=document.getElementById('drawer-account');
-  if(da){
-    var de=document.getElementById('drawer-email');if(de)de.textContent=label;
-    var dv=document.getElementById('drawer-version'),av=document.getElementById('app-version');if(dv&&av)dv.textContent=av.textContent;
-    da.style.display='';   // 관리자·데모 모두 폰 햄버거 메뉴에 계정 블록 노출
+  var row=document.getElementById('account-row');
+  if(row){row.style.display='';
+    document.getElementById('account-email').textContent=label;
+    document.getElementById('allowlist-btn').style.display=(role==='admin')?'':'none';
   }
+  // 폰 우상단 프로필: 사진(있으면) 또는 이니셜
+  var pf=document.getElementById('phone-profile'),pi=document.getElementById('pa-profile-img'),pn=document.getElementById('pa-profile-initial');
+  if(pf){
+    if(user.photoURL&&pi){pi.src=user.photoURL;pf.classList.add('has-photo');}
+    else{pf.classList.remove('has-photo');if(pn)pn.textContent=(user.email||'?').charAt(0).toUpperCase();}
+  }
+  // 프로필 메뉴: 계정 + 버전
+  var pe=document.getElementById('ppm-email');if(pe)pe.textContent=label;
+  var pv=document.getElementById('ppm-version'),av=document.getElementById('app-version');if(pv&&av)pv.textContent=av.textContent;
 }
 
 function initAuth(){
@@ -1614,7 +1665,7 @@ function initAuth(){
   });
   document.getElementById('auth-logout').addEventListener('click',function(){fbAuth.signOut();});
   var lo=document.getElementById('logout-btn');if(lo)lo.addEventListener('click',function(){fbAuth.signOut();});
-  var dlo=document.getElementById('drawer-logout');if(dlo)dlo.addEventListener('click',function(){fbAuth.signOut();});
+  var plo=document.getElementById('ppm-logout');if(plo)plo.addEventListener('click',function(){fbAuth.signOut();});
   var alBtn=document.getElementById('allowlist-btn');if(alBtn)alBtn.addEventListener('click',openAllowlistManager);
   initAllowlistModal();
   fbAuth.onAuthStateChanged(handleAuth);
