@@ -411,32 +411,32 @@ button:focus:not(:focus-visible){outline:none;}
 .pa-profile #pa-profile-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;}
 .pa-profile.has-photo #pa-profile-img{display:block;}
 .pa-profile.has-photo #pa-profile-initial{display:none;}
-/* 지역 콘텐츠 지면 */
+/* 지역 콘텐츠 지면(동네소식) — 좌우 스와이프 캐러셀 */
 #phone-content-page{margin-top:3cqw;}
-#cp-frame{position:relative;width:100%;height:44cqw;border-radius:4cqw;overflow:hidden;background:#e7e9ee;border:1px solid rgba(0,0,0,0.05);
-  display:flex;align-items:center;justify-content:center;touch-action:none;}
-#cp-frame #cp-image{position:absolute;left:50%;top:50%;max-width:none;width:100%;transform:translate(-50%,-50%) scale(1);transform-origin:center;display:none;user-select:none;-webkit-user-drag:none;}
-#cp-frame.has-img #cp-image{display:block;}
-#cp-frame.has-img #cp-placeholder{display:none;}
-#cp-placeholder{font-size:3cqw;font-weight:600;color:#9aa1ad;letter-spacing:.02em;pointer-events:none;}
-#cp-admin{display:flex;align-items:center;gap:2cqw;margin-top:2.4cqw;}
-#cp-admin .cp-btn{flex-shrink:0;border:1px solid rgba(0,0,0,0.1);background:#f4f6f9;color:#39404b;font-family:inherit;font-weight:700;font-size:2.7cqw;padding:1.4cqw 2.8cqw;border-radius:2.6cqw;cursor:pointer;}
-#cp-admin .cp-btn:active{background:#e6eaf0;}
-#cp-admin .cp-btn-x{padding:1.4cqw 2.4cqw;color:#b53b3b;}
-#cp-admin #cp-zoom{flex:1;min-width:0;height:1cqw;-webkit-appearance:none;appearance:none;background:rgba(0,0,0,0.12);border-radius:2px;outline:none;cursor:pointer;}
-#cp-admin #cp-zoom::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:4cqw;height:4cqw;border-radius:50%;background:#2f7bff;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);cursor:pointer;}
-body.role-user #cp-admin,body:not(.role-admin):not(.role-user) #cp-admin{display:none;}   /* 관리자만 이미지 편집 */
+#cp-frame{position:relative;width:100%;height:44cqw;border-radius:4cqw;overflow:hidden;background:#e7e9ee;border:1px solid rgba(0,0,0,0.05);touch-action:pan-y;}
+#cp-track{position:absolute;inset:0;display:flex;height:100%;will-change:transform;}
+.cp-slide{flex:0 0 100%;height:100%;}
+.cp-slide img{width:100%;height:100%;object-fit:cover;display:block;-webkit-user-drag:none;user-select:none;pointer-events:none;}
+#cp-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3cqw;font-weight:600;color:#9aa1ad;letter-spacing:.02em;pointer-events:none;}
+#cp-frame.has-news #cp-placeholder{display:none;}
+#cp-dots{position:absolute;left:0;right:0;bottom:2.2cqw;display:flex;justify-content:center;gap:1.4cqw;pointer-events:none;}
+#cp-dots .cp-dot{width:1.6cqw;height:1.6cqw;border-radius:50%;background:rgba(255,255,255,0.55);box-shadow:0 0 0 1px rgba(0,0,0,0.18);}
+#cp-dots .cp-dot.active{background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,0.28);}
+/* 동네소식 리스트 (사이드바 컨텐츠 설정) */
+#news-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
+.news-item{display:flex;align-items:center;gap:8px;padding:6px;border:1px solid rgba(255,255,255,0.08);border-radius:9px;background:rgba(255,255,255,0.03);}
+.news-item .ni-thumb{width:46px;height:34px;object-fit:cover;border-radius:5px;flex-shrink:0;background:#222;}
+.news-item .ni-actions{margin-left:auto;display:flex;gap:4px;}
+.news-item .ni-actions button{width:24px;height:24px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(255,255,255,0.05);color:#c7cbd1;font-size:.72rem;line-height:1;cursor:pointer;}
+.news-item .ni-actions button:hover{background:rgba(255,255,255,0.12);color:#fff;}
 /* 햄버거: 배경 제거 · 어두운 라인 */
 .pa-btn{justify-self:start;flex-shrink:0;width:8.4cqw;height:8.4cqw;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5cqw;padding:0;border:none;background:transparent;border-radius:2.4cqw;cursor:pointer;transition:background .15s ease;}
 .pa-btn:active{background:rgba(0,0,0,0.06);}
 .pa-btn span{display:block;width:4.8cqw;height:0.72cqw;border-radius:1px;background:#33373f;}
-/* 위치 표시기: 헤더 하단에 앵커(지도 위 상단 중앙) · 하단 네비와 유사한 다크 글라스 */
-.pa-loc{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3cqw;z-index:3;
-  display:inline-flex;align-items:center;gap:1.2cqw;max-width:74cqw;font-size:3.2cqw;font-weight:700;color:#f2f5f9;
-  padding:1.5cqw 3.8cqw;border-radius:6cqw;background:rgba(24,26,34,0.58);
-  backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);
-  border:1px solid rgba(255,255,255,0.14);box-shadow:0 1cqw 3cqw rgba(0,0,0,0.28),inset 0 1px 0 rgba(255,255,255,0.1);pointer-events:none;}
-.pa-pin{width:3.6cqw;height:3.6cqw;flex-shrink:0;color:#8ed0ff;}
+/* 위치 표시기: 헤더 하단 앵커 · 배경/아이콘 없이 텍스트만 (밝은 지도 대비용 흰 헤일로) */
+.pa-loc{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4.7cqw;z-index:3;
+  max-width:74cqw;font-size:3.4cqw;font-weight:700;color:#2b3038;pointer-events:none;
+  text-shadow:0 0 2px rgba(255,255,255,0.95),0 0 6px rgba(255,255,255,0.78);}
 .pa-loc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 /* 모드 토글(가운데): 라이트 세그먼트 */
 .pa-mode{justify-self:center;flex-shrink:0;display:flex;gap:0.5cqw;padding:0.7cqw;border-radius:5cqw;background:rgba(0,0,0,0.055);border:1px solid rgba(0,0,0,0.06);}

@@ -33,6 +33,7 @@ var hexStyleConfig = {
 /* ========== 트렌드 존 ========== */
 var trendZones = [];
 var editingZoneId = null;
+var zoneMergeBlocks = false;   // true=존 내부 헥사곤 경계 숨김, 합쳐진 외곽선만(한 덩어리)
 var editingZoneBackup = null;
 
 /* ========== 라벨 설정 ========== */
@@ -148,6 +149,44 @@ function hexVertices(cx, cy, R_lat, R_lng) {
     pts.push({ lat: cy + R_lat * Math.sin(a), lng: cx + R_lng * Math.cos(a) });
   }
   return pts;
+}
+/* 헥사곤 묶음의 합집합 외곽선 루프들 (내부 공유 변은 제거, 경계 변만 체인) */
+function zoneOutlineLoops(centers, gp) {
+  var RND=1e7, vkey=function(p){return Math.round(p.lat*RND)+','+Math.round(p.lng*RND);};
+  var cnt={}, pt={};
+  centers.forEach(function(c){
+    var v=hexVertices(c.lng,c.lat,gp.R_lat,gp.R_lng);
+    for(var i=0;i<6;i++){var a=v[i],b=v[(i+1)%6],ka=vkey(a),kb=vkey(b);pt[ka]=a;pt[kb]=b;
+      var ek=ka<kb?ka+'|'+kb:kb+'|'+ka;cnt[ek]=(cnt[ek]||0)+1;}
+  });
+  var adj={};
+  Object.keys(cnt).forEach(function(ek){if(cnt[ek]!==1)return;var p=ek.split('|'),ka=p[0],kb=p[1];
+    (adj[ka]=adj[ka]||[]).push(kb);(adj[kb]=adj[kb]||[]).push(ka);});
+  var used={}, loops=[], eid=function(a,b){return a<b?a+'|'+b:b+'|'+a;};
+  Object.keys(adj).forEach(function(start){
+    for(;;){
+      var nbs=adj[start]||[], first=null;
+      for(var i=0;i<nbs.length;i++){if(!used[eid(start,nbs[i])]){first=nbs[i];break;}}
+      if(first===null)break;
+      var loop=[pt[start]], cur=start, nxt=first, guard=0;
+      used[eid(cur,nxt)]=true;
+      while(nxt!==start && guard++<100000){
+        loop.push(pt[nxt]);
+        var cand=adj[nxt]||[], nn=null;
+        for(var j=0;j<cand.length;j++){if(!used[eid(nxt,cand[j])]){nn=cand[j];break;}}
+        if(nn===null)break;
+        used[eid(nxt,nn)]=true; nxt=nn;
+      }
+      if(loop.length>=3)loops.push(loop);
+    }
+  });
+  return loops;
+}
+function addZoneOutline(centers, gp, color, mapObj, arr){
+  zoneOutlineLoops(centers,gp).forEach(function(loop){
+    var op=new google.maps.Polygon({paths:loop,strokeColor:color,strokeWeight:2.4,strokeOpacity:0.95,fillOpacity:0,clickable:false,zIndex:4});
+    op.setMap(mapObj);arr.push(op);
+  });
 }
 function centerToHexId(lat, lng, gp) {
   if (!gp) gp = getHexGridParams();
@@ -675,47 +714,61 @@ function initPhoneMenu(){
   }
   initContentPage();
 }
-/* ===== 지역 콘텐츠 지면: 이미지 업로드 + 크기조절/크롭(팬·줌) — 관리자만 편집 ===== */
-var cpState={src:null,scale:1,x:0,y:0};
+/* ===== 동네소식 지면: 여러 이미지(좌우 스와이프 캐러셀) + 사이드바 리스트 관리(관리자) ===== */
+var newsItems=[], newsIndex=0, newsSeq=1;
 function initContentPage(){
-  var frame=document.getElementById('cp-frame'),file=document.getElementById('cp-file'),
-      up=document.getElementById('cp-upload-btn'),clr=document.getElementById('cp-clear-btn'),zoom=document.getElementById('cp-zoom');
-  if(!frame)return;
-  loadContentImage();
-  if(up)up.addEventListener('click',function(){if(currentRole==='admin'&&file)file.click();});
+  var frame=document.getElementById('cp-frame');
+  var addBtn=document.getElementById('news-add-btn'),file=document.getElementById('news-file');
+  loadNews();
+  if(addBtn)addBtn.addEventListener('click',function(){if(currentRole==='admin'&&file)file.click();});
   if(file)file.addEventListener('change',function(){
-    var f=this.files&&this.files[0];this.value='';if(!f)return;
-    var r=new FileReader();
-    r.onload=function(e){
-      var im=new Image();
-      im.onload=function(){ // 저장부담↓: 최대 1000px JPEG로 다운스케일
-        var max=1000,w=im.width,h=im.height;if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}
-        var cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);
-        cpState={src:cv.toDataURL('image/jpeg',0.85),scale:1,x:0,y:0};applyContentImage();saveContentImage();
-      };
-      im.src=e.target.result;
-    };
-    r.readAsDataURL(f);
+    var fs=this.files;this.value='';if(!fs||!fs.length)return;
+    var arr=Array.prototype.slice.call(fs),pending=arr.length;
+    arr.forEach(function(f){downscaleImage(f,function(url){if(url)newsItems.push({id:'n_'+(newsSeq++),src:url});if(--pending===0){saveNews();renderNews();}});});
   });
-  if(zoom)zoom.addEventListener('input',function(){cpState.scale=parseFloat(this.value)||1;applyContentImage();saveContentImage();});
-  if(clr)clr.addEventListener('click',function(){cpState={src:null,scale:1,x:0,y:0};applyContentImage();saveContentImage();});
-  // 드래그(팬)로 크롭 위치 조정 (관리자·이미지 있을 때)
-  var drag=null;
-  frame.addEventListener('pointerdown',function(e){if(currentRole!=='admin'||!cpState.src)return;drag={sx:e.clientX,sy:e.clientY,ox:cpState.x,oy:cpState.y};try{frame.setPointerCapture(e.pointerId);}catch(_){}});
-  frame.addEventListener('pointermove',function(e){if(!drag)return;cpState.x=drag.ox+(e.clientX-drag.sx);cpState.y=drag.oy+(e.clientY-drag.sy);applyContentImage();});
-  var endDrag=function(){if(drag){drag=null;saveContentImage();}};
-  frame.addEventListener('pointerup',endDrag);frame.addEventListener('pointercancel',endDrag);
+  // 캐러셀 스와이프 (아이템 2개+)
+  if(frame){
+    var sx=null,dxv=0;
+    frame.addEventListener('pointerdown',function(e){if(newsItems.length<2)return;sx=e.clientX;dxv=0;setTrackAnim(false);try{frame.setPointerCapture(e.pointerId);}catch(_){}});
+    frame.addEventListener('pointermove',function(e){if(sx==null)return;dxv=e.clientX-sx;setTrackX(-newsIndex*slideW()+dxv);});
+    frame.addEventListener('pointerup',function(){if(sx==null)return;var w=slideW();if(dxv<-w*0.18&&newsIndex<newsItems.length-1)newsIndex++;else if(dxv>w*0.18&&newsIndex>0)newsIndex--;sx=null;setTrackAnim(true);snapTrack();updateDots();});
+    frame.addEventListener('pointercancel',function(){sx=null;setTrackAnim(true);snapTrack();});
+  }
 }
-function applyContentImage(){
-  var frame=document.getElementById('cp-frame'),img=document.getElementById('cp-image'),zoom=document.getElementById('cp-zoom');
-  if(!frame||!img)return;
-  if(cpState&&cpState.src){img.src=cpState.src;frame.classList.add('has-img');
-    img.style.transform='translate(-50%,-50%) translate('+(cpState.x||0)+'px,'+(cpState.y||0)+'px) scale('+(cpState.scale||1)+')';
-    if(zoom)zoom.value=cpState.scale||1;
-  }else{img.removeAttribute('src');frame.classList.remove('has-img');if(zoom)zoom.value=1;}
+function slideW(){var f=document.getElementById('cp-frame');return f?f.offsetWidth:0;}
+function setTrackAnim(on){var t=document.getElementById('cp-track');if(t)t.style.transition=on?'transform .28s ease':'none';}
+function setTrackX(px){var t=document.getElementById('cp-track');if(t)t.style.transform='translateX('+px+'px)';}
+function snapTrack(){setTrackX(-newsIndex*slideW());}
+function updateDots(){var d=document.getElementById('cp-dots');if(!d)return;d.querySelectorAll('.cp-dot').forEach(function(el,i){el.classList.toggle('active',i===newsIndex);});}
+function renderNews(){
+  var frame=document.getElementById('cp-frame'),track=document.getElementById('cp-track'),dots=document.getElementById('cp-dots');
+  if(track){track.innerHTML='';newsItems.forEach(function(it){var s=document.createElement('div');s.className='cp-slide';var im=document.createElement('img');im.src=it.src;im.alt='';s.appendChild(im);track.appendChild(s);});}
+  if(newsIndex>=newsItems.length)newsIndex=Math.max(0,newsItems.length-1);
+  if(frame)frame.classList.toggle('has-news',newsItems.length>0);
+  if(dots){dots.innerHTML='';for(var i=0;i<newsItems.length;i++){var dt=document.createElement('span');dt.className='cp-dot'+(i===newsIndex?' active':'');dots.appendChild(dt);}dots.style.display=newsItems.length>1?'':'none';}
+  setTrackAnim(false);snapTrack();
+  renderNewsList();
 }
-function saveContentImage(){try{localStorage.setItem('nowhere_contentImg',JSON.stringify(cpState));}catch(e){}}
-function loadContentImage(){try{var s=localStorage.getItem('nowhere_contentImg');if(s){var o=JSON.parse(s);if(o)cpState=o;}}catch(e){}applyContentImage();}
+function renderNewsList(){
+  var list=document.getElementById('news-list');if(!list)return;
+  list.innerHTML='';
+  if(!newsItems.length){var e=document.createElement('p');e.className='section-hint';e.textContent='아직 올린 소식이 없어요.';list.appendChild(e);return;}
+  newsItems.forEach(function(it,i){
+    var row=document.createElement('div');row.className='news-item';
+    var th=document.createElement('img');th.className='ni-thumb';th.src=it.src;
+    var act=document.createElement('div');act.className='ni-actions';
+    var up=mkBtn('↑'),dn=mkBtn('↓'),del=mkBtn('🗑');
+    up.onclick=function(){newsMove(i,-1);};dn.onclick=function(){newsMove(i,1);};del.onclick=function(){newsDelete(i);};
+    act.appendChild(up);act.appendChild(dn);act.appendChild(del);
+    row.appendChild(th);row.appendChild(act);list.appendChild(row);
+  });
+  function mkBtn(t){var b=document.createElement('button');b.type='button';b.textContent=t;return b;}
+}
+function newsMove(i,dir){var j=i+dir;if(j<0||j>=newsItems.length)return;var t=newsItems[i];newsItems[i]=newsItems[j];newsItems[j]=t;saveNews();renderNews();}
+function newsDelete(i){newsItems.splice(i,1);saveNews();renderNews();}
+function downscaleImage(file,cb){var r=new FileReader();r.onload=function(e){var im=new Image();im.onload=function(){var max=1000,w=im.width,h=im.height;if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}var cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);cb(cv.toDataURL('image/jpeg',0.85));};im.onerror=function(){cb(null);};im.src=e.target.result;};r.onerror=function(){cb(null);};r.readAsDataURL(file);}
+function saveNews(){try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));}catch(e){}}
+function loadNews(){try{var s=localStorage.getItem('nowhere_news');if(s){var o=JSON.parse(s);if(Array.isArray(o))newsItems=o;}}catch(e){}renderNews();}
 // 공유 메뉴 바디를 여는 드로어로 옮겨 렌더 (한 번에 하나만 열림 → 동일 DOM = 싱크)
 function openPhoneDrawer(){var d=document.getElementById('phone-drawer'),b=document.getElementById('phone-drawer-body'),pc=document.getElementById('pc-drawer');if(!d)return;if(pc)pc.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
 function openPcDrawer(){var d=document.getElementById('pc-drawer'),b=document.getElementById('phone-drawer-body'),ph=document.getElementById('phone-drawer');if(!d)return;if(ph)ph.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
@@ -811,12 +864,13 @@ function syncPhoneZones(){
   if(currentMode!=='trend')return;
   trendZones.forEach(function(zone){
     if(zone.id===editingZoneId)return;
-    var gp=getHexGridParams(zone.radiusKm),polys=[],sumLat=0,sumLng=0;
+    var gp=getHexGridParams(zone.radiusKm),polys=[],sumLat=0,sumLng=0,sw=zoneMergeBlocks?0:2,so=zoneMergeBlocks?0:0.8;
     zone.hexCenters.forEach(function(c){
-      var poly=new google.maps.Polygon({paths:hexVertices(c.lng,c.lat,gp.R_lat,gp.R_lng),fillColor:zone.color,fillOpacity:0.35,strokeColor:zone.color,strokeWeight:2,strokeOpacity:0.8,clickable:true,zIndex:3});
+      var poly=new google.maps.Polygon({paths:hexVertices(c.lng,c.lat,gp.R_lat,gp.R_lng),fillColor:zone.color,fillOpacity:0.35,strokeColor:zone.color,strokeWeight:sw,strokeOpacity:so,clickable:true,zIndex:3});
       poly.setMap(phoneMap);polys.push(poly);sumLat+=c.lat;sumLng+=c.lng;
       poly.addListener('click',(function(z){return function(){selectPhoneZone(z);};})(zone)); // 데모: 존 클릭→강조
     });
+    if(zoneMergeBlocks)addZoneOutline(zone.hexCenters,gp,zone.color,phoneMap,polys);   // 합쳐진 외곽선만
     var label=null;
     if(zone.hexCenters.length>0)label=new MapLabel(new google.maps.LatLng(sumLat/zone.hexCenters.length,sumLng/zone.hexCenters.length),zone.name,zoneLabelStyle(zone.color),phoneMap);
     phoneZoneOverlays.push({polygons:polys,label:label,color:zone.color,zoneId:zone.id});
@@ -1052,13 +1106,14 @@ function renderZoneOnMap(zone) {
   removeZoneFromMap(zone);
   if (currentMode!=='trend') return;
   var gp = getHexGridParams(zone.radiusKm);
-  var sumLat=0, sumLng=0;
+  var sumLat=0, sumLng=0, sw=zoneMergeBlocks?0:2, so=zoneMergeBlocks?0:0.8;
   zone.hexCenters.forEach(function(c){
     var paths=hexVertices(c.lng,c.lat,gp.R_lat,gp.R_lng);
-    var poly=new google.maps.Polygon({paths:paths,fillColor:zone.color,fillOpacity:0.35,strokeColor:zone.color,strokeWeight:2,strokeOpacity:0.8,clickable:false,zIndex:3});
+    var poly=new google.maps.Polygon({paths:paths,fillColor:zone.color,fillOpacity:0.35,strokeColor:zone.color,strokeWeight:sw,strokeOpacity:so,clickable:false,zIndex:3});
     poly.setMap(map); zone.polygons.push(poly);
     sumLat+=c.lat; sumLng+=c.lng;
   });
+  if(zoneMergeBlocks)addZoneOutline(zone.hexCenters,gp,zone.color,map,zone.polygons);   // 합쳐진 외곽선만
   if (zone.hexCenters.length>0) {
     zone.label=new MapLabel(new google.maps.LatLng(sumLat/zone.hexCenters.length,sumLng/zone.hexCenters.length),zone.name,zoneLabelStyle(zone.color),map);
   }
@@ -1066,6 +1121,7 @@ function renderZoneOnMap(zone) {
 
 function removeZoneFromMap(zone){zone.polygons.forEach(function(p){p.setMap(null);});zone.polygons=[];if(zone.label){zone.label.setMap(null);zone.label=null;}}
 function showAllZonesOnMap(){trendZones.forEach(function(z){if(z.id!==editingZoneId&&z.polygons.length===0) renderZoneOnMap(z);});}
+function rerenderZones(){trendZones.slice().forEach(function(z){removeZoneFromMap(z);});if(currentMode==='trend')showAllZonesOnMap();syncPhoneZones();}
 function hideAllZonesFromMap(){trendZones.forEach(function(z){removeZoneFromMap(z);});}
 
 function deleteZone(zoneId){
@@ -1425,6 +1481,7 @@ function syncSettingsUI(){
   setRange('smooth-intensity',smoothIntensity);
   setRange('hex-radius',hexRadiusKm,function(v){return v.toFixed(1)+'km';});
   setCheck('local-label-toggle',localLabelConfig.enabled);
+  setCheck('zone-merge-toggle',zoneMergeBlocks);
   setRange('local-label-size',localLabelConfig.fontSize);
   setRange('zone-label-size',zoneLabelConfig.fontSize);
   setRange('zone-label-bg-opacity',zoneLabelConfig.bgOpacity);
@@ -1486,6 +1543,8 @@ function initSettingsPanel(){
   bindInput('local-label-size','range',localLabelConfig,'fontSize',updateLocalLabelStyle);
   bindInput('zone-label-size','range',zoneLabelConfig,'fontSize',refreshZoneLabels);
   bindInput('zone-label-bg-opacity','range',zoneLabelConfig,'bgOpacity',refreshZoneLabels);
+  var zmt=document.getElementById('zone-merge-toggle');
+  if(zmt)zmt.addEventListener('change',function(){zoneMergeBlocks=this.checked;rerenderZones();markCloudDirty();});
 
   enhanceRangeInputs();      // 슬라이더 옆 숫자 직접 입력 추가
   initSettingsAccordion();   // 설정 섹션 아코디언화
@@ -1703,6 +1762,7 @@ function applyCloudData(d){
     if(s.localLabelConfig)mergeInto(localLabelConfig,s.localLabelConfig);
     if(s.zoneLabelConfig)mergeInto(zoneLabelConfig,s.zoneLabelConfig);
     if(s.smoothEnabled!==undefined)smoothEnabled=s.smoothEnabled;
+    if(s.zoneMergeBlocks!==undefined)zoneMergeBlocks=s.zoneMergeBlocks;
     if(s.smoothIntensity!==undefined)smoothIntensity=s.smoothIntensity;
     if(s.hexRadiusKm!==undefined)hexRadiusKm=s.hexRadiusKm;
   }
@@ -1726,7 +1786,7 @@ function markCloudDirty(){
 function cloudSave(){
   if(!fbDb||!currentUser||currentRole!=='admin')return;
   var payload={updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||'',
-    settings:{styleConfig:styleConfig,hexStyleConfig:hexStyleConfig,localLabelConfig:localLabelConfig,zoneLabelConfig:zoneLabelConfig,smoothEnabled:smoothEnabled,smoothIntensity:smoothIntensity,hexRadiusKm:hexRadiusKm},
+    settings:{styleConfig:styleConfig,hexStyleConfig:hexStyleConfig,localLabelConfig:localLabelConfig,zoneLabelConfig:zoneLabelConfig,smoothEnabled:smoothEnabled,smoothIntensity:smoothIntensity,hexRadiusKm:hexRadiusKm,zoneMergeBlocks:zoneMergeBlocks},
     zones:trendZones.map(function(z){return {id:z.id,name:z.name,color:z.color,radiusKm:z.radiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters,originalRadiusKm:z.originalRadiusKm};}),
     spots:spotMessages.filter(function(s){return !s.local;}).map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};}),
     spotConfig:spotConfig};

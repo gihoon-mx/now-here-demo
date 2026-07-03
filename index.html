@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.21.0" />
+  <link rel="stylesheet" href="style.css?v=1.22.0" />
 </head>
 <body>
 
@@ -58,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.21.0</span>
+        <span id="app-version">v1.22.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -121,6 +121,13 @@
           <div id="zone-list"></div>
         </div>
         <p class="section-hint">트렌드 모드에서 지도의 헥사곤을 선택하면 새 존을 만들 수 있어요.</p>
+      </div>
+      <div class="settings-section">
+        <h4>동네소식 (지면 이미지)</h4>
+        <button id="news-add-btn" class="action-btn accent" type="button">🖼 이미지 추가</button>
+        <input type="file" id="news-file" accept="image/*" multiple hidden />
+        <div id="news-list"></div>
+        <p class="section-hint">폰 상단 지면에 좌우 스와이프로 넘겨보는 이미지 게시물이에요. 순서 이동/삭제 가능.</p>
       </div>
     </div>
 
@@ -190,6 +197,11 @@
         <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-hex-sel-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
       </div>
       <div class="settings-section">
+        <h4>존 표시</h4>
+        <div class="setting-row"><label>내부 경계 숨김</label><label class="toggle-switch"><input type="checkbox" id="zone-merge-toggle" /><span class="toggle-slider"></span></label></div>
+        <p class="section-hint">켜면 존의 헥사곤 내부 선을 감추고 합쳐진 한 덩어리의 외곽선만 표시합니다.</p>
+      </div>
+      <div class="settings-section">
         <h4>존 라벨</h4>
         <div class="setting-row"><label>글자 크기</label><input type="range" id="zone-label-size" min="4" max="200" step="1" value="11" /><span class="range-val">11</span></div>
         <div class="setting-row"><label>글자색</label><button type="button" class="color-trigger" id="ct-zone-label-text"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
@@ -211,26 +223,21 @@
           <div class="phone-appbar">
             <button class="pa-btn" id="phone-hamburger" type="button" aria-label="메뉴 열기" title="메뉴"><span></span><span></span><span></span></button>
             <div class="pa-mode" id="phone-mode">
-              <button class="pm-btn active" type="button" data-mode="local"><span class="pm-ic">📍</span>베이직</button>
-              <button class="pm-btn" type="button" data-mode="trend"><span class="pm-ic pm-ic-fire">🔥</span>트렌드</button>
+              <button class="pm-btn active" type="button" data-mode="local">베이직</button>
+              <button class="pm-btn" type="button" data-mode="trend">트렌드</button>
             </div>
             <button class="pa-profile" id="phone-profile" type="button" aria-label="프로필 · 계정" title="계정"><img id="pa-profile-img" alt="" /><span id="pa-profile-initial">P</span></button>
           </div>
-          <!-- 지역 콘텐츠 지면 (공간 확보 · 관리자만 이미지 업로드/크롭) -->
+          <!-- 지역 콘텐츠 지면 (동네소식) : 여러 이미지 좌우 스와이프 캐러셀. 편집은 사이드바 컨텐츠 설정에서만 -->
           <div id="phone-content-page">
             <div id="cp-frame">
-              <img id="cp-image" alt="" draggable="false" />
+              <div id="cp-track"></div>
               <span id="cp-placeholder">지역 콘텐츠 지면</span>
+              <div id="cp-dots" aria-hidden="true"></div>
             </div>
-            <div id="cp-admin">
-              <button type="button" id="cp-upload-btn" class="cp-btn">🖼 이미지 올리기</button>
-              <input type="range" id="cp-zoom" min="1" max="3" step="0.01" value="1" aria-label="이미지 크기 조절" />
-              <button type="button" id="cp-clear-btn" class="cp-btn cp-btn-x" title="이미지 삭제" aria-label="이미지 삭제">✕</button>
-            </div>
-            <input type="file" id="cp-file" accept="image/*" hidden />
           </div>
           <!-- 지도 위 오버레이(헤더 하단 앵커): 축척(좌) · 위치칩(중앙) 가로 정렬 -->
-          <span class="pa-loc" id="phone-loc"><svg class="pa-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg><span class="pa-loc-name">···</span></span>
+          <span class="pa-loc" id="phone-loc"><span class="pa-loc-name">···</span></span>
           <div id="phone-scale" aria-hidden="true"></div>
         </div>
         <div class="phone-navbar">
@@ -324,7 +331,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.21.0"></script>
-  <script src="app.js?v=1.21.0"></script>
+  <script src="config.js?v=1.22.0"></script>
+  <script src="app.js?v=1.22.0"></script>
 </body>
 </html>
