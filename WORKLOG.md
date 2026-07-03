@@ -47,7 +47,7 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.13.0**
+- **현재 최신: v1.13.1**
 
 ---
 
@@ -156,6 +156,7 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.13.1 — 스팟 글자/이모지 크기 범위 확대**: 너무 큰 최소값 제한 완화. `spot-font-size` 9~22→**4~80**, `spot-emoji-size` 16~48(step2)→**4~120(step1)**. 숫자 입력이라 주의문구(`정수 4~80` 등)·clamp도 자동 반영.
 - **v1.13.0 — PWA(전체화면 앱처럼)**: 폰에서 '홈 화면에 추가' 시 브라우저 크롬 없이 전체화면(standalone) 실행.
   - 신규 파일: `manifest.webmanifest`(display:standalone, portrait, theme_color #fff, background #0b0d16, 아이콘 3개), `icon-192.png`/`icon-512.png`(any+maskable)/`apple-touch-icon.png`(180). 아이콘은 위치핀(블루→퍼플 그라디언트+흰점, 다크 그라디언트 배경) — 스크래치패드 `genicons.js`(zlib로 PNG 직접 인코딩)로 생성(스크립트는 repo에 없음, 재생성 시 참고).
   - `index.html <head>`: viewport에 `viewport-fit=cover, user-scalable=no` 추가, `theme-color`, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style=black-translucent`, `apple-mobile-web-app-title`, `manifest`/`apple-touch-icon`/`icon` 링크.

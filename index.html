@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="icon" type="image/png" href="icon-192.png" />
   <title>동 단위 행정구역 경계 뷰어 – Now Here</title>
-  <link rel="stylesheet" href="style.css?v=1.13.0" />
+  <link rel="stylesheet" href="style.css?v=1.13.1" />
 </head>
 <body>
 
@@ -52,7 +52,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.13.0</span>
+        <span id="app-version">v1.13.1</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -132,8 +132,8 @@
         <div class="setting-row"><label>말풍선 둥글기</label><input type="range" id="spot-bubble-radius" min="0" max="24" step="1" value="13" /><span class="range-val">13</span></div>
         <div class="setting-row"><label>꼬리 표시</label><label class="toggle-switch"><input type="checkbox" id="spot-tail" checked /><span class="toggle-slider"></span></label></div>
         <div class="setting-row"><label>최대 글자수</label><input type="range" id="spot-max-chars" min="10" max="120" step="5" value="40" /><span class="range-val">40</span></div>
-        <div class="setting-row"><label>글자 크기</label><input type="range" id="spot-font-size" min="9" max="22" step="1" value="13" /><span class="range-val">13</span></div>
-        <div class="setting-row"><label>이모지 크기</label><input type="range" id="spot-emoji-size" min="16" max="48" step="2" value="26" /><span class="range-val">26</span></div>
+        <div class="setting-row"><label>글자 크기</label><input type="range" id="spot-font-size" min="4" max="80" step="1" value="13" /><span class="range-val">13</span></div>
+        <div class="setting-row"><label>이모지 크기</label><input type="range" id="spot-emoji-size" min="4" max="120" step="1" value="26" /><span class="range-val">26</span></div>
         <div class="setting-row"><label>점 전환 줌</label><input type="range" id="spot-dot-zoom" min="8" max="18" step="1" value="13" /><span class="range-val">13</span></div>
         <div class="setting-row"><label>작을 때</label><select id="spot-dot-style" class="mini-select"><option value="dot">점으로</option><option value="emoji">이모지로</option></select></div>
         <div class="setting-row"><label>점 색상</label><button type="button" class="color-trigger" id="ct-spot-dot"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
@@ -294,7 +294,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.13.0"></script>
-  <script src="app.js?v=1.13.0"></script>
+  <script src="config.js?v=1.13.1"></script>
+  <script src="app.js?v=1.13.1"></script>
 </body>
 </html>
