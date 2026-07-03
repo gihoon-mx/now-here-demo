@@ -293,10 +293,32 @@ function initSpotBubbleClass(){
     var bubble=document.createElement('div');bubble.className='spot-bubble';
     var emoji=document.createElement('div');emoji.className='spot-emoji';
     wrap.appendChild(bubble);wrap.appendChild(emoji);
-    wrap.addEventListener('click',function(e){e.stopPropagation();if(currentRole==='admin')promptDeleteSpot(self.spot.id);});
+    wrap.addEventListener('mousedown',function(e){self._onDown(e);});
     this.div=wrap;this.bubbleEl=bubble;this.emojiEl=emoji;
     this._render();
     this.getPanes().overlayMouseTarget.appendChild(wrap);
+  };
+  // 관리자: 드래그로 이동 / (이동 없이) 클릭하면 편집 모달
+  SpotBubble.prototype._onDown=function(e){
+    var self=this;
+    if(currentRole!=='admin'||self.getMap()!==map)return;   // 메인 지도에서만 편집
+    e.stopPropagation();if(e.cancelable)e.preventDefault();
+    var moved=false,sx=e.clientX,sy=e.clientY,mapEl=document.getElementById('map');
+    self.div.classList.add('dragging');
+    map.setOptions({draggable:false});
+    function mv(ev){
+      if(!moved&&(Math.abs(ev.clientX-sx)>3||Math.abs(ev.clientY-sy)>3))moved=true;
+      if(!moved)return;var proj=self.getProjection();if(!proj)return;
+      var r=mapEl.getBoundingClientRect();
+      var ll=proj.fromContainerPixelToLatLng(new google.maps.Point(ev.clientX-r.left,ev.clientY-r.top));
+      if(ll){self.spot.lat=ll.lat();self.spot.lng=ll.lng();self.position=ll;self.draw();}
+    }
+    function up(){
+      document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);
+      map.setOptions({draggable:true});if(self.div)self.div.classList.remove('dragging');
+      if(moved){renderSpots();markCloudDirty();}else{openSpotEditor(self.spot.id);}
+    }
+    document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
   };
   SpotBubble.prototype._render=function(){
     var c=this.cfg||spotConfig,s=this.spot;
@@ -307,7 +329,7 @@ function initSpotBubbleClass(){
     this.bubbleEl.style.display=t?'':'none';
     this.bubbleEl.style.color=c.textColor||'#fff';
     this.bubbleEl.style.fontSize=(Number(c.fontSize)||13)+'px';
-    this.bubbleEl.style.setProperty('--spot-bg',hexToRgba(c.bgColor||'#1c66e5',Number(c.bgOpacity)));
+    this.bubbleEl.style.setProperty('--spot-bg',hexToRgba(s.color||c.bgColor||'#1c66e5',Number(c.bgOpacity)));
     // 레이아웃: 이모지 위치/간격, 말풍선 둥글기/꼬리
     var pos=c.emojiPos||'bottom', vertical=(pos==='top'||pos==='bottom');
     this.div.style.flexDirection=vertical?'column':'row';
@@ -367,8 +389,47 @@ function promptDeleteSpot(id){if(confirm('이 스팟 메시지를 삭제할까�
 function showSpotForm(){var f=document.getElementById('spot-form');if(f){f.style.display='';var i=document.getElementById('spot-text-input');if(i){i.value='';i.focus();}}}
 function cancelSpotForm(){var f=document.getElementById('spot-form');if(f)f.style.display='none';pendingSpotLatLng=null;}
 function cancelPlacingSpot(){placingSpot=false;var m=document.getElementById('map');if(m)m.style.cursor='';cancelSpotForm();if(currentMode==='local')updateInfoPanel(selectedFeatureName);}
+/* ========== 스팟 편집 모달 (관리자: 개별 스팟 수정) ========== */
+var editingSpotId=null;
+function curEditSpot(){return spotMessages.find(function(x){return x.id===editingSpotId;});}
+function openSpotEditor(id){
+  var s=spotMessages.find(function(x){return x.id===id;});if(!s)return;
+  var modal=document.getElementById('spot-edit-modal');if(!modal)return;
+  editingSpotId=id;
+  document.getElementById('se-text').value=s.text||'';
+  renderSpotEditEmoji(s);
+  paintSeColor(s.color||spotConfig.bgColor);
+  modal.style.display='flex';
+  var ti=document.getElementById('se-text');if(ti)ti.focus();
+}
+function closeSpotEditor(){var m=document.getElementById('spot-edit-modal');if(m)m.style.display='none';editingSpotId=null;}
+function paintSeColor(hex){var sw=document.querySelector('#se-color .ct-fill');if(sw)sw.style.backgroundColor=hex;}
+function renderSpotEditEmoji(s){
+  var pick=document.getElementById('se-emoji-pick');if(!pick)return;pick.innerHTML='';
+  var list=(spotConfig.emojis&&spotConfig.emojis.length)?spotConfig.emojis:SPOT_EMOJIS;
+  list.forEach(function(em){
+    var b=document.createElement('button');b.type='button';b.className='spot-emoji-btn'+(em===s.emoji?' active':'');b.textContent=em;
+    b.addEventListener('click',function(){s.emoji=em;pick.querySelectorAll('.spot-emoji-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');refreshSpotStyles();markCloudDirty();});
+    pick.appendChild(b);
+  });
+  var add=document.createElement('button');add.type='button';add.className='spot-emoji-add';add.textContent='＋';add.title='이모지 추가';
+  add.addEventListener('click',function(){var em=prompt('추가할 이모지를 입력하세요 (예: 🍕)');if(em==null)return;em=em.trim();if(!em)return;if(!Array.isArray(spotConfig.emojis))spotConfig.emojis=SPOT_EMOJIS.slice();if(spotConfig.emojis.indexOf(em)<0)spotConfig.emojis.push(em);s.emoji=em;renderSpotEditEmoji(s);renderSpotEmojiPicker();refreshSpotStyles();markCloudDirty();});
+  pick.appendChild(add);
+}
+function initSpotEditor(){
+  var modal=document.getElementById('spot-edit-modal');if(!modal)return;
+  document.getElementById('spot-edit-close').addEventListener('click',closeSpotEditor);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeSpotEditor();});
+  document.getElementById('se-text').addEventListener('input',function(){var s=curEditSpot();if(s){s.text=this.value;refreshSpotStyles();markCloudDirty();}});
+  document.getElementById('se-color').addEventListener('click',function(e){e.stopPropagation();var s=curEditSpot();if(!s)return;
+    openColorPopup(this,{color:s.color||spotConfig.bgColor,alpha:null,onInput:function(hex){s.color=hex;paintSeColor(hex);refreshSpotStyles();markCloudDirty();}});});
+  document.getElementById('se-delete').addEventListener('click',function(){var s=curEditSpot();closeSpotEditor();if(s)removeSpot(s.id);});
+  document.getElementById('se-save').addEventListener('click',closeSpotEditor);
+}
+
 function initSpotUI(){
   var addBtn=document.getElementById('spot-add-btn');if(addBtn)addBtn.addEventListener('click',startPlacingSpot);
+  initSpotEditor();
   var cf=document.getElementById('spot-confirm-btn');if(cf)cf.addEventListener('click',confirmSpot);
   var cc=document.getElementById('spot-cancel-btn');if(cc)cc.addEventListener('click',function(){cancelPlacingSpot();});
   var inp=document.getElementById('spot-text-input');
@@ -626,6 +687,13 @@ function initPhoneControls(){
   mirror.querySelectorAll('.pn-item').forEach(function(b){b.addEventListener('click',function(){
     mirror.querySelectorAll('.pn-item').forEach(function(x){x.classList.remove('active');});b.classList.add('active');
   });});
+  // AI 버튼: 말풍선 팝업(데모)
+  var aiBtn=mirror.querySelector('.pn-ai'),aiBub=document.getElementById('ai-bubble');
+  if(aiBtn&&aiBub){aiBtn.addEventListener('click',function(e){e.stopPropagation();
+    if(aiBub.classList.contains('show')){aiBub.classList.remove('show');clearTimeout(aiBub._t);return;}
+    aiBub.classList.remove('show');void aiBub.offsetWidth;aiBub.classList.add('show');
+    clearTimeout(aiBub._t);aiBub._t=setTimeout(function(){aiBub.classList.remove('show');},4500);
+  });}
   // 창 크기 변경 시 화면 밖 방지
   window.addEventListener('resize',reclampPhone);
 }
@@ -1299,7 +1367,7 @@ function applyCloudData(d){
     trendZones=[];
     d.zones.forEach(function(z){trendZones.push({id:z.id||('tz_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)),name:z.name,color:z.color,radiusKm:z.radiusKm||hexRadiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters||JSON.parse(JSON.stringify(z.hexCenters)),originalRadiusKm:z.originalRadiusKm||z.radiusKm||hexRadiusKm,polygons:[],label:null});});
   }
-  if(Array.isArray(d.spots)){spotMessages=d.spots.map(function(s){return {id:s.id||('sp_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)),lat:s.lat,lng:s.lng,text:s.text||'',emoji:s.emoji||'💬'};});}
+  if(Array.isArray(d.spots)){spotMessages=d.spots.map(function(s){return {id:s.id||('sp_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)),lat:s.lat,lng:s.lng,text:s.text||'',emoji:s.emoji||'💬',color:s.color||null};});}
   if(d.spotConfig)mergeInto(spotConfig,d.spotConfig);
   syncSettingsUI();refreshMapStyles();refreshHexStyles();applyGeoJsonToMap();
   if(currentMode==='trend'){showAllZonesOnMap();generateHexagons();}
@@ -1315,7 +1383,7 @@ function cloudSave(){
   var payload={updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||'',
     settings:{styleConfig:styleConfig,hexStyleConfig:hexStyleConfig,localLabelConfig:localLabelConfig,zoneLabelConfig:zoneLabelConfig,smoothEnabled:smoothEnabled,smoothIntensity:smoothIntensity,hexRadiusKm:hexRadiusKm},
     zones:trendZones.map(function(z){return {id:z.id,name:z.name,color:z.color,radiusKm:z.radiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters,originalRadiusKm:z.originalRadiusKm};}),
-    spots:spotMessages.map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji};}),
+    spots:spotMessages.map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};}),
     spotConfig:spotConfig};
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
 }

@@ -47,13 +47,13 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.7.1**
+- **현재 최신: v1.8.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.7.1 · 라이브 정상.** 완료된 기능:
+**최신 v1.8.0 · 라이브 정상.** 완료된 기능:
 - **인증/역할**: Google 로그인(Firebase) + allowlist 접근제어. `관리자`(admin) / `데모유저`(user) 역할.
 - **레이아웃**: 좌 전체화면 지도 / 우 사이드바(폰 미러). 사이드바 폭 드래그 조절 → 폰 크기 변경(내부 UI는 `cqw`로 비율 유지).
 - **폰 미러(앱처럼)**: 상단 좌 햄버거(→설정 드로어)·우 로컬/트렌드 모드토글, 하단 네비(지도/피드/미션/커뮤니티/AI), 접기 버튼.
@@ -148,6 +148,12 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.8.0 — 스팟 편집/드래그 + 네비 고정폭 + AI 말풍선 + 플랫화**:
+  - **하단 네비 고정폭**(`.pn-group` width:58cqw, justify center) → 메뉴 전환해도 바 크기 불변(팝핑 방지). gap==padding(3cqw) 균등·확대. [그룹+AI] 통째 가운데.
+  - **스팟 메시지 편집/이동(관리자)**: 메인지도에서 스팟을 **드래그로 이동**(`SpotBubble._onDown`, fromContainerPixelToLatLng), **이동 없이 클릭하면 편집 모달**(`#spot-edit-modal`)—해당 스팟의 **텍스트·버블색·이모지** 개별 수정 + 삭제. per-spot `color` 필드 추가(`_render`가 `s.color||bgColor`), cloudSave/applyCloudData에 color 포함.
+  - **AI 말풍선(데모)**: AI 아이콘 클릭 시 `#ai-bubble` "오늘 우리 동네 일상이 궁금하신가요?" 역동적 팝(overshoot bounce, 4.5s 후 자동 숨김, 재클릭 토글).
+  - **플랫 디자인 패스**: 네비 그룹·AI·헤더·모드버튼·스팟버블·모달/팝업의 과한 그림자/inset 하이라이트/blur 깊이감 제거 → 플랫.
+  - **데모 드로어 계정**: 데모(뷰어) 햄버거 드로어에 버전+로그인 이메일(· 뷰어)+로그아웃 노출 확인(showUserChip/account-row, 설정은 role-user로 숨김).
 - **v1.7.1 — 폰 UI 미세조정**: ①하단 네비 그룹을 아이콘에 맞춰 컴팩트(`.pn-group` flex:0 0 auto), [그룹+AI] 통째로 가운데(`.phone-navbar` justify-content:center) ②네비 아이콘 간격 확대(gap 1.7cqw) ③상단 헤더 상단여백 확대(padding-top 5.5cqw)+앱바 세로중앙(min-height 9cqw, align-items center) ④상단 위치표시=로컬은 **구(sggnm)**, 트렌드는 **중심 트렌드존**(`regionAt`/`guAt`/`zoneAtCenter`, dongIndex에 gu 추가) ⑤AI 버튼을 좌측 네비와 통일—다크 글래스 원형+플랫 라이트 블롭(#cbd0d8, 그라디언트/그림자 제거).
 - **v1.7.0 — 폰 UI 정리 + 스팟 디자인 메뉴 + 축척 범례**:
   - **폰 상단 = 흰색 헤더**: 상태바(시간/신호/배터리) 제거. `.phone-topscrim`(어두운 스크림) → `.phone-header`(불투명 흰색). 햄버거·위치라벨·모드토글을 흰배경용으로 배경 제거+재스타일(햄버거 라인 #33373f, 위치 텍스트 #1f2430, 모드토글 라이트 세그먼트). 헤더 하단에 **예약 흰색 슬롯 `#phone-header-slot`**(추후 컨텐츠에 따라 가변).
