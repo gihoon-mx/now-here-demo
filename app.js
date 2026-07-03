@@ -14,7 +14,8 @@ var originalGeoJson = null;
 
 var styleConfig = {
   default: { strokeColor:'#999999', fillColor:'#cccccc', strokeWeight:1, strokeOpacity:0.6, fillOpacity:0.12 },
-  highlight: { strokeColor:'#ff3333', fillColor:'#ff3333', strokeWeight:4, strokeOpacity:1, fillOpacity:0.4, spotMaxDongs:6 },
+  highlight: { strokeColor:'#ff3333', fillColor:'#ff3333', strokeWeight:4, strokeOpacity:1, fillOpacity:0.4, spotScaleM:200 },
+  dim: { strokeColor:'#6b7078', strokeOpacity:0.55, fillColor:'#33373f', fillOpacity:0.42 }, // 강조외(주변) 동 스타일
 };
 
 /* ========== 트렌드 모드 ========== */
@@ -40,7 +41,7 @@ var zoneLabelConfig  = { fontSize:11, textColor:'#ffffff', bgOpacity:1.0 };
 var localLabel = null;          // 로컬모드 선택 구역 라벨 오버레이
 var selectedFeatureName = null; // 현재 선택 구역 표시명
 var selectedFeatureId = null;   // 폰 미러용 선택 구역 식별자
-var basicSpotlightKey = null;   // 베이직 폰: 화면에 동이 적을 때 센터가 속한 동 강조 키(featKey). 임계값=styleConfig.highlight.spotMaxDongs
+var basicSpotlightKey = null;   // 베이직 폰: 축척이 임계값 이하로 확대되면 센터가 속한 동 강조 키(featKey). 임계값=styleConfig.highlight.spotScaleM(m)
 var colorControls = [];         // 색상 트리거 재도색용 레지스트리
 
 /* ========== 스팟 메시지 (로컬모드, 관리자 생성 · 데모 뷰잉) ========== */
@@ -84,7 +85,8 @@ function getHighlightStyle() {
 }
 // 베이직 폰 스포트라이트: 센터 동은 '선택 구역' 스타일(getHighlightStyle) 그대로, 그 외 동은 그레이 처리
 function getBasicDimStyle() {
-  return { strokeColor:'#6b7078', strokeWeight:0.8, strokeOpacity:0.55, fillColor:'#33373f', fillOpacity:0.42, zIndex:1, cursor:'pointer' };
+  return { strokeColor:styleConfig.dim.strokeColor, strokeWeight:0.8, strokeOpacity:Number(styleConfig.dim.strokeOpacity),
+    fillColor:styleConfig.dim.fillColor, fillOpacity:Number(styleConfig.dim.fillOpacity), zIndex:1, cursor:'pointer' };
 }
 function refreshMapStyles() {
   if (!map) return;
@@ -621,16 +623,26 @@ function addCustomEmoji(){
   currentSpotEmoji=em; renderSpotEmojiPicker();
 }
 
-/* ========== 축척 범례 (관리자 지도) ========== */
+/* ========== 축척 ========== */
 function niceDistance(d){var pw=Math.pow(10,Math.floor(Math.log(d)/Math.LN10));var f=d/pw;var n=f>=5?5:f>=2?2:1;return n*pw;}
-function updateScaleLegend(){
-  var el=document.getElementById('scale-legend');if(!el||!map)return;
-  var c=map.getCenter(),z=map.getZoom();if(!c||z==null){el.innerHTML='';return;}
-  var mpp=156543.03392*Math.cos(c.lat()*Math.PI/180)/Math.pow(2,z); // m/px
-  if(!isFinite(mpp)||mpp<=0){el.innerHTML='';return;}
+function mapMpp(m){ // 지도 중심 위도 기준 m/px
+  if(!m)return null;var c=m.getCenter(),z=m.getZoom();if(!c||z==null)return null;
+  var mpp=156543.03392*Math.cos(c.lat()*Math.PI/180)/Math.pow(2,z);
+  return (isFinite(mpp)&&mpp>0)?mpp:null;
+}
+function updateScaleLegend(){ // 관리자 메인 지도 범례
+  var el=document.getElementById('scale-legend');if(!el)return;
+  var mpp=mapMpp(map);if(!mpp){el.innerHTML='';return;}
   var dist=niceDistance(mpp*64),px=Math.round(dist/mpp);
   var label=dist>=1000?(dist/1000)+' km':dist+' m';
   el.innerHTML='<span class="sl-bar" style="width:'+px+'px"></span><span class="sl-txt">'+label+'</span>';
+}
+function updatePhoneScale(){ // 폰 헤더 슬롯: 심플 축척(자+수치만)
+  var el=document.getElementById('phone-scale');if(!el)return;
+  var mpp=mapMpp(phoneMap);if(!mpp){el.innerHTML='';return;}
+  var dist=niceDistance(mpp*64),px=Math.round(dist/mpp);
+  var label=dist>=1000?(dist/1000)+'km':dist+'m';
+  el.innerHTML='<span class="psc-bar" style="width:'+px+'px"></span><span class="psc-txt">'+label+'</span>';
 }
 /* 폰 햄버거 메뉴: 설정 패널을 폰 내부 드로어로 이동 + 토글, 폰 모드 토글 */
 function initPhoneMenu(){
@@ -708,13 +720,13 @@ function initPhoneMirror(){
   var sync=function(){if(!phoneMap)return;var c=map.getCenter();if(c)phoneMap.setCenter(c);phoneMap.setZoom(map.getZoom());};
   map.addListener('center_changed',sync);
   map.addListener('zoom_changed',sync);
-  map.addListener('idle',function(){sync();updatePhoneLocation();updatePhoneViewportOverlay();updateScaleLegend();});
-  phoneMap.addListener('idle',function(){updatePhoneViewportOverlay();updatePhoneLocation();updatePhoneBasicSpotlight();});
+  map.addListener('idle',function(){sync();updatePhoneLocation();updatePhoneViewportOverlay();updateScaleLegend();updatePhoneScale();});
+  phoneMap.addListener('idle',function(){updatePhoneViewportOverlay();updatePhoneLocation();updatePhoneBasicSpotlight();updatePhoneScale();});
   phoneMap.addListener('click',function(){ clearPhoneSpotlight(); }); // 빈 곳 클릭 = 존 강조 해제
   attachAddGestures(el,phoneMap); // 폰 지도 롱프레스/우클릭 → 컨텐츠 추가 팝업
   sync();
   if(originalGeoJson){buildDongIndex();applyGeoJsonToPhone();}
-  phoneDataVisibility();syncPhoneZones();updatePhoneUI();updatePhoneLocation();updatePhoneViewportOverlay();updatePhoneBasicSpotlight();
+  phoneDataVisibility();syncPhoneZones();updatePhoneUI();updatePhoneLocation();updatePhoneViewportOverlay();updatePhoneBasicSpotlight();updatePhoneScale();
   renderSpots();
 }
 function applyGeoJsonToPhone(){
@@ -848,27 +860,15 @@ function updatePhoneLocation(){
   nameEl.textContent=dongAt(c.lat(),c.lng())||'위치 확인 중';   // 베이직 모드 = 센터가 속한 '동'
 }
 
-/* 폰 화면 뷰포트에 bbox가 걸치는 동 개수 (대략치) */
-function countVisibleDongs(bounds){
-  if(!dongIndex||!bounds)return 0;
-  var ne=bounds.getNorthEast(),sw=bounds.getSouthWest();
-  var minLng=sw.lng(),maxLng=ne.lng(),minLat=sw.lat(),maxLat=ne.lat();
-  var n=0;
-  for(var i=0;i<dongIndex.length;i++){var b=dongIndex[i].bbox; // [minLng,minLat,maxLng,maxLat]
-    if(b[2]<minLng||b[0]>maxLng||b[3]<minLat||b[1]>maxLat)continue; // 뷰포트와 겹치지 않음
-    n++;
-  }
-  return n;
-}
-/* 베이직 폰: 화면에 보이는 동이 임계값 이하면 센터 동을 강조(외곽)하고 나머지는 그레이 처리 */
+/* 베이직 폰: 축척이 임계값(m) 이하로 확대되면 센터 동을 강조하고 나머지는 그레이 처리 */
 function updatePhoneBasicSpotlight(){
   if(!phoneMap||currentMode!=='local'){
     if(basicSpotlightKey!==null){basicSpotlightKey=null;refreshPhoneMapStyles();}
     return;
   }
-  var b=phoneMap.getBounds(),c=phoneMap.getCenter(),newKey=null;
-  var maxDongs=Number(styleConfig.highlight.spotMaxDongs); if(!(maxDongs>0))maxDongs=6;
-  if(b&&c&&countVisibleDongs(b)<=maxDongs){
+  var c=phoneMap.getCenter(),mpp=mapMpp(phoneMap),newKey=null;
+  var thr=Number(styleConfig.highlight.spotScaleM); if(!(thr>0))thr=200;
+  if(c&&mpp&&(mpp*64)<=thr){   // 축척 자(64px 기준) 거리가 임계값 이하 = 충분히 확대
     var d=regionAt(c.lat(),c.lng());
     if(d)newKey=d.key||null;
   }
@@ -1364,7 +1364,7 @@ function syncSettingsUI(){
   colorControls.forEach(function(c){c.paint();});
   setRange('default-stroke-weight',styleConfig.default.strokeWeight);
   setRange('highlight-stroke-weight',styleConfig.highlight.strokeWeight);
-  setRange('highlight-spot-max',styleConfig.highlight.spotMaxDongs);
+  setRange('highlight-spot-scale',styleConfig.highlight.spotScaleM);
   setCheck('smooth-toggle',smoothEnabled);
   setRange('smooth-intensity',smoothIntensity);
   setRange('hex-radius',hexRadiusKm,function(v){return v.toFixed(1)+'km';});
@@ -1395,6 +1395,8 @@ function initSettingsPanel(){
   makeColorControl('ct-default-stroke',styleConfig.default,'strokeColor','strokeOpacity',refreshMapStyles);
   makeColorControl('ct-highlight-fill',styleConfig.highlight,'fillColor','fillOpacity',refreshMapStyles);
   makeColorControl('ct-highlight-stroke',styleConfig.highlight,'strokeColor','strokeOpacity',refreshMapStyles);
+  makeColorControl('ct-dim-fill',styleConfig.dim,'fillColor','fillOpacity',refreshPhoneMapStyles);
+  makeColorControl('ct-dim-stroke',styleConfig.dim,'strokeColor','strokeOpacity',refreshPhoneMapStyles);
   makeColorControl('ct-hex-fill',hexStyleConfig.default,'fillColor','fillOpacity',refreshHexStyles);
   makeColorControl('ct-hex-stroke',hexStyleConfig.default,'strokeColor','strokeOpacity',refreshHexStyles);
   makeColorControl('ct-hex-sel-fill',hexStyleConfig.selected,'fillColor','fillOpacity',refreshHexStyles);
@@ -1405,7 +1407,7 @@ function initSettingsPanel(){
   // 선 굵기 (투명도가 아니므로 슬라이더 유지)
   bindInput('default-stroke-weight','range',styleConfig.default,'strokeWeight',refreshMapStyles);
   bindInput('highlight-stroke-weight','range',styleConfig.highlight,'strokeWeight',refreshMapStyles);
-  bindInput('highlight-spot-max','range',styleConfig.highlight,'spotMaxDongs',updatePhoneBasicSpotlight);
+  bindInput('highlight-spot-scale','range',styleConfig.highlight,'spotScaleM',updatePhoneBasicSpotlight);
 
   document.getElementById('smooth-toggle').addEventListener('change',function(){smoothEnabled=this.checked;applyGeoJsonToMap();markCloudDirty();});
   document.getElementById('smooth-intensity').addEventListener('input',function(){
@@ -1637,7 +1639,7 @@ function loadSharedContent(){
 function applyCloudData(d){
   if(!d)return;
   if(d.settings){var s=d.settings;
-    if(s.styleConfig){mergeInto(styleConfig.default,s.styleConfig.default);mergeInto(styleConfig.highlight,s.styleConfig.highlight);}
+    if(s.styleConfig){mergeInto(styleConfig.default,s.styleConfig.default);mergeInto(styleConfig.highlight,s.styleConfig.highlight);if(s.styleConfig.dim)mergeInto(styleConfig.dim,s.styleConfig.dim);}
     if(s.hexStyleConfig){mergeInto(hexStyleConfig.default,s.hexStyleConfig.default);mergeInto(hexStyleConfig.selected,s.hexStyleConfig.selected);}
     if(s.localLabelConfig)mergeInto(localLabelConfig,s.localLabelConfig);
     if(s.zoneLabelConfig)mergeInto(zoneLabelConfig,s.zoneLabelConfig);
