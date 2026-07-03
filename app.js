@@ -722,8 +722,9 @@ function initContentPage(){
   loadNews();
   if(addBtn)addBtn.addEventListener('click',function(){if(currentRole==='admin'&&file)file.click();});
   if(file)file.addEventListener('change',function(){
-    var fs=this.files;this.value='';if(!fs||!fs.length)return;
-    var arr=Array.prototype.slice.call(fs),pending=arr.length;
+    var arr=Array.prototype.slice.call(this.files||[]);this.value=''; // 파일을 먼저 배열로 복사(value='' 시 FileList 비워짐)
+    if(!arr.length)return;
+    var pending=arr.length;
     arr.forEach(function(f){downscaleImage(f,function(url){if(url)newsItems.push({id:'n_'+(newsSeq++),src:url});if(--pending===0){saveNews();renderNews();}});});
   });
   // 캐러셀 스와이프 (아이템 2개+)
@@ -767,7 +768,7 @@ function renderNewsList(){
 function newsMove(i,dir){var j=i+dir;if(j<0||j>=newsItems.length)return;var t=newsItems[i];newsItems[i]=newsItems[j];newsItems[j]=t;saveNews();renderNews();}
 function newsDelete(i){newsItems.splice(i,1);saveNews();renderNews();}
 function downscaleImage(file,cb){var r=new FileReader();r.onload=function(e){var im=new Image();im.onload=function(){var max=1000,w=im.width,h=im.height;if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}var cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);cb(cv.toDataURL('image/jpeg',0.85));};im.onerror=function(){cb(null);};im.src=e.target.result;};r.onerror=function(){cb(null);};r.readAsDataURL(file);}
-function saveNews(){try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));}catch(e){}}
+function saveNews(){try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));return true;}catch(e){alert('이미지 저장 공간이 부족해요(이 브라우저 로컬 저장 한도 초과). 이미지 수를 줄여주세요.');return false;}}
 function loadNews(){try{var s=localStorage.getItem('nowhere_news');if(s){var o=JSON.parse(s);if(Array.isArray(o))newsItems=o;}}catch(e){}renderNews();}
 // 공유 메뉴 바디를 여는 드로어로 옮겨 렌더 (한 번에 하나만 열림 → 동일 DOM = 싱크)
 function openPhoneDrawer(){var d=document.getElementById('phone-drawer'),b=document.getElementById('phone-drawer-body'),pc=document.getElementById('pc-drawer');if(!d)return;if(pc)pc.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
