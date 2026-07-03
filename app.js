@@ -715,7 +715,9 @@ function initPhoneMenu(){
   initContentPage();
 }
 /* ===== 동네소식 지면: 여러 이미지(좌우 스와이프 캐러셀) + 사이드바 리스트 관리(관리자) ===== */
-var newsItems=[], newsIndex=0, newsSeq=1;
+var newsItems=[], newsIndex=0, newsSeq=1, newsCloudTimer=null;
+// 무료 티어 안전장치: 개수 · 1장 용량 · 문서 총합 상한 (Firestore 1MB 문서 하드리밋 안쪽으로 강제 → Storage/Blaze 불필요)
+var NEWS_MAX_COUNT=6, NEWS_MAX_ITEM_BYTES=170000, NEWS_DOC_BUDGET=900000;
 function initContentPage(){
   var frame=document.getElementById('cp-frame');
   var addBtn=document.getElementById('news-add-btn'),file=document.getElementById('news-file');
@@ -724,8 +726,17 @@ function initContentPage(){
   if(file)file.addEventListener('change',function(){
     var arr=Array.prototype.slice.call(this.files||[]);this.value=''; // 파일을 먼저 배열로 복사(value='' 시 FileList 비워짐)
     if(!arr.length)return;
-    var pending=arr.length;
-    arr.forEach(function(f){downscaleImage(f,function(url){if(url)newsItems.push({id:'n_'+(newsSeq++),src:url});if(--pending===0){saveNews();renderNews();}});});
+    var room=NEWS_MAX_COUNT-newsItems.length;
+    if(room<=0){alert('동네소식은 최대 '+NEWS_MAX_COUNT+'장까지예요. 기존 이미지를 지운 뒤 추가해 주세요.');return;}
+    var take=arr.slice(0,room);
+    if(arr.length>room)alert('최대 '+NEWS_MAX_COUNT+'장까지라 '+room+'장만 추가할게요.');
+    var pending=take.length;
+    take.forEach(function(f){compressNews(f,function(url){
+      if(!url)alert('이미지가 너무 커서 추가하지 못했어요. 더 작은 사진을 사용해 주세요.');
+      else if(newsTotalBytes()+url.length>NEWS_DOC_BUDGET)alert('저장 용량 한도에 도달했어요(무료 범위 보호). 기존 이미지를 지운 뒤 추가해 주세요.');
+      else newsItems.push({id:'n_'+(newsSeq++),src:url});
+      if(--pending===0){saveNews();renderNews();}
+    });});
   });
   // 캐러셀 스와이프 (아이템 2개+)
   if(frame){
@@ -767,9 +778,43 @@ function renderNewsList(){
 }
 function newsMove(i,dir){var j=i+dir;if(j<0||j>=newsItems.length)return;var t=newsItems[i];newsItems[i]=newsItems[j];newsItems[j]=t;saveNews();renderNews();}
 function newsDelete(i){newsItems.splice(i,1);saveNews();renderNews();}
-function downscaleImage(file,cb){var r=new FileReader();r.onload=function(e){var im=new Image();im.onload=function(){var max=1000,w=im.width,h=im.height;if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}var cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);cb(cv.toDataURL('image/jpeg',0.85));};im.onerror=function(){cb(null);};im.src=e.target.result;};r.onerror=function(){cb(null);};r.readAsDataURL(file);}
-function saveNews(){try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));return true;}catch(e){alert('이미지 저장 공간이 부족해요(이 브라우저 로컬 저장 한도 초과). 이미지 수를 줄여주세요.');return false;}}
+function newsTotalBytes(){var t=0;newsItems.forEach(function(it){t+=(it.src||'').length;});return t;}
+// 900px로 줄이고, 1장 상한 초과 시 품질을 낮춰가며 압축(그래도 크면 null=거부)
+function compressNews(file,cb){
+  var r=new FileReader();
+  r.onload=function(e){var im=new Image();
+    im.onload=function(){
+      var max=900,w=im.width,h=im.height;if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}
+      var cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);
+      var q=0.72,url=cv.toDataURL('image/jpeg',q);
+      while(url.length>NEWS_MAX_ITEM_BYTES&&q>0.4){q-=0.1;url=cv.toDataURL('image/jpeg',q);}
+      cb(url.length<=NEWS_MAX_ITEM_BYTES?url:null);
+    };
+    im.onerror=function(){cb(null);};im.src=e.target.result;
+  };
+  r.onerror=function(){cb(null);};r.readAsDataURL(file);
+}
+function saveNews(){try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));}catch(e){}markNewsDirty();} // 로컬 캐시 + 공유(관리자)
 function loadNews(){try{var s=localStorage.getItem('nowhere_news');if(s){var o=JSON.parse(s);if(Array.isArray(o))newsItems=o;}}catch(e){}renderNews();}
+// 공유 저장 (관리자만 · Firestore shared/news · 무료 상한 재확인)
+function markNewsDirty(){if(!fbDb||!currentUser||currentRole!=='admin')return;clearTimeout(newsCloudTimer);newsCloudTimer=setTimeout(newsCloudSave,1200);}
+function newsCloudSave(){
+  if(!fbDb||!currentUser||currentRole!=='admin')return;
+  var total=0,items=[];
+  for(var i=0;i<newsItems.length&&items.length<NEWS_MAX_COUNT;i++){var s=newsItems[i].src||'';if(total+s.length>NEWS_DOC_BUDGET)break;total+=s.length;items.push({id:newsItems[i].id,src:s});}
+  fbDb.collection('shared').doc('news').set({items:items,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||''})
+    .catch(function(e){console.warn('news save fail',e);alert('동네소식 공유 저장 실패(용량 초과 가능): '+e.message);});
+}
+// 공유 로드 (로그인 사용자 모두)
+function loadNewsFromCloud(){
+  if(!fbDb)return;
+  fbDb.collection('shared').doc('news').get().then(function(doc){
+    if(!doc.exists)return;var d=doc.data();if(!d||!Array.isArray(d.items))return;
+    newsItems=d.items.map(function(it){return {id:it.id||('n_'+(newsSeq++)),src:it.src};});
+    try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));}catch(e){}
+    newsIndex=0;renderNews();
+  }).catch(function(e){console.warn('news load fail',e);});
+}
 // 공유 메뉴 바디를 여는 드로어로 옮겨 렌더 (한 번에 하나만 열림 → 동일 DOM = 싱크)
 function openPhoneDrawer(){var d=document.getElementById('phone-drawer'),b=document.getElementById('phone-drawer-body'),pc=document.getElementById('pc-drawer');if(!d)return;if(pc)pc.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
 function openPcDrawer(){var d=document.getElementById('pc-drawer'),b=document.getElementById('phone-drawer-body'),ph=document.getElementById('phone-drawer');if(!d)return;if(ph)ph.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
@@ -1754,6 +1799,7 @@ function loadSharedContent(){
   fbDb.collection('shared').doc('mapContent').get().then(function(doc){
     if(doc.exists){cloudData=doc.data();if(mapReady)applyCloudData(cloudData);}
   }).catch(function(e){console.warn('shared load fail',e);});
+  loadNewsFromCloud();   // 동네소식(지면 이미지) 공유 로드 — 로그인 사용자 모두
 }
 function applyCloudData(d){
   if(!d)return;

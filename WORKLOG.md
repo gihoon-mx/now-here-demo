@@ -47,13 +47,13 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.22.1**
+- **현재 최신: v1.23.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.22.1 · 라이브 정상.** 완료된 기능:
+**최신 v1.23.0 · 라이브 정상.** 완료된 기능:
 - **스팟 생성 위치 버그 수정**: 벡터 지도(mapId)에서 컴포저 팝업이 실제 생성점과 어긋나던 문제 → 생성점에 **펄스 점** + 그 위에 입력 팝업. 이모지 **꾹 눌러 삭제**.
 - **폰 햄버거 메뉴**: 데모도 **트렌드 존/스팟 메시지 리스트**(탭→포커스/강조), 관리자는 **관리자 설정 메뉴**가 드로어에. ⚠️ 관리자 설정이 사이드바→**폰 햄버거 드로어로 이동**(데스크톱도 햄버거로 접근).
 - **앱 아이콘/파비콘 = 마스코트 이미지**(구름 캐릭터). 페이지 타이틀 'Now Here Demo'. **UI 약한 글래스**(설정패널·폰 헤더 반투명+블러).
@@ -162,6 +162,11 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.23.0 — 동네소식 이미지 공유(Firestore) + 무료 티어 안전장치**: 기기 로컬(localStorage)만이던 지면 이미지를 **`shared/news` Firestore 문서로 공유**(관리자 저장 / 로그인 사용자 모두 열람) → 데모유저·타기기에도 표시. **Firebase Storage/Blaze 미사용 = 결제계정 불필요·과금 0.**
+  - **안전장치(무료 범위 강제)**: ①개수 상한 `NEWS_MAX_COUNT=6` ②1장 상한 `NEWS_MAX_ITEM_BYTES≈170KB`(900px 리사이즈 + 품질 백오프, 초과 시 거부) ③문서 총합 상한 `NEWS_DOC_BUDGET≈900KB` ④**Firestore 문서 1MB 하드리밋**(서버 강제 백스톱) ⑤저장은 `currentRole==='admin'`만(`markNewsDirty`), 규칙은 기존 `match /shared/{docId}`(admin 쓰기/로그인 읽기) 그대로. 초과 시 사용자 알림.
+  - 흐름: 로컬 캐시(즉시 렌더) → 로그인 후 `loadNewsFromCloud`가 공유본으로 갱신. 관리자 추가/삭제/순서변경 → `saveNews`(localStorage) + 디바운스 `newsCloudSave`.
+  - 검증: 하네스로 8장 시도 시 개수(6)·1장 용량·총합(≈900KB) 상한 모두 작동, Firestore 1MB 안쪽 확인(worst-case 노이즈 이미지로도 PASS). node 문법 OK. Firestore 실제 read/write는 라이브(로그인) 관측.
+  - ⚠️ Firestore Spark(무료) 기준: 저장 1GB · 읽기 50K/쓰기 20K per day — 데모 규모로 여유. 이미지는 Firestore에만(작게) 저장, Storage 미사용.
 - **v1.22.1 — 동네소식 이미지 추가 버그픽스**: 파일 change 핸들러에서 `var fs=this.files; this.value='';` 순서 때문에 **입력 비우기(value='')가 라이브 FileList를 같이 비워** 선택 파일이 0개로 처리되던 버그 → **파일을 먼저 배열로 복사 후 value 비우기**로 수정. localStorage 한도 초과 시 조용히 실패하던 것 → 경고 알림 추가. (검증: DataTransfer로 실제 파일 2장 주입 시 캐러셀/리스트에 정상 반영 확인.)
   - 📌 **동네소식 이미지 저장/과금**: 이미지는 **브라우저 localStorage(`nowhere_news`)** 에만 저장(canvas로 ≤1000px JPEG 압축). **서버/클라우드 미전송 = 과금 0.** `cloudSave`(Firestore)에는 이미지 미포함 확인. 한계: 기기 로컬(타기기/데모유저 공유 안 됨), 용량 ~5MB. 공유하려면 Firebase Storage 연동 필요(무료 티어 존재).
 - **v1.22.0 — 동네소식 캐러셀 + 위치칩 텍스트화 + 존 병합 외곽선 + 토글 아이콘 제거**:
