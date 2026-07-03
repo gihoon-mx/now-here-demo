@@ -24,8 +24,14 @@ git push
 ```
 
 - **push 전 반드시 `git pull`** 먼저 (다른 PC에서 올린 변경과 충돌 방지).
-- 이 repo는 **`main` 브랜치 루트에서 GitHub Pages(legacy, deploy-from-branch) 배포**됨.
+- 배포: **GitHub Actions 워크플로우(`.github/workflows/pages.yml`)로 배포**(2026-07-03 legacy→Actions 전환). `main` push마다 자동 실행.
 - 배포 URL: **https://gihoon-mx.github.io/now-here-demo/**
+
+> 🛠 **배포가 라이브에 안 뜰 때**:
+> 1. Actions 탭에서 최근 run 확인: `gh run list --workflow=pages.yml` / 재실행: `gh workflow run pages.yml --ref main`
+> 2. `Deploy to GitHub Pages` 단계가 **`Deployment failed, try again later`**로 실패하면 = **GitHub Pages 백엔드 일시 장애**(코드 문제 아님). 몇 분~수시간 뒤 자동 회복되며, 회복 후 재실행하면 배포됨.
+> 3. 폰/브라우저에서 옛 버전이면 URL에 `?x=1` 붙여 캐시 우회(그래도 안 바뀌면 아직 미배포).
+> - (참고) 2026-07-03 오전, legacy·Actions **양쪽 모두** 배포 지연/실패 관측 → GitHub Pages 측 이슈로 판단. Actions 방식이 로그·상태가 보여 진단이 쉬움.
 
 > ⚠️ **repo 이전됨(2026-07-03)**: `gihoon-mx/now-here-map-demo-pages` → **`gihoon-mx/now-here-demo`**.
 > 다른 PC에서는 remote를 새 repo로 바꾸거나 새로 clone:
