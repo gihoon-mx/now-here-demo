@@ -497,12 +497,15 @@ button:focus:not(:focus-visible){outline:none;}
 .pn-item .pn-ic svg{width:100%;height:100%;}
 .pn-lb{max-width:0;overflow:hidden;white-space:nowrap;font-size:3cqw;font-weight:700;opacity:0;transition:max-width .28s cubic-bezier(.22,1,.36,1),opacity .2s ease,margin .28s ease;}
 /* 선택된 네비: 칩 배경을 3색으로, 아이콘·글자는 흰색(대비 확실) */
-.pn-item.active{background:rgba(255,255,255,0.2);color:#fff;padding:0 2.6cqw;}
+/* 선택 칩: 파스텔 컬러 + 글래스(반투명·블러), 아이콘·글자는 흰색(어두운 네비 위라 중간톤이 되어 대비 유지) */
+.pn-item.active{background:rgba(255,255,255,0.18);color:#fff;padding:0 2.6cqw;
+  backdrop-filter:blur(7px) saturate(1.5);-webkit-backdrop-filter:blur(7px) saturate(1.5);
+  box-shadow:0 0.5cqw 1.8cqw rgba(0,0,0,0.24),inset 0 0 0 1px rgba(255,255,255,0.26),inset 0 1px 0 rgba(255,255,255,0.28);}
 .pn-item.active .pn-lb{max-width:11cqw;opacity:1;margin-left:1.4cqw;color:#fff;}
 .pn-item.active .pn-ic{color:#fff;}
-.pn-item.active[data-nav="map"]{background:#3f7fd6;box-shadow:0 0.4cqw 1.6cqw rgba(63,127,214,0.45);}
-.pn-item.active[data-nav="feed"]{background:#2ea36c;box-shadow:0 0.4cqw 1.6cqw rgba(46,163,108,0.45);}
-.pn-item.active[data-nav="social"]{background:#d0774a;box-shadow:0 0.4cqw 1.6cqw rgba(208,119,74,0.45);}
+.pn-item.active[data-nav="map"]{background:rgba(120,168,240,0.62);}
+.pn-item.active[data-nav="feed"]{background:rgba(112,206,156,0.6);}
+.pn-item.active[data-nav="social"]{background:rgba(182,150,236,0.62);}
 .pn-ai{width:13.4cqw;height:13.4cqw;flex-shrink:0;border:1px solid rgba(255,255,255,0.08);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:1.8cqw;
   background:rgba(24,26,34,0.58);backdrop-filter:blur(22px) saturate(1.35);-webkit-backdrop-filter:blur(22px) saturate(1.35);transition:transform .18s ease;}
 .pn-ai svg{width:100%;height:100%;display:block;}
