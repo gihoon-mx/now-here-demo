@@ -55,8 +55,8 @@ function spotDotZoom(){var z=Number(spotConfig.dotZoom);return isNaN(z)?13:z;}
 function spotScale(z){var s=Math.pow(2,z-SPOT_REF_ZOOM);if(s<SPOT_SCALE_MIN)s=SPOT_SCALE_MIN;if(s>SPOT_SCALE_MAX)s=SPOT_SCALE_MAX;return s;}
 var spotOverlays = [];          // 메인 지도 SpotBubble
 var phoneSpotOverlays = [];     // 폰 지도 SpotBubble
-var placingSpot = false;        // 관리자 스팟 배치 모드
 var currentSpotEmoji = '💬';
+var selectedSpotId = null;      // 롤오버/선택 강조용
 var composerOverlay = null;     // 지도 위 스팟 입력 팝업(관리자)
 var SPOT_EMOJIS = ['💬','📍','⭐','🔥','❤️','😀','🎉','📢','☕','🍜','🐶','🌸'];
 
@@ -351,6 +351,7 @@ function initSpotBubbleClass(){
     this.bubbleEl.classList.toggle('no-tail',!showTail);
     this.bubbleEl.classList.toggle('tail-up',showTail&&pos==='top');
     this.div.classList.toggle('spot-admin',currentRole==='admin');
+    this.div.classList.toggle('spot-sel',selectedSpotId===s.id); // 선택 강조(살짝 커짐)
   };
   SpotBubble.prototype.update=function(cfg){this.cfg=cfg||this.cfg;if(this.div)this._render();};
   SpotBubble.prototype.draw=function(){
@@ -453,8 +454,10 @@ function renderSpotList(){
     list.appendChild(item);
   });
 }
+function setSelectedSpot(id){selectedSpotId=id;refreshSpotStyles();}
 function focusSpot(s){
   if(!s)return;
+  setSelectedSpot(s.id); // 선택 강조
   [map,phoneMap].forEach(function(m){if(!m)return;m.panTo({lat:s.lat,lng:s.lng});if(m.getZoom()<15)m.setZoom(16);});
 }
 function clearSpots(){
@@ -462,20 +465,27 @@ function clearSpots(){
   phoneSpotOverlays.forEach(function(o){o.setMap(null);});phoneSpotOverlays=[];
 }
 function refreshSpotStyles(){spotOverlays.concat(phoneSpotOverlays).forEach(function(o){o.update(spotConfig);if(o.draw)o.draw();});}
-function setPlaceCursor(c){if(map)map.setOptions({draggableCursor:c});if(phoneMap)phoneMap.setOptions({draggableCursor:c});}
-function startPlacingSpot(){
-  if(!currentRole)return; // 로그인 사용자면 데모(뷰어)도 스팟 추가 가능
-  if(currentMode!=='local')switchMode('local'); // 배치는 베이직 모드(헥사곤 클릭 간섭 방지)
+// 현재 보고 있는 지도(모바일=폰, 데스크톱=메인)
+function primaryMap(){return (window.matchMedia&&window.matchMedia('(max-width:768px)').matches&&phoneMap)?phoneMap:map;}
+var addTargetMap=null;   // 컨텐츠 추가 대상 지도(제스처/버튼이 있던 지도)
+function openAddMenu(m){addTargetMap=m||primaryMap();var el=document.getElementById('content-add-menu');if(el)el.classList.add('open');}
+function closeAddMenu(){var el=document.getElementById('content-add-menu');if(el)el.classList.remove('open');}
+// 스팟은 '현재 보는 지도의 센터'에 추가(클릭 배치 대신)
+function addSpotAtCenter(){
+  if(!currentRole)return; // 로그인 사용자면 데모(뷰어)도 추가 가능
   closeComposer();
-  placingSpot=true;
-  setPlaceCursor('crosshair'); // 추가 중 커서 변경(메인·폰 지도 둘 다, 타일 위에서도 확실히)
-  var el=document.getElementById('info-text');if(el)el.innerHTML='📍 지도를 클릭해 스팟 위치를 선택하세요. <span class="hex-info">(ESC 취소)</span>';
+  var m=addTargetMap||primaryMap();closeAddMenu();if(!m)return;var c=m.getCenter();if(!c)return;
+  composerOverlay=new SpotComposer(new google.maps.LatLng(c.lat(),c.lng()),m);
 }
-function onMapClickForSpot(latLng,targetMap){
-  if(!latLng)return;
-  placingSpot=false;setPlaceCursor(null);
-  closeComposer();
-  composerOverlay=new SpotComposer(latLng,targetMap||map); // 클릭한 포인트 옆에 입력 팝업(클릭한 지도 위)
+// 화면 롱프레스(터치) / 우클릭 → 좌측 하단 컨텐츠 추가 팝업(그 지도의 센터에 추가)
+function attachAddGestures(el,mapObj){
+  if(!el||el._addGest)return;el._addGest=true;
+  el.addEventListener('contextmenu',function(e){e.preventDefault();openAddMenu(mapObj);});
+  var t=null,sx=0,sy=0;
+  el.addEventListener('touchstart',function(e){if(e.touches.length!==1)return;sx=e.touches[0].clientX;sy=e.touches[0].clientY;clearTimeout(t);t=setTimeout(function(){openAddMenu(mapObj);},520);},{passive:true});
+  el.addEventListener('touchmove',function(e){if(e.touches.length&&(Math.abs(e.touches[0].clientX-sx)>12||Math.abs(e.touches[0].clientY-sy)>12))clearTimeout(t);},{passive:true});
+  el.addEventListener('touchend',function(){clearTimeout(t);},{passive:true});
+  el.addEventListener('touchcancel',function(){clearTimeout(t);},{passive:true});
 }
 function removeSpot(id){spotMessages=spotMessages.filter(function(s){return s.id!==id;});renderSpots();persistSpotChange();}
 /* 데모(뷰어) 추가 스팟은 이 기기 localStorage에(공유문서는 관리자만 쓰기), 관리자는 클라우드에 저장 */
@@ -496,7 +506,6 @@ function loadLocalSpotsInto(){
   }catch(e){}
 }
 function promptDeleteSpot(id){if(confirm('이 스팟 메시지를 삭제할까요?'))removeSpot(id);}
-function cancelPlacingSpot(){placingSpot=false;setPlaceCursor(null);closeComposer();if(currentMode==='local')updateInfoPanel(selectedFeatureName);}
 /* ========== 스팟 편집 모달 (관리자: 개별 스팟 수정) ========== */
 var editingSpotId=null;
 function curEditSpot(){return spotMessages.find(function(x){return x.id===editingSpotId;});}
@@ -536,9 +545,9 @@ function initSpotEditor(){
 }
 
 function initSpotUI(){
-  var addBtn=document.getElementById('spot-add-btn');if(addBtn)addBtn.addEventListener('click',startPlacingSpot);
+  var addBtn=document.getElementById('spot-add-btn');if(addBtn)addBtn.addEventListener('click',addSpotAtCenter);
   initSpotEditor();
-  document.addEventListener('keydown',function(e){if(e.key==='Escape'){if(placingSpot)cancelPlacingSpot();else if(composerOverlay)closeComposer();}});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeComposer();closeAddMenu();}});
   // 스팟 설정 (디자인 메뉴)
   bindInput('spot-max-chars','range',spotConfig,'maxChars',refreshSpotStyles);
   bindInput('spot-font-size','range',spotConfig,'fontSize',refreshSpotStyles);
@@ -629,10 +638,8 @@ function initPhoneMirror(){
   map.addListener('zoom_changed',sync);
   map.addListener('idle',function(){sync();updatePhoneLocation();updatePhoneViewportOverlay();updateScaleLegend();});
   phoneMap.addListener('idle',function(){updatePhoneViewportOverlay();updatePhoneLocation();});
-  phoneMap.addListener('click',function(e){
-    if(placingSpot){onMapClickForSpot(e.latLng,phoneMap);return;} // 폰에서 스팟 배치(모바일)
-    clearPhoneSpotlight(); // 빈 곳 클릭 = 존 강조 해제
-  });
+  phoneMap.addListener('click',function(){ clearPhoneSpotlight(); }); // 빈 곳 클릭 = 존 강조 해제
+  attachAddGestures(el,phoneMap); // 폰 지도 롱프레스/우클릭 → 컨텐츠 추가 팝업
   sync();
   if(originalGeoJson){buildDongIndex();applyGeoJsonToPhone();}
   phoneDataVisibility();syncPhoneZones();updatePhoneUI();updatePhoneLocation();updatePhoneViewportOverlay();
@@ -845,12 +852,12 @@ function initPhoneControls(){
   // 컨텐츠 추가 버튼(네비 왼쪽): 누르면 [스팟 메시지 / 사진 올리기] 팝업
   var addBtn=mirror.querySelector('.pn-add'),addMenu=document.getElementById('content-add-menu');
   if(addBtn&&addMenu){
-    addBtn.addEventListener('click',function(e){e.stopPropagation();addMenu.classList.toggle('open');});
+    addBtn.addEventListener('click',function(e){e.stopPropagation();if(addMenu.classList.contains('open'))addMenu.classList.remove('open');else openAddMenu(phoneMap||map);});
     addMenu.addEventListener('click',function(e){e.stopPropagation();});
     addMenu.querySelectorAll('.cam-item').forEach(function(it){
       it.addEventListener('click',function(){
         addMenu.classList.remove('open');
-        if(it.dataset.add==='spot'){startPlacingSpot();}
+        if(it.dataset.add==='spot'){addSpotAtCenter();}
         else if(it.dataset.add==='photo'){var fi=document.getElementById('feed-photo-input');if(fi)fi.click();}
       });
     });
@@ -1088,7 +1095,7 @@ function switchMode(mode){
   if(mode===currentMode) return; if(editingZoneId) finishEditZone();
   currentMode=mode;
   removeLocalLabel(); selectedFeatureName=null; selectedFeatureId=null;
-  placingSpot=false; closeComposer(); if(map)map.setOptions({draggableCursor:null});
+  closeComposer(); closeAddMenu();
   document.querySelectorAll('.mode-btn').forEach(function(b){b.classList.toggle('active',b.dataset.mode===mode);});
   document.querySelectorAll('#phone-mode .pm-btn').forEach(function(b){b.classList.toggle('active',b.dataset.mode===mode);});
   document.querySelector('.mode-indicator').classList.toggle('right',mode==='trend');
@@ -1118,8 +1125,9 @@ function initMap(){
   map=new google.maps.Map(document.getElementById('map'),opts);
   fetch(CONFIG.GEOJSON_PATH).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(geo){originalGeoJson=geo;applyGeoJsonToMap();fitBoundsToData();loadZonesFromStorage();hideMapLoading();mapReady=true;if(cloudData)applyCloudData(cloudData);else{loadLocalSpotsInto();renderSpots();}}).catch(function(err){hideMapLoading();var el=document.getElementById('info-text');if(el)el.textContent='⚠️ 경계 데이터를 불러오지 못했습니다. ('+err.message+')';});
   refreshMapStyles();
-  map.data.addListener('click',function(e){if(placingSpot){onMapClickForSpot(e.latLng);return;}if(currentMode!=='local')return;var f=e.feature;if(selectedFeature===f){selectedFeature=null;selectedFeatureName=null;selectedFeatureId=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();updatePhoneUI();return;}selectedFeature=f;var raw=f.getProperty('adm_nm')||f.getProperty('name')||'(이름 없음)';var p=raw.split(' ');selectedFeatureName=p.length>2?p.slice(2).join(' '):raw;selectedFeatureId=featKey(f);refreshMapStyles();updateInfoPanel(selectedFeatureName);showLocalLabel();updatePhoneUI();});
-  map.addListener('click',function(e){if(placingSpot){onMapClickForSpot(e.latLng);return;}if(currentMode==='local'&&selectedFeature){selectedFeature=null;selectedFeatureName=null;selectedFeatureId=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();updatePhoneUI();}});
+  map.data.addListener('click',function(e){if(currentMode!=='local')return;var f=e.feature;if(selectedFeature===f){selectedFeature=null;selectedFeatureName=null;selectedFeatureId=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();updatePhoneUI();return;}selectedFeature=f;var raw=f.getProperty('adm_nm')||f.getProperty('name')||'(이름 없음)';var p=raw.split(' ');selectedFeatureName=p.length>2?p.slice(2).join(' '):raw;selectedFeatureId=featKey(f);refreshMapStyles();updateInfoPanel(selectedFeatureName);showLocalLabel();updatePhoneUI();});
+  map.addListener('click',function(e){if(currentMode==='local'&&selectedFeature){selectedFeature=null;selectedFeatureName=null;selectedFeatureId=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();updatePhoneUI();}});
+  attachAddGestures(document.getElementById('map'),map); // 메인 지도 롱프레스/우클릭 → 컨텐츠 추가 팝업
   map.data.addListener('mouseover',function(e){if(currentMode!=='local'||e.feature===selectedFeature)return;map.data.overrideStyle(e.feature,{strokeWeight:Number(styleConfig.default.strokeWeight)+2,fillOpacity:Number(styleConfig.default.fillOpacity)+0.08});});
   map.data.addListener('mouseout',function(e){if(currentMode!=='local'||e.feature===selectedFeature)return;map.data.revertStyle(e.feature);});
   initSettingsPanel();initContentPanel();initModeToggle();initZoneForm();initZoneEditBar();initSpotUI();

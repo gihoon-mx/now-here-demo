@@ -47,13 +47,15 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.14.0**
+- **현재 최신: v1.15.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.14.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.15.0 · 라이브 정상.** 완료된 기능:
+- **앱 아이콘/파비콘 = 마스코트 이미지**(구름 캐릭터). 페이지 타이틀 'Now Here Demo'. **UI 약한 글래스**(설정패널·폰 헤더 반투명+블러).
+- **스팟 롤오버/선택 시 살짝 커지며 강조**(테두리 대신 스케일). **스팟 추가 = 화면 롱프레스/우클릭 → 좌측하단 컨텐츠 추가 팝업**, 또는 좌측하단 **+버튼** → 현재 보는 지도 센터에 추가(클릭 배치 폐지).
 - **스팟**: 점 색상 = 버블 색상 자동(개별 색 포함). **데모(뷰어)도 스팟 추가 가능**(이 기기 localStorage 저장). **스팟 목록 관리**(컨텐츠 설정 > 스팟 메시지: 이동/삭제). 버블 좌우 여백 축소.
 - **폰 상단바 3분할**: 햄버거(좌)·**모드토글(가운데)**·**위치(우)**. 하단 네비 살짝 위로. 스팟 외 모든 수치 설정 범위 시스템 최대로 확대.
 - **PWA(홈 화면에 추가 → 전체화면 앱)**: manifest+아이콘+메타태그. 폰에서 브라우저 크롬 없이 standalone 실행, 노치/홈인디케이터 안전영역 처리.
@@ -158,6 +160,12 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-03
+- **v1.15.0 — 마스코트 아이콘 + 타이틀 + 스팟 강조/추가방식 개편 + 글래스**:
+  - **앱 아이콘/파비콘 교체**: 첨부 마스코트(구름) 이미지 → `icon-512.jpg`/`icon-192.jpg`/`apple-touch-icon.jpg`/`favicon.jpg`. 브라우저 canvas로 마스코트 중심 크롭·리사이즈(sx300 sy180 1500²)해 JPEG 생성(툴 없이). manifest 아이콘 png→jpg(image/jpeg), HTML apple-touch/icon 링크·`?v` 갱신. 옛 `icon-*.png` 제거.
+  - **페이지 타이틀** '동 단위 행정구역…' → **'Now Here Demo'**.
+  - **스팟 롤오버/선택 강조**: 테두리(box-shadow 링) 제거 → **`transform:scale(1.16)`**(hover + `.spot-sel`). `selectedSpotId`+`setSelectedSpot`(_render서 `.spot-sel` 토글), `focusSpot`이 선택. `.spot-marker` pointer-events auto로 전 스팟 hover 가능.
+  - **스팟 추가 방식 개편**(클릭 배치 폐지): `placingSpot`/`startPlacingSpot`/`onMapClickForSpot`/`setPlaceCursor`/`cancelPlacingSpot` 제거. 대신 **화면 롱프레스(touch 520ms)·우클릭(contextmenu)** → `attachAddGestures`가 좌측하단 `#content-add-menu` 팝업(제스처가 있던 지도를 `addTargetMap`으로). **+버튼/사이드바 추가버튼** → `openAddMenu`. 팝업 '스팟 메시지' → `addSpotAtCenter`가 **`addTargetMap`(없으면 `primaryMap`=모바일 폰/데스크톱 메인) 센터**에 컴포저. ⚠️ 데스크톱 메인맵 우클릭 시 팝업은 폰 미러(우측)에 뜸(폰 중심 설계).
+  - **약한 글래스**: `#left-panel` bg `rgba(245,247,250,0.8)`+`backdrop-filter blur(18px)`, `.phone-header` bg `rgba(255,255,255,0.8)`+`blur(14px)`. 시인성 유지 위해 불투명도 0.8 유지.
 - **v1.14.0 — 스팟 점색=버블색 + 데모 스팟추가 + 스팟목록 + 상단바 3분할 + 범위확대 + 버블여백**:
   - **점 색상 = 버블 색상 자동**: `dotColor` 설정/컨트롤(`ct-spot-dot`) 제거, `_render`가 `s.color||bgColor`로(개별 변경 색 포함).
   - **데모(뷰어)도 스팟 추가**: `startPlacingSpot`의 admin 게이트 제거(로그인만 요구). 데모가 만든 스팟은 `local:true` 플래그로 이 기기 `localStorage('nowhere_localSpots')`에 저장(`persistSpotChange`=admin→클라우드/데모→로컬). `applyCloudData`·초기로드에서 `loadLocalSpotsInto`로 병합, `cloudSave`는 `!local`만 저장(공유문서 오염 방지). ⚠️ **Firestore 규칙은 그대로**(공유문서 쓰기=관리자만). 데모 스팟을 '공유'로 하려면 규칙 완화+콘솔 배포 필요(보안 검토).
