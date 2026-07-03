@@ -47,13 +47,13 @@ var colorControls = [];         // 색상 트리거 재도색용 레지스트리
 /* ========== 스팟 메시지 (로컬모드, 관리자 생성 · 데모 뷰잉) ========== */
 var spotMessages = [];          // [{id,lat,lng,text,emoji}]
 var spotConfig = { maxChars:40, fontSize:13, textColor:'#ffffff', bgColor:'#1c66e5', bgOpacity:0.92, emojiSize:26,
-  emojiPos:'bottom', emojiGap:2, emojiLetterSpacing:0, bubbleRadius:13, tail:true, dotZoom:13, dotStyle:'dot',
+  emojiPos:'bottom', emojiGap:2, emojiLetterSpacing:0, bubbleRadius:13, tail:true, dotScaleM:1000, dotStyle:'dot',
   emojis:['💬','📍','⭐','🔥','❤️','😀','🎉','📢','☕','🍜','🐶','🌸'] };
 // 스팟은 지도에 '고정된 실제 크기'처럼 동작 — 기준 줌(16)에서 설정한 px가 1배, 줌 1레벨당 2배(줌아웃=절반).
 // = 항상 같은 미터 범위를 덮음(건물 블럭 1개 크기면 어느 줌에서도 그 블럭 크기 유지). 안전 한계만 아주 넓게.
 var SPOT_REF_ZOOM = 16;
 var SPOT_SCALE_MIN = 0.02, SPOT_SCALE_MAX = 40;
-function spotDotZoom(){var z=Number(spotConfig.dotZoom);return isNaN(z)?13:z;}
+function spotDotScaleM(){var v=Number(spotConfig.dotScaleM);return isNaN(v)?1000:v;} // 축척(축척자 m)이 이 값 초과로 축소되면 점으로
 function spotScale(z){var s=Math.pow(2,z-SPOT_REF_ZOOM);if(s<SPOT_SCALE_MIN)s=SPOT_SCALE_MIN;if(s>SPOT_SCALE_MAX)s=SPOT_SCALE_MAX;return s;}
 var spotOverlays = [];          // 메인 지도 SpotBubble
 var phoneSpotOverlays = [];     // 폰 지도 SpotBubble
@@ -366,7 +366,8 @@ function initSpotBubbleClass(){
     var pos=p.fromLatLngToDivPixel(this.position);
     if(pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}
     var m=this.getMap();if(!m)return;var z=m.getZoom();if(z==null)return;
-    var isDot=z<spotDotZoom();
+    var mpp=mapMpp(m);var isDot=mpp?((mpp*64)>spotDotScaleM()):(z<13); // 축척자(64px) 거리가 임계값 초과 = 축소 → 점
+    // (강조 구역 축척과 독립적: spotConfig.dotScaleM ↔ styleConfig.highlight.spotScaleM)
     var emojiDot=isDot&&(spotConfig.dotStyle==='emoji'); // 작을 때 이모지로 표시 옵션
     var s=spotScale(z); // 지도 배율에 붙어 확대/축소
     this.div.classList.toggle('spot-dot',isDot);
@@ -594,7 +595,7 @@ function initSpotUI(){
   bindInput('spot-bubble-radius','range',spotConfig,'bubbleRadius',refreshSpotStyles);
   bindInput('spot-emoji-gap','range',spotConfig,'emojiGap',refreshSpotStyles);
   bindInput('spot-emoji-letter','range',spotConfig,'emojiLetterSpacing',refreshSpotStyles);
-  bindInput('spot-dot-zoom','range',spotConfig,'dotZoom',refreshSpotStyles);
+  bindInput('spot-dot-scale','range',spotConfig,'dotScaleM',refreshSpotStyles);
   var tailEl=document.getElementById('spot-tail');if(tailEl)tailEl.addEventListener('change',function(){spotConfig.tail=this.checked;refreshSpotStyles();markCloudDirty();});
   var posEl=document.getElementById('spot-emoji-pos');if(posEl)posEl.addEventListener('change',function(){spotConfig.emojiPos=this.value;refreshSpotStyles();markCloudDirty();});
   var dsEl=document.getElementById('spot-dot-style');if(dsEl)dsEl.addEventListener('change',function(){spotConfig.dotStyle=this.value;refreshSpotStyles();markCloudDirty();});
@@ -659,11 +660,18 @@ function initPhoneMenu(){
   }
   var ham=document.getElementById('phone-hamburger');
   var close=document.getElementById('phone-drawer-close');
-  if(ham)ham.addEventListener('click',function(){if(drawer){var willOpen=!drawer.classList.contains('open');drawer.classList.toggle('open');if(willOpen)renderDrawerDemo();}});
-  if(close)close.addEventListener('click',function(){if(drawer)drawer.classList.remove('open');});
+  if(ham)ham.addEventListener('click',function(){var d=document.getElementById('phone-drawer');if(d&&d.classList.contains('open'))d.classList.remove('open');else openPhoneDrawer();});
+  if(close)close.addEventListener('click',closeDrawer);
+  // PC 전체 지도 사이드바 메뉴 — 폰 드로어와 동일 바디(#phone-drawer-body) 공유 → 항상 싱크
+  var pcBtn=document.getElementById('pc-menu-btn'),pcClose=document.getElementById('pc-drawer-close');
+  if(pcBtn)pcBtn.addEventListener('click',function(){var d=document.getElementById('pc-drawer');if(d&&d.classList.contains('open'))d.classList.remove('open');else openPcDrawer();});
+  if(pcClose)pcClose.addEventListener('click',closeDrawer);
   document.querySelectorAll('#phone-mode .pm-btn').forEach(function(b){b.addEventListener('click',function(){switchMode(this.dataset.mode);});});
 }
-function closeDrawer(){var d=document.getElementById('phone-drawer');if(d)d.classList.remove('open');}
+// 공유 메뉴 바디를 여는 드로어로 옮겨 렌더 (한 번에 하나만 열림 → 동일 DOM = 싱크)
+function openPhoneDrawer(){var d=document.getElementById('phone-drawer'),b=document.getElementById('phone-drawer-body'),pc=document.getElementById('pc-drawer');if(!d)return;if(pc)pc.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
+function openPcDrawer(){var d=document.getElementById('pc-drawer'),b=document.getElementById('phone-drawer-body'),ph=document.getElementById('phone-drawer');if(!d)return;if(ph)ph.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
+function closeDrawer(){var p=document.getElementById('phone-drawer');if(p)p.classList.remove('open');var c=document.getElementById('pc-drawer');if(c)c.classList.remove('open');}
 // 드로어 데모 리스트(트렌드 존/스팟) 렌더 — 데모·관리자 모두 데이터로 채움
 function renderDrawerDemo(){
   var zl=document.getElementById('drawer-zone-list');
@@ -1378,7 +1386,7 @@ function syncSettingsUI(){
   setRange('spot-bubble-radius',spotConfig.bubbleRadius);
   setRange('spot-emoji-gap',spotConfig.emojiGap);
   setRange('spot-emoji-letter',spotConfig.emojiLetterSpacing);
-  setRange('spot-dot-zoom',spotConfig.dotZoom);
+  setRange('spot-dot-scale',spotConfig.dotScaleM);
   setCheck('spot-tail',spotConfig.tail);
   var _sp=document.getElementById('spot-emoji-pos');if(_sp)_sp.value=spotConfig.emojiPos||'bottom';
   var _sds=document.getElementById('spot-dot-style');if(_sds)_sds.value=spotConfig.dotStyle||'dot';

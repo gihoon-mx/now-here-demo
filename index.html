@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.19.0" />
+  <link rel="stylesheet" href="style.css?v=1.20.0" />
 </head>
 <body>
 
@@ -38,6 +38,12 @@
   <div id="map"></div>
   <div id="scale-legend" aria-hidden="true"></div>
 
+  <!-- PC 전체 지도 사이드바 메뉴 (폰 햄버거 드로어와 동일 내용 · 싱크) -->
+  <button id="pc-menu-btn" type="button" aria-label="메뉴 열기" title="메뉴"><span></span><span></span><span></span></button>
+  <div id="pc-drawer">
+    <div class="pc-drawer-head"><span>메뉴</span><button id="pc-drawer-close" type="button" aria-label="닫기">✕</button></div>
+  </div>
+
   <!-- 데이터 로딩 인디케이터 -->
   <div id="map-loading" role="status" aria-live="polite">
     <span class="spinner" aria-hidden="true"></span>경계 데이터를 불러오는 중…
@@ -52,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.19.0</span>
+        <span id="app-version">v1.20.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -137,7 +143,7 @@
         <div class="setting-row"><label>최대 글자수</label><input type="range" id="spot-max-chars" min="10" max="120" step="5" value="40" /><span class="range-val">40</span></div>
         <div class="setting-row"><label>글자 크기</label><input type="range" id="spot-font-size" min="4" max="80" step="1" value="13" /><span class="range-val">13</span></div>
         <div class="setting-row"><label>이모지 크기</label><input type="range" id="spot-emoji-size" min="4" max="120" step="1" value="26" /><span class="range-val">26</span></div>
-        <div class="setting-row"><label>점 전환 줌</label><input type="range" id="spot-dot-zoom" min="8" max="18" step="1" value="13" /><span class="range-val">13</span></div>
+        <div class="setting-row"><label>점 전환 축척(m)</label><input type="range" id="spot-dot-scale" min="100" max="5000" step="50" value="1000" /><span class="range-val">1000</span></div>
         <div class="setting-row"><label>작을 때</label><select id="spot-dot-style" class="mini-select"><option value="dot">점으로</option><option value="emoji">이모지로</option></select></div>
         <div class="setting-row"><label>글자색</label><button type="button" class="color-trigger" id="ct-spot-text"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
         <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-spot-bg"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
@@ -153,13 +159,13 @@
         <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-highlight-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
         <div class="setting-row"><label>테두리</label><button type="button" class="color-trigger" id="ct-highlight-stroke"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
         <div class="setting-row"><label>선 굵기</label><input type="range" id="highlight-stroke-weight" min="0" max="50" step="0.5" value="4" /><span class="range-val">4</span></div>
-        <div class="setting-row"><label>강조 축척(m)</label><input type="range" id="highlight-spot-scale" min="50" max="3000" step="50" value="200" /><span class="range-val">200</span></div>
-        <p class="section-hint">베이직 폰의 축척(축척자 거리)이 이 값(m) 이하로 확대되면, 센터가 속한 동을 선택 구역 스타일로 강조하고 나머지는 아래 '강조외 구역' 스타일로 처리합니다.</p>
       </div>
       <div class="settings-section">
-        <h4>강조외 구역</h4>
-        <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-dim-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
-        <div class="setting-row"><label>테두리</label><button type="button" class="color-trigger" id="ct-dim-stroke"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+        <h4>강조 구역</h4>
+        <div class="setting-row"><label>강조 축척(m)</label><input type="range" id="highlight-spot-scale" min="50" max="3000" step="50" value="200" /><span class="range-val">200</span></div>
+        <div class="setting-row"><label>주변 배경</label><button type="button" class="color-trigger" id="ct-dim-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+        <div class="setting-row"><label>주변 테두리</label><button type="button" class="color-trigger" id="ct-dim-stroke"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+        <p class="section-hint">베이직 폰의 축척(축척자 거리)이 이 값(m) 이하로 확대되면, 센터가 속한 동을 '선택 구역' 스타일로 강조하고 나머지(주변) 동을 위 배경/테두리로 처리합니다.</p>
       </div>
       <div class="settings-section">
         <h4>경계 스무딩</h4>
@@ -208,11 +214,11 @@
               <button class="pm-btn active" type="button" data-mode="local"><span class="pm-ic">📍</span>베이직</button>
               <button class="pm-btn" type="button" data-mode="trend"><span class="pm-ic pm-ic-fire">🔥</span>트렌드</button>
             </div>
-            <span class="pa-loc" id="phone-loc"><svg class="pa-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg><span class="pa-loc-name">···</span></span>
           </div>
-          <!-- 예약 흰색 공간: 현재 축척(심플 · 자+수치) -->
-          <div class="phone-header-slot" id="phone-header-slot"><div id="phone-scale" aria-hidden="true"></div></div>
         </div>
+        <!-- 지도 위 오버레이: 현재 위치(상단 중앙) · 축척(작게) -->
+        <span class="pa-loc" id="phone-loc"><svg class="pa-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg><span class="pa-loc-name">···</span></span>
+        <div id="phone-scale" aria-hidden="true"></div>
         <div class="phone-navbar">
           <button class="pn-add" type="button" data-nav="add" title="컨텐츠 추가" aria-label="컨텐츠 추가">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -303,7 +309,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.19.0"></script>
-  <script src="app.js?v=1.19.0"></script>
+  <script src="config.js?v=1.20.0"></script>
+  <script src="app.js?v=1.20.0"></script>
 </body>
 </html>
