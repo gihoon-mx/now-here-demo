@@ -1773,12 +1773,23 @@ function enhanceRangeInputs(){
 
 /* ========== 설정 섹션 아코디언 (탭처럼 펼침/접힘) ========== */
 function initSettingsAccordion(){
+  var contentIdx=0;
   document.querySelectorAll('#settings-section .settings-section,#content-section .settings-section').forEach(function(sec){
     var h=sec.querySelector('h4');if(!h||h._acc)return;h._acc=true;
     sec.classList.add('acc-section');
-    if(!sec.closest('#content-section'))sec.classList.add('collapsed'); // 관리자 설정=기본 접힘 / 컨텐츠=기본 펼침
+    var inContent=!!sec.closest('#content-section');
+    if(!inContent)sec.classList.add('collapsed');            // 관리자 설정=전부 접힘
+    else if(contentIdx++>0)sec.classList.add('collapsed');   // 컨텐츠=첫 블록만 펼침
     h.classList.add('acc-head');h.setAttribute('role','button');h.setAttribute('tabindex','0');
-    function toggle(){sec.classList.toggle('collapsed');}
+    function toggle(){
+      var opening=sec.classList.contains('collapsed');
+      if(opening){ // 항상 그룹당 1개만 펼침: 같은 그룹의 나머지는 접기
+        var group=sec.closest('#content-section')||sec.closest('#settings-section');
+        if(group)group.querySelectorAll('.acc-section').forEach(function(x){if(x!==sec)x.classList.add('collapsed');});
+        sec.classList.remove('collapsed');
+        if(sec.scrollIntoView)sec.scrollIntoView({block:'nearest'});
+      }else sec.classList.add('collapsed');
+    }
     h.addEventListener('click',toggle);
     h.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
   });
@@ -1957,29 +1968,44 @@ function applyCloudData(d){
   savedSettings=snapshotSettings();styleDirty=false;updateApplyBar(); // 클라우드본 = 적용 기준선
 }
 /* ========== 설정 미니 프리뷰: 각 설정 블록 상단에 그 옵션의 예시를 실시간 렌더 ========== */
-function mpSvg(el,inner){el.innerHTML='<span class="mp-tag">미리보기</span><svg viewBox="0 0 200 64" preserveAspectRatio="xMidYMid slice">'+inner+'</svg>';}
-function mpBg(){return '<rect width="200" height="64" fill="#e9edf3"/><path d="M0 44 H200 M60 0 V64 M124 0 V64" stroke="#ffffff" stroke-width="4" fill="none"/>';}
+function mpSvg(el,inner){el.innerHTML='<span class="mp-tag">미리보기</span><svg viewBox="0 0 200 128" preserveAspectRatio="xMidYMid slice">'+mpMapBg()+'<g transform="translate(0,32)">'+inner+'</g></svg>';}
+// 샘플 동네 지도 (대략 100~200m 축척 느낌: 블록·건물·공원·도로 케이싱)
+function mpMapBg(){
+  return '<rect width="200" height="128" fill="#eef0ea"/>'
+  +'<rect x="6" y="6" width="50" height="40" rx="7" fill="#d7e9d2"/><circle cx="20" cy="20" r="4" fill="#c3ddbc"/><circle cx="38" cy="32" r="5" fill="#c3ddbc"/>'
+  +'<g fill="#e4e1d8" stroke="#d8d4c8" stroke-width="0.6">'
+  +'<rect x="74" y="10" width="18" height="12"/><rect x="96" y="8" width="14" height="16"/><rect x="74" y="28" width="24" height="16"/><rect x="102" y="30" width="12" height="14"/>'
+  +'<rect x="146" y="12" width="20" height="14"/><rect x="170" y="8" width="18" height="20"/><rect x="148" y="32" width="30" height="12"/>'
+  +'<rect x="12" y="66" width="20" height="16"/><rect x="36" y="64" width="16" height="20"/>'
+  +'<rect x="74" y="66" width="26" height="16"/><rect x="104" y="64" width="12" height="18"/>'
+  +'<rect x="146" y="66" width="22" height="14"/><rect x="172" y="62" width="16" height="20"/>'
+  +'<rect x="12" y="102" width="24" height="14"/><rect x="46" y="104" width="12" height="12"/><rect x="76" y="100" width="20" height="16"/><rect x="150" y="102" width="26" height="14"/>'
+  +'</g>'
+  +'<g stroke="#dcd8cd" stroke-width="9" fill="none" stroke-linecap="round"><path d="M-4 56 H204"/><path d="M-4 94 H204"/><path d="M64 -4 V132"/><path d="M136 -4 V132"/></g>'
+  +'<g stroke="#ffffff" stroke-width="6.5" fill="none" stroke-linecap="round"><path d="M-4 56 H204"/><path d="M-4 94 H204"/><path d="M64 -4 V132"/><path d="M136 -4 V132"/></g>'
+  +'<g stroke="#ffffff" stroke-width="3" fill="none"><path d="M0 24 H200"/><path d="M100 0 V56"/><path d="M170 94 V128"/></g>';
+}
 var MP_BLOB1=[[20,50],[14,26],[34,10],[66,8],[86,20],[84,44],[58,54]];
 var MP_BLOB2=[[86,20],[108,10],[146,12],[166,30],[158,52],[112,56],[84,44]];
 function mpPath(pts){return 'M'+pts.map(function(p){return (+p[0]).toFixed(1)+','+(+p[1]).toFixed(1);}).join(' L')+' Z';}
 function mpRegionAttr(cfg){return 'fill="'+hexToRgba(cfg.fillColor,Number(cfg.fillOpacity))+'" stroke="'+hexToRgba(cfg.strokeColor,Number(cfg.strokeOpacity))+'" stroke-width="'+Math.min(6,Number(cfg.strokeWeight)||0)+'"';}
 function mpHexPts(cx,cy,r){var o=[];for(var i=0;i<6;i++){var a=Math.PI/3*i;o.push((cx+r*Math.cos(a)).toFixed(1)+','+(cy+r*Math.sin(a)).toFixed(1));}return o.join(' ');}
-function mpChip(el,bg,color,fontPx,text,extra){el.innerHTML='<span class="mp-tag">미리보기</span><span class="map-label-tag" style="position:static;transform:none;backdrop-filter:none;background:'+bg+';color:'+color+';font-size:'+fontPx+'px;'+(extra||'')+'">'+text+'</span>';}
+function mpChip(el,bg,color,fontPx,text,extra){el.innerHTML='<span class="mp-tag">미리보기</span><svg class="mp-bg" viewBox="0 0 200 128" preserveAspectRatio="xMidYMid slice">'+mpMapBg()+'</svg><span class="map-label-tag" style="position:relative;z-index:1;transform:none;backdrop-filter:none;background:'+bg+';color:'+color+';font-size:'+fontPx+'px;'+(extra||'')+'">'+text+'</span>';}
 var MINI_RENDER={
   'region-default':function(el){
-    mpSvg(el,mpBg()+'<path d="'+mpPath(MP_BLOB1)+'" '+mpRegionAttr(styleConfig.default)+'/><path d="'+mpPath(MP_BLOB2)+'" '+mpRegionAttr(styleConfig.default)+'/>');
+    mpSvg(el,'<path d="'+mpPath(MP_BLOB1)+'" '+mpRegionAttr(styleConfig.default)+'/><path d="'+mpPath(MP_BLOB2)+'" '+mpRegionAttr(styleConfig.default)+'/>');
   },
   'region-highlight':function(el){
-    mpSvg(el,mpBg()+'<path d="'+mpPath(MP_BLOB2)+'" '+mpRegionAttr(styleConfig.default)+'/><path d="'+mpPath(MP_BLOB1)+'" '+mpRegionAttr(styleConfig.highlight)+'/>');
+    mpSvg(el,'<path d="'+mpPath(MP_BLOB2)+'" '+mpRegionAttr(styleConfig.default)+'/><path d="'+mpPath(MP_BLOB1)+'" '+mpRegionAttr(styleConfig.highlight)+'/>');
   },
   'lens':function(el){var c=styleConfig.lens;
-    mpSvg(el,mpBg()+'<path d="M0,0 H200 V64 H0 Z '+mpPath(MP_BLOB1)+'" fill-rule="evenodd" fill="'+hexToRgba(c.fogColor,Number(c.fogOpacity))+'"/>'+
+    mpSvg(el,'<path d="M0,0 H200 V64 H0 Z '+mpPath(MP_BLOB1)+'" fill-rule="evenodd" fill="'+hexToRgba(c.fogColor,Number(c.fogOpacity))+'"/>'+
       '<path d="'+mpPath(MP_BLOB1)+'" fill="none" stroke="'+hexToRgba(c.lineColor,Number(c.lineOpacity))+'" stroke-width="1.8"/>'+
       '<text x="194" y="58" text-anchor="end" font-size="9" font-weight="700" fill="#7b8492">전환 '+(Number(c.fadeMs)||250)+'ms</text>');
   },
   'smooth':function(el){
     var sm=smoothEnabled?chaikinSmooth(MP_BLOB1.concat([MP_BLOB1[0]]),smoothIntensity):MP_BLOB1;
-    mpSvg(el,mpBg()+'<path d="'+mpPath(MP_BLOB1)+'" fill="none" stroke="#c3cad4" stroke-width="1" stroke-dasharray="3 3"/>'+
+    mpSvg(el,'<path d="'+mpPath(MP_BLOB1)+'" fill="none" stroke="#c3cad4" stroke-width="1" stroke-dasharray="3 3"/>'+
       '<path d="'+mpPath(sm)+'" fill="rgba(47,123,255,0.08)" stroke="#2f7bff" stroke-width="1.6"/>');
   },
   'local-label':function(el){var c=localLabelConfig;
@@ -1988,11 +2014,11 @@ var MINI_RENDER={
   },
   'hex':function(el){var d=hexStyleConfig.default;
     var st='fill="'+hexToRgba(d.fillColor,Number(d.fillOpacity))+'" stroke="'+hexToRgba(d.strokeColor,Number(d.strokeOpacity))+'" stroke-width="'+Math.min(5,Number(d.strokeWeight)||1)+'"';
-    mpSvg(el,mpBg()+'<polygon points="'+mpHexPts(70,32,20)+'" '+st+'/><polygon points="'+mpHexPts(100,14.7,20)+'" '+st+'/><polygon points="'+mpHexPts(100,49.3,20)+'" '+st+'/><polygon points="'+mpHexPts(130,32,20)+'" '+st+'/>'+
+    mpSvg(el,'<polygon points="'+mpHexPts(70,32,20)+'" '+st+'/><polygon points="'+mpHexPts(100,14.7,20)+'" '+st+'/><polygon points="'+mpHexPts(100,49.3,20)+'" '+st+'/><polygon points="'+mpHexPts(130,32,20)+'" '+st+'/>'+
       '<text x="194" y="58" text-anchor="end" font-size="10" font-weight="700" fill="#7b8492">'+Number(hexRadiusKm).toFixed(1)+'km</text>');
   },
   'hex-sel':function(el){var d=hexStyleConfig.default,sl=hexStyleConfig.selected;
-    mpSvg(el,mpBg()+'<polygon points="'+mpHexPts(70,32,20)+'" '+mpRegionAttr(d)+'/>'+
+    mpSvg(el,'<polygon points="'+mpHexPts(70,32,20)+'" '+mpRegionAttr(d)+'/>'+
       '<polygon points="'+mpHexPts(104,32,20)+'" fill="'+hexToRgba(sl.fillColor,Number(sl.fillOpacity))+'" stroke="'+hexToRgba(sl.strokeColor,Number(sl.strokeOpacity))+'" stroke-width="2"/>');
   },
   'zone-merge':function(el){ // 실제 병합 알고리즘(zoneOutlineLoops)으로 그림
@@ -2003,13 +2029,13 @@ var MINI_RENDER={
       fills+='<polygon points="'+v.map(function(pt){return pt.lng.toFixed(1)+','+pt.lat.toFixed(1);}).join(' ')+'" fill="'+hexToRgba(col,0.35)+'" stroke="'+(zoneMergeBlocks?'none':hexToRgba(col,0.8))+'" stroke-width="1.5"/>';});
     if(zoneMergeBlocks)zoneOutlineLoops(centers,gp).forEach(function(loop){
       strokes+='<polygon points="'+loop.map(function(pt){return pt.lng.toFixed(1)+','+pt.lat.toFixed(1);}).join(' ')+'" fill="none" stroke="'+col+'" stroke-width="2.2"/>';});
-    mpSvg(el,mpBg()+fills+strokes);
+    mpSvg(el,fills+strokes);
   },
   'zone-label':function(el){var c=zoneLabelConfig;
     mpChip(el,hexToRgba('#F2862E',Number(c.bgOpacity)),c.textColor,Math.min(28,Number(c.fontSize)||11),'강남 핫플');
   },
   'spot':function(el){var c=spotConfig;
-    el.innerHTML='<span class="mp-tag">미리보기</span>';
+    el.innerHTML='<span class="mp-tag">미리보기</span><svg class="mp-bg" viewBox="0 0 200 128" preserveAspectRatio="xMidYMid slice">'+mpMapBg()+'</svg>';
     var wrap=document.createElement('div');wrap.className='spot-marker';
     var bubble=document.createElement('div');bubble.className='spot-bubble';
     var emoji=document.createElement('div');emoji.className='spot-emoji';
