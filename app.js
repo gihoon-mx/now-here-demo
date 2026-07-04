@@ -202,6 +202,21 @@ function hexCenterFromColRow(col, row, gp) {
 }
 
 /* ========== 고정 그리드 ========== */
+// 헥사 기본/선택 스타일 옵션 (생성·토글·일괄 갱신 공용)
+function hexOpts(sel) {
+  var s = sel ? hexStyleConfig.selected : hexStyleConfig.default;
+  return { fillColor:s.fillColor, fillOpacity:Number(s.fillOpacity), strokeColor:s.strokeColor,
+    strokeWeight:Number(s.strokeWeight), strokeOpacity:Number(s.strokeOpacity), zIndex:sel?2:1 };
+}
+// 편집 중이 아닌 존이 점유한 헥사 중심 키맵 (그리드 생성 시 O(1) 조회 — 기존 허용오차 0.0001과 동일한 1e4 양자화)
+function occupiedHexKeys() {
+  var keys = {};
+  trendZones.forEach(function(z){
+    if (z.id === editingZoneId) return;
+    z.hexCenters.forEach(function(c){ keys[Math.round(c.lat*1e4)+'_'+Math.round(c.lng*1e4)] = true; });
+  });
+  return keys;
+}
 function generateHexagons() {
   clearHexagons();
   if (!map) return;
@@ -209,6 +224,7 @@ function generateHexagons() {
   if (!bounds) return;
   var ne = bounds.getNorthEast(), sw = bounds.getSouthWest();
   var gp = getHexGridParams();
+  var occupied = occupiedHexKeys();
   var startCol = Math.floor(sw.lng()/gp.colSpacing) - 1, endCol = Math.ceil(ne.lng()/gp.colSpacing) + 1;
   var startRow = Math.floor(sw.lat()/gp.rowSpacing) - 1, endRow = Math.ceil(ne.lat()/gp.rowSpacing) + 1;
   var count = 0, MAX = 2500;
@@ -218,18 +234,12 @@ function generateHexagons() {
       var cx = col * gp.colSpacing;
       var cy = row * gp.rowSpacing + (isOdd ? gp.rowSpacing / 2 : 0);
       var hexId = col + '_' + row;
-      if (isHexInNonEditingZone(cx, cy)) continue;
+      if (occupied[Math.round(cy*1e4)+'_'+Math.round(cx*1e4)]) continue;
       var isSel = selectedHexes.has(hexId);
-      var paths = hexVertices(cx, cy, gp.R_lat, gp.R_lng);
-      var poly = new google.maps.Polygon({
-        paths: paths,
-        fillColor: isSel ? hexStyleConfig.selected.fillColor : hexStyleConfig.default.fillColor,
-        fillOpacity: isSel ? Number(hexStyleConfig.selected.fillOpacity) : Number(hexStyleConfig.default.fillOpacity),
-        strokeColor: isSel ? hexStyleConfig.selected.strokeColor : hexStyleConfig.default.strokeColor,
-        strokeWeight: isSel ? Number(hexStyleConfig.selected.strokeWeight) : Number(hexStyleConfig.default.strokeWeight),
-        strokeOpacity: isSel ? Number(hexStyleConfig.selected.strokeOpacity) : Number(hexStyleConfig.default.strokeOpacity),
-        clickable: true, zIndex: isSel ? 2 : 1,
-      });
+      var opts = hexOpts(isSel);
+      opts.paths = hexVertices(cx, cy, gp.R_lat, gp.R_lng);
+      opts.clickable = true;
+      var poly = new google.maps.Polygon(opts);
       poly.hexId = hexId; poly._col = col; poly._row = row; poly._cx = cx; poly._cy = cy;
       poly.setMap(map);
       poly.addListener('click', (function(p){return function(){toggleHex(p);};})(poly));
@@ -245,31 +255,13 @@ function generateHexagons() {
   updateTrendInfo();
 }
 
-function isHexInNonEditingZone(cx, cy) {
-  var th = 0.0001;
-  for (var i = 0; i < trendZones.length; i++) {
-    var z = trendZones[i]; if (z.id === editingZoneId) continue;
-    for (var j = 0; j < z.hexCenters.length; j++) {
-      if (Math.abs(z.hexCenters[j].lat - cy) < th && Math.abs(z.hexCenters[j].lng - cx) < th) return true;
-    }
-  }
-  return false;
-}
-
 function toggleHex(poly) {
   if(currentRole && currentRole!=='admin') return; // 데모유저는 존 편집 불가
   var id = poly.hexId;
-  if (selectedHexes.has(id)) {
-    selectedHexes.delete(id);
-    poly.setOptions({ fillColor:hexStyleConfig.default.fillColor, fillOpacity:Number(hexStyleConfig.default.fillOpacity),
-      strokeColor:hexStyleConfig.default.strokeColor, strokeWeight:Number(hexStyleConfig.default.strokeWeight),
-      strokeOpacity:Number(hexStyleConfig.default.strokeOpacity), zIndex:1 });
-  } else {
-    selectedHexes.set(id, { col:poly._col, row:poly._row, lat:poly._cy, lng:poly._cx });
-    poly.setOptions({ fillColor:hexStyleConfig.selected.fillColor, fillOpacity:Number(hexStyleConfig.selected.fillOpacity),
-      strokeColor:hexStyleConfig.selected.strokeColor, strokeWeight:Number(hexStyleConfig.selected.strokeWeight),
-      strokeOpacity:Number(hexStyleConfig.selected.strokeOpacity), zIndex:2 });
-  }
+  var sel = !selectedHexes.has(id);
+  if (sel) selectedHexes.set(id, { col:poly._col, row:poly._row, lat:poly._cy, lng:poly._cx });
+  else selectedHexes.delete(id);
+  poly.setOptions(hexOpts(sel));
   updateTrendInfo(); updateZoneSaveUI();
 }
 
@@ -277,17 +269,7 @@ function clearHexagons() { hexPolygons.forEach(function(p){p.setMap(null);}); he
 function clearHexSelection() { selectedHexes.clear(); refreshHexStyles(); updateTrendInfo(); updateZoneSaveUI(); }
 
 function refreshHexStyles() {
-  hexPolygons.forEach(function(p) {
-    var s = selectedHexes.has(p.hexId);
-    p.setOptions({
-      fillColor: s?hexStyleConfig.selected.fillColor:hexStyleConfig.default.fillColor,
-      fillOpacity: s?Number(hexStyleConfig.selected.fillOpacity):Number(hexStyleConfig.default.fillOpacity),
-      strokeColor: s?hexStyleConfig.selected.strokeColor:hexStyleConfig.default.strokeColor,
-      strokeWeight: s?Number(hexStyleConfig.selected.strokeWeight):Number(hexStyleConfig.default.strokeWeight),
-      strokeOpacity: s?Number(hexStyleConfig.selected.strokeOpacity):Number(hexStyleConfig.default.strokeOpacity),
-      zIndex: s?2:1,
-    });
-  });
+  hexPolygons.forEach(function(p){ p.setOptions(hexOpts(selectedHexes.has(p.hexId))); });
 }
 
 function updateTrendInfo() {
@@ -426,6 +408,14 @@ function initSpotBubbleClass(){
 }
 
 /* ========== 이모지 픽커 (재사용) ========== */
+// 공용: 이모지 추가 프롬프트 → spotConfig.emojis에 등록, 추가된 이모지 반환(취소/빈값이면 null)
+function promptAddEmoji(){
+  var em=prompt('추가할 이모지를 입력하세요 (예: 🍕)');
+  if(em==null)return null; em=em.trim(); if(!em)return null;
+  if(!Array.isArray(spotConfig.emojis))spotConfig.emojis=SPOT_EMOJIS.slice();
+  if(spotConfig.emojis.indexOf(em)<0){spotConfig.emojis.push(em);markCloudDirty();}
+  return em;
+}
 function buildEmojiPicker(container,getSel,onSel){
   container.innerHTML='';container.classList.add('spot-emoji-pick');
   var list=(spotConfig.emojis&&spotConfig.emojis.length)?spotConfig.emojis:SPOT_EMOJIS;
@@ -451,7 +441,7 @@ function buildEmojiPicker(container,getSel,onSel){
     container.appendChild(b);
   });
   var add=document.createElement('button');add.type='button';add.className='spot-emoji-add';add.textContent='＋';add.title='이모지 추가';
-  add.addEventListener('click',function(){var em=prompt('추가할 이모지를 입력하세요 (예: 🍕)');if(em==null)return;em=em.trim();if(!em)return;if(!Array.isArray(spotConfig.emojis))spotConfig.emojis=SPOT_EMOJIS.slice();if(spotConfig.emojis.indexOf(em)<0){spotConfig.emojis.push(em);markCloudDirty();}onSel(em);buildEmojiPicker(container,getSel,onSel);});
+  add.addEventListener('click',function(){var em=promptAddEmoji();if(!em)return;onSel(em);buildEmojiPicker(container,getSel,onSel);});
   container.appendChild(add);
 }
 
@@ -611,7 +601,7 @@ function renderSpotEditEmoji(s){
     pick.appendChild(b);
   });
   var add=document.createElement('button');add.type='button';add.className='spot-emoji-add';add.textContent='＋';add.title='이모지 추가';
-  add.addEventListener('click',function(){var em=prompt('추가할 이모지를 입력하세요 (예: 🍕)');if(em==null)return;em=em.trim();if(!em)return;if(!Array.isArray(spotConfig.emojis))spotConfig.emojis=SPOT_EMOJIS.slice();if(spotConfig.emojis.indexOf(em)<0)spotConfig.emojis.push(em);s.emoji=em;renderSpotEditEmoji(s);renderSpotEmojiPicker();refreshSpotStyles();markCloudDirty();});
+  add.addEventListener('click',function(){var em=promptAddEmoji();if(!em)return;s.emoji=em;renderSpotEditEmoji(s);renderSpotEmojiPicker();refreshSpotStyles();markCloudDirty();});
   pick.appendChild(add);
 }
 function initSpotEditor(){
@@ -658,10 +648,8 @@ function renderSpotEmojiPicker(){
   pick.appendChild(add);
 }
 function addCustomEmoji(){
-  var em=prompt('추가할 이모지를 입력하세요 (예: 🍕)');
-  if(em==null)return; em=em.trim(); if(!em)return;
-  if(!Array.isArray(spotConfig.emojis))spotConfig.emojis=SPOT_EMOJIS.slice();
-  if(spotConfig.emojis.indexOf(em)<0){spotConfig.emojis.push(em);markCloudDirty();}
+  var em=promptAddEmoji();
+  if(!em)return;
   currentSpotEmoji=em; renderSpotEmojiPicker();
 }
 
@@ -672,20 +660,16 @@ function mapMpp(m){ // 지도 중심 위도 기준 m/px
   var mpp=156543.03392*Math.cos(c.lat()*Math.PI/180)/Math.pow(2,z);
   return (isFinite(mpp)&&mpp>0)?mpp:null;
 }
-function updateScaleLegend(){ // 관리자 메인 지도 범례
-  var el=document.getElementById('scale-legend');if(!el)return;
-  var mpp=mapMpp(map);if(!mpp){el.innerHTML='';return;}
+// 축척 렌더 공통 (관리자 범례 · 폰 헤더 슬롯)
+function renderScale(mapObj,elId,cls,spaced){
+  var el=document.getElementById(elId);if(!el)return;
+  var mpp=mapMpp(mapObj);if(!mpp){el.innerHTML='';return;}
   var dist=niceDistance(mpp*64),px=Math.round(dist/mpp);
-  var label=dist>=1000?(dist/1000)+' km':dist+' m';
-  el.innerHTML='<span class="sl-bar" style="width:'+px+'px"></span><span class="sl-txt">'+label+'</span>';
+  var label=dist>=1000?(dist/1000)+(spaced?' km':'km'):dist+(spaced?' m':'m');
+  el.innerHTML='<span class="'+cls+'-bar" style="width:'+px+'px"></span><span class="'+cls+'-txt">'+label+'</span>';
 }
-function updatePhoneScale(){ // 폰 헤더 슬롯: 심플 축척(자+수치만)
-  var el=document.getElementById('phone-scale');if(!el)return;
-  var mpp=mapMpp(phoneMap);if(!mpp){el.innerHTML='';return;}
-  var dist=niceDistance(mpp*64),px=Math.round(dist/mpp);
-  var label=dist>=1000?(dist/1000)+'km':dist+'m';
-  el.innerHTML='<span class="psc-bar" style="width:'+px+'px"></span><span class="psc-txt">'+label+'</span>';
-}
+function updateScaleLegend(){renderScale(map,'scale-legend','sl',true);}     // 관리자 메인 지도 범례
+function updatePhoneScale(){renderScale(phoneMap,'phone-scale','psc',false);} // 폰: 심플 축척(자+수치만)
 /* 폰 햄버거 메뉴: 설정 패널을 폰 내부 드로어로 이동 + 토글, 폰 모드 토글 */
 function initPhoneMenu(){
   var drawer=document.getElementById('phone-drawer');
@@ -1220,35 +1204,36 @@ function updateZone(zoneId,newName,newColor){
 }
 
 /* ========== 반경 변경 시 존 재그리드 (원본 기준) ========== */
-function rezoneAllToCurrentRadius() {
+// 존을 현재 그리드(반경)에 맞게 재매핑 — 항상 원본(originalCenters/Radius) 기준으로 재계산
+function remapZoneToGrid(zone) {
   var newGp = getHexGridParams();
-  trendZones.forEach(function(zone) {
-    if (zone.radiusKm === hexRadiusKm) return;
-    // 항상 원본 데이터 기준으로 재계산
-    var origCenters = zone.originalCenters || zone.hexCenters;
-    var origRadius = zone.originalRadiusKm || zone.radiusKm;
-    var oldGp = getHexGridParams(origRadius);
-    var newHexMap = new Map();
-
-    origCenters.forEach(function(oc) {
-      var searchC = Math.ceil(oldGp.R_lng / newGp.colSpacing) + 2;
-      var searchR = Math.ceil(oldGp.R_lat / newGp.rowSpacing) + 2;
-      var ac = Math.round(oc.lng / newGp.colSpacing);
-      var ar = Math.round(oc.lat / newGp.rowSpacing);
-      for (var dc = -searchC; dc <= searchC; dc++) {
-        for (var dr = -searchR; dr <= searchR; dr++) {
-          var nc = hexCenterFromColRow(ac+dc, ar+dr, newGp);
-          var dl = nc.lat - oc.lat, dn = nc.lng - oc.lng;
-          if (Math.sqrt((dl/oldGp.R_lat)*(dl/oldGp.R_lat)+(dn/oldGp.R_lng)*(dn/oldGp.R_lng)) <= 1.0) {
-            var hid = (ac+dc)+'_'+(ar+dr);
-            if (!newHexMap.has(hid)) newHexMap.set(hid, {id:hid, lat:nc.lat, lng:nc.lng});
-          }
+  var origCenters = zone.originalCenters || zone.hexCenters;
+  var origRadius = zone.originalRadiusKm || zone.radiusKm;
+  var origGp = getHexGridParams(origRadius);
+  var newHexMap = new Map();
+  origCenters.forEach(function(oc) {
+    var searchC = Math.ceil(origGp.R_lng / newGp.colSpacing) + 2;
+    var searchR = Math.ceil(origGp.R_lat / newGp.rowSpacing) + 2;
+    var ac = Math.round(oc.lng / newGp.colSpacing);
+    var ar = Math.round(oc.lat / newGp.rowSpacing);
+    for (var dc = -searchC; dc <= searchC; dc++) {
+      for (var dr = -searchR; dr <= searchR; dr++) {
+        var nc = hexCenterFromColRow(ac+dc, ar+dr, newGp);
+        var dl = nc.lat - oc.lat, dn = nc.lng - oc.lng;
+        if (Math.sqrt((dl/origGp.R_lat)*(dl/origGp.R_lat)+(dn/origGp.R_lng)*(dn/origGp.R_lng)) <= 1.0) {
+          var hid = (ac+dc)+'_'+(ar+dr);
+          if (!newHexMap.has(hid)) newHexMap.set(hid, {id:hid, lat:nc.lat, lng:nc.lng});
         }
       }
-    });
-
-    zone.hexCenters = Array.from(newHexMap.values());
-    zone.radiusKm = hexRadiusKm;
+    }
+  });
+  zone.hexCenters = Array.from(newHexMap.values());
+  zone.radiusKm = hexRadiusKm;
+}
+function rezoneAllToCurrentRadius() {
+  trendZones.forEach(function(zone) {
+    if (zone.radiusKm === hexRadiusKm) return;
+    remapZoneToGrid(zone);
     removeZoneFromMap(zone);
     if (currentMode==='trend') renderZoneOnMap(zone);
   });
@@ -1264,27 +1249,7 @@ function startEditZone(zoneId) {
     originalCenters:zone.originalCenters?JSON.parse(JSON.stringify(zone.originalCenters)):null,
     originalRadiusKm:zone.originalRadiusKm};
 
-  if (zone.radiusKm !== hexRadiusKm) {
-    var oldGp=getHexGridParams(zone.radiusKm); var newGp=getHexGridParams();
-    var origCenters=zone.originalCenters||zone.hexCenters;
-    var origRadius=zone.originalRadiusKm||zone.radiusKm;
-    var origGp=getHexGridParams(origRadius);
-    var newHexMap=new Map();
-    origCenters.forEach(function(oc){
-      var sC=Math.ceil(origGp.R_lng/newGp.colSpacing)+2;
-      var sR=Math.ceil(origGp.R_lat/newGp.rowSpacing)+2;
-      var ac=Math.round(oc.lng/newGp.colSpacing);var ar=Math.round(oc.lat/newGp.rowSpacing);
-      for(var dc=-sC;dc<=sC;dc++){for(var dr=-sR;dr<=sR;dr++){
-        var nc=hexCenterFromColRow(ac+dc,ar+dr,newGp);
-        var dl=nc.lat-oc.lat,dn=nc.lng-oc.lng;
-        if(Math.sqrt((dl/origGp.R_lat)*(dl/origGp.R_lat)+(dn/origGp.R_lng)*(dn/origGp.R_lng))<=1.0){
-          var hid=(ac+dc)+'_'+(ar+dr);
-          if(!newHexMap.has(hid)) newHexMap.set(hid,{id:hid,lat:nc.lat,lng:nc.lng});
-        }
-      }}
-    });
-    zone.hexCenters=Array.from(newHexMap.values()); zone.radiusKm=hexRadiusKm;
-  }
+  if (zone.radiusKm !== hexRadiusKm) remapZoneToGrid(zone); // 현재 반경 그리드로 재매핑 후 편집
 
   zone.hexCenters.forEach(function(c){
     var h=centerToHexId(c.lat,c.lng);
@@ -1366,7 +1331,9 @@ function focusZone(zoneId){
   var b=new google.maps.LatLngBounds();zone.hexCenters.forEach(function(c){b.extend({lat:c.lat,lng:c.lng});});map.fitBounds(b,80);
 }
 
-function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+// HTML 이스케이프 — DOM 생성 없이 처리 + 따옴표도 이스케이프(속성값 안 삽입 시 깨짐 방지)
+var ESC_MAP={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+function escHtml(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return ESC_MAP[c];});}
 
 /* (트렌드 존 JSON 내보내기/불러오기는 제거됨 — 콘텐츠가 Firestore shared/mapContent에 자동 저장됨) */
 
