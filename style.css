@@ -247,6 +247,14 @@ button:focus:not(:focus-visible){outline:none;}
 /* 섹션 안내 문구 */
 .section-hint{font-size:.66rem;line-height:1.45;color:var(--ink3);margin-top:6px;}
 
+/* ========== 설정 프리뷰/적용 바 ========== */
+.sab{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:6px;border-radius:10px;
+  background:var(--frost-strong);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line-soft);box-shadow:var(--sh-s);}
+.sab .sab-dot{width:8px;height:8px;border-radius:50%;background:#34c26e;flex-shrink:0;transition:background .2s ease;}
+.sab.dirty .sab-dot{background:#ff9d2e;box-shadow:0 0 0 3px rgba(255,157,46,0.18);}
+.sab .sab-msg{flex:1;min-width:0;font-size:.68rem;font-weight:600;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sab.dirty .sab-msg{color:#b06a12;}
+
 /* ========== Settings Section ========== */
 #settings-section{margin-top:8px;}
 .settings-section{margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line-soft);}

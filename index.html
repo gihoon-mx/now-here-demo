@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.27.0" />
+  <link rel="stylesheet" href="style.css?v=1.28.0" />
 </head>
 <body>
 
@@ -58,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.27.0</span>
+        <span id="app-version">v1.28.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -140,6 +140,15 @@
       <button id="settings-toggle">⚙ 관리자 설정 <span class="toggle-arrow">▾</span></button>
     </div>
     <div id="settings-section" style="display:none;">
+      <!-- 설정 프리뷰/적용 바: 변경은 폰 미러에 즉시(내 화면만) → '전체 적용'으로 모든 사용자에게 저장 -->
+      <div id="settings-apply-bar" class="sab">
+        <span class="sab-dot" aria-hidden="true"></span>
+        <span id="sab-msg" class="sab-msg">모든 변경 적용됨</span>
+        <button id="sab-default" class="action-btn small" type="button" title="코드 기본값으로 (적용 전 프리뷰)">기본값</button>
+        <button id="sab-revert" class="action-btn small" type="button" style="display:none;" title="마지막 적용 상태로 되돌리기">취소</button>
+        <button id="sab-apply" class="action-btn accent small" type="button" style="display:none;">전체 적용</button>
+      </div>
+      <p class="section-hint">설정을 바꾸면 폰 미리보기에 즉시 반영돼요(내 화면만). <b>전체 적용</b>을 눌러야 모든 사용자에게 저장됩니다.</p>
       <div class="settings-section">
         <h4>폰 미리보기 (관리자)</h4>
         <div class="setting-row"><label>표시영역</label><label class="toggle-switch"><input type="checkbox" id="phone-viewport-toggle" checked /><span class="toggle-slider"></span></label></div>
@@ -173,10 +182,12 @@
       </div>
       <div class="settings-section">
         <h4>포커스 렌즈</h4>
-        <div class="setting-row"><label>발동 축척(m)</label><input type="range" id="highlight-spot-scale" min="50" max="3000" step="50" value="200" /><span class="range-val">200</span></div>
+        <div class="setting-row"><label>베이직 발동(m)</label><input type="range" id="highlight-spot-scale" min="50" max="3000" step="50" value="200" /><span class="range-val">200</span></div>
+        <div class="setting-row"><label>트렌드 발동(m)</label><input type="range" id="lens-trend-scale" min="50" max="5000" step="50" value="300" /><span class="range-val">300</span></div>
+        <div class="setting-row"><label>전환 속도(ms)</label><input type="range" id="lens-fade-ms" min="50" max="1000" step="50" value="250" /><span class="range-val">250</span></div>
         <div class="setting-row"><label>주변 안개</label><button type="button" class="color-trigger" id="ct-dim-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
         <div class="setting-row"><label>구역 테두리</label><button type="button" class="color-trigger" id="ct-dim-stroke"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
-        <p class="section-hint">베이직 폰의 축척이 이 값(m) 이하로 확대되면 센터가 속한 동만 선명하게 남기고 주변을 안개로 가라앉힙니다. 부드러운 페이드·히스테리시스(꺼짐은 1.3배) 적용. 렌즈 밖 스팟은 옅게, 동네소식은 해당 동 이미지로 슬라이드.</p>
+        <p class="section-hint">축척이 발동값(m) 이하로 확대되면 보는 구역(베이직=동, 트렌드=존)만 선명하게 남기고 주변을 안개로 가라앉힙니다. 트렌드는 줌인 시 존 채움·라벨이 사라지고 아웃라인+안개만 남아요. 페이드·히스테리시스(꺼짐 1.3배) 적용, 렌즈 밖 스팟 옅게, 동네소식은 해당 동 이미지로 슬라이드.</p>
       </div>
       <div class="settings-section">
         <h4>경계 스무딩</h4>
@@ -335,7 +346,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.27.0"></script>
-  <script src="app.js?v=1.27.0"></script>
+  <script src="config.js?v=1.28.0"></script>
+  <script src="app.js?v=1.28.0"></script>
 </body>
 </html>
