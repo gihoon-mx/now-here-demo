@@ -255,6 +255,15 @@ button:focus:not(:focus-visible){outline:none;}
 .sab .sab-msg{flex:1;min-width:0;font-size:.68rem;font-weight:600;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sab.dirty .sab-msg{color:#b06a12;}
 
+/* ========== 설정 미니 프리뷰 타일 ========== */
+.mini-prev{position:relative;margin:2px 0 10px;height:64px;border-radius:9px;overflow:hidden;
+  border:1px solid var(--line-soft);background:#e9edf3;display:flex;align-items:center;justify-content:center;}
+.mini-prev svg{display:block;width:100%;height:100%;}
+.mini-prev .mp-tag{position:absolute;top:4px;left:6px;z-index:1;font-size:.55rem;font-weight:700;letter-spacing:.06em;color:#98a1ad;
+  background:rgba(255,255,255,0.75);padding:1px 5px;border-radius:6px;pointer-events:none;}
+.mini-prev .spot-marker{position:static;transform:none!important;}
+.mini-prev .map-label-tag{box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+
 /* ========== Settings Section ========== */
 #settings-section{margin-top:8px;}
 .settings-section{margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line-soft);}
