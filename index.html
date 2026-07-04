@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.26.1" />
+  <link rel="stylesheet" href="style.css?v=1.27.0" />
 </head>
 <body>
 
@@ -58,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.26.1</span>
+        <span id="app-version">v1.27.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -172,11 +172,11 @@
         <div class="setting-row"><label>선 굵기</label><input type="range" id="highlight-stroke-weight" min="0" max="50" step="0.5" value="4" /><span class="range-val">4</span></div>
       </div>
       <div class="settings-section">
-        <h4>강조 구역</h4>
-        <div class="setting-row"><label>강조 축척(m)</label><input type="range" id="highlight-spot-scale" min="50" max="3000" step="50" value="200" /><span class="range-val">200</span></div>
-        <div class="setting-row"><label>주변 배경</label><button type="button" class="color-trigger" id="ct-dim-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
-        <div class="setting-row"><label>주변 테두리</label><button type="button" class="color-trigger" id="ct-dim-stroke"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
-        <p class="section-hint">베이직 폰의 축척(축척자 거리)이 이 값(m) 이하로 확대되면, 센터가 속한 동을 '선택 구역' 스타일로 강조하고 나머지(주변) 동을 위 배경/테두리로 처리합니다.</p>
+        <h4>포커스 렌즈</h4>
+        <div class="setting-row"><label>발동 축척(m)</label><input type="range" id="highlight-spot-scale" min="50" max="3000" step="50" value="200" /><span class="range-val">200</span></div>
+        <div class="setting-row"><label>주변 안개</label><button type="button" class="color-trigger" id="ct-dim-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+        <div class="setting-row"><label>구역 테두리</label><button type="button" class="color-trigger" id="ct-dim-stroke"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+        <p class="section-hint">베이직 폰의 축척이 이 값(m) 이하로 확대되면 센터가 속한 동만 선명하게 남기고 주변을 안개로 가라앉힙니다. 부드러운 페이드·히스테리시스(꺼짐은 1.3배) 적용. 렌즈 밖 스팟은 옅게, 동네소식은 해당 동 이미지로 슬라이드.</p>
       </div>
       <div class="settings-section">
         <h4>경계 스무딩</h4>
@@ -335,7 +335,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.26.1"></script>
-  <script src="app.js?v=1.26.1"></script>
+  <script src="config.js?v=1.27.0"></script>
+  <script src="app.js?v=1.27.0"></script>
 </body>
 </html>
