@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Now Here — 서비스 소개</title>
+<link rel="icon" type="image/jpeg" href="favicon.jpg" />
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--acc:#2f7bff;--acc-deep:#1f5fe0;--hot1:#ff7a45;--hot2:#ff4d67;--ink:#20242c;--ink2:#555b66;--ink3:#8a919d;
+  --line:rgba(15,23,42,0.1);--bg:#eef1f6;--sh:0 14px 36px rgba(16,24,40,0.14);}
+html,body{height:100%;font-family:'Pretendard Variable',Pretendard,'Apple SD Gothic Neo',system-ui,sans-serif;background:var(--bg);color:var(--ink);}
+.deck{height:100%;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;}
+.deck::-webkit-scrollbar{display:none;}
+.slide{flex:0 0 100%;height:100%;scroll-snap-align:start;display:flex;align-items:center;justify-content:center;padding:6vh 6vw 10vh;}
+.card{width:min(760px,100%);max-height:84vh;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:26px;box-shadow:var(--sh);padding:clamp(28px,5vw,52px);}
+.kicker{font-size:.8rem;font-weight:800;letter-spacing:.12em;color:var(--acc-deep);text-transform:uppercase;margin-bottom:12px;}
+h1{font-size:clamp(2rem,6vw,3.2rem);font-weight:900;letter-spacing:-0.03em;line-height:1.15;}
+h1 .grad{background:linear-gradient(135deg,var(--acc),#7aa8ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+h2{font-size:clamp(1.35rem,4vw,1.9rem);font-weight:800;letter-spacing:-0.02em;line-height:1.25;margin-bottom:14px;}
+p.lead{font-size:clamp(.95rem,2.6vw,1.05rem);line-height:1.7;color:var(--ink2);}
+.tag{display:inline-block;margin-top:18px;padding:7px 14px;border-radius:999px;background:rgba(47,123,255,0.1);color:var(--acc-deep);font-weight:700;font-size:.85rem;}
+ul.feat{list-style:none;margin-top:16px;display:flex;flex-direction:column;gap:12px;}
+ul.feat li{display:flex;gap:12px;align-items:flex-start;font-size:.95rem;line-height:1.55;color:var(--ink2);}
+ul.feat li .ic{flex-shrink:0;width:38px;height:38px;border-radius:12px;background:rgba(47,123,255,0.08);display:flex;align-items:center;justify-content:center;font-size:1.15rem;}
+ul.feat li b{color:var(--ink);}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;}
+.duo .box{border-radius:18px;padding:18px;color:#fff;}
+.duo .box b{font-size:1.05rem;display:block;margin-bottom:6px;}
+.duo .box span{font-size:.82rem;opacity:.92;line-height:1.5;display:block;}
+.box.basic{background:linear-gradient(160deg,#4a8bff,#2b6ff0);}
+.box.trend{background:linear-gradient(150deg,var(--hot1),var(--hot2));}
+.bridge{margin-top:12px;font-size:.82rem;color:var(--ink3);text-align:center;}
+.tabs3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px;}
+.tabs3 .t{border:1px solid var(--line);border-radius:16px;padding:16px 14px;background:#f8fafc;}
+.tabs3 .t b{display:block;margin-bottom:6px;}
+.tabs3 .t span{font-size:.78rem;color:var(--ink2);line-height:1.5;}
+.pipeline{margin-top:16px;font-size:.85rem;color:var(--ink2);line-height:1.8;background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:14px 16px;}
+.pipeline code{background:rgba(47,123,255,0.08);color:var(--acc-deep);padding:1px 7px;border-radius:6px;font-family:inherit;font-weight:700;font-size:.8rem;}
+.cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;}
+.cta a{text-decoration:none;font-weight:800;font-size:.9rem;padding:12px 20px;border-radius:12px;}
+.cta .pri{background:var(--acc);color:#fff;box-shadow:0 6px 18px rgba(47,123,255,0.35);}
+.cta .sec{border:1.5px solid var(--line);color:var(--ink2);background:#fff;}
+.hint{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);font-size:.72rem;font-weight:700;color:var(--ink3);
+  background:rgba(255,255,255,0.85);backdrop-filter:blur(10px);padding:6px 14px;border-radius:999px;border:1px solid var(--line);}
+.dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;}
+.dots i{width:7px;height:7px;border-radius:50%;background:rgba(15,23,42,0.18);transition:all .2s;}
+.dots i.on{background:var(--acc);height:18px;border-radius:4px;}
+@media(max-width:640px){.duo,.tabs3{grid-template-columns:1fr;}.dots{display:none;}}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <section class="slide"><div class="card">
+    <div class="kicker">Hyperlocal · Realtime · SNS</div>
+    <h1>NOW <span class="grad">HERE</span></h1>
+    <p class="lead" style="margin-top:14px;">"지금, 여기"의 일상을 지도 위에서 나누는<br/>실시간 하이퍼로컬 SNS</p>
+    <span class="tag">서비스 소개 · 기능 데모 기준</span>
+  </div></section>
+
+  <section class="slide"><div class="card">
+    <div class="kicker">Why</div>
+    <h2>피드는 어디서나 똑같지만,<br/>동네의 지금은 다릅니다</h2>
+    <p class="lead">기존 SNS의 타임라인은 위치와 무관하게 흘러갑니다. Now Here는 <b>위치가 곧 타임라인</b> — 대기줄, 골목 분위기, 동네 소식 같은 "현장의 지금"을 그 자리에서 공유하고, 그 자리에서 소비합니다.</p>
+  </div></section>
+
+  <section class="slide"><div class="card">
+    <div class="kicker">Core · 두 개의 렌즈</div>
+    <h2>같은 지도, 같은 컨텐츠 —<br/>구획 단위만 바꿔 봅니다</h2>
+    <div class="duo">
+      <div class="box basic"><b>베이직 모드</b><span>행정동(洞) 기준. 서비스의 기본 지역 단위 — 내 동네의 일상과 소식.</span></div>
+      <div class="box trend"><b>트렌드 모드</b><span>유저가 모이는 핫플 "트렌드존" 기준(관리자 큐레이션). 전환 시 근접 존 자동 뷰.</span></div>
+    </div>
+    <p class="bridge">위치명 · 포커스 렌즈 · 피드 필터 · 동네 채팅방이 모드에 따라 동↔존으로 함께 전환되고, 존 밖에서는 동 이름으로 폴백됩니다.</p>
+  </div></section>
+
+  <section class="slide"><div class="card">
+    <div class="kicker">Core · 몰입 장치</div>
+    <h2>포커스 렌즈 🔍</h2>
+    <p class="lead">보고 있는 구역(동/존)만 선명하게, 주변은 옅은 안개로. 확대하면 자동으로 켜지고, 구역을 탭하면 핀 고정 + 화면 맞춤. 렌즈 밖 스팟은 옅어지고, 소식 지면은 해당 동으로 슬라이드 — <b>강조가 컨텐츠를 방해하지 않게</b> 설계했습니다.</p>
+  </div></section>
+
+  <section class="slide"><div class="card">
+    <div class="kicker">Contents</div>
+    <h2>현장을 담는 5가지 방법</h2>
+    <ul class="feat">
+      <li><span class="ic">💬</span><div><b>스팟 메시지</b> — 지도 위 말풍선으로 남기는 한 줄 일상. 계정 간 실시간 공유.</div></li>
+      <li><span class="ic">📸</span><div><b>라이브 카메라</b> — 찍으면 바로 피드에. 현 위치의 동 + 트렌드존 자동 태깅.</div></li>
+      <li><span class="ic">❤️</span><div><b>더블탭 좋아요</b> — 계정당 1개, 실시간 합산. 존 하트 랭킹과 베스트 썸네일의 원천.</div></li>
+      <li><span class="ic">📍</span><div><b>현장 Request</b> — "지금 파이브가이즈 줄 길어요?" 원격 질문 → 현장 유저 퀵응답 알림.</div></li>
+      <li><span class="ic">🗞️</span><div><b>요약 지면</b> — 상단 카드 공간. 베이직=동네소식 카드, 트렌드=존 리스트.</div></li>
+    </ul>
+  </div></section>
+
+  <section class="slide"><div class="card">
+    <div class="kicker">Service Tabs</div>
+    <h2>세 개의 소비 방식</h2>
+    <div class="tabs3">
+      <div class="t"><b>🧭 지도</b><span>스팟·Request 마커 + 포커스 렌즈. 공간 그대로의 탐색.</span></div>
+      <div class="t"><b>🖼 피드</b><span>그리드(1~4열·핀치). 범위 필터가 모드를 따라감: 현재 동네/Trend Zone/전체(거리+최신).</span></div>
+      <div class="t"><b>👥 소셜</b><span>현 위치명 동네 채팅방 + 주제방·프라이빗(관리자 개설).</span></div>
+    </div>
+  </div></section>
+
+  <section class="slide"><div class="card">
+    <div class="kicker">Architecture</div>
+    <h2>실시간, 그리고 비용 0</h2>
+    <div class="pipeline">
+      <b>관리자 컨텐츠</b> — <code>shared/mapContent</code> · <code>shared/news</code> : 존·스팟·설정·지면, 전 사용자 실시간 반영(onSnapshot)<br/>
+      <b>유저 컨텐츠</b> — <code>liveFeed</code> · <code>liveSpots</code> · <code>liveRequests</code> : 사진·좋아요·스팟·질문/응답, 계정 간 즉시 전파<br/>
+      <b>안전장치</b> — 이미지 자동 압축(~170KB)·개수 캡·쿼리 제한 → Firestore 무료 티어 고정, 오프라인은 로컬 폴백
+    </div>
+  </div></section>
+
+  <section class="slide"><div class="card">
+    <div class="kicker">More</div>
+    <h2>기능은 서로 연결되어 있습니다</h2>
+    <p class="lead">카메라 → 피드 → 좋아요 → 존 하트 랭킹 → 존 카드 썸네일처럼, 컨텐츠가 지역의 "지금"을 만들어내는 구조입니다. 전체 연결은 블럭 다이어그램에서 확인하세요.</p>
+    <div class="cta">
+      <a class="pri" href="diagram.html">🧩 기능 블럭 다이어그램 →</a>
+      <a class="sec" href="./">📱 라이브 데모 열기</a>
+    </div>
+  </div></section>
+
+</div>
+<div class="dots" id="dots"></div>
+<div class="hint">← 좌우로 넘기기 →</div>
+<script>
+var deck=document.getElementById('deck'),dots=document.getElementById('dots');
+var n=deck.children.length;
+for(var i=0;i<n;i++){var d=document.createElement('i');if(i===0)d.className='on';dots.appendChild(d);}
+deck.addEventListener('scroll',function(){
+  var idx=Math.round(deck.scrollLeft/deck.clientWidth);
+  [].forEach.call(dots.children,function(el,i){el.className=i===idx?'on':'';});
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='ArrowRight')deck.scrollBy({left:deck.clientWidth,behavior:'smooth'});
+  if(e.key==='ArrowLeft')deck.scrollBy({left:-deck.clientWidth,behavior:'smooth'});
+});
+</script>
+</body>
+</html>

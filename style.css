@@ -876,6 +876,10 @@ body.role-user #allowlist-btn{display:none!important;}
 #feature-btn{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font-family:inherit;font-size:.8rem;font-weight:700;letter-spacing:.01em;cursor:pointer;transition:all .2s ease;display:flex;align-items:center;justify-content:space-between;gap:4px;}
 #feature-btn:hover{background:#f2f5f9;border-color:rgba(15,23,42,0.2);}
 .feature-card{width:min(430px,94vw);max-height:86vh;}
+.ft-docs{display:flex;gap:8px;margin-bottom:10px;}
+.ft-docs a{flex:1;text-align:center;text-decoration:none;font-size:.78rem;font-weight:800;padding:10px 8px;border-radius:11px;letter-spacing:-0.01em;}
+.ft-docs a:first-child{background:var(--acc);color:#fff;box-shadow:0 4px 14px rgba(47,123,255,0.3);}
+.ft-docs a:last-child{border:1.5px solid rgba(47,123,255,0.35);color:var(--acc-deep);background:rgba(47,123,255,0.06);}
 .ft-grp{font-size:.66rem;font-weight:800;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 7px;}
 .ft-grp:first-child{margin-top:0;}
 .ft-card{padding:10px 12px;border:1px solid var(--line-soft);border-radius:11px;background:#fff;box-shadow:var(--sh-s);margin-bottom:7px;transition:box-shadow .3s ease;}
