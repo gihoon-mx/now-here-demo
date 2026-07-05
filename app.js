@@ -846,15 +846,18 @@ function newsCloudSave(){
     .catch(function(e){console.warn('news save fail',e);alert('동네소식 공유 저장 실패(용량 초과 가능): '+e.message);});
 }
 // 공유 로드 (로그인 사용자 모두)
-function loadNewsFromCloud(){
+function loadNewsFromCloud(){ // 실시간: 요약 지면 이미지 변경 즉시 반영
   if(!fbDb)return;
-  fbDb.collection('shared').doc('news').get().then(function(doc){
+  if(newsUnsub){newsUnsub();newsUnsub=null;}
+  newsUnsub=fbDb.collection('shared').doc('news').onSnapshot(function(doc){
+    if(doc.metadata.hasPendingWrites)return;
     if(!doc.exists)return;var d=doc.data();if(!d||!Array.isArray(d.items))return;
+    if(currentRole==='admin'&&currentUser&&d.updatedBy===(currentUser.email||''))return; // 내 저장 에코 무시
     newsItems=d.items.map(function(it){return {id:it.id||('n_'+(newsSeq++)),src:it.src,region:it.region||'',tab:it.tab||'map',title:it.title||''};});
     if(d.cardVer>=1&&d.cardVer<=3){newsCardVer=d.cardVer;var _cv=document.getElementById('news-cardver');if(_cv)_cv.value=String(newsCardVer);}
     try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));}catch(e){}
     newsIndex=0;renderNews();
-  }).catch(function(e){console.warn('news load fail',e);});
+  },function(e){console.warn('news live fail',e);});
 }
 // 공유 메뉴 바디를 여는 드로어로 옮겨 렌더 (한 번에 하나만 열림 → 동일 DOM = 싱크)
 function openPhoneDrawer(){var d=document.getElementById('phone-drawer'),b=document.getElementById('phone-drawer-body'),pc=document.getElementById('pc-drawer');if(!d)return;if(pc)pc.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
@@ -2140,9 +2143,10 @@ function initAuth(){
   initAllowlistModal();
   fbAuth.onAuthStateChanged(handleAuth);
 }
+function detachLiveListeners(){if(contentUnsub){contentUnsub();contentUnsub=null;}if(newsUnsub){newsUnsub();newsUnsub=null;}}
 function handleAuth(user){
   currentUser=user;
-  if(!user){currentRole=null;document.body.classList.remove('role-admin','role-user');var row=document.getElementById('account-row');if(row)row.style.display='none';showAuthOverlay('signedout');return;}
+  if(!user){currentRole=null;detachLiveListeners();document.body.classList.remove('role-admin','role-user');var row=document.getElementById('account-row');if(row)row.style.display='none';showAuthOverlay('signedout');return;}
   showAuthOverlay('checking');
   var email=(user.email||'').toLowerCase();
   if(email===adminEmail()){grantAccess(user,'admin');return;}
@@ -2159,12 +2163,19 @@ function grantAccess(user,role){
   loadSharedContent(); // 관리자·데모 모두 공유 콘텐츠(존/스팟) 로드. 저장은 관리자만(cloudSave/markCloudDirty에서 가드)
 }
 
-function loadSharedContent(){
+var contentUnsub=null, newsUnsub=null;
+function loadSharedContent(){ // 실시간: 다른 사람이 올린 공유 콘텐츠가 접속 중 즉시 반영
   if(!fbDb)return;
-  fbDb.collection('shared').doc('mapContent').get().then(function(doc){
-    if(doc.exists){cloudData=doc.data();if(mapReady)applyCloudData(cloudData);}
-  }).catch(function(e){console.warn('shared load fail',e);});
-  loadNewsFromCloud();   // 동네소식(지면 이미지) 공유 로드 — 로그인 사용자 모두
+  if(contentUnsub){contentUnsub();contentUnsub=null;}
+  contentUnsub=fbDb.collection('shared').doc('mapContent').onSnapshot(function(doc){
+    if(doc.metadata.hasPendingWrites)return;               // 내 낙관적 로컬 에코 무시
+    if(!doc.exists)return;
+    var d=doc.data();
+    if(currentRole==='admin'&&currentUser&&d.updatedBy===(currentUser.email||''))return; // 내 저장 에코는 재적용 안 함(편집 보호)
+    cloudData=d;
+    if(mapReady)applyCloudData(cloudData);
+  },function(e){console.warn('shared live fail',e);});
+  loadNewsFromCloud();   // 동네소식(지면 이미지) 실시간 로드 — 로그인 사용자 모두
 }
 function applyCloudData(d){
   if(!d)return;
