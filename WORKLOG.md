@@ -47,13 +47,14 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.42.0**
+- **현재 최신: v1.43.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.42.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.43.0 · 라이브 정상.** 완료된 기능:
+- **v1.43.0 하트 개선 + 기능 점검/정리 + 기능보기 갱신**: ①하트 애니 1.15s 자연화(팝→반동→머무름→위로 떠오르며 페이드) ②**전체 기능 리뷰 결과 반영**: 죽은 코드 제거(persistSpotChange), 중복 통일(inZoneAt→ptInZone, 존 중심 인라인 2곳→zoneCentroid), **모드 간 끊긴 고리 2건 수정** — 트렌드 위치명 존 밖=동 이름 폴백 / 피드 '현재 동네' 필터가 트렌드 모드에서 존 이름↔동 비교로 항상 비던 버그→존 기준(태그 우선+좌표 ptInZone) 매칭 ③**기능보기 전면 갱신**(13종): 모드 카드에 동↔존 렌즈 관계·폴백 명시, ❤️좋아요 카드 신설(존 하트합산·썸네일 연결), 실시간 공유 상태 반영(spot/cam/req/feed=live, social=demo·메시지 실시간 예정). 검증: 정리 4건·트렌드 로컬 필터·애니 1.15s·13카드 PASS.
 - **v1.42.0 유저 생성 콘텐츠 실시간 공유(피드·좋아요·스팟·Request)** ⚠️**Firestore 규칙 배포 필요**: firestore.rules에 liveFeed/liveSpots/liveRequests(signedIn read+write) 추가 → **콘솔 배포 필수**(안 하면 쓰기 permission-denied, liveWriteErr 안내). ①**피드**: feedItems=liveFeed 컬렉션 실시간(onSnapshot orderBy ts desc limit48), 추가/수정/삭제 라우팅(feedAdd/feedUpdate/feedDelete), **좋아요=문서 likes 맵(uid→true)** 계정당 1개(toggleLike 낙관적+FieldValue.delete), rebuildLikes로 feedLikes 재구성, zoneTotalHearts 그대로 동작 ②**스팟**: adminSpots(mapContent)+demoSpots(liveSpots 실시간) 분리, rebuildSpots 병합, 데모 생성/삭제/편집=liveSpots 문서(persistSpotEdit), 관리자=mapContent 유지, cloudSave는 adminSpots ③**Request**: liveRequests 실시간, 생성=문서 set, 답변=arrayUnion. 모두 hasLive() 가드로 미인증/오프라인 시 localStorage 폴백. 검증: 로컬 폴백 경로(피드 추가·좋아요 토글·수정·삭제·스팟 분리·request 가드) PASS, 콘솔 에러 0. (소셜 채팅은 이번 범위 제외)
 - **v1.41.0 실시간 동기화(관리자 공유 콘텐츠)**: shared/mapContent·shared/news 를 .get() 1회 읽기 → **.onSnapshot() 실시간 리스너**로 전환. 관리자가 올린 존/스팟/설정/소식/채팅방/피드(클라우드 저장분)/카드스타일이 접속 중인 모든 사용자에게 **즉시 반영**(새로고침 불필요). 자기 저장 에코 가드(metadata.hasPendingWrites + updatedBy===내이메일 스킵 → 편집 중 방해 없음), 로그아웃 시 리스너 해제(detachLiveListeners). ※데모 유저 본인 생성 콘텐츠(피드/좋아요/스팟/채팅/Request)는 아직 기기 localStorage → 계정 간 공유엔 Firestore 규칙 추가(signedIn write) 필요, 별도 결정 대기.
 - **v1.40.0 피드 컨텐츠 추가 UX + 트렌드존 속성**: ①피드 컨텐츠 섹션 재구성 — **＋ 사진 추가(업로드)** 전체폭 버튼(feed-add-btn/feed-file, 여러 장 compressNews 압축) + 링크 입력 상단 배치, 그리드/간격 옵션은 아래로 ②**(버그) 트렌드존 select가 renderFeedColList에서 생성만 되고 row에 append 안 되던 문제 수정** — ni-fields에 존 select+동 입력 2단 배치 ③**존 선택 시 속한 동 자동 채움**(zoneRegionName: 존 중심 zoneCentroid→dongAt). 촬영/링크/업로드 모두 현 위치 존 자동 태깅 유지. 검증: 추가버튼/파일input·존 select DOM 노출·존→동 자동채움(강남→역삼1동) PASS, 콘솔 에러 0.
