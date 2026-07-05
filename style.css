@@ -687,7 +687,7 @@ body.role-admin #drawer-demo{display:none;} /* 관리자는 아래 컨텐츠/설
 .tz-bubble i{font-style:normal;font-size:2.3cqw;font-weight:400;color:var(--ink2);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
 /* 트렌드존 카드 · 리스트 스타일 (썸네일+이름+카테고리+하트합산+거리) */
-.tz-scroll-list{gap:2.4cqw;}
+.tz-scroll-list{gap:2.4cqw;align-items:stretch;}
 .tz-card.tzl{width:38cqw;height:auto;display:flex;flex-direction:column;align-items:stretch;background:#fff;border:1px solid var(--line-soft);border-radius:4cqw;padding:2cqw;box-shadow:var(--sh-s);overflow:visible;}
 .tz-card.tzl::after{display:none;}
 .tzl-thumb{width:100%;height:24cqw;border-radius:3cqw;overflow:hidden;background:#e9edf3;margin-bottom:2cqw;}
@@ -695,7 +695,7 @@ body.role-admin #drawer-demo{display:none;} /* 관리자는 아래 컨텐츠/설
 .tzl-thumb .tzl-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11cqw;}
 .tz-card.tzl .tzl-name{font-size:3.2cqw;font-weight:800;letter-spacing:-0.01em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;}
 .tzl-cat{font-size:2.4cqw;font-weight:400;color:var(--ink3);margin-top:0.4cqw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;}
-.tzl-meta{display:flex;align-items:center;justify-content:space-between;gap:1.6cqw;margin-top:1.6cqw;}
+.tzl-meta{display:flex;align-items:center;justify-content:space-between;gap:1.6cqw;margin-top:auto;padding-top:1.6cqw;}
 .tzl-heart{display:inline-flex;align-items:center;gap:1cqw;font-size:2.7cqw;font-weight:800;color:#ff4d6d;}
 .tzl-heart em{font-style:normal;color:var(--ink);}
 .tzl-dist{font-size:2.5cqw;font-weight:700;color:var(--ink3);}
