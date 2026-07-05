@@ -971,6 +971,7 @@ var phoneSelectedDongKey=null; // 베이직: 선택 동 = 렌즈 핀 고정 (존
 function selectPhoneDong(d){
   if(!phoneMap||!d)return;
   if(phoneSelectedDongKey===d.key){clearPhoneDong();return;} // 재탭 = 해제
+  if(currentTab!=='map'){setNavActive('map');switchTab('map');} // 어디서 선택해도 맵 보기+포커스
   phoneSelectedDongKey=d.key;
   if(phoneLens.key!=='dong:'+d.key)lensBuildDong(d);
   phoneLens.on=true;lensFadeTo(1);applySpotFocus();
@@ -988,6 +989,7 @@ function clearPhoneSpotlight(){ // 선택 해제 → 자동 렌즈 로직으로 
 function selectPhoneZone(zone){
   if(!phoneMap||!zone||!zone.hexCenters||!zone.hexCenters.length)return;
   if(phoneSelectedZoneId===zone.id){clearPhoneSpotlight();return;} // 재탭 = 해제
+  if(currentTab!=='map'){setNavActive('map');switchTab('map');} // 어디서 선택해도 맵 보기+포커스
   phoneSelectedZoneId=zone.id;
   var gp=getHexGridParams(zone.radiusKm),b=new google.maps.LatLngBounds();
   zone.hexCenters.forEach(function(c){hexVertices(c.lng,c.lat,gp.R_lat,gp.R_lng).forEach(function(pt){b.extend(pt);});});
@@ -1567,7 +1569,7 @@ function switchMode(mode){
     var dt; boundsListener=map.addListener('idle',function(){clearTimeout(dt);dt=setTimeout(function(){if(currentMode==='trend')generateHexagons();},350);});
     updateZoneSaveUI(); renderZoneList();
     renderSpots();   // 트렌드 모드에서도 스팟 유지
-    focusNearbyZones(); // 내 위치 기준 가까운 트렌드 존 3~5개가 보이게 줌 조정
+    focusNearestZone(); // 가장 가까운 트렌드존이 한눈에 보이게 줌 조정
   }
   phoneDataVisibility(); syncPhoneZones(); updatePhoneUI(); updatePhoneLens();
 }
@@ -2367,19 +2369,24 @@ function switchTab(tab){
   if(tab==='feed'){feedLimit=12;renderFeed();}
   if(tab==='social')renderSocial();
 }
-function focusNearbyZones(){ // 베이직→트렌드: 센터 기준 가까운 존 3~5개 fitBounds
+function focusNearestZone(){ // 베이직→트렌드: 가장 가까운 존 '하나'가 주변 컨텍스트와 함께 한눈에
   var pool=trendZones.filter(function(z){return z.hexCenters&&z.hexCenters.length;});
   if(!pool.length)return;
   var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());if(!c)return;
-  var lat=c.lat(),lng=c.lng();
-  var ranked=pool.map(function(z){
+  var lat=c.lat(),lng=c.lng(),best=null,bd=Infinity;
+  pool.forEach(function(z){
     var sla=0,sln=0;z.hexCenters.forEach(function(h){sla+=h.lat;sln+=h.lng;});
     var cy=sla/z.hexCenters.length,cx=sln/z.hexCenters.length;
-    return {z:z,d:(cy-lat)*(cy-lat)+(cx-lng)*(cx-lng)};
-  }).sort(function(a,b){return a.d-b.d;}).slice(0,5);
-  var b=new google.maps.LatLngBounds();
-  ranked.forEach(function(o){o.z.hexCenters.forEach(function(h){b.extend({lat:h.lat,lng:h.lng});});});
-  b.extend({lat:lat,lng:lng});
+    var d=(cy-lat)*(cy-lat)+(cx-lng)*(cx-lng);
+    if(d<bd){bd=d;best=z;}
+  });
+  if(!best)return;
+  var gp=getHexGridParams(best.radiusKm),b=new google.maps.LatLngBounds();
+  best.hexCenters.forEach(function(h){hexVertices(h.lng,h.lat,gp.R_lat,gp.R_lng).forEach(function(pt){b.extend(pt);});});
+  var ne=b.getNorthEast(),sw=b.getSouthWest();
+  var latS=ne.lat()-sw.lat(),lngS=ne.lng()-sw.lng();
+  b.extend({lat:ne.lat()+latS*0.8,lng:ne.lng()+lngS*0.8}); // 존이 화면의 ~1/3, 주변 지리 컨텍스트 포함
+  b.extend({lat:sw.lat()-latS*0.8,lng:sw.lng()-lngS*0.8});
   if(phoneMap)phoneMap.fitBounds(b,phoneFitPadding());
   if(map&&map.getDiv().offsetWidth)map.fitBounds(b,60);
 }
@@ -2467,7 +2474,14 @@ function renderFeed(){
   });
 }
 /* 피드 그리드 열 수 (1=인스타그램식 전체폭) — 피드 상단·설정 양쪽에서 조절 */
-var feedCols=2;
+var feedCols=2, feedGap=1.2; // 사진 간격(cqw)
+try{var _fg=parseFloat(localStorage.getItem('nowhere_feedgap'));if(!isNaN(_fg))feedGap=_fg;}catch(e){}
+function applyFeedGap(v){
+  feedGap=Math.max(0,Math.min(4,parseFloat(v)));if(isNaN(feedGap))feedGap=1.2;
+  try{localStorage.setItem('nowhere_feedgap',String(feedGap));}catch(e){}
+  var g=document.getElementById('feed-grid');if(g)g.style.gap=feedGap+'cqw';
+  var sel=document.getElementById('feed-gap');if(sel)sel.value=String(feedGap);
+}
 function applyFeedCols(n){
   feedCols=Math.max(1,Math.min(4,parseInt(n,10)||2));
   try{localStorage.setItem('nowhere_feedcols',String(feedCols));}catch(e){}
@@ -2534,6 +2548,9 @@ function initFeedTools(){
   });
   var sel=document.getElementById('feed-cols');
   if(sel)sel.addEventListener('change',function(){applyFeedCols(this.value);});
+  var gsel=document.getElementById('feed-gap');
+  if(gsel)gsel.addEventListener('change',function(){applyFeedGap(this.value);});
+  applyFeedGap(feedGap);
   // 링크로 피드 이미지 추가 (관리자 · 요약 공간 지면과 동일 방식)
   var ub=document.getElementById('feed-url-btn'),ui=document.getElementById('feed-url-input');
   function addFeedUrl(){

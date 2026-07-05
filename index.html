@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.35.1" />
+  <link rel="stylesheet" href="style.css?v=1.35.2" />
 </head>
 <body>
 
@@ -58,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.35.1</span>
+        <span id="app-version">v1.35.2</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -125,6 +125,7 @@
       <div class="settings-section">
         <h4>피드 컨텐츠</h4>
         <div class="setting-row"><label>그리드 열</label><select id="feed-cols" class="mini-select"><option value="1">1개 (전체폭)</option><option value="2">2개</option><option value="3">3개</option><option value="4">4개</option></select></div>
+        <div class="setting-row"><label>사진 간격</label><select id="feed-gap" class="mini-select"><option value="0">없음</option><option value="0.6">최소</option><option value="1.2">좁게</option><option value="2.4">보통</option></select></div>
         <div class="news-url-row"><input type="url" id="feed-url-input" placeholder="이미지 링크(https://...) 붙여넣기" /><button id="feed-url-btn" class="action-btn accent small" type="button">링크</button></div>
         <div id="feedcol-list"></div>
         <p class="section-hint">라이브 카메라로 올라온 사진 모음. 열 수는 피드 탭 상단에서도 바꿀 수 있어요.</p>
@@ -390,7 +391,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.35.1"></script>
-  <script src="app.js?v=1.35.1"></script>
+  <script src="config.js?v=1.35.2"></script>
+  <script src="app.js?v=1.35.2"></script>
 </body>
 </html>

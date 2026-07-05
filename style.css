@@ -460,8 +460,7 @@ button:focus:not(:focus-visible){outline:none;}
 #phone-content-page{margin-top:3cqw;position:relative;}
 /* 접기: 배경 없는 셰브론 아이콘 (흰 헤일로로 이미지 위 가독) */
 #sum-collapse{position:absolute;top:2.6cqw;right:2.6cqw;z-index:3;width:6.4cqw;height:6.4cqw;padding:0;border:none;background:none;box-shadow:none;
-  color:#3c434e;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:top .3s cubic-bezier(.22,1,.36,1);
-  filter:drop-shadow(0 0 2px rgba(255,255,255,0.95)) drop-shadow(0 1px 2px rgba(255,255,255,0.7));}
+  color:#3c434e;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:top .3s cubic-bezier(.22,1,.36,1);}
 #sum-collapse svg{width:100%;height:100%;display:block;transition:transform .28s cubic-bezier(.22,1,.36,1);}
 #sum-collapse.folded{top:50%;transform:translateY(-50%);} /* 접힘 카드 기준 세로 중앙 */
 #sum-collapse.folded svg{transform:rotate(180deg);}
@@ -719,7 +718,7 @@ body.role-user #allowlist-btn{display:none!important;}
 #feed-tools .fcq{width:5.6cqw;height:5.6cqw;border:1px solid var(--line-soft);border-radius:1.8cqw;background:rgba(255,255,255,0.85);color:var(--ink3);font-family:inherit;font-size:2.5cqw;font-weight:700;cursor:pointer;}
 #feed-tools .fcq.active{background:var(--acc);border-color:transparent;color:#fff;}
 #feed-page{touch-action:pan-y;} /* 핀치는 열 변경에 사용 */
-#feed-grid{display:grid;grid-template-columns:1fr 1fr;gap:2.4cqw;padding:3cqw;}
+#feed-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2cqw;padding:3cqw;}
 #feed-grid.one-col .feed-card img{aspect-ratio:4/5;} /* 1열 = 인스타그램 피드 비율 */
 #feed-grid.one-col .feed-card.txt{aspect-ratio:auto;min-height:30cqw;}
 .feed-card{position:relative;border-radius:3.4cqw;overflow:hidden;background:#fff;box-shadow:var(--sh-s);border:1px solid var(--line-soft);}
