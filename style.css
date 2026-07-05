@@ -467,8 +467,9 @@ button:focus:not(:focus-visible){outline:none;}
 #sum-collapse.folded svg{transform:rotate(180deg);}
 #cp-frame{position:relative;width:100%;height:44cqw;border-radius:4.5cqw;overflow:hidden;touch-action:pan-y;
   background:linear-gradient(150deg,#f2f5fa 0%,#e6ebf3 55%,#dfe6f0 100%);
-  box-shadow:inset 0 0 0 1px rgba(16,24,40,0.05),inset 0 1px 0 rgba(255,255,255,0.9);
-  transition:height .3s cubic-bezier(.22,1,.36,1);}
+  box-shadow:inset 0 0 0 1px rgba(16,24,40,0.05),inset 0 1px 0 rgba(255,255,255,0.9);}
+/* 높이 트랜지션은 접기 토글 순간에만 (상시 걸면 뷰포트 변화 시 cqw 높이가 이전 px에 고착되는 브라우저 이슈) */
+#cp-frame.anim{transition:height .3s cubic-bezier(.22,1,.36,1);}
 #cp-track{position:absolute;inset:0;display:flex;height:100%;will-change:transform;}
 .cp-slide{flex:0 0 100%;height:100%;}
 .cp-slide img{width:100%;height:100%;object-fit:cover;display:block;-webkit-user-drag:none;user-select:none;pointer-events:none;}
@@ -751,7 +752,7 @@ body.role-user #allowlist-btn{display:none!important;}
 .soc-msg .sm-who:empty{display:none;}
 .soc-msg .sm-bubble{max-width:76%;padding:2.2cqw 3.2cqw;border-radius:3.4cqw;background:#fff;border:1px solid var(--line-soft);box-shadow:var(--sh-s);font-size:3.1cqw;line-height:1.45;color:var(--ink);word-break:break-word;}
 .soc-msg.me .sm-bubble{background:var(--acc);border-color:transparent;color:#fff;}
-#soc-inputbar{flex-shrink:0;display:none;gap:1.8cqw;padding:2cqw 3cqw calc(2cqw + env(safe-area-inset-bottom,0px));}
+#soc-inputbar{flex-shrink:0;display:none;gap:1.8cqw;padding:2cqw 3cqw;} /* 하단 여백은 페이지 padding(네비+12px)이 단일 기준 — env 이중가산 제거 */
 #soc-inputbar input{flex:1;min-width:0;padding:2.6cqw 3.4cqw;border:1px solid var(--line-soft);border-radius:5cqw;background:#fff;font-family:inherit;font-size:3.1cqw;color:var(--ink);outline:none;box-shadow:var(--sh-s);}
 #soc-inputbar input:focus{border-color:var(--acc);}
 #soc-inputbar button{flex-shrink:0;border:none;border-radius:5cqw;background:var(--acc);color:#fff;font-family:inherit;font-size:3cqw;font-weight:700;padding:0 4.2cqw;cursor:pointer;}
