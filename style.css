@@ -685,6 +685,32 @@ body.role-admin #drawer-demo{display:none;} /* 관리자는 아래 컨텐츠/설
 .tz-bubble::after{display:none;}
 .tz-bubble b{font-size:3cqw;font-weight:800;letter-spacing:-0.01em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .tz-bubble i{font-style:normal;font-size:2.3cqw;font-weight:400;color:var(--ink2);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* 트렌드존 카드 · 리스트 스타일 (썸네일+이름+카테고리+하트합산+거리) */
+.tz-scroll-list{gap:2.4cqw;}
+.tz-card.tzl{width:38cqw;height:auto;display:flex;flex-direction:column;align-items:stretch;background:#fff;border:1px solid var(--line-soft);border-radius:4cqw;padding:2cqw;box-shadow:var(--sh-s);overflow:visible;}
+.tz-card.tzl::after{display:none;}
+.tzl-thumb{width:100%;height:24cqw;border-radius:3cqw;overflow:hidden;background:#e9edf3;margin-bottom:2cqw;}
+.tzl-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.tzl-thumb .tzl-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11cqw;}
+.tz-card.tzl .tzl-name{font-size:3.2cqw;font-weight:800;letter-spacing:-0.01em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;}
+.tzl-cat{font-size:2.4cqw;font-weight:400;color:var(--ink3);margin-top:0.4cqw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;}
+.tzl-meta{display:flex;align-items:center;justify-content:space-between;gap:1.6cqw;margin-top:1.6cqw;}
+.tzl-heart{display:inline-flex;align-items:center;gap:1cqw;font-size:2.7cqw;font-weight:800;color:#ff4d6d;}
+.tzl-heart em{font-style:normal;color:var(--ink);}
+.tzl-dist{font-size:2.5cqw;font-weight:700;color:var(--ink3);}
+.tzl-dist.here{color:var(--acc-deep);background:rgba(47,123,255,0.1);padding:0.4cqw 1.8cqw;border-radius:2.4cqw;}
+
+/* 요약 공간(트렌드 지도): 사이드바 존 리스트 (세로폭 유지, 비율 조정) */
+#cp-zones{display:none;width:100%;height:44cqw;overflow:hidden;}
+#cp-zones .tz-scroll{height:100%;align-items:stretch;padding:0;gap:2.4cqw;overflow-x:auto;overflow-y:hidden;}
+/* 글래스 카드: 프레임 높이에 맞춰 세로로 채움 */
+#cp-zones:not(.list) .tz-card{height:100%;width:34cqw;}
+/* 리스트 카드: 프레임 높이에 맞춰 컴팩트하게 */
+#cp-zones.list .tz-scroll{align-items:stretch;}
+#cp-zones.list .tz-card.tzl{height:100%;width:40cqw;justify-content:flex-start;}
+#cp-zones.list .tzl-thumb{height:20cqw;flex-shrink:0;}
+.cpz-empty{display:flex;align-items:center;justify-content:center;height:100%;font-size:3cqw;font-weight:600;color:#9aa1ad;}
 /* 현장 Request 카드 · 가로 스크롤 */
 .rq-scroll{display:flex;gap:2.4cqw;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none;}
 .rq-scroll::-webkit-scrollbar{display:none;}

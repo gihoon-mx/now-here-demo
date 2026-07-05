@@ -709,6 +709,12 @@ function initContentPage(){
   loadNews();
   if(addBtn)addBtn.addEventListener('click',function(){if(currentRole==='admin'&&file)file.click();});
   // 이미지 링크(URL)로 추가 — URL만 저장(저장부담 거의 0)
+  var zcs=document.getElementById('zone-card-style');
+  if(zcs){zcs.value=zoneCardStyle;zcs.addEventListener('change',function(){
+    zoneCardStyle=this.value==='list'?'list':'glass';
+    try{localStorage.setItem('nowhere_zonecard',zoneCardStyle);}catch(e){}
+    renderDrawerDemo();renderSummaryZones();markCloudDirty();
+  });}
   var cv=document.getElementById('news-cardver');
   if(cv){cv.value=String(newsCardVer);cv.addEventListener('change',function(){
     newsCardVer=parseInt(this.value,10)||1;
@@ -771,6 +777,7 @@ function renderNews(){
   setTrackAnim(false);snapTrack();
   renderNewsList();
   updateFoldBtnTone();
+  renderSummaryZones();
 }
 function renderNewsList(){
   var list=document.getElementById('news-list');if(!list)return;
@@ -868,6 +875,50 @@ function dsSection(key,title){ // 접이식 드로어 섹션
   sec.appendChild(head);sec.appendChild(body);
   return {sec:sec,body:body};
 }
+function makeZoneCard(zone){ // 존 카드 (글래스 캡션 / 리스트) 공용
+  var pho=zoneBestPhoto(zone);
+  var c=document.createElement('button');c.type='button';
+  if(zoneCardStyle==='list'){
+    c.className='tz-card tzl';
+    c.innerHTML='<div class="tzl-thumb">'+(pho?'<img alt=""/>':'<span class="tzl-ph"></span>')+'</div>'+
+      '<b class="tzl-name"></b><span class="tzl-cat"></span>'+
+      '<div class="tzl-meta"><span class="tzl-heart">❤ <em></em></span><span class="tzl-dist"></span></div>';
+    c.querySelector('.tzl-name').textContent=zone.name;
+    var cat=c.querySelector('.tzl-cat');cat.textContent=zone.desc||'트렌드 존';
+    var im=c.querySelector('img');if(im)im.src=pho;
+    var ph=c.querySelector('.tzl-ph');if(ph){ph.style.background=hexToRgba(zone.color,0.16);ph.style.color=zone.color;ph.textContent='⬡';}
+    c.querySelector('.tzl-heart em').textContent=zoneTotalHearts(zone);
+    var dl=zoneDistLabel(zone),dd=c.querySelector('.tzl-dist');dd.textContent=dl;dd.classList.toggle('here',dl==='Here');
+  }else{
+    c.className='tz-card';
+    c.innerHTML='<span class="tz-bubble"><b></b><i></i></span>'+(pho?'<img class="tz-photo" alt="" />':'<span class="tz-photo tz-ph"></span>');
+    c.querySelector('b').textContent=zone.name;
+    var de=c.querySelector('i');de.textContent=zone.desc||'';if(!zone.desc)de.style.display='none';
+    var im2=c.querySelector('img');if(im2)im2.src=pho;
+    var ph2=c.querySelector('.tz-ph');if(ph2){ph2.style.background=hexToRgba(zone.color,0.16);ph2.style.color=zone.color;ph2.textContent='⬡';}
+  }
+  c.addEventListener('click',function(){if(currentMode!=='trend')switchMode('trend',{noNearby:true});selectPhoneZone(zone);closeDrawer();});
+  return c;
+}
+function buildZoneScroll(){
+  var sc=document.createElement('div');sc.className='tz-scroll'+(zoneCardStyle==='list'?' tz-scroll-list':'');
+  trendZones.forEach(function(zone){sc.appendChild(makeZoneCard(zone));});
+  return sc;
+}
+/* 요약 공간(트렌드 모드 지도 탭): 사이드바와 동일한 존 리스트 표시 */
+function renderSummaryZones(){
+  var box=document.getElementById('cp-zones');if(!box)return;
+  var show=(currentMode==='trend'&&currentTab==='map');
+  box.style.display=show?'block':'none';
+  var frame=document.getElementById('cp-frame');
+  if(frame)frame.style.display=show?'none':'';
+  var col=document.getElementById('sum-collapse');if(col)col.style.display=show?'none':''; // 존 요약은 접기 없음
+  if(!show){box.innerHTML='';return;}
+  box.innerHTML='';
+  box.className='cp-zones'+(zoneCardStyle==='list'?' list':'');
+  if(!trendZones.length){var e=document.createElement('div');e.className='cpz-empty';e.textContent='등록된 트렌드 존이 없어요.';box.appendChild(e);return;}
+  box.appendChild(buildZoneScroll());
+}
 function drawerEmpty(msg){var e=document.createElement('div');e.className='drawer-empty';e.textContent=msg;return e;}
 function renderDrawerDemo(){ // 순서: 트렌드존 → 현장 Request → 스팟 (각 블록 상시 표시, 없으면 안내)
   var root=document.getElementById('drawer-demo');if(!root)return;
@@ -876,20 +927,7 @@ function renderDrawerDemo(){ // 순서: 트렌드존 → 현장 Request → 스�
   var z=dsSection('zones','⬡ 트렌드 존');
   if(!trendZones.length){z.body.appendChild(drawerEmpty('등록된 트렌드 존이 없어요.'));}
   else{
-    var sc=document.createElement('div');sc.className='tz-scroll';
-    trendZones.forEach(function(zone){
-      var c=document.createElement('button');c.type='button';c.className='tz-card';
-      var pho=zoneBestPhoto(zone); // 태깅 사진 중 최다 좋아요 우선
-      c.innerHTML='<span class="tz-bubble"><b></b><i></i></span>'+(pho?'<img class="tz-photo" alt="" />':'<span class="tz-photo tz-ph"></span>');
-      c.querySelector('b').textContent=zone.name;
-      var de=c.querySelector('i');de.textContent=zone.desc||'';if(!zone.desc)de.style.display='none';
-      var im=c.querySelector('img');if(im)im.src=pho;
-      var ph=c.querySelector('.tz-ph');
-      if(ph){ph.style.background=hexToRgba(zone.color,0.16);ph.style.color=zone.color;ph.textContent='⬡';}
-      c.addEventListener('click',function(){if(currentMode!=='trend')switchMode('trend',{noNearby:true});selectPhoneZone(zone);closeDrawer();});
-      sc.appendChild(c);
-    });
-    z.body.appendChild(sc);
+    z.body.appendChild(buildZoneScroll());
   }
   root.appendChild(z.sec);
   // ② 현장 Request: 상시 블록 · 카드 가로 스크롤
@@ -932,6 +970,7 @@ function renderDrawerDemo(){ // 순서: 트렌드존 → 현장 Request → 스�
     sp.body.appendChild(list);
   }
   root.appendChild(sp.sec);
+  renderSummaryZones();
 }
 
 /* ========== 로컬모드 선택 라벨 ========== */
@@ -965,7 +1004,7 @@ function initPhoneMirror(){
   map.addListener('center_changed',sync);
   map.addListener('zoom_changed',sync);
   map.addListener('idle',function(){sync();updatePhoneLocation();updatePhoneViewportOverlay();updateScaleLegend();updatePhoneScale();});
-  phoneMap.addListener('idle',function(){updatePhoneViewportOverlay();updatePhoneLocation();updatePhoneLens();updatePhoneScale();});
+  phoneMap.addListener('idle',function(){updatePhoneViewportOverlay();updatePhoneLocation();updatePhoneLens();updatePhoneScale();if(currentMode==='trend'&&currentTab==='map'&&zoneCardStyle==='list')renderSummaryZones();});
   phoneMap.addListener('click',function(){ clearPhoneSpotlight(); if(currentMode==='local')clearPhoneDong(); }); // 빈 곳 클릭 = 강조 해제
   phoneMap.data.addListener('click',function(e){ // 베이직: 동 탭 → 존과 동일한 포커스+맵 조정
     if(currentMode!=='local')return;
@@ -1655,6 +1694,7 @@ function switchMode(mode,opts){
     if(!noNearby)setTimeout(focusNearbyZones,80); // 전환 마무리 후 근접 존 N개(단일 존 선택 시엔 억제)
   }
   phoneDataVisibility(); syncPhoneZones(); updatePhoneUI(); updatePhoneLens();
+  renderSummaryZones();
 }
 
 /* ========== 초기화 ========== */
@@ -2151,6 +2191,7 @@ function applyCloudData(d){
   renderSpots();   // 모드 무관 항상 스팟 표시
   renderZoneList();refreshZoneLabels();updateLocalLabelStyle();
   if(d.social){if(Array.isArray(d.social.rooms))socRoomList=d.social.rooms.slice();if(Array.isArray(d.social.seedLocal))socSeedLocal=d.social.seedLocal.slice();saveChat();renderRoomManager();}
+  if(d.zoneCardStyle==='glass'||d.zoneCardStyle==='list'){zoneCardStyle=d.zoneCardStyle;var _zcs=document.getElementById('zone-card-style');if(_zcs)_zcs.value=zoneCardStyle;}
   blockDirty={};updateApplyBar();updateBlockBars(); // 클라우드본 = 적용 기준선
 }
 /* ========== 설정 미니 프리뷰: 각 설정 블록 상단에 그 옵션의 예시를 실시간 렌더 ========== */
@@ -2389,7 +2430,8 @@ function cloudSave(){
     zones:trendZones.map(function(z){return {id:z.id,name:z.name,color:z.color,desc:z.desc||'',photo:z.photo||null,radiusKm:z.radiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters,originalRadiusKm:z.originalRadiusKm};}),
     spots:spotMessages.filter(function(s){return !s.local;}).map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};}),
     spotConfig:snap.spotConfig,
-    social:{rooms:socRoomList,seedLocal:socSeedLocal}};
+    social:{rooms:socRoomList,seedLocal:socSeedLocal},
+    zoneCardStyle:zoneCardStyle};
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
 }
 
@@ -2496,6 +2538,37 @@ function toggleLike(id){ // 더블탭 좋아요 (기기=유저당 1개 토글)
   if(L.me){L.me=0;L.n=Math.max(0,L.n-1);}else{L.me=1;L.n++;}
   try{localStorage.setItem('nowhere_likes',JSON.stringify(feedLikes));}catch(e){}
   return L;
+}
+var zoneCardStyle='glass'; // 'glass'=글래스 캡션 · 'list'=리스트(하트합산·거리)
+try{var _zc=localStorage.getItem('nowhere_zonecard');if(_zc==='glass'||_zc==='list')zoneCardStyle=_zc;}catch(e){}
+function haversineM(la1,ln1,la2,ln2){ // 직선거리(m)
+  var R=6371000,d2r=Math.PI/180;
+  var dla=(la2-la1)*d2r,dln=(ln2-ln1)*d2r;
+  var a=Math.sin(dla/2)*Math.sin(dla/2)+Math.cos(la1*d2r)*Math.cos(la2*d2r)*Math.sin(dln/2)*Math.sin(dln/2);
+  return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function zoneCentroid(zone){var sla=0,sln=0;zone.hexCenters.forEach(function(h){sla+=h.lat;sln+=h.lng;});var n=zone.hexCenters.length||1;return {lat:sla/n,lng:sln/n};}
+function ptInZone(zone,lat,lng){ // 좌표가 존 헥사 범위 안인지
+  var gp=getHexGridParams(zone.radiusKm);
+  for(var i=0;i<zone.hexCenters.length;i++){var hc=zone.hexCenters[i];
+    if(Math.abs(hc.lat-lat)<gp.R_lat*1.15&&Math.abs(hc.lng-lng)<gp.R_lng*1.15)return true;}
+  return false;
+}
+function zoneTotalHearts(zone){ // 존 컨텐츠(태깅 + 존에 속한 동 컨텐츠) 하트 합산
+  var total=0;
+  feedItems.forEach(function(f){
+    var belongs=(f.zone===zone.id);
+    if(!belongs){var rc=regionCenterByName(f.region);if(rc&&ptInZone(zone,rc.lat,rc.lng))belongs=true;} // 존에 속한 '동' 컨텐츠 포함
+    if(belongs)total+=likeInfo(f.id).n;
+  });
+  return total;
+}
+function zoneDistLabel(zone){ // 현재 지도 센터 기준 직선거리 · 존 안이면 'Here'
+  var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());if(!c)return '';
+  var lat=c.lat(),lng=c.lng();
+  if(ptInZone(zone,lat,lng))return 'Here';
+  var ce=zoneCentroid(zone),d=haversineM(lat,lng,ce.lat,ce.lng);
+  return d>=1000?(d/1000).toFixed(1)+' km':(Math.round(d/10)*10)+' m';
 }
 function zoneBestPhoto(zone){ // 존 썸네일 = 해당 존 태깅 사진 중 최다 좋아요 (없으면 존 photo)
   var best=null,bn=-1;

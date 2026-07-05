@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.38.3" />
+  <link rel="stylesheet" href="style.css?v=1.39.0" />
 </head>
 <body>
 
@@ -58,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.38.3</span>
+        <span id="app-version">v1.39.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -120,7 +120,8 @@
         <div id="zone-list-area" style="display:none;">
           <div id="zone-list"></div>
         </div>
-        <p class="section-hint">트렌드 모드에서 지도의 헥사곤을 선택하면 새 존을 만들 수 있어요.</p>
+        <div class="setting-row" style="margin-top:8px;"><label>목록 카드</label><select id="zone-card-style" class="mini-select"><option value="glass">글래스 캡션</option><option value="list">리스트 (별점·거리)</option></select></div>
+        <p class="section-hint">트렌드 모드에서 지도의 헥사곤을 선택하면 새 존을 만들 수 있어요. 카드 스타일은 사이드바·트렌드 요약 공간에 반영돼요.</p>
       </div>
       <div class="settings-section">
         <h4>피드 컨텐츠</h4>
@@ -266,6 +267,7 @@
               <span id="cp-placeholder">지역 콘텐츠 지면</span>
               <div id="cp-dots" aria-hidden="true"></div>
             </div>
+            <div id="cp-zones"></div>
           </div>
           <!-- 지도 위 오버레이(헤더 하단 앵커): 축척(좌) · 위치칩(중앙) 가로 정렬 -->
           <div class="pa-mode" id="phone-mode">
@@ -380,7 +382,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.38.3"></script>
-  <script src="app.js?v=1.38.3"></script>
+  <script src="config.js?v=1.39.0"></script>
+  <script src="app.js?v=1.39.0"></script>
 </body>
 </html>
