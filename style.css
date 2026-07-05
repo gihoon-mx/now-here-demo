@@ -458,13 +458,13 @@ button:focus:not(:focus-visible){outline:none;}
 .pa-profile.has-photo #pa-profile-initial{display:none;}
 /* 지역 콘텐츠 지면(동네소식) — 좌우 스와이프 캐러셀 */
 #phone-content-page{margin-top:3cqw;position:relative;}
-/* 접기: 미니멀 셰브론 (SVG · 회전 애니메이션) */
-#sum-collapse{position:absolute;top:1.8cqw;right:1.8cqw;z-index:3;width:7cqw;height:7cqw;padding:1.5cqw;border:1px solid var(--glass-line);border-radius:50%;
-  background:var(--frost-strong);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--sh-s);color:#3c434e;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;transition:background .15s ease;}
+/* 접기: 배경 없는 셰브론 아이콘 (흰 헤일로로 이미지 위 가독) */
+#sum-collapse{position:absolute;top:2.6cqw;right:2.6cqw;z-index:3;width:6.4cqw;height:6.4cqw;padding:0;border:none;background:none;box-shadow:none;
+  color:#3c434e;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:top .3s cubic-bezier(.22,1,.36,1);
+  filter:drop-shadow(0 0 2px rgba(255,255,255,0.95)) drop-shadow(0 1px 2px rgba(255,255,255,0.7));}
 #sum-collapse svg{width:100%;height:100%;display:block;transition:transform .28s cubic-bezier(.22,1,.36,1);}
+#sum-collapse.folded{top:50%;transform:translateY(-50%);} /* 접힘 카드 기준 세로 중앙 */
 #sum-collapse.folded svg{transform:rotate(180deg);}
-#sum-collapse:active{background:#fff;}
 #cp-frame{position:relative;width:100%;height:44cqw;border-radius:4.5cqw;overflow:hidden;touch-action:pan-y;
   background:linear-gradient(150deg,#f2f5fa 0%,#e6ebf3 55%,#dfe6f0 100%);
   box-shadow:inset 0 0 0 1px rgba(16,24,40,0.05),inset 0 1px 0 rgba(255,255,255,0.9);
@@ -475,39 +475,40 @@ button:focus:not(:focus-visible){outline:none;}
 #cp-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;gap:1.6cqw;align-items:center;justify-content:center;font-size:2.9cqw;font-weight:600;color:#a4adbb;letter-spacing:.06em;pointer-events:none;}
 #cp-placeholder::before{content:'📰';font-size:6.5cqw;line-height:1;opacity:.5;}
 #cp-frame.has-news #cp-placeholder{display:none;}
-/* ── 요약 카드 요소 (이미지+제목+위치) · 버전 1/2/3 ── */
+/* ── 요약 카드 요소 (이미지+제목+위치) · 버전 1/2/3 (레퍼런스 카드 스타일) ── */
 .cp-slide{position:relative;}
 .cps-grad{position:absolute;inset:0;pointer-events:none;}
-.cps-body{position:absolute;pointer-events:none;display:flex;flex-direction:column;gap:1cqw;min-width:0;}
-.cps-place{font-size:2.6cqw;font-weight:700;letter-spacing:-0.01em;}
-.cps-title{font-weight:800;letter-spacing:-0.015em;line-height:1.35;}
+.cps-body{position:absolute;pointer-events:none;display:flex;flex-direction:column;gap:0.9cqw;min-width:0;}
+.cps-title{order:0;font-weight:800;letter-spacing:-0.015em;line-height:1.32;}
+.cps-place{order:1;font-size:2.6cqw;font-weight:600;letter-spacing:-0.01em;}
 .cps-place:empty,.cps-title:empty{display:none;}
-/* V1 풀 이미지: 하단 그라디언트 + 흰 텍스트 */
-#cp-frame.cv1 .cps-grad{background:linear-gradient(180deg,rgba(10,14,22,0) 42%,rgba(10,14,22,0.66) 100%);}
-#cp-frame.cv1 .cps-body{left:3.4cqw;right:10cqw;bottom:3cqw;}
-#cp-frame.cv1 .cps-place{color:rgba(255,255,255,0.88);}
-#cp-frame.cv1 .cps-title{color:#fff;font-size:4.3cqw;text-shadow:0 1px 6px rgba(0,0,0,0.3);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-/* V2 분할 카드: 좌 이미지 / 우 텍스트 */
-#cp-frame.cv2 .cp-slide{display:flex;background:#fff;}
-#cp-frame.cv2 .cp-slide img{width:42%;flex-shrink:0;}
+/* V1: 인셋 이미지(라운드) + 화이트 바디 */
+#cp-frame.cv1 .cp-slide{display:flex;flex-direction:column;gap:2cqw;padding:2.2cqw;background:#fff;}
+#cp-frame.cv1 .cp-slide img{flex:1;min-height:0;width:100%;border-radius:3.2cqw;}
+#cp-frame.cv1 .cps-grad{display:none;}
+#cp-frame.cv1 .cps-body{position:static;padding:0 1.2cqw 0.8cqw;}
+#cp-frame.cv1 .cps-title{color:var(--ink);font-size:3.7cqw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#cp-frame.cv1 .cps-place{color:var(--ink3);}
+/* V2: 풀블리드 이미지가 화이트로 페이드 + 하단 텍스트 */
+#cp-frame.cv2 .cp-slide{background:#fff;}
+#cp-frame.cv2 .cp-slide img{height:82%;-webkit-mask-image:linear-gradient(180deg,#000 55%,transparent 100%);mask-image:linear-gradient(180deg,#000 55%,transparent 100%);}
 #cp-frame.cv2 .cps-grad{display:none;}
-#cp-frame.cv2 .cps-body{position:static;flex:1;padding:3.2cqw 3.6cqw;justify-content:center;gap:1.6cqw;}
-#cp-frame.cv2 .cps-place{color:var(--acc-deep);background:rgba(47,123,255,0.1);align-self:flex-start;padding:0.9cqw 2.2cqw;border-radius:2.6cqw;}
-#cp-frame.cv2 .cps-title{color:var(--ink);font-size:3.9cqw;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
-/* V3 글라스 캡션: 이미지 + 하단 유리 바 */
-#cp-frame.cv3 .cps-grad{display:none;}
-#cp-frame.cv3 .cps-body{left:2.4cqw;right:2.4cqw;bottom:2.4cqw;background:var(--frost-strong);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--glass-line);border-radius:3.2cqw;padding:2.2cqw 3cqw;box-shadow:var(--sh-s);}
-#cp-frame.cv3 .cps-place{color:var(--acc-deep);}
-#cp-frame.cv3 .cps-title{color:var(--ink);font-size:3.5cqw;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+#cp-frame.cv2 .cps-body{left:3.4cqw;right:3.4cqw;bottom:2.6cqw;}
+#cp-frame.cv2 .cps-title{color:var(--ink);font-size:3.8cqw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#cp-frame.cv2 .cps-place{color:var(--ink2);}
+/* V3: 풀 이미지 + 하단 다크 오버레이 + 흰 텍스트 */
+#cp-frame.cv3 .cps-grad{background:linear-gradient(180deg,rgba(10,14,22,0) 40%,rgba(10,14,22,0.68) 100%);}
+#cp-frame.cv3 .cps-body{left:3.4cqw;right:10cqw;bottom:3cqw;}
+#cp-frame.cv3 .cps-title{color:#fff;font-size:4.1cqw;text-shadow:0 1px 6px rgba(0,0,0,0.32);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+#cp-frame.cv3 .cps-place{color:rgba(255,255,255,0.85);}
 /* 접힘 = 컴팩트 카드: 썸네일 좌측 + 텍스트 우측 (1/3 높이) */
 #cp-frame.folded{height:15cqw;background:#fff;}
-#cp-frame.folded .cp-slide{display:flex;flex-direction:row;align-items:center;gap:2.8cqw;padding:2cqw 9cqw 2cqw 2cqw;background:#fff;}
-#cp-frame.folded .cp-slide img{width:11cqw;height:11cqw;flex-shrink:0;border-radius:2.6cqw;object-fit:cover;}
+#cp-frame.folded .cp-slide{display:flex;flex-direction:row;align-items:center;gap:2.8cqw;padding:2cqw 10cqw 2cqw 2cqw;background:#fff;}
+#cp-frame.folded .cp-slide img{width:11cqw;height:11cqw;flex:none;min-height:0;flex-shrink:0;border-radius:2.6cqw;object-fit:cover;-webkit-mask-image:none;mask-image:none;}
 #cp-frame.folded .cps-grad{display:none!important;}
-#cp-frame.folded .cps-body{position:static;flex:1;min-width:0;padding:0;gap:0.4cqw;background:none;border:none;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;}
+#cp-frame.folded .cps-body{position:static;flex:1;min-width:0;padding:0;gap:0.4cqw;}
 #cp-frame.folded .cps-title{color:var(--ink);font-size:3.1cqw;text-shadow:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-line-clamp:unset;}
-#cp-frame.folded .cps-place{color:var(--ink3);background:none;padding:0;align-self:flex-start;}
+#cp-frame.folded .cps-place{color:var(--ink3);}
 #cp-frame.folded #cp-dots{display:none!important;}
 #cp-frame.folded #cp-placeholder{font-size:2.7cqw;}
 #cp-frame.folded #cp-placeholder::before{display:none;}
@@ -710,7 +711,10 @@ body.role-user #allowlist-btn{display:none!important;}
 .tab-page.open{display:block;}
 #social-page.open{display:flex;flex-direction:column;overflow:hidden;}
 /* 피드 그리드 */
-#feed-tools{display:flex;align-items:center;justify-content:flex-end;gap:1cqw;padding:2cqw 3cqw 0;}
+#feed-tools{display:flex;align-items:center;justify-content:space-between;gap:1cqw;padding:2cqw 3cqw 0;}
+#feed-tools .fsc-group,#feed-tools .fcq-group{display:flex;gap:1cqw;align-items:center;}
+#feed-tools .fsc{border:1px solid var(--line-soft);border-radius:3cqw;background:rgba(255,255,255,0.85);color:var(--ink3);font-family:inherit;font-size:2.5cqw;font-weight:700;padding:1.1cqw 2.4cqw;cursor:pointer;white-space:nowrap;}
+#feed-tools .fsc.active{background:var(--acc);border-color:transparent;color:#fff;}
 #feed-tools .fcq{width:5.6cqw;height:5.6cqw;border:1px solid var(--line-soft);border-radius:1.8cqw;background:rgba(255,255,255,0.85);color:var(--ink3);font-family:inherit;font-size:2.5cqw;font-weight:700;cursor:pointer;}
 #feed-tools .fcq.active{background:var(--acc);border-color:transparent;color:#fff;}
 #feed-page{touch-action:pan-y;} /* 핀치는 열 변경에 사용 */

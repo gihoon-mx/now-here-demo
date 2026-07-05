@@ -765,7 +765,7 @@ function renderNews(){
     var im=document.createElement('img');im.src=it.src;im.alt='';sl.appendChild(im);
     var grad=document.createElement('div');grad.className='cps-grad';sl.appendChild(grad);
     var body=document.createElement('div');body.className='cps-body';
-    var place=document.createElement('span');place.className='cps-place';place.textContent=it.region?('📍 '+it.region):'';
+    var place=document.createElement('span');place.className='cps-place';place.textContent=it.region||'';
     var ttl=document.createElement('span');ttl.className='cps-title';ttl.textContent=it.title||'';
     body.appendChild(place);body.appendChild(ttl);sl.appendChild(body);
     track.appendChild(sl);
@@ -2348,7 +2348,7 @@ function switchTab(tab){
   document.getElementById('feed-page').classList.toggle('open',tab==='feed');
   document.getElementById('social-page').classList.toggle('open',tab==='social');
   layoutTabPages();
-  if(tab==='feed')renderFeed();
+  if(tab==='feed'){feedLimit=12;renderFeed();}
   if(tab==='social')renderSocial();
 }
 function focusNearbyZones(){ // 베이직→트렌드: 센터 기준 가까운 존 3~5개 fitBounds
@@ -2374,11 +2374,20 @@ var feedItems=[]; var FEED_KEY='nowhere_feed';
 function loadFeed(){try{var a=JSON.parse(localStorage.getItem(FEED_KEY)||'[]');if(Array.isArray(a))feedItems=a;}catch(e){}}
 function saveFeed(){try{localStorage.setItem(FEED_KEY,JSON.stringify(feedItems.slice(0,40)));}catch(e){}}
 function normRegion(t){return (t||'').replace(/[0-9\s]/g,'');}
+function regionCenterByName(name){ // 동 이름 → 중심 좌표 (숫자 무시 매칭)
+  if(!dongIndex||!name)return null;
+  var nn=normRegion(name);
+  for(var i=0;i<dongIndex.length;i++){
+    var d=dongIndex[i];
+    if(d.name===name||normRegion(d.name)===nn)return {lat:(d.bbox[1]+d.bbox[3])/2,lng:(d.bbox[0]+d.bbox[2])/2};
+  }
+  return null;
+}
 function allFeedEntries(){ // 라이브 사진 + 스팟 + 동네소식 → 포커스 구역 우선 정렬
   var arr=[];
-  feedItems.forEach(function(f){arr.push({id:f.id,type:'photo',src:f.src,region:f.region||'',ts:f.ts||0});});
-  newsItems.forEach(function(n){arr.push({id:n.id,type:'news',src:n.src,region:n.region||'',ts:0});});
-  spotMessages.forEach(function(sp){var d=regionAt(sp.lat,sp.lng);arr.push({id:sp.id,type:'spot',text:sp.text,emoji:sp.emoji,color:sp.color,region:d?d.name:'',ts:0});});
+  feedItems.forEach(function(f){var rc=regionCenterByName(f.region);arr.push({id:f.id,type:'photo',src:f.src,region:f.region||'',ts:f.ts||0,lat:rc?rc.lat:null,lng:rc?rc.lng:null});});
+  newsItems.forEach(function(n){var rc=regionCenterByName(n.region);arr.push({id:n.id,type:'news',src:n.src,region:n.region||'',ts:0,lat:rc?rc.lat:null,lng:rc?rc.lng:null});});
+  spotMessages.forEach(function(sp){var d=regionAt(sp.lat,sp.lng);arr.push({id:sp.id,type:'spot',text:sp.text,emoji:sp.emoji,color:sp.color,region:d?d.name:'',ts:0,lat:sp.lat,lng:sp.lng});});
   var foc=focusedRegionName(),nf=normRegion(foc);
   arr.forEach(function(it,i){
     var match=foc&&it.region&&(it.region===foc||normRegion(it.region)===nf);
@@ -2387,12 +2396,46 @@ function allFeedEntries(){ // 라이브 사진 + 스팟 + 동네소식 → 포�
   arr.sort(function(a,b){return a._k-b._k;});
   return arr;
 }
+var feedScope='local', feedLimit=12, feedTotal=0; // 보기 범위: all(거리+최신)/local(포커스 동네)/zone(근처 트렌드존)
+try{var _fs=localStorage.getItem('nowhere_feedscope');if(_fs==='all'||_fs==='local'||_fs==='zone')feedScope=_fs;}catch(e){}
+function inZoneAt(z,lat,lng){
+  var gp=getHexGridParams(z.radiusKm);
+  for(var i=0;i<z.hexCenters.length;i++){var hc=z.hexCenters[i];
+    if(Math.abs(hc.lat-lat)<gp.R_lat*1.15&&Math.abs(hc.lng-lng)<gp.R_lng*1.15)return true;}
+  return false;
+}
+function feedEntriesScoped(){
+  var arr=allFeedEntries();
+  var c=phoneMap?phoneVisibleCenter():null,clat=c?c.lat():null,clng=c?c.lng():null;
+  function d2(it){if(it.lat==null||clat==null)return 9e9;var dy=it.lat-clat,dx=it.lng-clng;return dy*dy+dx*dx;}
+  if(feedScope==='local'){
+    var foc=focusedRegionName(),nf=normRegion(foc);
+    if(foc)arr=arr.filter(function(it){return it.region&&(it.region===foc||normRegion(it.region)===nf);});
+  }else if(feedScope==='zone'){
+    var pool=trendZones.filter(function(z){return z.hexCenters&&z.hexCenters.length;});
+    var near=pool.map(function(z){var sla=0,sln=0;z.hexCenters.forEach(function(h){sla+=h.lat;sln+=h.lng;});
+      var cy=sla/z.hexCenters.length,cx=sln/z.hexCenters.length;
+      return {z:z,d:(clat==null)?0:(cy-clat)*(cy-clat)+(cx-clng)*(cx-clng)};
+    }).sort(function(a,b){return a.d-b.d;}).slice(0,5).map(function(o){return o.z;});
+    arr=arr.filter(function(it){
+      if(it.lat==null)return false;
+      for(var i=0;i<near.length;i++)if(inZoneAt(near[i],it.lat,it.lng))return true;
+      return false;
+    });
+  }
+  if(feedScope!=='local')arr.sort(function(a,b){var da=d2(a),db=d2(b);return da===db?((b.ts||0)-(a.ts||0)):(da-db);}); // 거리순+최신순
+  return arr;
+}
 function renderFeed(){
   var g=document.getElementById('feed-grid');if(!g)return;g.innerHTML='';
-  var foc=focusedRegionName(),nf=normRegion(foc);
-  var arr=allFeedEntries();
-  if(foc)arr=arr.filter(function(it){return it.region&&(it.region===foc||normRegion(it.region)===nf);}); // 포커스 지역 컨텐츠만
-  if(!arr.length){g.innerHTML='<div class="feed-empty">'+(foc?escHtml(foc)+' 지역에 공유된 일상이 아직 없어요.<br>＋ 버튼으로 첫 소식을 올려보세요!':'아직 공유된 일상이 없어요.<br>＋ 버튼으로 첫 소식을 올려보세요!')+'</div>';return;}
+  var arr=feedEntriesScoped();
+  feedTotal=arr.length;
+  if(!arr.length){
+    var foc=focusedRegionName();
+    var msg=feedScope==='zone'?'근처 트렌드 존에 공유된 컨텐츠가 아직 없어요.':(feedScope==='local'&&foc?escHtml(foc)+' 지역에 공유된 일상이 아직 없어요.<br>＋ 버튼으로 첫 소식을 올려보세요!':'아직 공유된 일상이 없어요.<br>＋ 버튼으로 첫 소식을 올려보세요!');
+    g.innerHTML='<div class="feed-empty">'+msg+'</div>';return;
+  }
+  arr=arr.slice(0,feedLimit); // 스크롤 시 추가 로딩
   arr.forEach(function(it){
     var c=document.createElement('div');c.className='feed-card';
     if(it.src){var im=document.createElement('img');im.src=it.src;im.alt='';c.appendChild(im);}
@@ -2404,7 +2447,6 @@ function renderFeed(){
       if(it.color)c.style.background=hexToRgba(it.color,0.12);
     }
     var tag=document.createElement('span');tag.className='fc-region';tag.textContent=it.region||'우리 동네';c.appendChild(tag);
-    if(it.type==='photo'){var lv=document.createElement('span');lv.className='fc-live';lv.textContent='LIVE';c.appendChild(lv);}
     g.appendChild(c);
   });
 }
@@ -2426,7 +2468,9 @@ function initSummaryCollapse(){ // 요약 카드 접기: 컴팩트 카드(1/3 �
     btn.classList.toggle('folded',fold);
     btn.title=fold?'지면 펼치기':'지면 접기';
     try{localStorage.setItem('nowhere_sumfold',fold?'1':'0');}catch(e){}
-    snapTrack();layoutTabPages();
+    snapTrack();
+    var t0=performance.now(); // 피드/소셜 페이지가 카드 높이 변화를 프레임 단위로 따라오게
+    (function follow(){layoutTabPages();if(performance.now()-t0<340)requestAnimationFrame(follow);})();
     setTimeout(function(){ // 높이 트랜지션 종료 후 재계산
       snapTrack();layoutTabPages();
       if(typeof updatePhoneLens==='function')updatePhoneLens();
@@ -2444,12 +2488,32 @@ function initFeedTools(){
   var t=document.getElementById('feed-tools');
   if(t){
     t.innerHTML='';
+    var sg=document.createElement('div');sg.className='fsc-group';
+    [['all','전체보기'],['local','현재 동네'],['zone','Trend Zone']].forEach(function(o){
+      var b=document.createElement('button');b.type='button';b.className='fsc';b.dataset.s=o[0];b.textContent=o[1];
+      b.addEventListener('click',function(){
+        feedScope=o[0];try{localStorage.setItem('nowhere_feedscope',feedScope);}catch(e){}
+        feedLimit=12;
+        t.querySelectorAll('.fsc').forEach(function(x){x.classList.toggle('active',x.dataset.s===feedScope);});
+        renderFeed();
+      });
+      sg.appendChild(b);
+    });
+    t.appendChild(sg);
+    var cg=document.createElement('div');cg.className='fcq-group';
     [1,2,3,4].forEach(function(n){
       var b=document.createElement('button');b.type='button';b.className='fcq';b.dataset.c=String(n);b.textContent=n;
       b.addEventListener('click',function(){applyFeedCols(n);});
-      t.appendChild(b);
+      cg.appendChild(b);
     });
+    t.appendChild(cg);
+    t.querySelectorAll('.fsc').forEach(function(x){x.classList.toggle('active',x.dataset.s===feedScope);});
   }
+  var fp=document.getElementById('feed-page'); // 무한 로딩: 바닥 근처에서 다음 청크
+  if(fp)fp.addEventListener('scroll',function(){
+    if(currentTab!=='feed'||feedLimit>=feedTotal)return;
+    if(this.scrollTop+this.clientHeight>=this.scrollHeight-160){feedLimit+=12;renderFeed();}
+  });
   var sel=document.getElementById('feed-cols');
   if(sel)sel.addEventListener('change',function(){applyFeedCols(this.value);});
   // 링크로 피드 이미지 추가 (관리자 · 요약 공간 지면과 동일 방식)
