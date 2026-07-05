@@ -374,7 +374,7 @@ function initSpotBubbleClass(){
     var showTail=(c.tail!==false)&&vertical;
     this.bubbleEl.classList.toggle('no-tail',!showTail);
     this.bubbleEl.classList.toggle('tail-up',showTail&&pos==='top');
-    this.div.classList.toggle('spot-admin',currentRole==='admin');
+    this.div.classList.toggle('spot-admin',currentRole==='admin'&&this.getMap&&this.getMap()===map); // 폰 미러는 데모 기준(편집 커서 없음)
     this.div.classList.toggle('spot-sel',selectedSpotId===s.id); // 선택 강조(살짝 커짐)
     if(this.getMap&&this.getMap()===phoneMap&&typeof spotInFocus==='function')this.div.classList.toggle('spot-out',!spotInFocus(s)); // 렌즈/존 밖 스팟은 옅게
   };
@@ -1996,7 +1996,8 @@ function showUserChip(user,role){
     else{pf.classList.remove('has-photo');if(pn)pn.textContent=(user.email||'?').charAt(0).toUpperCase();}
   }
   // 프로필 메뉴: 계정 + 버전
-  var pe=document.getElementById('ppm-email');if(pe)pe.textContent=label;
+  var pe=document.getElementById('ppm-email');
+  if(pe)pe.textContent=(role==='admin'&&window.matchMedia('(min-width:769px)').matches)?((user.email||'')+' · 뷰어 (데모 미리보기)'):label; // 데스크톱 폰 미러=데모 기준
   var pv=document.getElementById('ppm-version'),av=document.getElementById('app-version');if(pv&&av)pv.textContent=av.textContent;
 }
 
@@ -2909,6 +2910,30 @@ function initFeaturePage(){
   if(pg)pg.addEventListener('click',function(e){if(e.target===pg)pg.style.display='none';});
 }
 
+/* ========== 웹앱 설치 유도 (모바일 브라우저): Android=네이티브 프롬프트 · iOS=홈 화면 추가 안내 ========== */
+function initInstallPrompt(){
+  if(window.matchMedia('(display-mode: standalone)').matches||navigator.standalone)return; // 이미 앱으로 실행 중
+  if(!window.matchMedia('(max-width:768px)').matches)return;                               // 모바일 브라우저만
+  var KEY='nowhere_a2hs_dismiss';
+  try{if(localStorage.getItem(KEY))return;}catch(e){}
+  var deferred=null;
+  function show(mode){
+    if(document.getElementById('a2hs-bar'))return;
+    var bar=document.createElement('div');bar.id='a2hs-bar';
+    bar.innerHTML='<img src="apple-touch-icon.jpg" alt="" />'+
+      '<div class="a2-tx"><b>Now Here 앱 설치</b><span>'+(mode==='ios'?'공유 버튼(⬆︎) → \'홈 화면에 추가\'로 앱처럼 쓸 수 있어요':'홈 화면에 추가해 앱처럼 쓸 수 있어요')+'</span></div>'+
+      (mode==='android'?'<button type="button" class="a2-go">설치</button>':'')+
+      '<button type="button" class="a2-x" aria-label="닫기">✕</button>';
+    document.body.appendChild(bar);
+    var go=bar.querySelector('.a2-go');
+    if(go)go.addEventListener('click',function(){if(deferred){deferred.prompt();deferred=null;}bar.remove();});
+    bar.querySelector('.a2-x').addEventListener('click',function(){try{localStorage.setItem(KEY,'1');}catch(e){}bar.remove();});
+  }
+  window._a2hsShow=show; // 테스트용
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;show('android');});
+  if(/iphone|ipad|ipod/i.test(navigator.userAgent))setTimeout(function(){show('ios');},1800);
+}
+
 (function(){
   initPanelCollapse();
   initPhoneControls();
@@ -2918,6 +2943,7 @@ function initFeaturePage(){
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
   loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();renderFeedColList();
   window.addEventListener('resize',layoutTabPages);
+  initInstallPrompt();
   if(typeof CONFIG==='undefined'||!CONFIG.GOOGLE_MAPS_API_KEY){var it=document.getElementById('info-text');if(it)it.textContent='⚠️ config.js에 API 키를 설정해 주세요.';hideMapLoading();hideAuthOverlay();return;}
   initAuth();
 })();
