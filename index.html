@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.33.0" />
+  <link rel="stylesheet" href="style.css?v=1.34.0" />
 </head>
 <body>
 
@@ -58,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.33.0</span>
+        <span id="app-version">v1.34.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -165,6 +165,7 @@
           <input type="url" id="news-url-input" placeholder="이미지 링크(https://...) 붙여넣기" />
           <button id="news-url-btn" class="action-btn accent small" type="button">링크</button>
         </div>
+        <div class="setting-row" style="margin-top:8px;"><label>카드 스타일</label><select id="news-cardver" class="mini-select"><option value="1">버전 1 · 풀 이미지</option><option value="2">버전 2 · 분할 카드</option><option value="3">버전 3 · 글라스 캡션</option></select></div>
         <div id="news-list"></div>
         <p class="section-hint">상단 요약 공간에 노출할 UI 목업 이미지. 각 이미지의 탭(지도/피드/소셜)을 지정하면 해당 탭에서만 보여요. 피드 컨텐츠와는 별개.</p>
       </div>
@@ -269,7 +270,7 @@
           </div>
           <!-- 지역 콘텐츠 지면 (동네소식) : 여러 이미지 좌우 스와이프 캐러셀. 편집은 사이드바 컨텐츠 설정에서만 -->
           <div id="phone-content-page">
-            <button id="sum-collapse" type="button" title="지면 접기" aria-label="지면 접기">▾</button>
+            <button id="sum-collapse" type="button" title="지면 접기" aria-label="지면 접기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg></button>
             <div id="cp-frame">
               <div id="cp-track"></div>
               <span id="cp-placeholder">지역 콘텐츠 지면</span>
@@ -389,7 +390,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.33.0"></script>
-  <script src="app.js?v=1.33.0"></script>
+  <script src="config.js?v=1.34.0"></script>
+  <script src="app.js?v=1.34.0"></script>
 </body>
 </html>

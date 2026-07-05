@@ -704,6 +704,8 @@ function initPhoneMenu(){
 }
 /* ===== 동네소식 지면: 여러 이미지(좌우 스와이프 캐러셀) + 사이드바 리스트 관리(관리자) ===== */
 var newsItems=[], newsIndex=0, newsSeq=1, newsCloudTimer=null, newsDragging=false;
+var newsCardVer=1; // 요약 카드 스타일 1=풀이미지 2=분할 3=글라스캡션
+try{var _nv=parseInt(localStorage.getItem('nowhere_newsver'),10);if(_nv>=1&&_nv<=3)newsCardVer=_nv;}catch(e){}
 // 무료 티어 안전장치: 개수 · 1장 용량 · 문서 총합 상한 (Firestore 1MB 문서 하드리밋 안쪽으로 강제 → Storage/Blaze 불필요)
 var NEWS_MAX_COUNT=6, NEWS_MAX_ITEM_BYTES=170000, NEWS_DOC_BUDGET=900000;
 function initContentPage(){
@@ -712,6 +714,12 @@ function initContentPage(){
   loadNews();
   if(addBtn)addBtn.addEventListener('click',function(){if(currentRole==='admin'&&file)file.click();});
   // 이미지 링크(URL)로 추가 — URL만 저장(저장부담 거의 0)
+  var cv=document.getElementById('news-cardver');
+  if(cv){cv.value=String(newsCardVer);cv.addEventListener('change',function(){
+    newsCardVer=parseInt(this.value,10)||1;
+    try{localStorage.setItem('nowhere_newsver',String(newsCardVer));}catch(e){}
+    markNewsDirty();renderNews();
+  });}
   var urlBtn=document.getElementById('news-url-btn'),urlIn=document.getElementById('news-url-input');
   var addUrl=function(){if(currentRole!=='admin'||!urlIn)return;var v=urlIn.value;urlIn.value='';addNewsUrl(v);};
   if(urlBtn)urlBtn.addEventListener('click',addUrl);
@@ -751,7 +759,17 @@ function renderNews(){
   newsView=newsItems.filter(function(it){return (it.tab||'map')===currentTab;});
   var ph=document.getElementById('cp-placeholder');
   if(ph)ph.textContent=(currentTab==='feed'?'추천 컨텐츠 지면':(currentTab==='social'?'커뮤니티 지면':'지역 콘텐츠 지면'));
-  if(track){track.innerHTML='';newsView.forEach(function(it){var sl=document.createElement('div');sl.className='cp-slide';var im=document.createElement('img');im.src=it.src;im.alt='';sl.appendChild(im);track.appendChild(sl);});}
+  if(frame){frame.classList.remove('cv1','cv2','cv3');frame.classList.add('cv'+newsCardVer);}
+  if(track){track.innerHTML='';newsView.forEach(function(it){
+    var sl=document.createElement('div');sl.className='cp-slide';
+    var im=document.createElement('img');im.src=it.src;im.alt='';sl.appendChild(im);
+    var grad=document.createElement('div');grad.className='cps-grad';sl.appendChild(grad);
+    var body=document.createElement('div');body.className='cps-body';
+    var place=document.createElement('span');place.className='cps-place';place.textContent=it.region?('📍 '+it.region):'';
+    var ttl=document.createElement('span');ttl.className='cps-title';ttl.textContent=it.title||'';
+    body.appendChild(place);body.appendChild(ttl);sl.appendChild(body);
+    track.appendChild(sl);
+  });}
   if(newsIndex>=newsView.length)newsIndex=Math.max(0,newsView.length-1);
   if(frame)frame.classList.toggle('has-news',newsView.length>0);
   if(dots){dots.innerHTML='';for(var i=0;i<newsView.length;i++){var dt=document.createElement('span');dt.className='cp-dot'+(i===newsIndex?' active':'');dots.appendChild(dt);}dots.style.display=newsView.length>1?'':'none';}
@@ -769,13 +787,18 @@ function renderNewsList(){
     [['map','지도'],['feed','피드'],['social','소셜']].forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];tabSel.appendChild(op);});
     tabSel.value=it.tab||'map';
     tabSel.addEventListener('change',function(){newsItems[i].tab=this.value;saveNews();renderNews();});
-    var reg=document.createElement('input');reg.className='ni-region';reg.type='text';reg.placeholder='구역(동)';reg.value=it.region||'';
-    reg.addEventListener('change',function(){newsItems[i].region=this.value.trim();saveNews();});
+    var reg=document.createElement('input');reg.className='ni-region';reg.type='text';reg.placeholder='위치(동)';reg.value=it.region||'';
+    reg.addEventListener('change',function(){newsItems[i].region=this.value.trim();saveNews();renderNews();});
+    var ttl=document.createElement('input');ttl.className='ni-region ni-title';ttl.type='text';ttl.maxLength=40;ttl.placeholder='카드 제목 텍스트';ttl.value=it.title||'';
+    ttl.addEventListener('change',function(){newsItems[i].title=this.value.trim();saveNews();renderNews();});
+    var fields=document.createElement('div');fields.className='ni-fields';
+    var r1=document.createElement('div');r1.className='ni-row';r1.appendChild(tabSel);r1.appendChild(reg);
+    fields.appendChild(r1);fields.appendChild(ttl);
     var act=document.createElement('div');act.className='ni-actions';
     var up=mkBtn('↑'),dn=mkBtn('↓'),del=mkBtn('🗑');
     up.onclick=function(){newsMove(i,-1);};dn.onclick=function(){newsMove(i,1);};del.onclick=function(){newsDelete(i);};
     act.appendChild(up);act.appendChild(dn);act.appendChild(del);
-    row.appendChild(th);row.appendChild(tabSel);row.appendChild(reg);row.appendChild(act);list.appendChild(row);
+    row.appendChild(th);row.appendChild(fields);row.appendChild(act);list.appendChild(row);
   });
   function mkBtn(t){var b=document.createElement('button');b.type='button';b.textContent=t;return b;}
 }
@@ -815,8 +838,8 @@ function markNewsDirty(){if(!fbDb||!currentUser||currentRole!=='admin')return;cl
 function newsCloudSave(){
   if(!fbDb||!currentUser||currentRole!=='admin')return;
   var total=0,items=[];
-  for(var i=0;i<newsItems.length&&items.length<NEWS_MAX_COUNT;i++){var s=newsItems[i].src||'';if(total+s.length>NEWS_DOC_BUDGET)break;total+=s.length;items.push({id:newsItems[i].id,src:s,region:newsItems[i].region||'',tab:newsItems[i].tab||'map'});}
-  fbDb.collection('shared').doc('news').set({items:items,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||''})
+  for(var i=0;i<newsItems.length&&items.length<NEWS_MAX_COUNT;i++){var s=newsItems[i].src||'';if(total+s.length>NEWS_DOC_BUDGET)break;total+=s.length;items.push({id:newsItems[i].id,src:s,region:newsItems[i].region||'',tab:newsItems[i].tab||'map',title:newsItems[i].title||''});}
+  fbDb.collection('shared').doc('news').set({items:items,cardVer:newsCardVer,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||''})
     .catch(function(e){console.warn('news save fail',e);alert('동네소식 공유 저장 실패(용량 초과 가능): '+e.message);});
 }
 // 공유 로드 (로그인 사용자 모두)
@@ -824,7 +847,8 @@ function loadNewsFromCloud(){
   if(!fbDb)return;
   fbDb.collection('shared').doc('news').get().then(function(doc){
     if(!doc.exists)return;var d=doc.data();if(!d||!Array.isArray(d.items))return;
-    newsItems=d.items.map(function(it){return {id:it.id||('n_'+(newsSeq++)),src:it.src,region:it.region||'',tab:it.tab||'map'};});
+    newsItems=d.items.map(function(it){return {id:it.id||('n_'+(newsSeq++)),src:it.src,region:it.region||'',tab:it.tab||'map',title:it.title||''};});
+    if(d.cardVer>=1&&d.cardVer<=3){newsCardVer=d.cardVer;var _cv=document.getElementById('news-cardver');if(_cv)_cv.value=String(newsCardVer);}
     try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));}catch(e){}
     newsIndex=0;renderNews();
   }).catch(function(e){console.warn('news load fail',e);});
@@ -903,6 +927,7 @@ function initPhoneMirror(){
   phoneDataVisibility();syncPhoneZones();updatePhoneUI();updatePhoneLocation();updatePhoneViewportOverlay();updatePhoneLens();updatePhoneScale();
   renderSpots();
   renderRequestMarkers();
+  renderMyLocation();
 }
 function applyGeoJsonToPhone(){
   if(!phoneMap||!originalGeoJson)return;
@@ -1891,11 +1916,25 @@ function initSidebarResize(){
   window.addEventListener('resize',function(){if(sb.style.width)applyW(parseInt(sb.style.width,10)||380);});
 }
 
+var myLocation=null,myLocMarkers=[];
+function renderMyLocation(){ // 현재 위치 마커: 블루 점 + 흰 링 + 옅은 헤일로 (메인·폰 동시)
+  myLocMarkers.forEach(function(m){m.setMap(null);});myLocMarkers=[];
+  if(!myLocation||typeof google==='undefined')return;
+  [map,phoneMap].forEach(function(m){
+    if(!m)return;
+    myLocMarkers.push(new google.maps.Marker({position:myLocation,map:m,clickable:false,zIndex:49,
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:13,fillColor:'#2f7bff',fillOpacity:0.15,strokeWeight:0}}));
+    myLocMarkers.push(new google.maps.Marker({position:myLocation,map:m,clickable:false,zIndex:50,
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:6.5,fillColor:'#2f7bff',fillOpacity:1,strokeColor:'#ffffff',strokeWeight:2.5}}));
+  });
+}
 function initMyLocation(){ // 앱 시작: 내 위치(줌15) → 실패/미지원 시 서울시 전역
   var seoul=function(){if(map){map.setCenter({lat:37.5665,lng:126.978});map.setZoom(11);}};
   if(!navigator.geolocation){seoul();return;}
   navigator.geolocation.getCurrentPosition(function(pos){
-    if(map){map.setCenter({lat:pos.coords.latitude,lng:pos.coords.longitude});map.setZoom(15);} // 폰은 미러로 동기
+    myLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};
+    if(map){map.setCenter(myLocation);map.setZoom(15);} // 폰은 미러로 동기
+    renderMyLocation();
   },seoul,{timeout:5000,maximumAge:60000});
 }
 function fitBoundsToData(){var b=new google.maps.LatLngBounds();map.data.forEach(function(f){var g=f.getGeometry();if(g)g.forEachLatLng(function(ll){b.extend(ll);});});if(!b.isEmpty())map.fitBounds(b,60);}
@@ -2379,21 +2418,24 @@ function applyFeedCols(n){
   var sel=document.getElementById('feed-cols');if(sel)sel.value=String(feedCols);
   document.querySelectorAll('#feed-tools .fcq').forEach(function(b){b.classList.toggle('active',b.dataset.c===String(feedCols));});
 }
-function initSummaryCollapse(){ // 요약 공간(지면) 접기/펴기 + 유지
-  var pg=document.getElementById('phone-content-page'),btn=document.getElementById('sum-collapse');
-  if(!pg||!btn)return;
-  function apply(col){
-    pg.classList.toggle('collapsed',col);
-    btn.textContent=col?'▸':'▾';
-    btn.title=col?'지면 펼치기':'지면 접기';
-    try{localStorage.setItem('nowhere_sumfold',col?'1':'0');}catch(e){}
-    layoutTabPages();
-    if(typeof updatePhoneLens==='function')updatePhoneLens();
-    if(typeof updatePhoneScale==='function')updatePhoneScale();
-    if(typeof updatePhoneLocation==='function')updatePhoneLocation();
-    if(typeof updatePhoneViewportOverlay==='function')updatePhoneViewportOverlay();
+function initSummaryCollapse(){ // 요약 카드 접기: 컴팩트 카드(1/3 높이, 썸네일+텍스트)로 변형
+  var frame=document.getElementById('cp-frame'),btn=document.getElementById('sum-collapse');
+  if(!frame||!btn)return;
+  function apply(fold){
+    frame.classList.toggle('folded',fold);
+    btn.classList.toggle('folded',fold);
+    btn.title=fold?'지면 펼치기':'지면 접기';
+    try{localStorage.setItem('nowhere_sumfold',fold?'1':'0');}catch(e){}
+    snapTrack();layoutTabPages();
+    setTimeout(function(){ // 높이 트랜지션 종료 후 재계산
+      snapTrack();layoutTabPages();
+      if(typeof updatePhoneLens==='function')updatePhoneLens();
+      if(typeof updatePhoneScale==='function')updatePhoneScale();
+      if(typeof updatePhoneLocation==='function')updatePhoneLocation();
+      if(typeof updatePhoneViewportOverlay==='function')updatePhoneViewportOverlay();
+    },320);
   }
-  btn.addEventListener('click',function(){apply(!pg.classList.contains('collapsed'));});
+  btn.addEventListener('click',function(e){e.stopPropagation();apply(!frame.classList.contains('folded'));});
   var saved='0';try{saved=localStorage.getItem('nowhere_sumfold')||'0';}catch(e){}
   if(saved==='1')apply(true);
 }
