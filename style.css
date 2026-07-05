@@ -265,6 +265,11 @@ button:focus:not(:focus-visible){outline:none;}
 .mini-prev .spot-marker{position:relative;z-index:1;transform:none!important;}
 .mini-prev .map-label-tag{box-shadow:0 1px 4px rgba(0,0,0,0.2);}
 
+/* 옵션 블록 하단 액션: [기본값][취소][적용] */
+.blk-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:10px;padding-top:9px;border-top:1px dashed var(--line-soft);}
+.blk-actions .blk-state{flex:1;min-width:0;font-size:.62rem;font-weight:700;color:#b06a12;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.blk-actions.dirty{border-top-color:rgba(255,157,46,0.45);}
+
 /* ========== Settings Section ========== */
 #settings-section{margin-top:8px;}
 .settings-section{margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line-soft);}

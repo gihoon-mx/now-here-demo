@@ -410,7 +410,7 @@ function promptAddEmoji(){
   var em=prompt('추가할 이모지를 입력하세요 (예: 🍕)');
   if(em==null)return null; em=em.trim(); if(!em)return null;
   if(!Array.isArray(spotConfig.emojis))spotConfig.emojis=SPOT_EMOJIS.slice();
-  if(spotConfig.emojis.indexOf(em)<0){spotConfig.emojis.push(em);markStyleDirty();}
+  if(spotConfig.emojis.indexOf(em)<0){spotConfig.emojis.push(em);if(DRAFT)DRAFT.spotConfig.emojis=spotConfig.emojis.slice();markCloudDirty();renderMiniPreviews();}
   return em;
 }
 function buildEmojiPicker(container,getSel,onSel){
@@ -421,7 +421,7 @@ function buildEmojiPicker(container,getSel,onSel){
     if(!Array.isArray(spotConfig.emojis))spotConfig.emojis=SPOT_EMOJIS.slice();
     if(spotConfig.emojis.length<=1)return; // 최소 1개 유지
     var i=spotConfig.emojis.indexOf(em);if(i<0)return;
-    spotConfig.emojis.splice(i,1);markStyleDirty();
+    spotConfig.emojis.splice(i,1);if(DRAFT)DRAFT.spotConfig.emojis=spotConfig.emojis.slice();markCloudDirty();renderMiniPreviews();
     if(getSel&&getSel()===em&&onSel)onSel(spotConfig.emojis[0]);
     buildEmojiPicker(container,getSel,onSel); // 다시 그림
     if(typeof renderSpotEmojiPicker==='function')renderSpotEmojiPicker();
@@ -617,18 +617,18 @@ function initSpotUI(){
   initSpotEditor();
   document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeComposer();closeAddMenu();}});
   // 스팟 설정 (디자인 메뉴)
-  bindInput('spot-max-chars','range',spotConfig,'maxChars',refreshSpotStyles);
-  bindInput('spot-font-size','range',spotConfig,'fontSize',refreshSpotStyles);
-  bindInput('spot-emoji-size','range',spotConfig,'emojiSize',refreshSpotStyles);
-  bindInput('spot-bubble-radius','range',spotConfig,'bubbleRadius',refreshSpotStyles);
-  bindInput('spot-emoji-gap','range',spotConfig,'emojiGap',refreshSpotStyles);
-  bindInput('spot-emoji-letter','range',spotConfig,'emojiLetterSpacing',refreshSpotStyles);
-  bindInput('spot-dot-scale','range',spotConfig,'dotScaleM',refreshSpotStyles);
-  var tailEl=document.getElementById('spot-tail');if(tailEl)tailEl.addEventListener('change',function(){spotConfig.tail=this.checked;refreshSpotStyles();markStyleDirty();});
-  var posEl=document.getElementById('spot-emoji-pos');if(posEl)posEl.addEventListener('change',function(){spotConfig.emojiPos=this.value;refreshSpotStyles();markStyleDirty();});
-  var dsEl=document.getElementById('spot-dot-style');if(dsEl)dsEl.addEventListener('change',function(){spotConfig.dotStyle=this.value;refreshSpotStyles();markStyleDirty();});
-  makeColorControl('ct-spot-text',spotConfig,'textColor',null,refreshSpotStyles);
-  makeColorControl('ct-spot-bg',spotConfig,'bgColor','bgOpacity',refreshSpotStyles);
+  bindInput('spot-max-chars','range',DRAFT.spotConfig,'maxChars',mpNoop);
+  bindInput('spot-font-size','range',DRAFT.spotConfig,'fontSize',mpNoop);
+  bindInput('spot-emoji-size','range',DRAFT.spotConfig,'emojiSize',mpNoop);
+  bindInput('spot-bubble-radius','range',DRAFT.spotConfig,'bubbleRadius',mpNoop);
+  bindInput('spot-emoji-gap','range',DRAFT.spotConfig,'emojiGap',mpNoop);
+  bindInput('spot-emoji-letter','range',DRAFT.spotConfig,'emojiLetterSpacing',mpNoop);
+  bindInput('spot-dot-scale','range',DRAFT.spotConfig,'dotScaleM',mpNoop);
+  var tailEl=document.getElementById('spot-tail');if(tailEl)tailEl.addEventListener('change',function(){DRAFT.spotConfig.tail=this.checked;markDirtyFrom(this);});
+  var posEl=document.getElementById('spot-emoji-pos');if(posEl)posEl.addEventListener('change',function(){DRAFT.spotConfig.emojiPos=this.value;markDirtyFrom(this);});
+  var dsEl=document.getElementById('spot-dot-style');if(dsEl)dsEl.addEventListener('change',function(){DRAFT.spotConfig.dotStyle=this.value;markDirtyFrom(this);});
+  makeColorControl('ct-spot-text',DRAFT.spotConfig,'textColor',null,mpNoop);
+  makeColorControl('ct-spot-bg',DRAFT.spotConfig,'bgColor','bgOpacity',mpNoop);
 }
 function renderSpotEmojiPicker(){
   var pick=document.getElementById('spot-emoji-pick');if(!pick)return;
@@ -1634,7 +1634,7 @@ function makeColorControl(id,obj,colorProp,alphaProp,cb){
   paint();colorControls.push({paint:paint});
   btn.addEventListener('click',function(e){e.stopPropagation();
     openColorPopup(btn,{color:obj[colorProp],alpha:alphaProp?Number(obj[alphaProp]):null,
-      onInput:function(hex,a){obj[colorProp]=hex;if(alphaProp&&a!=null)obj[alphaProp]=a;paint();cb();markStyleDirty();}});
+      onInput:function(hex,a){obj[colorProp]=hex;if(alphaProp&&a!=null)obj[alphaProp]=a;paint();cb();markDirtyFrom(btn);}});
   });
 }
 
@@ -1644,29 +1644,29 @@ function setRange(id,val,fmt){var el=document.getElementById(id);if(!el)return;e
 function setCheck(id,val){var el=document.getElementById(id);if(el)el.checked=!!val;}
 function syncSettingsUI(){
   colorControls.forEach(function(c){c.paint();});
-  setRange('default-stroke-weight',styleConfig.default.strokeWeight);
-  setRange('highlight-stroke-weight',styleConfig.highlight.strokeWeight);
-  setRange('highlight-spot-scale',styleConfig.highlight.spotScaleM);
-  setRange('lens-trend-scale',styleConfig.lens.trendScaleM);
-  setRange('lens-fade-ms',styleConfig.lens.fadeMs);
-  setCheck('smooth-toggle',smoothEnabled);
-  setRange('smooth-intensity',smoothIntensity);
-  setRange('hex-radius',hexRadiusKm,function(v){return v.toFixed(1)+'km';});
-  setCheck('local-label-toggle',localLabelConfig.enabled);
-  setCheck('zone-merge-toggle',zoneMergeBlocks);
-  setRange('local-label-size',localLabelConfig.fontSize);
-  setRange('zone-label-size',zoneLabelConfig.fontSize);
-  setRange('zone-label-bg-opacity',zoneLabelConfig.bgOpacity);
-  setRange('spot-max-chars',spotConfig.maxChars);
-  setRange('spot-font-size',spotConfig.fontSize);
-  setRange('spot-emoji-size',spotConfig.emojiSize);
-  setRange('spot-bubble-radius',spotConfig.bubbleRadius);
-  setRange('spot-emoji-gap',spotConfig.emojiGap);
-  setRange('spot-emoji-letter',spotConfig.emojiLetterSpacing);
-  setRange('spot-dot-scale',spotConfig.dotScaleM);
-  setCheck('spot-tail',spotConfig.tail);
-  var _sp=document.getElementById('spot-emoji-pos');if(_sp)_sp.value=spotConfig.emojiPos||'bottom';
-  var _sds=document.getElementById('spot-dot-style');if(_sds)_sds.value=spotConfig.dotStyle||'dot';
+  setRange('default-stroke-weight',DRAFT.styleConfig.default.strokeWeight);
+  setRange('highlight-stroke-weight',DRAFT.styleConfig.highlight.strokeWeight);
+  setRange('highlight-spot-scale',DRAFT.styleConfig.highlight.spotScaleM);
+  setRange('lens-trend-scale',DRAFT.styleConfig.lens.trendScaleM);
+  setRange('lens-fade-ms',DRAFT.styleConfig.lens.fadeMs);
+  setCheck('smooth-toggle',DRAFT.smoothEnabled);
+  setRange('smooth-intensity',DRAFT.smoothIntensity);
+  setRange('hex-radius',DRAFT.hexRadiusKm,function(v){return v.toFixed(1)+'km';});
+  setCheck('local-label-toggle',DRAFT.localLabelConfig.enabled);
+  setCheck('zone-merge-toggle',DRAFT.zoneMergeBlocks);
+  setRange('local-label-size',DRAFT.localLabelConfig.fontSize);
+  setRange('zone-label-size',DRAFT.zoneLabelConfig.fontSize);
+  setRange('zone-label-bg-opacity',DRAFT.zoneLabelConfig.bgOpacity);
+  setRange('spot-max-chars',DRAFT.spotConfig.maxChars);
+  setRange('spot-font-size',DRAFT.spotConfig.fontSize);
+  setRange('spot-emoji-size',DRAFT.spotConfig.emojiSize);
+  setRange('spot-bubble-radius',DRAFT.spotConfig.bubbleRadius);
+  setRange('spot-emoji-gap',DRAFT.spotConfig.emojiGap);
+  setRange('spot-emoji-letter',DRAFT.spotConfig.emojiLetterSpacing);
+  setRange('spot-dot-scale',DRAFT.spotConfig.dotScaleM);
+  setCheck('spot-tail',DRAFT.spotConfig.tail);
+  var _sp=document.getElementById('spot-emoji-pos');if(_sp)_sp.value=DRAFT.spotConfig.emojiPos||'bottom';
+  var _sds=document.getElementById('spot-dot-style');if(_sds)_sds.value=DRAFT.spotConfig.dotStyle||'dot';
   if(typeof renderSpotEmojiPicker==='function')renderSpotEmojiPicker();
   renderMiniPreviews();
 }
@@ -1677,36 +1677,35 @@ function initSettingsPanel(){
   toggle.addEventListener('click',function(){var open=section.style.display!=='none';section.style.display=open?'none':'';toggle.classList.toggle('open',!open);});
 
   // 색상+투명도 통합 컨트롤 (팝업에서 색상/알파 동시 조절)
-  makeColorControl('ct-default-fill',styleConfig.default,'fillColor','fillOpacity',refreshMapStyles);
-  makeColorControl('ct-default-stroke',styleConfig.default,'strokeColor','strokeOpacity',refreshMapStyles);
-  makeColorControl('ct-highlight-fill',styleConfig.highlight,'fillColor','fillOpacity',refreshMapStyles);
-  makeColorControl('ct-highlight-stroke',styleConfig.highlight,'strokeColor','strokeOpacity',refreshMapStyles);
-  makeColorControl('ct-dim-fill',styleConfig.lens,'fogColor','fogOpacity',lensStyleRefresh);
-  makeColorControl('ct-dim-stroke',styleConfig.lens,'lineColor','lineOpacity',lensStyleRefresh);
-  makeColorControl('ct-hex-fill',hexStyleConfig.default,'fillColor','fillOpacity',refreshHexStyles);
-  makeColorControl('ct-hex-stroke',hexStyleConfig.default,'strokeColor','strokeOpacity',refreshHexStyles);
-  makeColorControl('ct-hex-sel-fill',hexStyleConfig.selected,'fillColor','fillOpacity',refreshHexStyles);
-  makeColorControl('ct-local-label-text',localLabelConfig,'textColor',null,updateLocalLabelStyle);
-  makeColorControl('ct-local-label-bg',localLabelConfig,'bgColor','bgOpacity',updateLocalLabelStyle);
-  makeColorControl('ct-zone-label-text',zoneLabelConfig,'textColor',null,refreshZoneLabels);
+  makeColorControl('ct-default-fill',DRAFT.styleConfig.default,'fillColor','fillOpacity',mpNoop);
+  makeColorControl('ct-default-stroke',DRAFT.styleConfig.default,'strokeColor','strokeOpacity',mpNoop);
+  makeColorControl('ct-highlight-fill',DRAFT.styleConfig.highlight,'fillColor','fillOpacity',mpNoop);
+  makeColorControl('ct-highlight-stroke',DRAFT.styleConfig.highlight,'strokeColor','strokeOpacity',mpNoop);
+  makeColorControl('ct-dim-fill',DRAFT.styleConfig.lens,'fogColor','fogOpacity',mpNoop);
+  makeColorControl('ct-dim-stroke',DRAFT.styleConfig.lens,'lineColor','lineOpacity',mpNoop);
+  makeColorControl('ct-hex-fill',DRAFT.hexStyleConfig.default,'fillColor','fillOpacity',mpNoop);
+  makeColorControl('ct-hex-stroke',DRAFT.hexStyleConfig.default,'strokeColor','strokeOpacity',mpNoop);
+  makeColorControl('ct-hex-sel-fill',DRAFT.hexStyleConfig.selected,'fillColor','fillOpacity',mpNoop);
+  makeColorControl('ct-local-label-text',DRAFT.localLabelConfig,'textColor',null,mpNoop);
+  makeColorControl('ct-local-label-bg',DRAFT.localLabelConfig,'bgColor','bgOpacity',mpNoop);
+  makeColorControl('ct-zone-label-text',DRAFT.zoneLabelConfig,'textColor',null,mpNoop);
 
   // 선 굵기 (투명도가 아니므로 슬라이더 유지)
-  bindInput('default-stroke-weight','range',styleConfig.default,'strokeWeight',refreshMapStyles);
-  bindInput('highlight-stroke-weight','range',styleConfig.highlight,'strokeWeight',refreshMapStyles);
-  bindInput('highlight-spot-scale','range',styleConfig.highlight,'spotScaleM',updatePhoneLens);
-  bindInput('lens-trend-scale','range',styleConfig.lens,'trendScaleM',updatePhoneLens);
-  bindInput('lens-fade-ms','range',styleConfig.lens,'fadeMs',function(){});
+  bindInput('default-stroke-weight','range',DRAFT.styleConfig.default,'strokeWeight',mpNoop);
+  bindInput('highlight-stroke-weight','range',DRAFT.styleConfig.highlight,'strokeWeight',mpNoop);
+  bindInput('highlight-spot-scale','range',DRAFT.styleConfig.highlight,'spotScaleM',mpNoop);
+  bindInput('lens-trend-scale','range',DRAFT.styleConfig.lens,'trendScaleM',mpNoop);
+  bindInput('lens-fade-ms','range',DRAFT.styleConfig.lens,'fadeMs',function(){});
 
-  document.getElementById('smooth-toggle').addEventListener('change',function(){smoothEnabled=this.checked;applyGeoJsonToMap();markStyleDirty();});
+  document.getElementById('smooth-toggle').addEventListener('change',function(){DRAFT.smoothEnabled=this.checked;markDirtyFrom(this);});
   document.getElementById('smooth-intensity').addEventListener('input',function(){
-    smoothIntensity=parseFloat(this.value);this.nextElementSibling.textContent=smoothIntensity.toFixed(1);
-    if(smoothEnabled) applyGeoJsonToMap();markStyleDirty();
+    DRAFT.smoothIntensity=parseFloat(this.value);this.nextElementSibling.textContent=DRAFT.smoothIntensity.toFixed(1);
+    markDirtyFrom(this);
   });
 
   document.getElementById('hex-radius').addEventListener('input',function(){
-    hexRadiusKm=parseFloat(this.value);document.getElementById('hex-radius-label').textContent=hexRadiusKm.toFixed(1)+'km';
-    if(currentMode==='trend'){selectedHexes.clear();if(editingZoneId)cancelEditZone();rezoneAllToCurrentRadius();generateHexagons();updateZoneSaveUI();}
-    markStyleDirty();
+    DRAFT.hexRadiusKm=parseFloat(this.value);document.getElementById('hex-radius-label').textContent=DRAFT.hexRadiusKm.toFixed(1)+'km';
+    markDirtyFrom(this);
   });
 
   // 폰 표시영역 오버레이 토글 (관리자)
@@ -1714,12 +1713,12 @@ function initSettingsPanel(){
   if(vpToggle){vpToggle.checked=phoneViewportOn;vpToggle.addEventListener('change',function(){phoneViewportOn=this.checked;updatePhoneViewportOverlay();});}
 
   // 라벨 옵션
-  document.getElementById('local-label-toggle').addEventListener('change',function(){localLabelConfig.enabled=this.checked;if(this.checked)showLocalLabel();else removeLocalLabel();markStyleDirty();});
-  bindInput('local-label-size','range',localLabelConfig,'fontSize',updateLocalLabelStyle);
-  bindInput('zone-label-size','range',zoneLabelConfig,'fontSize',refreshZoneLabels);
-  bindInput('zone-label-bg-opacity','range',zoneLabelConfig,'bgOpacity',refreshZoneLabels);
+  document.getElementById('local-label-toggle').addEventListener('change',function(){DRAFT.localLabelConfig.enabled=this.checked;markDirtyFrom(this);});
+  bindInput('local-label-size','range',DRAFT.localLabelConfig,'fontSize',mpNoop);
+  bindInput('zone-label-size','range',DRAFT.zoneLabelConfig,'fontSize',mpNoop);
+  bindInput('zone-label-bg-opacity','range',DRAFT.zoneLabelConfig,'bgOpacity',mpNoop);
   var zmt=document.getElementById('zone-merge-toggle');
-  if(zmt)zmt.addEventListener('change',function(){zoneMergeBlocks=this.checked;rerenderZones();markStyleDirty();});
+  if(zmt)zmt.addEventListener('change',function(){DRAFT.zoneMergeBlocks=this.checked;markDirtyFrom(this);});
 
   enhanceRangeInputs();      // 슬라이더 옆 숫자 직접 입력 추가
   initSettingsAccordion();   // 설정 섹션 아코디언화
@@ -1730,7 +1729,7 @@ function bindInput(id,type,obj,prop,cb){
   el.addEventListener('input',function(){
     obj[prop]=type==='range'?parseFloat(this.value):this.value;
     if(type==='range'&&this.nextElementSibling&&this.nextElementSibling.classList&&this.nextElementSibling.classList.contains('range-val')) this.nextElementSibling.textContent=parseFloat(this.value).toFixed(this.step&&this.step.indexOf('.')>=0?this.step.split('.')[1].length:0);
-    cb(); markStyleDirty();
+    cb(); markDirtyFrom(el);
   });
 }
 
@@ -1961,11 +1960,11 @@ function applyCloudData(d){
   if(Array.isArray(d.spots)){spotMessages=d.spots.map(function(s){return {id:s.id||('sp_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)),lat:s.lat,lng:s.lng,text:s.text||'',emoji:s.emoji||'💬',color:s.color||null};});}
   loadLocalSpotsInto();   // 데모가 이 기기에 추가한 스팟 병합
   if(d.spotConfig)mergeInto(spotConfig,d.spotConfig);
-  syncSettingsUI();refreshMapStyles();refreshHexStyles();applyGeoJsonToMap();
+  draftFromLive();syncSettingsUI();refreshMapStyles();refreshHexStyles();applyGeoJsonToMap();
   if(currentMode==='trend'){showAllZonesOnMap();generateHexagons();}
   renderSpots();   // 모드 무관 항상 스팟 표시
   renderZoneList();refreshZoneLabels();updateLocalLabelStyle();
-  savedSettings=snapshotSettings();styleDirty=false;updateApplyBar(); // 클라우드본 = 적용 기준선
+  blockDirty={};updateApplyBar();updateBlockBars(); // 클라우드본 = 적용 기준선
 }
 /* ========== 설정 미니 프리뷰: 각 설정 블록 상단에 그 옵션의 예시를 실시간 렌더 ========== */
 function mpSvg(el,inner){el.innerHTML='<span class="mp-tag">미리보기</span><svg viewBox="0 0 200 128" preserveAspectRatio="xMidYMid slice">'+mpMapBg()+'<g transform="translate(0,32)">'+inner+'</g></svg>';}
@@ -1993,31 +1992,31 @@ function mpHexPts(cx,cy,r){var o=[];for(var i=0;i<6;i++){var a=Math.PI/3*i;o.pus
 function mpChip(el,bg,color,fontPx,text,extra){el.innerHTML='<span class="mp-tag">미리보기</span><svg class="mp-bg" viewBox="0 0 200 128" preserveAspectRatio="xMidYMid slice">'+mpMapBg()+'</svg><span class="map-label-tag" style="position:relative;z-index:1;transform:none;backdrop-filter:none;background:'+bg+';color:'+color+';font-size:'+fontPx+'px;'+(extra||'')+'">'+text+'</span>';}
 var MINI_RENDER={
   'region-default':function(el){
-    mpSvg(el,'<path d="'+mpPath(MP_BLOB1)+'" '+mpRegionAttr(styleConfig.default)+'/><path d="'+mpPath(MP_BLOB2)+'" '+mpRegionAttr(styleConfig.default)+'/>');
+    mpSvg(el,'<path d="'+mpPath(MP_BLOB1)+'" '+mpRegionAttr(DRAFT.styleConfig.default)+'/><path d="'+mpPath(MP_BLOB2)+'" '+mpRegionAttr(DRAFT.styleConfig.default)+'/>');
   },
   'region-highlight':function(el){
-    mpSvg(el,'<path d="'+mpPath(MP_BLOB2)+'" '+mpRegionAttr(styleConfig.default)+'/><path d="'+mpPath(MP_BLOB1)+'" '+mpRegionAttr(styleConfig.highlight)+'/>');
+    mpSvg(el,'<path d="'+mpPath(MP_BLOB2)+'" '+mpRegionAttr(DRAFT.styleConfig.default)+'/><path d="'+mpPath(MP_BLOB1)+'" '+mpRegionAttr(DRAFT.styleConfig.highlight)+'/>');
   },
-  'lens':function(el){var c=styleConfig.lens;
+  'lens':function(el){var c=DRAFT.styleConfig.lens;
     mpSvg(el,'<path d="M0,0 H200 V64 H0 Z '+mpPath(MP_BLOB1)+'" fill-rule="evenodd" fill="'+hexToRgba(c.fogColor,Number(c.fogOpacity))+'"/>'+
       '<path d="'+mpPath(MP_BLOB1)+'" fill="none" stroke="'+hexToRgba(c.lineColor,Number(c.lineOpacity))+'" stroke-width="1.8"/>'+
       '<text x="194" y="58" text-anchor="end" font-size="9" font-weight="700" fill="#7b8492">전환 '+(Number(c.fadeMs)||250)+'ms</text>');
   },
   'smooth':function(el){
-    var sm=smoothEnabled?chaikinSmooth(MP_BLOB1.concat([MP_BLOB1[0]]),smoothIntensity):MP_BLOB1;
+    var sm=DRAFT.smoothEnabled?chaikinSmooth(MP_BLOB1.concat([MP_BLOB1[0]]),DRAFT.smoothIntensity):MP_BLOB1;
     mpSvg(el,'<path d="'+mpPath(MP_BLOB1)+'" fill="none" stroke="#c3cad4" stroke-width="1" stroke-dasharray="3 3"/>'+
       '<path d="'+mpPath(sm)+'" fill="rgba(47,123,255,0.08)" stroke="#2f7bff" stroke-width="1.6"/>');
   },
-  'local-label':function(el){var c=localLabelConfig;
+  'local-label':function(el){var c=DRAFT.localLabelConfig;
     mpChip(el,hexToRgba(c.bgColor,Number(c.bgOpacity)),c.textColor,Math.min(28,Number(c.fontSize)||12),'역삼1동',c.enabled?'':'opacity:.35;');
     if(!c.enabled)el.insertAdjacentHTML('beforeend','<span style="margin-left:6px;font-size:.6rem;color:#98a1ad;">표시 꺼짐</span>');
   },
-  'hex':function(el){var d=hexStyleConfig.default;
+  'hex':function(el){var d=DRAFT.hexStyleConfig.default;
     var st='fill="'+hexToRgba(d.fillColor,Number(d.fillOpacity))+'" stroke="'+hexToRgba(d.strokeColor,Number(d.strokeOpacity))+'" stroke-width="'+Math.min(5,Number(d.strokeWeight)||1)+'"';
     mpSvg(el,'<polygon points="'+mpHexPts(70,32,20)+'" '+st+'/><polygon points="'+mpHexPts(100,14.7,20)+'" '+st+'/><polygon points="'+mpHexPts(100,49.3,20)+'" '+st+'/><polygon points="'+mpHexPts(130,32,20)+'" '+st+'/>'+
-      '<text x="194" y="58" text-anchor="end" font-size="10" font-weight="700" fill="#7b8492">'+Number(hexRadiusKm).toFixed(1)+'km</text>');
+      '<text x="194" y="58" text-anchor="end" font-size="10" font-weight="700" fill="#7b8492">'+Number(DRAFT.hexRadiusKm).toFixed(1)+'km</text>');
   },
-  'hex-sel':function(el){var d=hexStyleConfig.default,sl=hexStyleConfig.selected;
+  'hex-sel':function(el){var d=DRAFT.hexStyleConfig.default,sl=DRAFT.hexStyleConfig.selected;
     mpSvg(el,'<polygon points="'+mpHexPts(70,32,20)+'" '+mpRegionAttr(d)+'/>'+
       '<polygon points="'+mpHexPts(104,32,20)+'" fill="'+hexToRgba(sl.fillColor,Number(sl.fillOpacity))+'" stroke="'+hexToRgba(sl.strokeColor,Number(sl.strokeOpacity))+'" stroke-width="2"/>');
   },
@@ -2026,15 +2025,15 @@ var MINI_RENDER={
     var centers=[{lat:32,lng:85},{lat:32-gp.rowSpacing/2,lng:85+gp.colSpacing},{lat:32+gp.rowSpacing/2,lng:85+gp.colSpacing}];
     var col='#F2862E',fills='',strokes='';
     centers.forEach(function(c){var v=hexVertices(c.lng,c.lat,gp.R_lat,gp.R_lng);
-      fills+='<polygon points="'+v.map(function(pt){return pt.lng.toFixed(1)+','+pt.lat.toFixed(1);}).join(' ')+'" fill="'+hexToRgba(col,0.35)+'" stroke="'+(zoneMergeBlocks?'none':hexToRgba(col,0.8))+'" stroke-width="1.5"/>';});
-    if(zoneMergeBlocks)zoneOutlineLoops(centers,gp).forEach(function(loop){
+      fills+='<polygon points="'+v.map(function(pt){return pt.lng.toFixed(1)+','+pt.lat.toFixed(1);}).join(' ')+'" fill="'+hexToRgba(col,0.35)+'" stroke="'+(DRAFT.zoneMergeBlocks?'none':hexToRgba(col,0.8))+'" stroke-width="1.5"/>';});
+    if(DRAFT.zoneMergeBlocks)zoneOutlineLoops(centers,gp).forEach(function(loop){
       strokes+='<polygon points="'+loop.map(function(pt){return pt.lng.toFixed(1)+','+pt.lat.toFixed(1);}).join(' ')+'" fill="none" stroke="'+col+'" stroke-width="2.2"/>';});
     mpSvg(el,fills+strokes);
   },
-  'zone-label':function(el){var c=zoneLabelConfig;
+  'zone-label':function(el){var c=DRAFT.zoneLabelConfig;
     mpChip(el,hexToRgba('#F2862E',Number(c.bgOpacity)),c.textColor,Math.min(28,Number(c.fontSize)||11),'강남 핫플');
   },
-  'spot':function(el){var c=spotConfig;
+  'spot':function(el){var c=DRAFT.spotConfig;
     el.innerHTML='<span class="mp-tag">미리보기</span><svg class="mp-bg" viewBox="0 0 200 128" preserveAspectRatio="xMidYMid slice">'+mpMapBg()+'</svg>';
     var wrap=document.createElement('div');wrap.className='spot-marker';
     var bubble=document.createElement('div');bubble.className='spot-bubble';
@@ -2074,38 +2073,106 @@ function renderMiniPreviews(){
   });
 }
 
-/* ========== 설정 드래프트: 변경=폰 미러 라이브 프리뷰(내 화면만) → '전체 적용' 시 클라우드 저장 ========== */
-var styleDirty=false, savedSettings=null, FACTORY_SETTINGS=null;
+/* ========== 설정 드래프트(블록 단위): 변경=미니 프리뷰만 → 블록 [적용] 시 실제 지도+전체 저장 ========== */
+var blockDirty={}, DRAFT=null, FACTORY_SETTINGS=null;
+var mpNoop=function(){};
 function snapshotSettings(){return JSON.parse(JSON.stringify({styleConfig:styleConfig,hexStyleConfig:hexStyleConfig,localLabelConfig:localLabelConfig,zoneLabelConfig:zoneLabelConfig,spotConfig:spotConfig,smoothEnabled:smoothEnabled,smoothIntensity:smoothIntensity,hexRadiusKm:hexRadiusKm,zoneMergeBlocks:zoneMergeBlocks}));}
-function applySettingsSnapshot(snap){
-  if(!snap)return;
-  var oSE=smoothEnabled,oSI=smoothIntensity,oR=hexRadiusKm,oM=zoneMergeBlocks;
-  mergeInto(styleConfig.default,snap.styleConfig.default);mergeInto(styleConfig.highlight,snap.styleConfig.highlight);mergeInto(styleConfig.lens,snap.styleConfig.lens);
-  mergeInto(hexStyleConfig.default,snap.hexStyleConfig.default);mergeInto(hexStyleConfig.selected,snap.hexStyleConfig.selected);
-  mergeInto(localLabelConfig,snap.localLabelConfig);mergeInto(zoneLabelConfig,snap.zoneLabelConfig);
-  mergeInto(spotConfig,snap.spotConfig);if(snap.spotConfig&&Array.isArray(snap.spotConfig.emojis))spotConfig.emojis=snap.spotConfig.emojis.slice();
-  smoothEnabled=snap.smoothEnabled;smoothIntensity=snap.smoothIntensity;hexRadiusKm=snap.hexRadiusKm;zoneMergeBlocks=snap.zoneMergeBlocks;
-  syncSettingsUI();
-  refreshMapStyles();refreshHexStyles();refreshSpotStyles();refreshZoneLabels();updateLocalLabelStyle();lensStyleRefresh();
-  if(oSE!==smoothEnabled||oSI!==smoothIntensity)applyGeoJsonToMap();
-  if(oR!==hexRadiusKm){selectedHexes.clear();if(editingZoneId)cancelEditZone();rezoneAllToCurrentRadius();if(currentMode==='trend'){generateHexagons();updateZoneSaveUI();}}
-  if(oM!==zoneMergeBlocks)rerenderZones();
-  updatePhoneLens();
+function initDraft(){DRAFT=snapshotSettings();} // 설정 편집 버퍼 (컨트롤·미니 프리뷰가 이걸 읽고 씀)
+function copyFields(dst,src,fields){fields.forEach(function(k){if(src[k]!==undefined)dst[k]=src[k];});}
+var REGION_FIELDS=['strokeColor','fillColor','strokeWeight','strokeOpacity','fillOpacity'];
+var LENS_FIELDS=['fogColor','fogOpacity','lineColor','lineOpacity','trendScaleM','fadeMs'];
+var SPOT_FIELDS=['maxChars','fontSize','textColor','bgColor','bgOpacity','emojiSize','emojiPos','emojiGap','emojiLetterSpacing','bubbleRadius','tail','dotScaleM','dotStyle'];
+var LLABEL_FIELDS=['enabled','fontSize','textColor','bgColor','bgOpacity'];
+var ZLABEL_FIELDS=['fontSize','textColor','bgOpacity'];
+function objBlock(getLive,getDraft,getFact,fields,refresh){
+  return {
+    apply:function(){copyFields(getLive(),getDraft(),fields);if(refresh)refresh();},
+    cancel:function(){copyFields(getDraft(),getLive(),fields);},
+    def:function(){copyFields(getDraft(),getFact(),fields);}
+  };
 }
-function markStyleDirty(){styleDirty=true;updateApplyBar();renderMiniPreviews();}
-function updateApplyBar(){
+var BLOCK_DEFS={
+  'spot':objBlock(function(){return spotConfig;},function(){return DRAFT.spotConfig;},function(){return FACTORY_SETTINGS.spotConfig;},SPOT_FIELDS,function(){refreshSpotStyles();}),
+  'region-default':objBlock(function(){return styleConfig.default;},function(){return DRAFT.styleConfig.default;},function(){return FACTORY_SETTINGS.styleConfig.default;},REGION_FIELDS,function(){refreshMapStyles();}),
+  'region-highlight':objBlock(function(){return styleConfig.highlight;},function(){return DRAFT.styleConfig.highlight;},function(){return FACTORY_SETTINGS.styleConfig.highlight;},REGION_FIELDS,function(){refreshMapStyles();}),
+  'hex-sel':objBlock(function(){return hexStyleConfig.selected;},function(){return DRAFT.hexStyleConfig.selected;},function(){return FACTORY_SETTINGS.hexStyleConfig.selected;},REGION_FIELDS,function(){refreshHexStyles();}),
+  'zone-label':objBlock(function(){return zoneLabelConfig;},function(){return DRAFT.zoneLabelConfig;},function(){return FACTORY_SETTINGS.zoneLabelConfig;},ZLABEL_FIELDS,function(){refreshZoneLabels();}),
+  'local-label':objBlock(function(){return localLabelConfig;},function(){return DRAFT.localLabelConfig;},function(){return FACTORY_SETTINGS.localLabelConfig;},LLABEL_FIELDS,function(){if(localLabelConfig.enabled)showLocalLabel();else removeLocalLabel();updateLocalLabelStyle();}),
+  'lens':{ // 렌즈 색·수치 + 베이직 발동 축척(highlight.spotScaleM)
+    apply:function(){copyFields(styleConfig.lens,DRAFT.styleConfig.lens,LENS_FIELDS);styleConfig.highlight.spotScaleM=DRAFT.styleConfig.highlight.spotScaleM;lensStyleRefresh();updatePhoneLens();},
+    cancel:function(){copyFields(DRAFT.styleConfig.lens,styleConfig.lens,LENS_FIELDS);DRAFT.styleConfig.highlight.spotScaleM=styleConfig.highlight.spotScaleM;},
+    def:function(){copyFields(DRAFT.styleConfig.lens,FACTORY_SETTINGS.styleConfig.lens,LENS_FIELDS);DRAFT.styleConfig.highlight.spotScaleM=FACTORY_SETTINGS.styleConfig.highlight.spotScaleM;}
+  },
+  'smooth':{
+    apply:function(){var ch=(smoothEnabled!==DRAFT.smoothEnabled||smoothIntensity!==DRAFT.smoothIntensity);smoothEnabled=DRAFT.smoothEnabled;smoothIntensity=DRAFT.smoothIntensity;if(ch)applyGeoJsonToMap();},
+    cancel:function(){DRAFT.smoothEnabled=smoothEnabled;DRAFT.smoothIntensity=smoothIntensity;},
+    def:function(){DRAFT.smoothEnabled=FACTORY_SETTINGS.smoothEnabled;DRAFT.smoothIntensity=FACTORY_SETTINGS.smoothIntensity;}
+  },
+  'hex':{ // 헥사 기본 스타일 + 반경(반경 변경 시 존 재매핑 흐름 포함)
+    apply:function(){copyFields(hexStyleConfig.default,DRAFT.hexStyleConfig.default,REGION_FIELDS);refreshHexStyles();
+      if(hexRadiusKm!==DRAFT.hexRadiusKm){hexRadiusKm=DRAFT.hexRadiusKm;selectedHexes.clear();if(editingZoneId)cancelEditZone();rezoneAllToCurrentRadius();if(currentMode==='trend'){generateHexagons();updateZoneSaveUI();}}},
+    cancel:function(){copyFields(DRAFT.hexStyleConfig.default,hexStyleConfig.default,REGION_FIELDS);DRAFT.hexRadiusKm=hexRadiusKm;},
+    def:function(){copyFields(DRAFT.hexStyleConfig.default,FACTORY_SETTINGS.hexStyleConfig.default,REGION_FIELDS);DRAFT.hexRadiusKm=FACTORY_SETTINGS.hexRadiusKm;}
+  },
+  'zone-merge':{
+    apply:function(){if(zoneMergeBlocks!==DRAFT.zoneMergeBlocks){zoneMergeBlocks=DRAFT.zoneMergeBlocks;rerenderZones();}},
+    cancel:function(){DRAFT.zoneMergeBlocks=zoneMergeBlocks;},
+    def:function(){DRAFT.zoneMergeBlocks=FACTORY_SETTINGS.zoneMergeBlocks;}
+  }
+};
+function draftFromLive(){ // 드래프트를 현재 적용값으로 리셋 (클라우드 로드 후 등)
+  if(!DRAFT)return;
+  Object.keys(BLOCK_DEFS).forEach(function(k){BLOCK_DEFS[k].cancel();});
+  if(Array.isArray(spotConfig.emojis))DRAFT.spotConfig.emojis=spotConfig.emojis.slice();
+}
+function anyBlockDirty(){for(var k in blockDirty)if(blockDirty[k])return true;return false;}
+function applyBlock(k){var d=BLOCK_DEFS[k];if(!d)return;d.apply();blockDirty[k]=false;}
+function cancelBlock(k){var d=BLOCK_DEFS[k];if(!d)return;d.cancel();blockDirty[k]=false;syncSettingsUI();}
+function defaultBlock(k){var d=BLOCK_DEFS[k];if(!d)return;d.def();blockDirty[k]=true;syncSettingsUI();}
+function markDirtyFrom(el){ // 컨트롤이 속한 블록을 dirty로 + 미니 프리뷰 갱신
+  var sec=el&&el.closest?el.closest('.settings-section[data-prev]'):null;
+  if(sec)blockDirty[sec.dataset.prev]=true;
+  updateApplyBar();updateBlockBars();renderMiniPreviews();
+}
+function updateApplyBar(){ // 상단 요약 바 (전체 일괄 조작)
   var bar=document.getElementById('settings-apply-bar');if(!bar)return;
-  bar.classList.toggle('dirty',styleDirty);
-  var msg=document.getElementById('sab-msg');if(msg)msg.textContent=styleDirty?'미리보기 중 · 아직 저장 안 됨':'모든 변경 적용됨';
+  var dirty=anyBlockDirty();
+  bar.classList.toggle('dirty',dirty);
+  var msg=document.getElementById('sab-msg');if(msg)msg.textContent=dirty?'적용 안 된 블록 있음':'모든 변경 적용됨';
   var ap=document.getElementById('sab-apply'),rv=document.getElementById('sab-revert');
-  if(ap)ap.style.display=styleDirty?'':'none';
-  if(rv)rv.style.display=styleDirty?'':'none';
+  if(ap)ap.style.display=dirty?'':'none';
+  if(rv)rv.style.display=dirty?'':'none';
 }
-function initApplyBar(){
+function updateBlockBars(){
+  document.querySelectorAll('.settings-section[data-prev]').forEach(function(sec){
+    var bar=sec.querySelector('.blk-actions');if(!bar)return;
+    var dirty=!!blockDirty[sec.dataset.prev];
+    bar.classList.toggle('dirty',dirty);
+    bar.querySelector('.blk-state').textContent=dirty?'적용 안 됨':'';
+    bar.querySelector('.blk-apply').style.display=dirty?'':'none';
+    bar.querySelector('.blk-cancel').style.display=dirty?'':'none';
+  });
+}
+function initBlockBars(){ // 각 옵션 블록 하단: [기본값][취소][적용]
+  document.querySelectorAll('.settings-section[data-prev]').forEach(function(sec){
+    if(sec.querySelector('.blk-actions'))return;
+    var key=sec.dataset.prev;
+    var bar=document.createElement('div');bar.className='blk-actions';
+    bar.innerHTML='<span class="blk-state"></span>'+
+      '<button type="button" class="action-btn small blk-def" title="코드 기본값으로 (미리보기에만)">기본값</button>'+
+      '<button type="button" class="action-btn small blk-cancel" style="display:none;" title="마지막 적용값으로 되돌리기">취소</button>'+
+      '<button type="button" class="action-btn accent small blk-apply" style="display:none;" title="실제 지도와 모든 사용자에게 적용">적용</button>';
+    bar.querySelector('.blk-def').addEventListener('click',function(){defaultBlock(key);updateApplyBar();updateBlockBars();renderMiniPreviews();});
+    bar.querySelector('.blk-cancel').addEventListener('click',function(){cancelBlock(key);updateApplyBar();updateBlockBars();renderMiniPreviews();});
+    bar.querySelector('.blk-apply').addEventListener('click',function(){applyBlock(key);cloudSave();updateApplyBar();updateBlockBars();});
+    sec.appendChild(bar);
+  });
+}
+function initApplyBar(){ // 상단 바: 전체 적용/전체 취소/전체 기본값
   var ap=document.getElementById('sab-apply'),rv=document.getElementById('sab-revert'),df=document.getElementById('sab-default');
-  if(ap)ap.addEventListener('click',function(){savedSettings=snapshotSettings();styleDirty=false;updateApplyBar();cloudSave();});
-  if(rv)rv.addEventListener('click',function(){applySettingsSnapshot(savedSettings);styleDirty=false;updateApplyBar();});
-  if(df)df.addEventListener('click',function(){applySettingsSnapshot(FACTORY_SETTINGS);markStyleDirty();});
+  if(ap)ap.addEventListener('click',function(){Object.keys(BLOCK_DEFS).forEach(function(k){if(blockDirty[k])applyBlock(k);});cloudSave();updateApplyBar();updateBlockBars();});
+  if(rv)rv.addEventListener('click',function(){Object.keys(BLOCK_DEFS).forEach(function(k){if(blockDirty[k])cancelBlock(k);});updateApplyBar();updateBlockBars();renderMiniPreviews();});
+  if(df)df.addEventListener('click',function(){Object.keys(BLOCK_DEFS).forEach(defaultBlock);updateApplyBar();updateBlockBars();renderMiniPreviews();});
   updateApplyBar();
 }
 function markCloudDirty(){
@@ -2114,7 +2181,7 @@ function markCloudDirty(){
 }
 function cloudSave(){
   if(!fbDb||!currentUser||currentRole!=='admin')return;
-  var snap=(styleDirty&&savedSettings)?savedSettings:snapshotSettings(); // 드래프트 중엔 마지막 적용본 유지
+  var snap=snapshotSettings(); // 라이브 설정 = 항상 '적용된' 값 (드래프트는 DRAFT에만 존재)
   var payload={updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||'',
     settings:{styleConfig:snap.styleConfig,hexStyleConfig:snap.hexStyleConfig,localLabelConfig:snap.localLabelConfig,zoneLabelConfig:snap.zoneLabelConfig,smoothEnabled:snap.smoothEnabled,smoothIntensity:snap.smoothIntensity,hexRadiusKm:snap.hexRadiusKm,zoneMergeBlocks:snap.zoneMergeBlocks},
     zones:trendZones.map(function(z){return {id:z.id,name:z.name,color:z.color,radiusKm:z.radiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters,originalRadiusKm:z.originalRadiusKm};}),
@@ -2159,9 +2226,8 @@ function addAllowlistEntry(){
   initPhoneControls();
   initSidebarResize();
   initPhoneMenu();
-  FACTORY_SETTINGS=snapshotSettings();savedSettings=FACTORY_SETTINGS; // 공장 기본값(코드 기본치) 확보
-  initApplyBar();
-  initMiniPreviews();renderMiniPreviews();
+  FACTORY_SETTINGS=snapshotSettings();initDraft(); // 공장 기본값 + 설정 편집 버퍼(DRAFT)
+  initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
   if(typeof CONFIG==='undefined'||!CONFIG.GOOGLE_MAPS_API_KEY){var it=document.getElementById('info-text');if(it)it.textContent='⚠️ config.js에 API 키를 설정해 주세요.';hideMapLoading();hideAuthOverlay();return;}
   initAuth();
 })();
