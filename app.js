@@ -46,7 +46,9 @@ var selectedFeatureId = null;   // 폰 미러용 선택 구역 식별자
 var colorControls = [];         // 색상 트리거 재도색용 레지스트리
 
 /* ========== 스팟 메시지 (로컬모드, 관리자 생성 · 데모 뷰잉) ========== */
-var spotMessages = [];          // [{id,lat,lng,text,emoji}]
+var spotMessages = [];          // 렌더 배열 = adminSpots + demoSpots
+var adminSpots = [];            // 관리자 생성(shared/mapContent)
+var demoSpots = [];             // 유저 생성(liveSpots · 실시간) 또는 로컬 폴백
 var spotConfig = { maxChars:40, fontSize:13, textColor:'#ffffff', bgColor:'#1c66e5', bgOpacity:0.92, emojiSize:26,
   emojiPos:'bottom', emojiGap:2, emojiLetterSpacing:0, bubbleRadius:13, tail:true, dotScaleM:1000, dotStyle:'dot',
   emojis:['💬','📍','⭐','🔥','❤️','😀','🎉','📢','☕','🍜','🐶','🌸'] };
@@ -468,9 +470,10 @@ function initSpotComposerClass(){
   SpotComposer.prototype.commit=function(){
     var text=(this.textEl?this.textEl.value:'').trim();
     var spot={id:'sp_'+Date.now(),lat:this.position.lat(),lng:this.position.lng(),text:text,emoji:this.emoji||'💬'};
-    if(currentRole!=='admin')spot.local=true; // 데모가 추가한 스팟은 이 기기에 저장
-    spotMessages.push(spot);currentSpotEmoji=this.emoji;
-    this.close();renderSpots();persistSpotChange();
+    currentSpotEmoji=this.emoji;this.close();
+    if(currentRole==='admin'){adminSpots.push(spot);rebuildSpots();markCloudDirty();}
+    else if(hasLive()){fbDb.collection('liveSpots').doc(spot.id).set(liveSpotDoc(spot)).catch(liveWriteErr);} // 스냅샷이 반영
+    else{spot.live=true;demoSpots.push(spot);rebuildSpots();saveLocalSpots();}
   };
   SpotComposer.prototype.close=function(){this.setMap(null);if(composerOverlay===this)composerOverlay=null;if(currentMode==='local')updateInfoPanel(selectedFeatureName);};
   SpotComposer.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
@@ -478,6 +481,17 @@ function initSpotComposerClass(){
 function closeComposer(){if(composerOverlay)composerOverlay.close();}
 
 /* ========== 스팟 메시지 렌더/CRUD ========== */
+function rebuildSpots(){ // 관리자 + 유저(라이브) 병합 → 렌더
+  var seen={};spotMessages=[];
+  adminSpots.concat(demoSpots).forEach(function(sp){if(sp&&!seen[sp.id]){seen[sp.id]=1;spotMessages.push(sp);}});
+  renderSpots();
+}
+function liveSpotDoc(sp){return {id:sp.id,lat:sp.lat,lng:sp.lng,text:sp.text||'',emoji:sp.emoji||'💬',color:sp.color||null,by:myUid(),ts:sp.ts||Date.now()};}
+function persistSpotEdit(sp){ // 개별 스팟 편집 저장 (관리자=클라우드 / 유저=라이브 / 폴백=로컬)
+  if(!sp)return;
+  if(sp.live){if(hasLive())fbDb.collection('liveSpots').doc(sp.id).set(liveSpotDoc(sp),{merge:true});else saveLocalSpots();}
+  else markCloudDirty();
+}
 function renderSpots(){
   clearSpots();
   // 스팟 메시지는 모드(베이직/트렌드) 무관하게 항상 표시 — 모드는 지도 구획 방식일 뿐
@@ -555,22 +569,24 @@ function attachAddGestures(el,mapObj){
   el.addEventListener('touchend',function(){clearTimeout(t);},{passive:true});
   el.addEventListener('touchcancel',function(){clearTimeout(t);},{passive:true});
 }
-function removeSpot(id){spotMessages=spotMessages.filter(function(s){return s.id!==id;});renderSpots();persistSpotChange();}
+function removeSpot(id){
+  var inAdmin=adminSpots.some(function(s){return s.id===id;});
+  if(inAdmin){adminSpots=adminSpots.filter(function(s){return s.id!==id;});rebuildSpots();markCloudDirty();return;}
+  if(hasLive()){fbDb.collection('liveSpots').doc(id).delete();return;} // 스냅샷이 반영
+  demoSpots=demoSpots.filter(function(s){return s.id!==id;});rebuildSpots();saveLocalSpots();
+}
 /* 데모(뷰어) 추가 스팟은 이 기기 localStorage에(공유문서는 관리자만 쓰기), 관리자는 클라우드에 저장 */
 function persistSpotChange(){ if(currentRole==='admin')markCloudDirty(); else saveLocalSpots(); }
 function saveLocalSpots(){
   try{localStorage.setItem('nowhere_localSpots',JSON.stringify(
-    spotMessages.filter(function(s){return s.local;}).map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};})
+    demoSpots.map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};})
   ));}catch(e){}
 }
-function loadLocalSpotsInto(){
-  if(currentRole==='admin')return; // 관리자 세션엔 로컬 스팟 병합 안 함(공유문서로 오염 방지)
+function loadLocalSpotsInto(){ // 로컬 폴백 전용 (라이브면 liveSpots 스냅샷이 담당)
+  if(hasLive())return;
   try{
     var arr=JSON.parse(localStorage.getItem('nowhere_localSpots')||'[]');
-    arr.forEach(function(s){
-      if(!spotMessages.some(function(x){return x.id===s.id;}))
-        spotMessages.push({id:s.id,lat:s.lat,lng:s.lng,text:s.text||'',emoji:s.emoji||'💬',color:s.color||null,local:true});
-    });
+    demoSpots=arr.map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text||'',emoji:s.emoji||'💬',color:s.color||null,live:true};});
   }catch(e){}
 }
 function promptDeleteSpot(id){if(confirm('이 스팟 메시지를 삭제할까요?'))removeSpot(id);}
@@ -594,20 +610,20 @@ function renderSpotEditEmoji(s){
   var list=(spotConfig.emojis&&spotConfig.emojis.length)?spotConfig.emojis:SPOT_EMOJIS;
   list.forEach(function(em){
     var b=document.createElement('button');b.type='button';b.className='spot-emoji-btn'+(em===s.emoji?' active':'');b.textContent=em;
-    b.addEventListener('click',function(){s.emoji=em;pick.querySelectorAll('.spot-emoji-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');refreshSpotStyles();markCloudDirty();});
+    b.addEventListener('click',function(){s.emoji=em;pick.querySelectorAll('.spot-emoji-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');refreshSpotStyles();persistSpotEdit(s);});
     pick.appendChild(b);
   });
   var add=document.createElement('button');add.type='button';add.className='spot-emoji-add';add.textContent='＋';add.title='이모지 추가';
-  add.addEventListener('click',function(){var em=promptAddEmoji();if(!em)return;s.emoji=em;renderSpotEditEmoji(s);renderSpotEmojiPicker();refreshSpotStyles();markCloudDirty();});
+  add.addEventListener('click',function(){var em=promptAddEmoji();if(!em)return;s.emoji=em;renderSpotEditEmoji(s);renderSpotEmojiPicker();refreshSpotStyles();persistSpotEdit(s);});
   pick.appendChild(add);
 }
 function initSpotEditor(){
   var modal=document.getElementById('spot-edit-modal');if(!modal)return;
   document.getElementById('spot-edit-close').addEventListener('click',closeSpotEditor);
   modal.addEventListener('click',function(e){if(e.target===modal)closeSpotEditor();});
-  document.getElementById('se-text').addEventListener('input',function(){var s=curEditSpot();if(s){s.text=this.value;refreshSpotStyles();markCloudDirty();}});
+  document.getElementById('se-text').addEventListener('input',function(){var s=curEditSpot();if(s){s.text=this.value;refreshSpotStyles();persistSpotEdit(s);}});
   document.getElementById('se-color').addEventListener('click',function(e){e.stopPropagation();var s=curEditSpot();if(!s)return;
-    openColorPopup(this,{color:s.color||spotConfig.bgColor,alpha:null,onInput:function(hex){s.color=hex;paintSeColor(hex);refreshSpotStyles();markCloudDirty();}});});
+    openColorPopup(this,{color:s.color||spotConfig.bgColor,alpha:null,onInput:function(hex){s.color=hex;paintSeColor(hex);refreshSpotStyles();persistSpotEdit(s);}});});
   document.getElementById('se-delete').addEventListener('click',function(){var s=curEditSpot();closeSpotEditor();if(s)removeSpot(s.id);});
   document.getElementById('se-save').addEventListener('click',closeSpotEditor);
 }
@@ -1710,7 +1726,7 @@ function initMap(){
   if(CONFIG.MAP_ID&&CONFIG.MAP_ID.length>0) opts.mapId=CONFIG.MAP_ID; else opts.styles=mapStyles();
   map=new google.maps.Map(document.getElementById('map'),opts);
   mapProjHelper=new ProjHelper(map); // 좌표 변환용(제스처 지점→latLng)
-  fetch(CONFIG.GEOJSON_PATH).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(geo){originalGeoJson=geo;applyGeoJsonToMap();fitBoundsToData();initMyLocation();loadZonesFromStorage();hideMapLoading();mapReady=true;if(cloudData)applyCloudData(cloudData);else{loadLocalSpotsInto();renderSpots();}}).catch(function(err){hideMapLoading();var el=document.getElementById('info-text');if(el)el.textContent='⚠️ 경계 데이터를 불러오지 못했습니다. ('+err.message+')';});
+  fetch(CONFIG.GEOJSON_PATH).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(geo){originalGeoJson=geo;applyGeoJsonToMap();fitBoundsToData();initMyLocation();loadZonesFromStorage();hideMapLoading();mapReady=true;if(cloudData)applyCloudData(cloudData);else{loadLocalSpotsInto();rebuildSpots();}}).catch(function(err){hideMapLoading();var el=document.getElementById('info-text');if(el)el.textContent='⚠️ 경계 데이터를 불러오지 못했습니다. ('+err.message+')';});
   refreshMapStyles();
   map.data.addListener('click',function(e){if(currentMode!=='local')return;var f=e.feature;if(selectedFeature===f){selectedFeature=null;selectedFeatureName=null;selectedFeatureId=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();updatePhoneUI();return;}selectedFeature=f;var raw=f.getProperty('adm_nm')||f.getProperty('name')||'(이름 없음)';var p=raw.split(' ');selectedFeatureName=p.length>2?p.slice(2).join(' '):raw;selectedFeatureId=featKey(f);refreshMapStyles();updateInfoPanel(selectedFeatureName);showLocalLabel();updatePhoneUI();});
   map.addListener('click',function(e){if(currentMode==='local'&&selectedFeature){selectedFeature=null;selectedFeatureName=null;selectedFeatureId=null;refreshMapStyles();updateInfoPanel(null);removeLocalLabel();updatePhoneUI();}});
@@ -2143,7 +2159,7 @@ function initAuth(){
   initAllowlistModal();
   fbAuth.onAuthStateChanged(handleAuth);
 }
-function detachLiveListeners(){if(contentUnsub){contentUnsub();contentUnsub=null;}if(newsUnsub){newsUnsub();newsUnsub=null;}}
+function detachLiveListeners(){if(contentUnsub){contentUnsub();contentUnsub=null;}if(newsUnsub){newsUnsub();newsUnsub=null;}if(typeof liveOff==='function')liveOff();}
 function handleAuth(user){
   currentUser=user;
   if(!user){currentRole=null;detachLiveListeners();document.body.classList.remove('role-admin','role-user');var row=document.getElementById('account-row');if(row)row.style.display='none';showAuthOverlay('signedout');return;}
@@ -2161,9 +2177,36 @@ function grantAccess(user,role){
   document.body.classList.add(role==='admin'?'role-admin':'role-user');
   hideAuthOverlay();showUserChip(user,role);bootMap();
   loadSharedContent(); // 관리자·데모 모두 공유 콘텐츠(존/스팟) 로드. 저장은 관리자만(cloudSave/markCloudDirty에서 가드)
+  liveOn();              // 유저 생성 콘텐츠(피드/스팟/Request) 실시간 구독
 }
 
 var contentUnsub=null, newsUnsub=null;
+/* ===== 유저 생성 콘텐츠 실시간 공유 (liveFeed / liveSpots / liveRequests) ===== */
+var liveUnsub={feed:null,spots:null,reqs:null}, feedSeq=0;
+function hasLive(){return !!(fbDb&&currentUser);}
+var liveErrShown=false;
+function liveWriteErr(e){console.warn('live write',e);
+  if(!liveErrShown&&e&&/permission/i.test(e.message||'')){liveErrShown=true;
+    alert('실시간 공유 저장이 거부되었어요.\nFirestore 보안 규칙에 liveFeed/liveSpots/liveRequests 쓰기 허용을 배포했는지 확인해 주세요.');}
+}
+function myUid(){return currentUser?currentUser.uid:'anon';}
+function liveOn(){
+  if(!hasLive())return;liveOff();
+  liveUnsub.feed=fbDb.collection('liveFeed').orderBy('ts','desc').limit(48).onSnapshot(function(snap){
+    feedItems=[];snap.forEach(function(dc){var v=dc.data();feedItems.push({id:dc.id,type:'photo',src:v.src,region:v.region||'',zone:v.zone||null,ts:v.ts||0,likes:v.likes||{}});});
+    rebuildLikes();try{localStorage.setItem(FEED_KEY,JSON.stringify(feedItems.slice(0,48)));}catch(e){}
+    renderFeedColList();renderDrawerDemo();if(currentTab==='feed')renderFeed();
+  },function(e){console.warn('liveFeed',e);});
+  liveUnsub.spots=fbDb.collection('liveSpots').orderBy('ts','desc').limit(120).onSnapshot(function(snap){
+    demoSpots=[];snap.forEach(function(dc){var v=dc.data();demoSpots.push({id:dc.id,lat:v.lat,lng:v.lng,text:v.text||'',emoji:v.emoji||'💬',color:v.color||null,live:true});});
+    rebuildSpots();
+  },function(e){console.warn('liveSpots',e);});
+  liveUnsub.reqs=fbDb.collection('liveRequests').orderBy('ts','desc').limit(40).onSnapshot(function(snap){
+    fieldRequests=[];snap.forEach(function(dc){var v=dc.data();fieldRequests.push({id:dc.id,lat:v.lat,lng:v.lng,q:v.q,place:v.place,answers:v.answers||[],ts:v.ts||0});});
+    renderRequestMarkers();
+  },function(e){console.warn('liveRequests',e);});
+}
+function liveOff(){Object.keys(liveUnsub).forEach(function(k){if(liveUnsub[k]){liveUnsub[k]();liveUnsub[k]=null;}});}
 function loadSharedContent(){ // 실시간: 다른 사람이 올린 공유 콘텐츠가 접속 중 즉시 반영
   if(!fbDb)return;
   if(contentUnsub){contentUnsub();contentUnsub=null;}
@@ -2194,8 +2237,9 @@ function applyCloudData(d){
     trendZones=[];
     d.zones.forEach(function(z){trendZones.push({id:z.id||('tz_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)),name:z.name,color:z.color,desc:z.desc||'',photo:z.photo||null,radiusKm:z.radiusKm||hexRadiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters||JSON.parse(JSON.stringify(z.hexCenters)),originalRadiusKm:z.originalRadiusKm||z.radiusKm||hexRadiusKm,polygons:[],label:null});});
   }
-  if(Array.isArray(d.spots)){spotMessages=d.spots.map(function(s){return {id:s.id||('sp_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)),lat:s.lat,lng:s.lng,text:s.text||'',emoji:s.emoji||'💬',color:s.color||null};});}
-  loadLocalSpotsInto();   // 데모가 이 기기에 추가한 스팟 병합
+  if(Array.isArray(d.spots)){adminSpots=d.spots.map(function(s){return {id:s.id||('sp_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)),lat:s.lat,lng:s.lng,text:s.text||'',emoji:s.emoji||'💬',color:s.color||null};});}
+  loadLocalSpotsInto();   // 로컬 폴백(라이브면 스냅샷)
+  rebuildSpots();
   if(d.spotConfig)mergeInto(spotConfig,d.spotConfig);
   draftFromLive();syncSettingsUI();refreshMapStyles();refreshHexStyles();applyGeoJsonToMap();
   if(currentMode==='trend'){showAllZonesOnMap();generateHexagons();}
@@ -2439,7 +2483,7 @@ function cloudSave(){
   var payload={updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||'',
     settings:{styleConfig:snap.styleConfig,hexStyleConfig:snap.hexStyleConfig,localLabelConfig:snap.localLabelConfig,zoneLabelConfig:snap.zoneLabelConfig,smoothEnabled:snap.smoothEnabled,smoothIntensity:snap.smoothIntensity,hexRadiusKm:snap.hexRadiusKm,zoneMergeBlocks:snap.zoneMergeBlocks},
     zones:trendZones.map(function(z){return {id:z.id,name:z.name,color:z.color,desc:z.desc||'',photo:z.photo||null,radiusKm:z.radiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters,originalRadiusKm:z.originalRadiusKm};}),
-    spots:spotMessages.filter(function(s){return !s.local;}).map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};}),
+    spots:adminSpots.map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};}),
     spotConfig:snap.spotConfig,
     social:{rooms:socRoomList,seedLocal:socSeedLocal},
     zoneCardStyle:zoneCardStyle};
@@ -2544,7 +2588,33 @@ function setNavActive(nav){document.querySelectorAll('#phone-mirror .pn-item').f
 var feedItems=[]; var FEED_KEY='nowhere_feed';
 var feedLikes={};try{feedLikes=JSON.parse(localStorage.getItem('nowhere_likes')||'{}')||{};}catch(e){}
 function likeInfo(id){return feedLikes[id]||{n:0,me:0};}
-function toggleLike(id){ // 더블탭 좋아요 (기기=유저당 1개 토글)
+function rebuildLikes(){ // liveFeed 문서의 likes 맵 → feedLikes{n,me}
+  var uid=myUid();feedLikes={};
+  feedItems.forEach(function(f){var lk=f.likes||{};feedLikes[f.id]={n:Object.keys(lk).length,me:lk[uid]?1:0};});
+}
+function feedAdd(src,region,zone){ // 피드 사진 추가 (라이브=공유 / 로컬=이 기기)
+  var id='f_'+Date.now()+'_'+(feedSeq++);
+  if(hasLive()){fbDb.collection('liveFeed').doc(id).set({src:src,region:region||'',zone:zone||null,by:myUid(),ts:Date.now(),likes:{}}).catch(liveWriteErr);return;}
+  feedItems.unshift({id:id,type:'photo',src:src,region:region||'',zone:zone||null,ts:Date.now(),likes:{}});
+  saveFeed();renderFeedColList();renderDrawerDemo();if(currentTab==='feed')renderFeed();
+}
+function feedUpdate(f,fields){ // region/zone 편집
+  for(var k in fields)f[k]=fields[k];
+  if(hasLive())fbDb.collection('liveFeed').doc(f.id).set(fields,{merge:true});else saveFeed();
+}
+function feedDelete(id){
+  if(hasLive()){fbDb.collection('liveFeed').doc(id).delete();return;}
+  feedItems=feedItems.filter(function(f){return f.id!==id;});saveFeed();renderFeedColList();renderDrawerDemo();if(currentTab==='feed')renderFeed();
+}
+function toggleLike(id){ // 더블탭 좋아요 (계정당 1개 토글)
+  if(hasLive()){
+    var f=feedItems.filter(function(x){return x.id===id;})[0];if(!f)return likeInfo(id);
+    var uid=myUid();f.likes=f.likes||{};
+    var upd={};upd['likes.'+uid]=f.likes[uid]?firebase.firestore.FieldValue.delete():true;
+    if(f.likes[uid])delete f.likes[uid];else f.likes[uid]=true;   // 낙관적 반영
+    fbDb.collection('liveFeed').doc(id).update(upd).catch(function(e){console.warn('like',e);});
+    rebuildLikes();return likeInfo(id);
+  }
   var L=feedLikes[id]||(feedLikes[id]={n:0,me:0});
   if(L.me){L.me=0;L.n=Math.max(0,L.n-1);}else{L.me=1;L.n++;}
   try{localStorage.setItem('nowhere_likes',JSON.stringify(feedLikes));}catch(e){}
@@ -2794,8 +2864,7 @@ function initFeedTools(){
     probe.onload=function(){
       var ctr=(phoneMap&&phoneMap.getCenter())||(map&&map.getCenter());
       var zz=ctr?zoneObjAtCenter(ctr.lat(),ctr.lng()):null;
-      feedItems.unshift({id:'f_'+Date.now(),type:'photo',src:url,region:currentCenterDong(),zone:zz?zz.id:null,ts:Date.now()});
-      saveFeed();renderFeedColList();renderDrawerDemo();if(currentTab==='feed')renderFeed();
+      feedAdd(url,currentCenterDong(),zz?zz.id:null);
     };
     probe.onerror=function(){alert('이 링크의 이미지를 불러올 수 없어요. 직접 이미지 주소인지 확인해 주세요.');};
     probe.src=url;
@@ -2814,9 +2883,9 @@ function initFeedTools(){
         if(url){
           var ctr=(phoneMap&&phoneMap.getCenter())||(map&&map.getCenter());
           var zz=ctr?zoneObjAtCenter(ctr.lat(),ctr.lng()):null;
-          feedItems.unshift({id:'f_'+Date.now()+'_'+(pending),type:'photo',src:url,region:currentCenterDong(),zone:zz?zz.id:null,ts:Date.now()});
+          feedAdd(url,currentCenterDong(),zz?zz.id:null);
         }
-        if(--pending===0){saveFeed();renderFeedColList();renderDrawerDemo();if(currentTab==='feed')renderFeed();}
+        pending--;
       });});
     });
   }
@@ -2850,21 +2919,21 @@ function renderFeedColList(){ // 설정-컨텐츠: 피드 컨텐츠 관리
     var row=document.createElement('div');row.className='news-item';
     var th=document.createElement('img');th.className='ni-thumb';th.src=f.src;
     var reg=document.createElement('input');reg.className='ni-region';reg.type='text';reg.placeholder='구역(동)';reg.value=f.region||'';
-    reg.addEventListener('change',function(){f.region=this.value.trim();saveFeed();});
+    reg.addEventListener('change',function(){feedUpdate(f,{region:this.value.trim()});});
     var zs=document.createElement('select');zs.className='mini-select ni-zone';
     var op0=document.createElement('option');op0.value='';op0.textContent='트렌드존 없음';zs.appendChild(op0);
     trendZones.forEach(function(z){var op=document.createElement('option');op.value=z.id;op.textContent=z.name;zs.appendChild(op);});
     zs.value=f.zone||'';
     zs.addEventListener('change',function(){
-      f.zone=this.value||null;
-      if(f.zone){var rn=zoneRegionName(f.zone);if(rn){f.region=rn;reg.value=rn;}} // 존 선택 시 속한 동 자동 채움
-      saveFeed();renderDrawerDemo();
+      var z=this.value||null, upd={zone:z};
+      if(z){var rn=zoneRegionName(z);if(rn){upd.region=rn;reg.value=rn;}} // 존 선택 시 속한 동 자동 채움
+      feedUpdate(f,upd);renderDrawerDemo();
     });
     var fields=document.createElement('div');fields.className='ni-fields';
     fields.appendChild(zs);fields.appendChild(reg);
     var act=document.createElement('div');act.className='ni-actions';
     var del=document.createElement('button');del.type='button';del.textContent='🗑';
-    del.addEventListener('click',function(){feedItems.splice(i,1);saveFeed();renderFeedColList();renderDrawerDemo();if(currentTab==='feed')renderFeed();});
+    del.addEventListener('click',function(){feedDelete(f.id);});
     act.appendChild(del);
     row.appendChild(th);row.appendChild(fields);row.appendChild(act);list.appendChild(row);
   });
@@ -2879,8 +2948,7 @@ function initLiveCamera(){
       if(!url){alert('사진 처리에 실패했어요. 더 작은 사진으로 시도해 주세요.');return;}
       var ctr=(phoneMap&&phoneMap.getCenter())||(map&&map.getCenter());
       var zz=ctr?zoneObjAtCenter(ctr.lat(),ctr.lng()):null;
-      feedItems.unshift({id:'f_'+Date.now(),type:'photo',src:url,region:currentCenterDong(),zone:zz?zz.id:null,ts:Date.now()});
-      saveFeed();renderFeedColList();renderDrawerDemo();
+      feedAdd(url,currentCenterDong(),zz?zz.id:null);
       setNavActive('feed');switchTab('feed'); // 바로 피드에서 확인
     });
   });
@@ -2898,7 +2966,8 @@ function openRequestComposer(){
   if(q==null||!q.trim())return;
   var d=regionAt(ll.lat(),ll.lng());
   var rq={id:'rq_'+Date.now(),lat:ll.lat(),lng:ll.lng(),q:q.trim(),place:d?d.name:'지정 위치',answers:[],ts:Date.now()};
-  fieldRequests.unshift(rq);saveRequests();renderRequestMarkers();
+  if(hasLive()){fbDb.collection('liveRequests').doc(rq.id).set({id:rq.id,lat:rq.lat,lng:rq.lng,q:rq.q,place:rq.place,answers:[],by:myUid(),ts:rq.ts}).catch(liveWriteErr);}
+  else{fieldRequests.unshift(rq);saveRequests();renderRequestMarkers();}
   var ab=document.getElementById('ai-bubble');
   if(ab){ab.textContent='📍 Request 전송! 현장 유저에게 알림이 갑니다…';ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},2200);}
   setTimeout(function(){showReqBubble(rq);},2600); // 데모: 현장 유저 수신 알림 시뮬레이션
@@ -2922,7 +2991,9 @@ function showReqBubble(rq){
 function hideReqBubble(){var b=document.getElementById('req-bubble');if(b)b.classList.remove('show');clearTimeout(reqBubbleTimer);}
 function answerRequest(id,text){
   var rq=fieldRequests.find(function(r){return r.id===id;});if(!rq)return;
-  rq.answers.push({t:text,ts:Date.now()});saveRequests();hideReqBubble();renderRequestMarkers();
+  if(hasLive()){fbDb.collection('liveRequests').doc(id).update({answers:firebase.firestore.FieldValue.arrayUnion({t:text,ts:Date.now()})});}
+  else{rq.answers.push({t:text,ts:Date.now()});saveRequests();renderRequestMarkers();}
+  hideReqBubble();
   var ab=document.getElementById('ai-bubble'); // 요청자에게 답변 도착 (데모)
   if(ab){ab.textContent='📍 '+rq.place+' 현장 답변 도착: '+text;ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},5000);}
 }
