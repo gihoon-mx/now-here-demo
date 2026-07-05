@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.31.0" />
+  <link rel="stylesheet" href="style.css?v=1.32.0" />
 </head>
 <body>
 
@@ -58,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.31.0</span>
+        <span id="app-version">v1.32.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -123,15 +123,18 @@
         <p class="section-hint">트렌드 모드에서 지도의 헥사곤을 선택하면 새 존을 만들 수 있어요.</p>
       </div>
       <div class="settings-section">
-        <h4>동네소식 (지면 이미지)</h4>
-        <button id="news-add-btn" class="action-btn accent" type="button">🖼 이미지 업로드</button>
-        <input type="file" id="news-file" accept="image/*" multiple hidden />
-        <div class="news-url-row">
-          <input type="url" id="news-url-input" placeholder="이미지 링크(https://...) 붙여넣기" />
-          <button id="news-url-btn" class="action-btn accent small" type="button">링크</button>
-        </div>
-        <div id="news-list"></div>
-        <p class="section-hint">업로드(이미지 저장) 또는 이미지 링크(URL만 저장 → 저장부담 거의 0). 폰 지면에서 좌우 스와이프, 순서 이동/삭제 가능.</p>
+        <h4>피드 컨텐츠</h4>
+        <div class="setting-row"><label>그리드 열</label><select id="feed-cols" class="mini-select"><option value="1">1개 (전체폭)</option><option value="2">2개</option><option value="3">3개</option><option value="4">4개</option></select></div>
+        <div id="feedcol-list"></div>
+        <p class="section-hint">라이브 카메라로 올라온 사진 모음. 열 수는 피드 탭 상단에서도 바꿀 수 있어요.</p>
+      </div>
+      <div class="settings-section">
+        <h4>소셜 컨텐츠 (채팅방)</h4>
+        <div class="al-add"><input id="room-name" type="text" placeholder="방 이름" maxlength="20" /><select id="room-type" class="mini-select"><option value="topic">주제방</option><option value="private">프라이빗</option></select><button id="room-add" class="action-btn accent small" type="button">추가</button></div>
+        <div id="room-list"></div>
+        <div class="setting-row" style="margin-top:8px;"><label>동네 채팅</label><button id="chat-fill" class="action-btn small" type="button">📄 JSON/CSV 채우기</button><button id="chat-clear" class="action-btn danger small" type="button">비우기</button></div>
+        <input type="file" id="chat-file" accept=".json,.csv,application/json,text/csv" hidden />
+        <p class="section-hint">주제방/프라이빗은 관리자만 개설·수정(전체 공유). 동네 채팅 기본 대화는 JSON [{"who":"닉","t":"내용"}] 또는 CSV(닉,내용 한 줄씩)로 채워요.</p>
       </div>
     </div>
 
@@ -153,6 +156,18 @@
         <h4>폰 미리보기 (관리자)</h4>
         <div class="setting-row"><label>표시영역</label><label class="toggle-switch"><input type="checkbox" id="phone-viewport-toggle" checked /><span class="toggle-slider"></span></label></div>
       </div>
+      <div class="settings-section">
+        <h4>요약 공간 지면 (탭별 이미지)</h4>
+        <button id="news-add-btn" class="action-btn accent" type="button">🖼 이미지 업로드</button>
+        <input type="file" id="news-file" accept="image/*" multiple hidden />
+        <div class="news-url-row">
+          <input type="url" id="news-url-input" placeholder="이미지 링크(https://...) 붙여넣기" />
+          <button id="news-url-btn" class="action-btn accent small" type="button">링크</button>
+        </div>
+        <div id="news-list"></div>
+        <p class="section-hint">상단 요약 공간에 노출할 UI 목업 이미지. 각 이미지의 탭(지도/피드/소셜)을 지정하면 해당 탭에서만 보여요. 피드 컨텐츠와는 별개.</p>
+      </div>
+
       <div class="settings-section" data-prev="spot">
         <h4>스팟 메시지 기본 스타일</h4>
         <div class="setting-row"><label>이모지 위치</label><select id="spot-emoji-pos" class="mini-select"><option value="bottom">아래</option><option value="top">위</option><option value="left">왼쪽</option><option value="right">오른쪽</option></select></div>
@@ -235,7 +250,7 @@
         <div class="phone-notch"></div>
         <div id="phone-map" class="phone-map"></div>
         <!-- 서비스 탭 페이지: 피드(그리드) / 소셜(채팅) — 지도 탭에서는 숨김 -->
-        <div id="feed-page" class="tab-page"><div id="feed-grid"></div></div>
+        <div id="feed-page" class="tab-page"><div id="feed-tools"></div><div id="feed-grid"></div></div>
         <div id="social-page" class="tab-page">
           <div class="soc-tabs">
             <button class="soc-tab active" type="button" data-soc="local">📍 동네</button>
@@ -248,10 +263,7 @@
         <div class="phone-header">
           <div class="phone-appbar">
             <button class="pa-btn" id="phone-hamburger" type="button" aria-label="메뉴 열기" title="메뉴"><span></span><span></span><span></span></button>
-            <div class="pa-mode" id="phone-mode">
-              <button class="pm-btn active" type="button" data-mode="local">베이직</button>
-              <button class="pm-btn" type="button" data-mode="trend">트렌드</button>
-            </div>
+            <span class="pa-loc" id="phone-loc"><span class="pa-loc-name">···</span></span>
             <button class="pa-profile" id="phone-profile" type="button" aria-label="프로필 · 계정" title="계정"><img id="pa-profile-img" alt="" /><span id="pa-profile-initial">P</span></button>
           </div>
           <!-- 지역 콘텐츠 지면 (동네소식) : 여러 이미지 좌우 스와이프 캐러셀. 편집은 사이드바 컨텐츠 설정에서만 -->
@@ -261,11 +273,12 @@
               <span id="cp-placeholder">지역 콘텐츠 지면</span>
               <div id="cp-dots" aria-hidden="true"></div>
             </div>
-            <div id="sum-feed" class="sum-panel" style="display:none;"><span class="sum-tag">추천</span><div id="sum-feed-body" class="sum-body"></div></div>
-            <div id="sum-social" class="sum-panel" style="display:none;"><span class="sum-tag">핫토픽</span><div id="sum-social-body" class="sum-body"></div></div>
           </div>
           <!-- 지도 위 오버레이(헤더 하단 앵커): 축척(좌) · 위치칩(중앙) 가로 정렬 -->
-          <span class="pa-loc" id="phone-loc"><span class="pa-loc-name">···</span></span>
+          <div class="pa-mode" id="phone-mode">
+            <button class="pm-btn active" type="button" data-mode="local">베이직</button>
+            <button class="pm-btn" type="button" data-mode="trend">트렌드</button>
+          </div>
           <div id="phone-scale" aria-hidden="true"></div>
         </div>
         <div class="phone-navbar">
@@ -374,7 +387,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.31.0"></script>
-  <script src="app.js?v=1.31.0"></script>
+  <script src="config.js?v=1.32.0"></script>
+  <script src="app.js?v=1.32.0"></script>
 </body>
 </html>

@@ -734,9 +734,9 @@ function initContentPage(){
   // 캐러셀 스와이프 (아이템 2개+)
   if(frame){
     var sx=null,dxv=0;
-    frame.addEventListener('pointerdown',function(e){if(newsItems.length<2)return;sx=e.clientX;dxv=0;newsDragging=true;setTrackAnim(false);try{frame.setPointerCapture(e.pointerId);}catch(_){}});
+    frame.addEventListener('pointerdown',function(e){if(newsView.length<2)return;sx=e.clientX;dxv=0;newsDragging=true;setTrackAnim(false);try{frame.setPointerCapture(e.pointerId);}catch(_){}});
     frame.addEventListener('pointermove',function(e){if(sx==null)return;dxv=e.clientX-sx;setTrackX(-newsIndex*slideW()+dxv);});
-    frame.addEventListener('pointerup',function(){if(sx==null)return;var w=slideW();if(dxv<-w*0.18&&newsIndex<newsItems.length-1)newsIndex++;else if(dxv>w*0.18&&newsIndex>0)newsIndex--;sx=null;newsDragging=false;setTrackAnim(true);snapTrack();updateDots();});
+    frame.addEventListener('pointerup',function(){if(sx==null)return;var w=slideW();if(dxv<-w*0.18&&newsIndex<newsView.length-1)newsIndex++;else if(dxv>w*0.18&&newsIndex>0)newsIndex--;sx=null;newsDragging=false;setTrackAnim(true);snapTrack();updateDots();});
     frame.addEventListener('pointercancel',function(){sx=null;newsDragging=false;setTrackAnim(true);snapTrack();});
   }
 }
@@ -745,29 +745,37 @@ function setTrackAnim(on){var t=document.getElementById('cp-track');if(t)t.style
 function setTrackX(px){var t=document.getElementById('cp-track');if(t)t.style.transform='translateX('+px+'px)';}
 function snapTrack(){setTrackX(-newsIndex*slideW());}
 function updateDots(){var d=document.getElementById('cp-dots');if(!d)return;d.querySelectorAll('.cp-dot').forEach(function(el,i){el.classList.toggle('active',i===newsIndex);});}
+var newsView=[]; // 현재 탭에 보이는 지면 이미지 (탭 속성 필터)
 function renderNews(){
   var frame=document.getElementById('cp-frame'),track=document.getElementById('cp-track'),dots=document.getElementById('cp-dots');
-  if(track){track.innerHTML='';newsItems.forEach(function(it){var s=document.createElement('div');s.className='cp-slide';var im=document.createElement('img');im.src=it.src;im.alt='';s.appendChild(im);track.appendChild(s);});}
-  if(newsIndex>=newsItems.length)newsIndex=Math.max(0,newsItems.length-1);
-  if(frame)frame.classList.toggle('has-news',newsItems.length>0);
-  if(dots){dots.innerHTML='';for(var i=0;i<newsItems.length;i++){var dt=document.createElement('span');dt.className='cp-dot'+(i===newsIndex?' active':'');dots.appendChild(dt);}dots.style.display=newsItems.length>1?'':'none';}
+  newsView=newsItems.filter(function(it){return (it.tab||'map')===currentTab;});
+  var ph=document.getElementById('cp-placeholder');
+  if(ph)ph.textContent=(currentTab==='feed'?'추천 컨텐츠 지면':(currentTab==='social'?'커뮤니티 지면':'지역 콘텐츠 지면'));
+  if(track){track.innerHTML='';newsView.forEach(function(it){var sl=document.createElement('div');sl.className='cp-slide';var im=document.createElement('img');im.src=it.src;im.alt='';sl.appendChild(im);track.appendChild(sl);});}
+  if(newsIndex>=newsView.length)newsIndex=Math.max(0,newsView.length-1);
+  if(frame)frame.classList.toggle('has-news',newsView.length>0);
+  if(dots){dots.innerHTML='';for(var i=0;i<newsView.length;i++){var dt=document.createElement('span');dt.className='cp-dot'+(i===newsIndex?' active':'');dots.appendChild(dt);}dots.style.display=newsView.length>1?'':'none';}
   setTrackAnim(false);snapTrack();
   renderNewsList();
 }
 function renderNewsList(){
   var list=document.getElementById('news-list');if(!list)return;
   list.innerHTML='';
-  if(!newsItems.length){var e=document.createElement('p');e.className='section-hint';e.textContent='아직 올린 소식이 없어요.';list.appendChild(e);return;}
+  if(!newsItems.length){var e=document.createElement('p');e.className='section-hint';e.textContent='아직 올린 이미지가 없어요.';list.appendChild(e);return;}
   newsItems.forEach(function(it,i){
     var row=document.createElement('div');row.className='news-item';
     var th=document.createElement('img');th.className='ni-thumb';th.src=it.src;
+    var tabSel=document.createElement('select');tabSel.className='mini-select ni-tab';
+    [['map','지도'],['feed','피드'],['social','소셜']].forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];tabSel.appendChild(op);});
+    tabSel.value=it.tab||'map';
+    tabSel.addEventListener('change',function(){newsItems[i].tab=this.value;saveNews();renderNews();});
     var reg=document.createElement('input');reg.className='ni-region';reg.type='text';reg.placeholder='구역(동)';reg.value=it.region||'';
     reg.addEventListener('change',function(){newsItems[i].region=this.value.trim();saveNews();});
     var act=document.createElement('div');act.className='ni-actions';
     var up=mkBtn('↑'),dn=mkBtn('↓'),del=mkBtn('🗑');
     up.onclick=function(){newsMove(i,-1);};dn.onclick=function(){newsMove(i,1);};del.onclick=function(){newsDelete(i);};
     act.appendChild(up);act.appendChild(dn);act.appendChild(del);
-    row.appendChild(th);row.appendChild(reg);row.appendChild(act);list.appendChild(row);
+    row.appendChild(th);row.appendChild(tabSel);row.appendChild(reg);row.appendChild(act);list.appendChild(row);
   });
   function mkBtn(t){var b=document.createElement('button');b.type='button';b.textContent=t;return b;}
 }
@@ -807,7 +815,7 @@ function markNewsDirty(){if(!fbDb||!currentUser||currentRole!=='admin')return;cl
 function newsCloudSave(){
   if(!fbDb||!currentUser||currentRole!=='admin')return;
   var total=0,items=[];
-  for(var i=0;i<newsItems.length&&items.length<NEWS_MAX_COUNT;i++){var s=newsItems[i].src||'';if(total+s.length>NEWS_DOC_BUDGET)break;total+=s.length;items.push({id:newsItems[i].id,src:s,region:newsItems[i].region||''});}
+  for(var i=0;i<newsItems.length&&items.length<NEWS_MAX_COUNT;i++){var s=newsItems[i].src||'';if(total+s.length>NEWS_DOC_BUDGET)break;total+=s.length;items.push({id:newsItems[i].id,src:s,region:newsItems[i].region||'',tab:newsItems[i].tab||'map'});}
   fbDb.collection('shared').doc('news').set({items:items,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||''})
     .catch(function(e){console.warn('news save fail',e);alert('동네소식 공유 저장 실패(용량 초과 가능): '+e.message);});
 }
@@ -816,7 +824,7 @@ function loadNewsFromCloud(){
   if(!fbDb)return;
   fbDb.collection('shared').doc('news').get().then(function(doc){
     if(!doc.exists)return;var d=doc.data();if(!d||!Array.isArray(d.items))return;
-    newsItems=d.items.map(function(it){return {id:it.id||('n_'+(newsSeq++)),src:it.src,region:it.region||''};});
+    newsItems=d.items.map(function(it){return {id:it.id||('n_'+(newsSeq++)),src:it.src,region:it.region||'',tab:it.tab||'map'};});
     try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));}catch(e){}
     newsIndex=0;renderNews();
   }).catch(function(e){console.warn('news load fail',e);});
@@ -906,8 +914,8 @@ function refreshPhoneMapStyles(){
 function phoneDataVisibility(){if(phoneMap)phoneMap.data.setMap(currentMode==='local'?phoneMap:null);}
 function syncPhoneZones(){
   if(!phoneMap)return;
-  clearPhoneSpotlight();
-  if(phoneLens.zoneId||phoneLens.zoneRef){cancelAnimationFrame(phoneLens.raf);clearLensGeom();phoneLens.on=false;} // 존 오버레이 재생성 → 렌즈 참조 무효
+  phoneSelectedZoneId=null; // 오버레이 재생성 → 선택/렌즈 리셋
+  if(phoneLens.zoneId||phoneLens.zoneRef){cancelAnimationFrame(phoneLens.raf);clearLensGeom();phoneLens.on=false;}
   phoneZoneOverlays.forEach(function(o){o.polygons.forEach(function(p){p.setMap(null);});if(o.label)o.label.setMap(null);});
   phoneZoneOverlays=[];
   if(currentMode!=='trend')return;
@@ -927,31 +935,22 @@ function syncPhoneZones(){
 }
 
 /* ========== 폰(데모): 트렌드 존 선택 → 화면 맞춤 + 주변 그레이 처리 강조 ========== */
-var phoneSpotlight=null, phoneSelectedZoneId=null;
-function clearPhoneSpotlight(){if(phoneSpotlight){phoneSpotlight.setMap(null);phoneSpotlight=null;}phoneSelectedZoneId=null;if(typeof applySpotFocus==='function')applySpotFocus();}
+var phoneSelectedZoneId=null; // 선택 존 = 렌즈 핀 고정(별도 스포트라이트 폴리곤 제거)
+function clearPhoneSpotlight(){ // 선택 해제 → 자동 렌즈 로직으로 복귀(줌인이면 자동 발동)
+  phoneSelectedZoneId=null;
+  if(typeof updatePhoneLens==='function')updatePhoneLens();
+  if(typeof applySpotFocus==='function')applySpotFocus();
+}
 function selectPhoneZone(zone){
   if(!phoneMap||!zone||!zone.hexCenters||!zone.hexCenters.length)return;
-  if(phoneSelectedZoneId===zone.id){clearPhoneSpotlight();return;} // 재클릭 = 강조 해제
-  if(phoneSpotlight){phoneSpotlight.setMap(null);phoneSpotlight=null;}
-  if(phoneLens.zoneId||phoneLens.mask){cancelAnimationFrame(phoneLens.raf);lensApply(0);clearLensGeom();phoneLens.on=false;} // 자동 렌즈 즉시 해제(존 채움/라벨 복원)
+  if(phoneSelectedZoneId===zone.id){clearPhoneSpotlight();return;} // 재탭 = 해제
   phoneSelectedZoneId=zone.id;
-  var gp=getHexGridParams(zone.radiusKm);
-  var b=new google.maps.LatLngBounds(), holes=[];
-  zone.hexCenters.forEach(function(c){
-    var v=hexVertices(c.lng,c.lat,gp.R_lat,gp.R_lng);
-    v.forEach(function(p){b.extend(p);});
-    holes.push(holeRing(v));   // 존 셀들을 구멍으로(감김 정규화) → 그 안만 밝게
-  });
-  // 바깥 링은 존 주변을 넉넉히 덮는 사각형(전세계 링은 안/밖 모호로 반전됨). 시계방향, 헥사곤 구멍은 반시계방향(반대 감김) → 구멍으로 렌더.
-  var ne=b.getNorthEast(), sw=b.getSouthWest();
-  var pad=Math.max(ne.lat()-sw.lat(), ne.lng()-sw.lng())*8 + 0.05;
-  var outer=[{lat:sw.lat()-pad,lng:sw.lng()-pad},{lat:ne.lat()+pad,lng:sw.lng()-pad},{lat:ne.lat()+pad,lng:ne.lng()+pad},{lat:sw.lat()-pad,lng:ne.lng()+pad}];
-  // 능동 선택(탭)은 수동 렌즈보다 진하게 — 톤은 렌즈 포그와 동일 문법(화이트)
-  phoneSpotlight=new google.maps.Polygon({paths:[outer].concat(holes),strokeWeight:0,fillColor:lensCfg().fogColor,fillOpacity:Math.min(0.78,Number(lensCfg().fogOpacity)+0.22),clickable:false,zIndex:20});
-  phoneSpotlight.setMap(phoneMap);
-  phoneMap.fitBounds(b, phoneFitPadding());   // 실제 보이는 영역(헤더/네비 제외) 안에 존 전체가 들어오게
+  var gp=getHexGridParams(zone.radiusKm),b=new google.maps.LatLngBounds();
+  zone.hexCenters.forEach(function(c){hexVertices(c.lng,c.lat,gp.R_lat,gp.R_lng).forEach(function(pt){b.extend(pt);});});
+  if(phoneLens.key!=='zone:'+zone.id)lensBuildZone(zone); // 선택 = 존 렌즈 핀 고정(축척 무관 유지)
+  phoneLens.on=true;lensFadeTo(1);applySpotFocus();
+  phoneMap.fitBounds(b, phoneFitPadding());   // 줌아웃 상태에서 선택해도 존이 화면에 맞게 조정
   updatePhoneLocation();
-  applySpotFocus();
 }
 function refreshPhoneZoneLabels(){phoneZoneOverlays.forEach(function(o){if(o.label)o.label.updateStyle(zoneLabelStyle(o.color));});}
 
@@ -1043,10 +1042,11 @@ function updatePhoneLocation(){
 }
 // 동네소식 연동: region 태그가 현재 동과 맞는 이미지로 캐러셀 슬라이드 (스와이프 중엔 방해 금지)
 function newsFocusRegion(dong){
-  if(!dong||newsDragging||newsItems.length<2)return;
+  if(currentTab!=='map')return; // 지도 탭 지면에서만
+  if(!dong||newsDragging||newsView.length<2)return;
   var norm=function(t){return t.replace(/[0-9\s]/g,'');} // '논현1동'≈'논현동' (숫자·공백 무시)
-  for(var i=0;i<newsItems.length;i++){
-    var r=(newsItems[i].region||'').trim();
+  for(var i=0;i<newsView.length;i++){
+    var r=(newsView[i].region||'').trim();
     if(r&&(r===dong||r.indexOf(dong)>=0||dong.indexOf(r)>=0||norm(r)===norm(dong))){
       if(newsIndex!==i){newsIndex=i;setTrackAnim(true);snapTrack();updateDots();}
       return;
@@ -1135,7 +1135,15 @@ function updateBasicLens(){
   applySpotFocus();
 }
 function updateTrendLens(){
-  if(phoneSelectedZoneId){lensOff();return;} // 탭 스포트라이트(능동)가 우선
+  if(phoneSelectedZoneId){ // 선택된 존: 축척 무관 렌즈 핀 고정
+    var zs=null;for(var i=0;i<trendZones.length;i++)if(trendZones[i].id===phoneSelectedZoneId)zs=trendZones[i];
+    if(zs){
+      phoneLens.on=true;
+      if(phoneLens.key!=='zone:'+zs.id)lensBuildZone(zs);
+      lensFadeTo(1);applySpotFocus();return;
+    }
+    phoneSelectedZoneId=null;
+  }
   var thr=Number(lensCfg().trendScaleM);if(!(thr>0))thr=300;
   var mpp=mapMpp(phoneMap);if(!mpp){lensOff();return;}
   var scaleM=mpp*64;
@@ -1968,6 +1976,7 @@ function applyCloudData(d){
   if(currentMode==='trend'){showAllZonesOnMap();generateHexagons();}
   renderSpots();   // 모드 무관 항상 스팟 표시
   renderZoneList();refreshZoneLabels();updateLocalLabelStyle();
+  if(d.social){if(Array.isArray(d.social.rooms))socRoomList=d.social.rooms.slice();if(Array.isArray(d.social.seedLocal))socSeedLocal=d.social.seedLocal.slice();saveChat();renderRoomManager();}
   blockDirty={};updateApplyBar();updateBlockBars(); // 클라우드본 = 적용 기준선
 }
 /* ========== 설정 미니 프리뷰: 각 설정 블록 상단에 그 옵션의 예시를 실시간 렌더 ========== */
@@ -2190,7 +2199,8 @@ function cloudSave(){
     settings:{styleConfig:snap.styleConfig,hexStyleConfig:snap.hexStyleConfig,localLabelConfig:snap.localLabelConfig,zoneLabelConfig:snap.zoneLabelConfig,smoothEnabled:snap.smoothEnabled,smoothIntensity:snap.smoothIntensity,hexRadiusKm:snap.hexRadiusKm,zoneMergeBlocks:snap.zoneMergeBlocks},
     zones:trendZones.map(function(z){return {id:z.id,name:z.name,color:z.color,radiusKm:z.radiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters,originalRadiusKm:z.originalRadiusKm};}),
     spots:spotMessages.filter(function(s){return !s.local;}).map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};}),
-    spotConfig:snap.spotConfig};
+    spotConfig:snap.spotConfig,
+    social:{rooms:socRoomList,seedLocal:socSeedLocal}};
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
 }
 
@@ -2237,23 +2247,25 @@ function focusedRegionName(){ // 현재 포커스 구역 (렌즈 동 / 선택·�
   }
   var c2=phoneMap?phoneVisibleCenter():null;return c2?(dongAt(c2.lat(),c2.lng())||''):'';
 }
-function layoutTabPages(){ // 헤더/네비 사이에 페이지 배치
+function layoutTabPages(){ // 헤더/네비 사이에 페이지 배치 (+ 헤더 아래 모드 필 만큼 상단 여백)
   var ins=phoneMapInsets();
+  var scr=document.querySelector('#phone-mirror .phone-screen')||document.querySelector('.phone-screen');
+  var hd=scr?scr.querySelector('.phone-header'):null, md=scr?scr.querySelector('.pa-mode'):null;
+  var padTop=8;
+  if(hd&&md){var hb=hd.getBoundingClientRect().bottom,mb=md.getBoundingClientRect().bottom;padTop=Math.max(8,Math.round(mb-hb)+8);}
   ['feed-page','social-page'].forEach(function(id){var el=document.getElementById(id);if(!el)return;
-    el.style.top=ins.top+'px';el.style.paddingBottom=(ins.bottom+10)+'px';});
+    el.style.top=(ins.top-2)+'px';el.style.paddingTop=padTop+'px';el.style.paddingBottom=(ins.bottom+10)+'px';});
 }
 function switchTab(tab){
   if(tab!=='map'&&tab!=='feed'&&tab!=='social')return;
   currentTab=tab;
-  // 요약 공간: 지도=동네소식 / 피드=추천 / 소셜=핫토픽
-  var cp=document.getElementById('cp-frame');if(cp)cp.style.display=(tab==='map')?'':'none';
-  var sf=document.getElementById('sum-feed');if(sf)sf.style.display=(tab==='feed')?'':'none';
-  var ssm=document.getElementById('sum-social');if(ssm)ssm.style.display=(tab==='social')?'':'none';
+  newsIndex=0;renderNews(); // 요약 공간: 탭 속성이 맞는 지면 이미지 표시 (3탭 동일 규격)
+  var sc=document.getElementById('phone-scale');if(sc)sc.style.display=(tab==='map')?'':'none';
   document.getElementById('feed-page').classList.toggle('open',tab==='feed');
   document.getElementById('social-page').classList.toggle('open',tab==='social');
   layoutTabPages();
-  if(tab==='feed'){renderFeed();renderSumFeed();}
-  if(tab==='social'){renderSocial();renderSumSocial();}
+  if(tab==='feed')renderFeed();
+  if(tab==='social')renderSocial();
 }
 function setNavActive(nav){document.querySelectorAll('#phone-mirror .pn-item').forEach(function(x){x.classList.toggle('active',x.dataset.nav===nav);});}
 
@@ -2294,14 +2306,45 @@ function renderFeed(){
     g.appendChild(c);
   });
 }
-function renderSumFeed(){
-  var b=document.getElementById('sum-feed-body');if(!b)return;b.innerHTML='';
-  var arr=allFeedEntries().slice(0,4);
-  if(!arr.length){b.innerHTML='<span class="sum-empty">추천할 컨텐츠가 아직 없어요</span>';return;}
-  arr.forEach(function(it){
-    var chip=document.createElement('span');chip.className='sum-chip';
-    chip.textContent=(it.type==='photo'?'📸 방금 올라온 현장':(it.emoji?it.emoji+' ':'🗞 ')+((it.text||'').slice(0,12)||(it.region||'동네 소식')));
-    b.appendChild(chip);
+/* 피드 그리드 열 수 (1=인스타그램식 전체폭) — 피드 상단·설정 양쪽에서 조절 */
+var feedCols=2;
+function applyFeedCols(n){
+  feedCols=Math.max(1,Math.min(4,parseInt(n,10)||2));
+  try{localStorage.setItem('nowhere_feedcols',String(feedCols));}catch(e){}
+  var g=document.getElementById('feed-grid');
+  if(g){g.style.gridTemplateColumns='repeat('+feedCols+',1fr)';g.classList.toggle('one-col',feedCols===1);}
+  var sel=document.getElementById('feed-cols');if(sel)sel.value=String(feedCols);
+  document.querySelectorAll('#feed-tools .fcq').forEach(function(b){b.classList.toggle('active',b.dataset.c===String(feedCols));});
+}
+function initFeedTools(){
+  try{var v=parseInt(localStorage.getItem('nowhere_feedcols'),10);if(v)feedCols=v;}catch(e){}
+  var t=document.getElementById('feed-tools');
+  if(t){
+    t.innerHTML='<span class="ftl">보기</span>';
+    [1,2,3,4].forEach(function(n){
+      var b=document.createElement('button');b.type='button';b.className='fcq';b.dataset.c=String(n);b.textContent=n;
+      b.addEventListener('click',function(){applyFeedCols(n);});
+      t.appendChild(b);
+    });
+  }
+  var sel=document.getElementById('feed-cols');
+  if(sel)sel.addEventListener('change',function(){applyFeedCols(this.value);});
+  applyFeedCols(feedCols);
+}
+function renderFeedColList(){ // 설정-컨텐츠: 피드 컨텐츠 관리
+  var list=document.getElementById('feedcol-list');if(!list)return;
+  list.innerHTML='';
+  if(!feedItems.length){list.innerHTML='<p class="section-hint">라이브 카메라로 올라온 사진이 없어요.</p>';return;}
+  feedItems.forEach(function(f,i){
+    var row=document.createElement('div');row.className='news-item';
+    var th=document.createElement('img');th.className='ni-thumb';th.src=f.src;
+    var reg=document.createElement('input');reg.className='ni-region';reg.type='text';reg.placeholder='구역(동)';reg.value=f.region||'';
+    reg.addEventListener('change',function(){f.region=this.value.trim();saveFeed();});
+    var act=document.createElement('div');act.className='ni-actions';
+    var del=document.createElement('button');del.type='button';del.textContent='🗑';
+    del.addEventListener('click',function(){feedItems.splice(i,1);saveFeed();renderFeedColList();if(currentTab==='feed')renderFeed();});
+    act.appendChild(del);
+    row.appendChild(th);row.appendChild(reg);row.appendChild(act);list.appendChild(row);
   });
 }
 /* 라이브 카메라: 찍으면 즉시 피드 업로드 (위치 태그 포함) */
@@ -2313,7 +2356,7 @@ function initLiveCamera(){
     compressNews(arr[0],function(url){
       if(!url){alert('사진 처리에 실패했어요. 더 작은 사진으로 시도해 주세요.');return;}
       feedItems.unshift({id:'f_'+Date.now(),type:'photo',src:url,region:currentCenterDong(),ts:Date.now()});
-      saveFeed();
+      saveFeed();renderFeedColList();
       setNavActive('feed');switchTab('feed'); // 바로 피드에서 확인
     });
   });
@@ -2369,48 +2412,43 @@ function renderRequestMarkers(){
 }
 
 /* ========== 소셜 탭: 동네 채팅 · 주제방 · 프라이빗(크레딧) ========== */
-var socTab='local', socRoom=null, socMsgs={}, socCredits=3;
-var socRooms={topic:['🍜 맛집 탐방','🏃 러닝 크루','🐶 댕댕이 산책','👶 육아 정보'],priv:[]};
+var socTab='local', socRoom=null, socMsgs={}, socSeedLocal=[];
+var socRoomList=[{name:'🍜 맛집 탐방',type:'topic'},{name:'🏃 러닝 크루',type:'topic'},{name:'🐶 댕댕이 산책',type:'topic'},{name:'👶 육아 정보',type:'topic'}];
 var SOC_KEY='nowhere_chat';
-function loadChat(){try{var o=JSON.parse(localStorage.getItem(SOC_KEY)||'{}');if(o.msgs)socMsgs=o.msgs;if(Array.isArray(o.priv))socRooms.priv=o.priv;if(o.credits!=null)socCredits=o.credits;}catch(e){}}
-function saveChat(){try{localStorage.setItem(SOC_KEY,JSON.stringify({msgs:socMsgs,priv:socRooms.priv,credits:socCredits}));}catch(e){}}
+function loadChat(){try{var o=JSON.parse(localStorage.getItem(SOC_KEY)||'{}');if(o.msgs)socMsgs=o.msgs;if(Array.isArray(o.rooms))socRoomList=o.rooms;if(Array.isArray(o.seedLocal))socSeedLocal=o.seedLocal;}catch(e){}}
+function saveChat(){try{localStorage.setItem(SOC_KEY,JSON.stringify({msgs:socMsgs,rooms:socRoomList,seedLocal:socSeedLocal}));}catch(e){}}
 function seedMsgs(room){
+  if(room.key.indexOf('local:')===0&&socSeedLocal.length){socMsgs[room.key]=socSeedLocal.slice();return socMsgs[room.key];} // 관리자 시드
   var base=room.name.replace(/^[^\s]+\s/,'');
   socMsgs[room.key]=[{who:'동네주민',t:'오늘 날씨 좋네요 ☀️'},{who:'로컬러버',t:base+' 근처 맛집 추천 받아요!'}];
   return socMsgs[room.key];
 }
 function renderSocial(){
+  var nmLoc=focusedRegionName();
+  var lt=document.querySelector('.soc-tab[data-soc="local"]');
+  if(lt)lt.textContent='📍 '+(nmLoc?nmLoc+' 채팅방':'동네 채팅방'); // 서브탭 = 현 위치명 + 채팅방
   document.querySelectorAll('.soc-tab').forEach(function(t){t.classList.toggle('active',t.dataset.soc===socTab);});
   var body=document.getElementById('soc-body'),bar=document.getElementById('soc-inputbar');
   if(!body)return;
-  if(socTab==='local'){var nm=focusedRegionName();socRoom={key:'local:'+(nm||'동네'),name:'📍 '+(nm?nm+' 동네 채팅':'동네 채팅')};}
+  if(socTab==='local')socRoom={key:'local:'+(nmLoc||'동네'),name:'📍 '+(nmLoc?nmLoc+' 채팅방':'동네 채팅방')};
   if(socRoom&&socRoom.key.indexOf(socTab+':')===0){renderChatRoom(body,socRoom);bar.style.display='flex';}
   else{renderRoomList(body);bar.style.display='none';}
 }
 function renderRoomList(body){
   body.innerHTML='';
   var wrap=document.createElement('div');wrap.className='soc-roomlist';
-  var list=(socTab==='topic')?socRooms.topic:socRooms.priv;
-  list.forEach(function(n){
+  var type=(socTab==='topic')?'topic':'private';
+  var list=socRoomList.filter(function(r){return r.type===type;});
+  list.forEach(function(r){
     var b=document.createElement('button');b.type='button';b.className='soc-room';
-    var cnt=(socMsgs[socTab+':'+n]||[]).length;
+    var cnt=(socMsgs[type+':'+r.name]||[]).length;
     b.innerHTML='<span class="sr-name"></span><span class="sr-cnt"></span>';
-    b.querySelector('.sr-name').textContent=n;
+    b.querySelector('.sr-name').textContent=(type==='private'?'🔒 ':'')+r.name;
     b.querySelector('.sr-cnt').textContent=cnt?cnt+'개 대화':'새 방';
-    b.addEventListener('click',function(){socRoom={key:socTab+':'+n,name:n};renderSocial();});
+    b.addEventListener('click',function(){socRoom={key:type+':'+r.name,name:r.name};renderSocial();});
     wrap.appendChild(b);
   });
-  if(socTab==='private'){
-    var mk=document.createElement('button');mk.type='button';mk.className='soc-room soc-new';
-    mk.textContent='＋ 프라이빗 방 만들기 · 크레딧 '+socCredits;
-    mk.addEventListener('click',function(){
-      if(socCredits<=0){alert('크레딧이 부족해요. (데모: 크레딧으로만 개설 가능)');return;}
-      var n=prompt('프라이빗 방 이름');if(!n||!n.trim())return;
-      socCredits--;socRooms.priv.push('🔒 '+n.trim());saveChat();renderSocial();
-    });
-    wrap.appendChild(mk);
-  }
-  if(!list.length&&socTab==='topic'){var e=document.createElement('div');e.className='soc-empty';e.textContent='주제방이 없어요.';wrap.appendChild(e);}
+  if(!list.length){var e=document.createElement('div');e.className='soc-empty';e.textContent=(type==='topic'?'주제방이 없어요.':'프라이빗 방이 없어요.')+' (관리자가 설정에서 개설)';wrap.appendChild(e);}
   body.appendChild(wrap);
 }
 function renderChatRoom(body,room){
@@ -2451,11 +2489,67 @@ function initSocial(){
   var sb=document.getElementById('soc-send');if(sb)sb.addEventListener('click',send);
   var si=document.getElementById('soc-input');if(si)si.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();send();}});
 }
-function renderSumSocial(){
-  var b=document.getElementById('sum-social-body');if(!b)return;b.innerHTML='';
-  ['🔥 '+(focusedRegionName()||'우리 동네')+' 신규 카페 오픈 소식','💬 러닝 크루 주말 모집','📍 플리마켓 후기 공유 중'].forEach(function(t){
-    var chip=document.createElement('span');chip.className='sum-chip';chip.textContent=t;b.appendChild(chip);
+
+
+/* ========== 소셜 컨텐츠 관리 (설정-컨텐츠: 방 개설/타입/삭제 · 동네 채팅 시드) ========== */
+function renderRoomManager(){
+  var list=document.getElementById('room-list');if(!list)return;
+  list.innerHTML='';
+  if(!socRoomList.length){list.innerHTML='<p class="section-hint">개설된 방이 없어요.</p>';return;}
+  socRoomList.forEach(function(r,i){
+    var row=document.createElement('div');row.className='room-item';
+    row.innerHTML='<span class="ri-name"></span><select class="mini-select ri-type"><option value="topic">주제방</option><option value="private">프라이빗</option></select><button class="ri-del" type="button" title="삭제">🗑</button>';
+    row.querySelector('.ri-name').textContent=r.name;
+    var sel=row.querySelector('.ri-type');sel.value=r.type;
+    sel.addEventListener('change',function(){r.type=this.value;saveChat();markCloudDirty();renderRoomManager();});
+    row.querySelector('.ri-del').addEventListener('click',function(){socRoomList.splice(i,1);saveChat();markCloudDirty();renderRoomManager();});
+    list.appendChild(row);
   });
+}
+function parseChatSeed(text){ // JSON [{who,t}] 또는 CSV "닉,내용" 줄들
+  text=(text||'').trim();
+  try{
+    var j=JSON.parse(text);
+    if(Array.isArray(j))return j.map(function(m){return {who:String(m.who||(m[0]!=null?m[0]:'이웃')),t:String(m.t||m.msg||(m[1]!=null?m[1]:''))};}).filter(function(m){return m.t;});
+  }catch(e){}
+  return text.split(/\r?\n/).map(function(l){
+    var i=l.indexOf(',');if(i<0)return null;
+    return {who:l.slice(0,i).trim()||'이웃',t:l.slice(i+1).trim()};
+  }).filter(function(m){return m&&m.t;});
+}
+function initSocialManager(){
+  var add=document.getElementById('room-add');
+  if(add)add.addEventListener('click',function(){
+    var nm=document.getElementById('room-name'),tp=document.getElementById('room-type');
+    var n=(nm.value||'').trim();if(!n)return;nm.value='';
+    socRoomList.push({name:n,type:tp.value});saveChat();markCloudDirty();renderRoomManager();
+  });
+  var fillBtn=document.getElementById('chat-fill'),file=document.getElementById('chat-file'),clr=document.getElementById('chat-clear');
+  if(fillBtn&&file){
+    fillBtn.addEventListener('click',function(){file.click();});
+    file.addEventListener('change',function(){
+      var f=(this.files||[])[0];this.value='';if(!f)return;
+      var r=new FileReader();
+      r.onload=function(e){
+        var msgs=parseChatSeed(e.target.result);
+        if(!msgs.length){alert('형식을 읽지 못했어요.\nJSON: [{"who":"닉","t":"내용"}]  또는  CSV: 닉,내용 (줄바꿈 구분)');return;}
+        socSeedLocal=msgs;
+        Object.keys(socMsgs).forEach(function(k){if(k.indexOf('local:')===0)delete socMsgs[k];}); // 새 시드가 보이게 초기화
+        saveChat();markCloudDirty();
+        alert('동네 채팅 기본 대화 '+msgs.length+'개를 채웠어요.');
+        if(currentTab==='social')renderSocial();
+      };
+      r.readAsText(f);
+    });
+  }
+  if(clr)clr.addEventListener('click',function(){
+    if(!confirm('동네 채팅의 시드와 대화 내용을 모두 비울까요?'))return;
+    socSeedLocal=[];
+    Object.keys(socMsgs).forEach(function(k){if(k.indexOf('local:')===0)delete socMsgs[k];});
+    saveChat();markCloudDirty();
+    if(currentTab==='social')renderSocial();
+  });
+  renderRoomManager();
 }
 
 /* ========== 기능 맵 (기능 관리 페이지) ========== */
@@ -2538,7 +2632,7 @@ function initFeaturePage(){
   initPhoneMenu();
   FACTORY_SETTINGS=snapshotSettings();initDraft(); // 공장 기본값 + 설정 편집 버퍼(DRAFT)
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedTools();initSocialManager();renderFeedColList();
   window.addEventListener('resize',layoutTabPages);
   if(typeof CONFIG==='undefined'||!CONFIG.GOOGLE_MAPS_API_KEY){var it=document.getElementById('info-text');if(it)it.textContent='⚠️ config.js에 API 키를 설정해 주세요.';hideMapLoading();hideAuthOverlay();return;}
   initAuth();

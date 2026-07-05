@@ -438,7 +438,7 @@ button:focus:not(:focus-visible){outline:none;}
 .phone-map img[alt="Google"]{display:none!important;}
 
 /* 상단 헤더 (cqw = 폰 폭의 1%) — 프로스트 글래스(지도가 은은히 비침, Apple Maps 문법) */
-.phone-header{position:absolute;top:0;left:0;right:0;z-index:2;
+.phone-header{position:absolute;top:0;left:0;right:0;z-index:5;
   background:var(--frost-strong);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   padding:5.5cqw 4cqw 4cqw;border-bottom:1px solid rgba(15,23,42,0.05);
   box-shadow:0 0.8cqw 3cqw rgba(16,24,40,0.08),var(--glass-hi);}
@@ -487,12 +487,12 @@ button:focus:not(:focus-visible){outline:none;}
 .pa-btn{justify-self:start;flex-shrink:0;width:8.4cqw;height:8.4cqw;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5cqw;padding:0;border:none;background:transparent;border-radius:2.4cqw;cursor:pointer;transition:background .15s ease;}
 .pa-btn:active{background:rgba(15,23,42,0.06);}
 .pa-btn span{display:block;width:4.8cqw;height:0.72cqw;border-radius:1px;background:#33373f;}
-/* 위치 표시기: 헤더 하단 앵커 · 배경/아이콘 없이 텍스트만 */
-.pa-loc{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4.7cqw;z-index:3;
-  max-width:74cqw;font-size:3.4cqw;font-weight:700;color:#2b3038;pointer-events:none;}
-.pa-loc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-/* 모드 토글(가운데): 라이트 세그먼트 — 베이직=브랜드 블루 · 트렌드=핫 그라디언트 */
-.pa-mode{justify-self:center;flex-shrink:0;display:flex;gap:0.5cqw;padding:0.7cqw;border-radius:5cqw;background:rgba(15,23,42,0.06);box-shadow:inset 0 1px 2px rgba(16,24,40,0.06);}
+/* 위치 표시기: 앱바 중앙(모드 토글과 자리 스왑) */
+.pa-loc{justify-self:center;min-width:0;max-width:46cqw;font-size:3.8cqw;font-weight:800;letter-spacing:-0.01em;color:#20242c;pointer-events:none;}
+.pa-loc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
+/* 모드 토글: 헤더 아래 프로스트 오버레이(위치 텍스트와 자리 스왑) — 모든 탭에서 접근 가능 */
+.pa-mode{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3.4cqw;z-index:5;display:flex;gap:0.5cqw;padding:0.7cqw;border-radius:5cqw;
+  background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-line);box-shadow:0 1cqw 3cqw rgba(16,24,40,0.14),var(--glass-hi);}
 .pm-btn{display:inline-flex;align-items:center;gap:1cqw;border:none;background:transparent;color:#646b76;font-family:inherit;font-weight:700;font-size:2.9cqw;letter-spacing:-0.01em;padding:1cqw 3cqw;border-radius:4cqw;cursor:pointer;white-space:nowrap;transition:background .22s ease,color .22s ease,box-shadow .22s ease;}
 .pm-btn.active[data-mode="local"]{background:linear-gradient(160deg,#4a8bff,#2b6ff0);color:#fff;box-shadow:0 0.6cqw 2cqw rgba(47,123,255,0.4),inset 0 1px 0 rgba(255,255,255,0.28);}
 .pm-btn.active[data-mode="trend"]{background:linear-gradient(150deg,var(--hot1),var(--hot2));color:#fff;box-shadow:0 0.6cqw 2cqw rgba(255,77,103,0.4),inset 0 1px 0 rgba(255,255,255,0.28);}
@@ -662,15 +662,14 @@ body.role-user #allowlist-btn{display:none!important;}
 .tab-page{position:absolute;left:0;right:0;bottom:0;z-index:3;display:none;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .tab-page.open{display:block;}
 #social-page.open{display:flex;flex-direction:column;overflow:hidden;}
-/* 요약 공간 패널 (피드=추천 / 소셜=핫토픽) */
-.sum-panel{display:flex;align-items:center;gap:2cqw;height:16cqw;padding:0 1cqw;overflow:hidden;}
-.sum-tag{flex-shrink:0;font-size:2.6cqw;font-weight:800;color:var(--acc-deep);background:rgba(47,123,255,0.1);padding:1cqw 2.2cqw;border-radius:3cqw;}
-.sum-body{flex:1;min-width:0;display:flex;gap:1.6cqw;overflow-x:auto;scrollbar-width:none;}
-.sum-body::-webkit-scrollbar{display:none;}
-.sum-chip{flex-shrink:0;font-size:2.8cqw;font-weight:600;color:var(--ink);background:#fff;border:1px solid var(--line-soft);padding:1.4cqw 2.6cqw;border-radius:3.4cqw;box-shadow:var(--sh-s);white-space:nowrap;}
-.sum-empty{font-size:2.8cqw;color:var(--ink3);}
 /* 피드 그리드 */
+#feed-tools{display:flex;align-items:center;gap:1.6cqw;padding:2.8cqw 3cqw 0;}
+#feed-tools .ftl{font-size:2.7cqw;font-weight:700;color:var(--ink3);}
+#feed-tools .fcq{width:7cqw;height:7cqw;border:1px solid var(--line-soft);border-radius:2cqw;background:#fff;color:var(--ink2);font-family:inherit;font-size:3cqw;font-weight:700;cursor:pointer;box-shadow:var(--sh-s);}
+#feed-tools .fcq.active{background:var(--acc);border-color:transparent;color:#fff;}
 #feed-grid{display:grid;grid-template-columns:1fr 1fr;gap:2.4cqw;padding:3cqw;}
+#feed-grid.one-col .feed-card img{aspect-ratio:4/5;} /* 1열 = 인스타그램 피드 비율 */
+#feed-grid.one-col .feed-card.txt{aspect-ratio:auto;min-height:30cqw;}
 .feed-card{position:relative;border-radius:3.4cqw;overflow:hidden;background:#fff;box-shadow:var(--sh-s);border:1px solid var(--line-soft);}
 .feed-card img{width:100%;aspect-ratio:1;object-fit:cover;display:block;}
 .feed-card.txt{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.6cqw;padding:3cqw;}
@@ -738,6 +737,14 @@ body.role-user #allowlist-btn{display:none!important;}
 .ft-chip{border:1px solid var(--line-soft);background:rgba(15,23,42,0.03);color:var(--ink2);font-family:inherit;font-size:.62rem;font-weight:600;padding:2px 8px;border-radius:9px;cursor:pointer;}
 .ft-chip:hover{background:rgba(47,123,255,0.08);color:var(--acc-deep);border-color:rgba(47,123,255,0.3);}
 .ft-go{margin-left:4px;flex-shrink:0;}
+
+/* 소셜 컨텐츠(방) 관리 행 · 지면 탭 셀렉트 */
+#room-list{margin-top:8px;}
+.room-item{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--line-soft);border-radius:9px;background:rgba(15,23,42,0.025);margin-bottom:5px;}
+.room-item .ri-name{flex:1;min-width:0;font-size:.74rem;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.room-item .ri-type{margin-left:0;flex-shrink:0;}
+.room-item .ri-del{border:1px solid var(--line);border-radius:6px;background:#fff;width:24px;height:24px;cursor:pointer;font-size:.72rem;line-height:1;color:#c0392b;flex-shrink:0;}
+.ni-tab{margin-left:0;flex-shrink:0;}
 
 /* 모션 최소화 선호 사용자 배려 */
 @media (prefers-reduced-motion: reduce){
