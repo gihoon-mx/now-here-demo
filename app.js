@@ -881,10 +881,11 @@ function renderDrawerDemo(){ // 순서: 트렌드존 → 현장 Request → 스�
     var sc=document.createElement('div');sc.className='tz-scroll';
     trendZones.forEach(function(zone){
       var c=document.createElement('button');c.type='button';c.className='tz-card';
-      c.innerHTML='<span class="tz-bubble"><b></b><i></i></span>'+(zone.photo?'<img class="tz-photo" alt="" />':'<span class="tz-photo tz-ph"></span>');
+      var pho=zoneBestPhoto(zone); // 태깅 사진 중 최다 좋아요 우선
+      c.innerHTML='<span class="tz-bubble"><b></b><i></i></span>'+(pho?'<img class="tz-photo" alt="" />':'<span class="tz-photo tz-ph"></span>');
       c.querySelector('b').textContent=zone.name;
       var de=c.querySelector('i');de.textContent=zone.desc||'';if(!zone.desc)de.style.display='none';
-      var im=c.querySelector('img');if(im)im.src=zone.photo;
+      var im=c.querySelector('img');if(im)im.src=pho;
       var ph=c.querySelector('.tz-ph');
       if(ph){ph.style.background=hexToRgba(zone.color,0.16);ph.style.color=zone.color;ph.textContent='⬡';}
       c.addEventListener('click',function(){if(currentMode!=='trend')switchMode('trend');selectPhoneZone(zone);closeDrawer();});
@@ -2485,6 +2486,19 @@ function setNavActive(nav){document.querySelectorAll('#phone-mirror .pn-item').f
 
 /* ========== 피드 탭: 그리드 + 포커스 구역 우선 ========== */
 var feedItems=[]; var FEED_KEY='nowhere_feed';
+var feedLikes={};try{feedLikes=JSON.parse(localStorage.getItem('nowhere_likes')||'{}')||{};}catch(e){}
+function likeInfo(id){return feedLikes[id]||{n:0,me:0};}
+function toggleLike(id){ // 더블탭 좋아요 (기기=유저당 1개 토글)
+  var L=feedLikes[id]||(feedLikes[id]={n:0,me:0});
+  if(L.me){L.me=0;L.n=Math.max(0,L.n-1);}else{L.me=1;L.n++;}
+  try{localStorage.setItem('nowhere_likes',JSON.stringify(feedLikes));}catch(e){}
+  return L;
+}
+function zoneBestPhoto(zone){ // 존 썸네일 = 해당 존 태깅 사진 중 최다 좋아요 (없으면 존 photo)
+  var best=null,bn=-1;
+  feedItems.forEach(function(f){if(f.zone===zone.id){var n=likeInfo(f.id).n;if(n>bn){bn=n;best=f;}}});
+  return best?best.src:(zone.photo||null);
+}
 function loadFeed(){try{var a=JSON.parse(localStorage.getItem(FEED_KEY)||'[]');if(Array.isArray(a))feedItems=a;}catch(e){}}
 function saveFeed(){try{localStorage.setItem(FEED_KEY,JSON.stringify(feedItems.slice(0,40)));}catch(e){}}
 function normRegion(t){return (t||'').replace(/[0-9\s]/g,'');}
@@ -2499,7 +2513,7 @@ function regionCenterByName(name){ // 동 이름 → 중심 좌표 (숫자 무�
 }
 function allFeedEntries(){ // 라이브 사진 + 스팟 + 동네소식 → 포커스 구역 우선 정렬
   var arr=[];
-  feedItems.forEach(function(f){var rc=regionCenterByName(f.region);arr.push({id:f.id,type:'photo',src:f.src,region:f.region||'',ts:f.ts||0,lat:rc?rc.lat:null,lng:rc?rc.lng:null});});
+  feedItems.forEach(function(f){var rc=regionCenterByName(f.region);arr.push({id:f.id,type:'photo',src:f.src,region:f.region||'',zone:f.zone||null,ts:f.ts||0,lat:rc?rc.lat:null,lng:rc?rc.lng:null});});
   newsItems.forEach(function(n){var rc=regionCenterByName(n.region);arr.push({id:n.id,type:'news',src:n.src,region:n.region||'',ts:0,lat:rc?rc.lat:null,lng:rc?rc.lng:null});});
   spotMessages.forEach(function(sp){var d=regionAt(sp.lat,sp.lng);arr.push({id:sp.id,type:'spot',text:sp.text,emoji:sp.emoji,color:sp.color,region:d?d.name:'',ts:0,lat:sp.lat,lng:sp.lng});});
   var foc=focusedRegionName(),nf=normRegion(foc);
@@ -2532,6 +2546,7 @@ function feedEntriesScoped(){
       return {z:z,d:(clat==null)?0:(cy-clat)*(cy-clat)+(cx-clng)*(cx-clng)};
     }).sort(function(a,b){return a.d-b.d;}).slice(0,5).map(function(o){return o.z;});
     arr=arr.filter(function(it){
+      if(it.zone)for(var j=0;j<near.length;j++)if(near[j].id===it.zone)return true; // 존 태깅 우선
       if(it.lat==null)return false;
       for(var i=0;i<near.length;i++)if(inZoneAt(near[i],it.lat,it.lng))return true;
       return false;
@@ -2561,6 +2576,23 @@ function renderFeed(){
       if(it.color)c.style.background=hexToRgba(it.color,0.12);
     }
     var tag=document.createElement('span');tag.className='fc-region';tag.textContent=it.region||'우리 동네';c.appendChild(tag);
+    var L=likeInfo(it.id);
+    var lk=document.createElement('span');lk.className='fc-like'+(L.me?' on':'');lk.textContent='♥ '+L.n;
+    if(!L.n&&!L.me)lk.style.display='none';
+    c.appendChild(lk);
+    var lastTap=0;
+    c.addEventListener('click',function(){ // 더블탭(더블클릭) = 좋아요 토글
+      var now=Date.now();
+      if(now-lastTap<340){
+        var R=toggleLike(it.id);
+        lk.textContent='♥ '+R.n;lk.classList.toggle('on',!!R.me);
+        lk.style.display=(R.n||R.me)?'':'none';
+        if(R.me){var h=document.createElement('span');h.className='fc-heart';h.textContent='♥';c.appendChild(h);setTimeout(function(){h.remove();},650);}
+        renderDrawerDemo(); // 존 베스트 썸네일 갱신
+        lastTap=0;return; // 토글 후 리셋 (연타 오작동 방지)
+      }
+      lastTap=now;
+    });
     g.appendChild(c);
   });
 }
@@ -2672,7 +2704,12 @@ function initFeedTools(){
     if(!ui)return;var url=(ui.value||'').trim();ui.value='';
     if(!/^https:\/\/\S+/i.test(url)){alert('https:// 로 시작하는 이미지 링크를 넣어주세요.');return;}
     var probe=new Image();
-    probe.onload=function(){feedItems.unshift({id:'f_'+Date.now(),type:'photo',src:url,region:currentCenterDong(),ts:Date.now()});saveFeed();renderFeedColList();if(currentTab==='feed')renderFeed();};
+    probe.onload=function(){
+      var ctr=(phoneMap&&phoneMap.getCenter())||(map&&map.getCenter());
+      var zz=ctr?zoneObjAtCenter(ctr.lat(),ctr.lng()):null;
+      feedItems.unshift({id:'f_'+Date.now(),type:'photo',src:url,region:currentCenterDong(),zone:zz?zz.id:null,ts:Date.now()});
+      saveFeed();renderFeedColList();renderDrawerDemo();if(currentTab==='feed')renderFeed();
+    };
     probe.onerror=function(){alert('이 링크의 이미지를 불러올 수 없어요. 직접 이미지 주소인지 확인해 주세요.');};
     probe.src=url;
   }
@@ -2703,9 +2740,14 @@ function renderFeedColList(){ // 설정-컨텐츠: 피드 컨텐츠 관리
     var th=document.createElement('img');th.className='ni-thumb';th.src=f.src;
     var reg=document.createElement('input');reg.className='ni-region';reg.type='text';reg.placeholder='구역(동)';reg.value=f.region||'';
     reg.addEventListener('change',function(){f.region=this.value.trim();saveFeed();});
+    var zs=document.createElement('select');zs.className='mini-select ni-tab';
+    var op0=document.createElement('option');op0.value='';op0.textContent='존 없음';zs.appendChild(op0);
+    trendZones.forEach(function(z){var op=document.createElement('option');op.value=z.id;op.textContent=z.name;zs.appendChild(op);});
+    zs.value=f.zone||'';
+    zs.addEventListener('change',function(){f.zone=this.value||null;saveFeed();renderDrawerDemo();});
     var act=document.createElement('div');act.className='ni-actions';
     var del=document.createElement('button');del.type='button';del.textContent='🗑';
-    del.addEventListener('click',function(){feedItems.splice(i,1);saveFeed();renderFeedColList();if(currentTab==='feed')renderFeed();});
+    del.addEventListener('click',function(){feedItems.splice(i,1);saveFeed();renderFeedColList();renderDrawerDemo();if(currentTab==='feed')renderFeed();});
     act.appendChild(del);
     row.appendChild(th);row.appendChild(reg);row.appendChild(act);list.appendChild(row);
   });
@@ -2718,8 +2760,10 @@ function initLiveCamera(){
     if(!arr.length)return;
     compressNews(arr[0],function(url){
       if(!url){alert('사진 처리에 실패했어요. 더 작은 사진으로 시도해 주세요.');return;}
-      feedItems.unshift({id:'f_'+Date.now(),type:'photo',src:url,region:currentCenterDong(),ts:Date.now()});
-      saveFeed();renderFeedColList();
+      var ctr=(phoneMap&&phoneMap.getCenter())||(map&&map.getCenter());
+      var zz=ctr?zoneObjAtCenter(ctr.lat(),ctr.lng()):null;
+      feedItems.unshift({id:'f_'+Date.now(),type:'photo',src:url,region:currentCenterDong(),zone:zz?zz.id:null,ts:Date.now()});
+      saveFeed();renderFeedColList();renderDrawerDemo();
       setNavActive('feed');switchTab('feed'); // 바로 피드에서 확인
     });
   });
@@ -2790,11 +2834,11 @@ function seedMsgs(room){
 function renderSocial(){
   var nmLoc=focusedRegionName();
   var lt=document.querySelector('.soc-tab[data-soc="local"]');
-  if(lt)lt.textContent='📍 '+(nmLoc?nmLoc+' 채팅방':'동네 채팅방'); // 서브탭 = 현 위치명 + 채팅방
+  if(lt)lt.textContent=(nmLoc?nmLoc+' 채팅방':'동네 채팅방'); // 서브탭 = 현 위치명 + 채팅방 (아이콘 없음)
   document.querySelectorAll('.soc-tab').forEach(function(t){t.classList.toggle('active',t.dataset.soc===socTab);});
   var body=document.getElementById('soc-body'),bar=document.getElementById('soc-inputbar');
   if(!body)return;
-  if(socTab==='local')socRoom={key:'local:'+(nmLoc||'동네'),name:'📍 '+(nmLoc?nmLoc+' 채팅방':'동네 채팅방')};
+  if(socTab==='local')socRoom={key:'local:'+(nmLoc||'동네'),name:(nmLoc?nmLoc+' 채팅방':'동네 채팅방')};
   if(socRoom&&socRoom.key.indexOf(socTab+':')===0){renderChatRoom(body,socRoom);bar.style.display='flex';}
   else{renderRoomList(body);bar.style.display='none';}
 }
