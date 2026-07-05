@@ -47,13 +47,14 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.39.1**
+- **현재 최신: v1.40.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-03)
 
-**최신 v1.39.1 · 라이브 정상.** 완료된 기능:
+**최신 v1.40.0 · 라이브 정상.** 완료된 기능:
+- **v1.40.0 피드 컨텐츠 추가 UX + 트렌드존 속성**: ①피드 컨텐츠 섹션 재구성 — **＋ 사진 추가(업로드)** 전체폭 버튼(feed-add-btn/feed-file, 여러 장 compressNews 압축) + 링크 입력 상단 배치, 그리드/간격 옵션은 아래로 ②**(버그) 트렌드존 select가 renderFeedColList에서 생성만 되고 row에 append 안 되던 문제 수정** — ni-fields에 존 select+동 입력 2단 배치 ③**존 선택 시 속한 동 자동 채움**(zoneRegionName: 존 중심 zoneCentroid→dongAt). 촬영/링크/업로드 모두 현 위치 존 자동 태깅 유지. 검증: 추가버튼/파일input·존 select DOM 노출·존→동 자동채움(강남→역삼1동) PASS, 콘솔 에러 0.
 - **v1.39.1 리스트 카드 하트/거리 하단 정렬**: 트렌드존 리스트 스타일에서 이름·카테고리 길이가 달라도 ❤ 합산·거리 행이 어긋나지 않게 → .tz-scroll-list align-items:stretch(카드 높이 통일) + .tzl-meta margin-top:auto(하단 밀착). 검증: 짧은/긴 카테고리 카드 높이 동일(159px)·메타 하단 정렬 PASS.
 - **v1.39.0 존 카드 리스트 스타일 + 트렌드 요약 존 리스트**: ①**존 카드 스타일 옵션**(트렌드 존 관리 › 목록 카드: 글래스 캡션 / 리스트, nowhere_zonecard+클라우드 zoneCardStyle 동기): 리스트 스타일=썸네일+이름+카테고리(설명)+**하트 합산**(별점 대체)+**거리/Here**. 하트=존 태깅 사진 + 존에 속한 동 컨텐츠(regionCenterByName→ptInZone) 좋아요 총합(zoneTotalHearts). 거리=현재 지도 센터 기준 직선거리(haversineM), 존 안이면 'Here'(zoneDistLabel, 지도 idle마다 갱신). 공용 빌더 makeZoneCard/buildZoneScroll(드로어·요약 공유) ②**트렌드 모드 지도 탭 요약 공간=존 리스트**(#cp-zones, 세로폭 44cqw 유지·비율만 조정, 캐러셀/접기버튼 숨김, switchMode/switchTab/renderNews 연동). 버그: #cp-zones display:none 기본값에 inline '' 폴백 → 'block' 명시. 검증: 하트합산(z1=8)·리스트/글래스 렌더·요약 165px·모드 토글 PASS, 콘솔 에러 0.
 - **v1.38.3 존 편집 UI 수정 + 카드 글래스화**: ①**(버그)** 트렌드존 인라인 편집 폼이 flex 부모(.zone-item) 자식으로 끼어 찌그러지던 문제 → .zone-item flex-wrap + .zone-inline-edit flex:0 0 100%(전체폭), .zi-url flex 스타일 누락 보완(링크 버튼 한 줄 정렬) ②드로어 **트렌드존 카드=글래스 캡션 스타일**(요약 카드 V3 톤): 이미지 풀채움(42×50cqw)+하단 그라디언트+프로스트 유리 캡션 바(볼드 이름+얇은 설명), 사진 없으면 존 컬러 ⬡ 플레이스홀더, 가로 스크롤 유지. 검증: 편집폼 전체폭·URL 한줄·카드 캡션 3장 렌더 PASS, 콘솔 에러 0.

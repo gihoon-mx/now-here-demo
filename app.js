@@ -2791,6 +2791,24 @@ function initFeedTools(){
   }
   if(ub)ub.addEventListener('click',addFeedUrl);
   if(ui)ui.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addFeedUrl();}});
+  // 관리자 사이드바: 직접 사진 업로드 (라이브 카메라와 별개, 여러 장 가능)
+  var fab=document.getElementById('feed-add-btn'),ffile=document.getElementById('feed-file');
+  if(fab&&ffile){
+    fab.addEventListener('click',function(){ffile.click();});
+    ffile.addEventListener('change',function(){
+      var arr=Array.prototype.slice.call(this.files||[]);this.value='';
+      if(!arr.length)return;
+      var pending=arr.length;
+      arr.forEach(function(f){compressNews(f,function(url){
+        if(url){
+          var ctr=(phoneMap&&phoneMap.getCenter())||(map&&map.getCenter());
+          var zz=ctr?zoneObjAtCenter(ctr.lat(),ctr.lng()):null;
+          feedItems.unshift({id:'f_'+Date.now()+'_'+(pending),type:'photo',src:url,region:currentCenterDong(),zone:zz?zz.id:null,ts:Date.now()});
+        }
+        if(--pending===0){saveFeed();renderFeedColList();renderDrawerDemo();if(currentTab==='feed')renderFeed();}
+      });});
+    });
+  }
   applyFeedCols(feedCols);
 }
 function initFeedPinch(){ // 핀치 줌으로 열 수 변경 (벌리면 크게=열 감소)
@@ -2807,25 +2825,37 @@ function initFeedPinch(){ // 핀치 줌으로 열 수 변경 (벌리면 크게=�
   },{passive:false});
   el.addEventListener('touchend',function(e){if(e.touches.length<2)d0=0;},{passive:true});
 }
+function zoneRegionName(zoneId){ // 트렌드존이 속한 동 (존 중심 기준)
+  var z=trendZones.find(function(x){return x.id===zoneId;});
+  if(!z||!z.hexCenters.length)return '';
+  var ce=zoneCentroid(z);
+  return dongAt(ce.lat,ce.lng)||'';
+}
 function renderFeedColList(){ // 설정-컨텐츠: 피드 컨텐츠 관리
   var list=document.getElementById('feedcol-list');if(!list)return;
   list.innerHTML='';
-  if(!feedItems.length){list.innerHTML='<p class="section-hint">라이브 카메라로 올라온 사진이 없어요.</p>';return;}
+  if(!feedItems.length){list.innerHTML='<p class="section-hint">아직 올린 피드 사진이 없어요. 위 버튼으로 추가해 보세요.</p>';return;}
   feedItems.forEach(function(f,i){
     var row=document.createElement('div');row.className='news-item';
     var th=document.createElement('img');th.className='ni-thumb';th.src=f.src;
     var reg=document.createElement('input');reg.className='ni-region';reg.type='text';reg.placeholder='구역(동)';reg.value=f.region||'';
     reg.addEventListener('change',function(){f.region=this.value.trim();saveFeed();});
-    var zs=document.createElement('select');zs.className='mini-select ni-tab';
-    var op0=document.createElement('option');op0.value='';op0.textContent='존 없음';zs.appendChild(op0);
+    var zs=document.createElement('select');zs.className='mini-select ni-zone';
+    var op0=document.createElement('option');op0.value='';op0.textContent='트렌드존 없음';zs.appendChild(op0);
     trendZones.forEach(function(z){var op=document.createElement('option');op.value=z.id;op.textContent=z.name;zs.appendChild(op);});
     zs.value=f.zone||'';
-    zs.addEventListener('change',function(){f.zone=this.value||null;saveFeed();renderDrawerDemo();});
+    zs.addEventListener('change',function(){
+      f.zone=this.value||null;
+      if(f.zone){var rn=zoneRegionName(f.zone);if(rn){f.region=rn;reg.value=rn;}} // 존 선택 시 속한 동 자동 채움
+      saveFeed();renderDrawerDemo();
+    });
+    var fields=document.createElement('div');fields.className='ni-fields';
+    fields.appendChild(zs);fields.appendChild(reg);
     var act=document.createElement('div');act.className='ni-actions';
     var del=document.createElement('button');del.type='button';del.textContent='🗑';
     del.addEventListener('click',function(){feedItems.splice(i,1);saveFeed();renderFeedColList();renderDrawerDemo();if(currentTab==='feed')renderFeed();});
     act.appendChild(del);
-    row.appendChild(th);row.appendChild(reg);row.appendChild(act);list.appendChild(row);
+    row.appendChild(th);row.appendChild(fields);row.appendChild(act);list.appendChild(row);
   });
 }
 /* 라이브 카메라: 찍으면 즉시 피드 업로드 (위치 태그 포함) */
