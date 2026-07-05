@@ -672,6 +672,11 @@ function initPhoneMenu(){
   var drawer=document.getElementById('phone-drawer');
   var body=document.getElementById('phone-drawer-body');
   if(body){
+    // 🧩 기능 관리 — 데모·관리자 모두, 컨텐츠 설정 앞
+    var fmRow=document.createElement('div');fmRow.className='settings-toggle-row';fmRow.style.marginTop='0';
+    fmRow.innerHTML='<button id="feature-btn" type="button">🧩 기능 관리 <span class="toggle-arrow">▸</span></button>';
+    fmRow.querySelector('#feature-btn').addEventListener('click',openFeaturePage);
+    body.appendChild(fmRow);
     // 데모용 리스트(트렌드 존 · 스팟 메시지) — 데모 모드에서 노출
     var demo=document.createElement('div');demo.id='drawer-demo';
     demo.innerHTML='<div class="drawer-sec"><h4>📍 트렌드 존</h4><div id="drawer-zone-list" class="drawer-list"></div></div>'+
@@ -884,6 +889,7 @@ function initPhoneMirror(){
   if(originalGeoJson){buildDongIndex();applyGeoJsonToPhone();}
   phoneDataVisibility();syncPhoneZones();updatePhoneUI();updatePhoneLocation();updatePhoneViewportOverlay();updatePhoneLens();updatePhoneScale();
   renderSpots();
+  renderRequestMarkers();
 }
 function applyGeoJsonToPhone(){
   if(!phoneMap||!originalGeoJson)return;
@@ -1235,6 +1241,7 @@ function initPhoneControls(){
   // 하단 네비 활성 전환
   mirror.querySelectorAll('.pn-item').forEach(function(b){b.addEventListener('click',function(){
     mirror.querySelectorAll('.pn-item').forEach(function(x){x.classList.remove('active');});b.classList.add('active');
+    switchTab(b.dataset.nav);
   });});
   // AI 버튼: 말풍선 팝업 + 아이콘 회전/AI색상(데모)
   var aiBtn=mirror.querySelector('.pn-ai'),aiBub=document.getElementById('ai-bubble');
@@ -1262,15 +1269,12 @@ function initPhoneControls(){
     addMenu.querySelectorAll('.cam-item').forEach(function(it){
       it.addEventListener('click',function(){
         if(it.dataset.add==='spot'){addSpotContent();}
+        else if(it.dataset.add==='request'){openRequestComposer();}
         else{closeAddMenu();if(it.dataset.add==='photo'){var fi=document.getElementById('feed-photo-input');if(fi)fi.click();}}
       });
     });
     document.addEventListener('click',function(){if(Date.now()-addMenuOpenedAt<600)return;closeAddMenu();}); // 롱프레스 직후 자동 닫힘 방지
   }
-  var photoInput=document.getElementById('feed-photo-input');
-  if(photoInput)photoInput.addEventListener('change',function(){
-    if(this.files&&this.files.length){alert('사진이 선택되었습니다 (피드 업로드는 데모): '+this.files[0].name);this.value='';}
-  });
   // 창 크기 변경 시 화면 밖 방지
   window.addEventListener('resize',reclampPhone);
 }
@@ -2221,6 +2225,312 @@ function addAllowlistEntry(){
   fbDb.collection('allowlist').doc(email).set({role:roleEl.value,addedBy:currentUser?currentUser.email:'',addedAt:firebase.firestore.FieldValue.serverTimestamp()}).then(function(){emailEl.value='';renderAllowlist();}).catch(function(e){alert('추가 실패: '+e.message);});
 }
 
+/* ===================================================
+   서비스 탭 (지도/피드/소셜) · 라이브 카메라 · 현장 Request · 소셜 채팅 · 기능 맵
+   =================================================== */
+var currentTab='map';
+function focusedRegionName(){ // 현재 포커스 구역 (렌즈 동 / 선택·렌즈 존 / 센터)
+  if(currentMode==='trend'){
+    var zid=phoneSelectedZoneId||phoneLens.zoneId;
+    if(zid){var z=trendZones.find(function(x){return x.id===zid;});if(z)return z.name;}
+    var c=phoneMap&&phoneMap.getCenter();return c?(zoneAtCenter(c.lat(),c.lng())||''):'';
+  }
+  var c2=phoneMap?phoneVisibleCenter():null;return c2?(dongAt(c2.lat(),c2.lng())||''):'';
+}
+function layoutTabPages(){ // 헤더/네비 사이에 페이지 배치
+  var ins=phoneMapInsets();
+  ['feed-page','social-page'].forEach(function(id){var el=document.getElementById(id);if(!el)return;
+    el.style.top=ins.top+'px';el.style.paddingBottom=(ins.bottom+10)+'px';});
+}
+function switchTab(tab){
+  if(tab!=='map'&&tab!=='feed'&&tab!=='social')return;
+  currentTab=tab;
+  // 요약 공간: 지도=동네소식 / 피드=추천 / 소셜=핫토픽
+  var cp=document.getElementById('cp-frame');if(cp)cp.style.display=(tab==='map')?'':'none';
+  var sf=document.getElementById('sum-feed');if(sf)sf.style.display=(tab==='feed')?'':'none';
+  var ssm=document.getElementById('sum-social');if(ssm)ssm.style.display=(tab==='social')?'':'none';
+  document.getElementById('feed-page').classList.toggle('open',tab==='feed');
+  document.getElementById('social-page').classList.toggle('open',tab==='social');
+  layoutTabPages();
+  if(tab==='feed'){renderFeed();renderSumFeed();}
+  if(tab==='social'){renderSocial();renderSumSocial();}
+}
+function setNavActive(nav){document.querySelectorAll('#phone-mirror .pn-item').forEach(function(x){x.classList.toggle('active',x.dataset.nav===nav);});}
+
+/* ========== 피드 탭: 그리드 + 포커스 구역 우선 ========== */
+var feedItems=[]; var FEED_KEY='nowhere_feed';
+function loadFeed(){try{var a=JSON.parse(localStorage.getItem(FEED_KEY)||'[]');if(Array.isArray(a))feedItems=a;}catch(e){}}
+function saveFeed(){try{localStorage.setItem(FEED_KEY,JSON.stringify(feedItems.slice(0,40)));}catch(e){}}
+function normRegion(t){return (t||'').replace(/[0-9\s]/g,'');}
+function allFeedEntries(){ // 라이브 사진 + 스팟 + 동네소식 → 포커스 구역 우선 정렬
+  var arr=[];
+  feedItems.forEach(function(f){arr.push({id:f.id,type:'photo',src:f.src,region:f.region||'',ts:f.ts||0});});
+  newsItems.forEach(function(n){arr.push({id:n.id,type:'news',src:n.src,region:n.region||'',ts:0});});
+  spotMessages.forEach(function(sp){var d=regionAt(sp.lat,sp.lng);arr.push({id:sp.id,type:'spot',text:sp.text,emoji:sp.emoji,color:sp.color,region:d?d.name:'',ts:0});});
+  var foc=focusedRegionName(),nf=normRegion(foc);
+  arr.forEach(function(it,i){
+    var match=foc&&it.region&&(it.region===foc||normRegion(it.region)===nf);
+    it._k=(match?0:1)*1e13+(it.ts?-it.ts:i); // 포커스 구역 먼저, 사진은 최신순
+  });
+  arr.sort(function(a,b){return a._k-b._k;});
+  return arr;
+}
+function renderFeed(){
+  var g=document.getElementById('feed-grid');if(!g)return;g.innerHTML='';
+  var arr=allFeedEntries();
+  if(!arr.length){g.innerHTML='<div class="feed-empty">아직 공유된 일상이 없어요.<br>＋ 버튼으로 첫 소식을 올려보세요!</div>';return;}
+  arr.forEach(function(it){
+    var c=document.createElement('div');c.className='feed-card';
+    if(it.src){var im=document.createElement('img');im.src=it.src;im.alt='';c.appendChild(im);}
+    else{
+      c.classList.add('txt');
+      c.innerHTML='<span class="fc-emoji"></span><p class="fc-text"></p>';
+      c.querySelector('.fc-emoji').textContent=it.emoji||'💬';
+      c.querySelector('.fc-text').textContent=it.text||'(빈 메시지)';
+      if(it.color)c.style.background=hexToRgba(it.color,0.12);
+    }
+    var tag=document.createElement('span');tag.className='fc-region';tag.textContent=it.region||'우리 동네';c.appendChild(tag);
+    if(it.type==='photo'){var lv=document.createElement('span');lv.className='fc-live';lv.textContent='LIVE';c.appendChild(lv);}
+    g.appendChild(c);
+  });
+}
+function renderSumFeed(){
+  var b=document.getElementById('sum-feed-body');if(!b)return;b.innerHTML='';
+  var arr=allFeedEntries().slice(0,4);
+  if(!arr.length){b.innerHTML='<span class="sum-empty">추천할 컨텐츠가 아직 없어요</span>';return;}
+  arr.forEach(function(it){
+    var chip=document.createElement('span');chip.className='sum-chip';
+    chip.textContent=(it.type==='photo'?'📸 방금 올라온 현장':(it.emoji?it.emoji+' ':'🗞 ')+((it.text||'').slice(0,12)||(it.region||'동네 소식')));
+    b.appendChild(chip);
+  });
+}
+/* 라이브 카메라: 찍으면 즉시 피드 업로드 (위치 태그 포함) */
+function initLiveCamera(){
+  var fi=document.getElementById('feed-photo-input');if(!fi)return;
+  fi.addEventListener('change',function(){
+    var arr=Array.prototype.slice.call(this.files||[]);this.value='';
+    if(!arr.length)return;
+    compressNews(arr[0],function(url){
+      if(!url){alert('사진 처리에 실패했어요. 더 작은 사진으로 시도해 주세요.');return;}
+      feedItems.unshift({id:'f_'+Date.now(),type:'photo',src:url,region:currentCenterDong(),ts:Date.now()});
+      saveFeed();
+      setNavActive('feed');switchTab('feed'); // 바로 피드에서 확인
+    });
+  });
+}
+
+/* ========== 현장 Request: 원격 질문 → 현장 유저 퀵응답 알림 ========== */
+var fieldRequests=[]; var REQ_KEY='nowhere_requests'; var reqMarkers=[]; var reqBubbleTimer=null;
+function loadRequests(){try{var a=JSON.parse(localStorage.getItem(REQ_KEY)||'[]');if(Array.isArray(a))fieldRequests=a;}catch(e){}}
+function saveRequests(){try{localStorage.setItem(REQ_KEY,JSON.stringify(fieldRequests.slice(0,30)));}catch(e){}}
+function openRequestComposer(){
+  var m=addTargetMap||primaryMap();var ll=addAtLatLng||(m&&m.getCenter());
+  closeAddMenu();
+  if(!ll){alert('지도를 불러온 뒤 이용해 주세요.');return;}
+  var q=prompt('📍 현장 Request\n이 위치의 무엇이 궁금하세요?\n(예: 파이브가이즈 대기줄 얼마나 되나요?)');
+  if(q==null||!q.trim())return;
+  var d=regionAt(ll.lat(),ll.lng());
+  var rq={id:'rq_'+Date.now(),lat:ll.lat(),lng:ll.lng(),q:q.trim(),place:d?d.name:'지정 위치',answers:[],ts:Date.now()};
+  fieldRequests.unshift(rq);saveRequests();renderRequestMarkers();
+  var ab=document.getElementById('ai-bubble');
+  if(ab){ab.textContent='📍 Request 전송! 현장 유저에게 알림이 갑니다…';ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},2200);}
+  setTimeout(function(){showReqBubble(rq);},2600); // 데모: 현장 유저 수신 알림 시뮬레이션
+}
+function showReqBubble(rq){
+  var b=document.getElementById('req-bubble');if(!b)return;
+  document.getElementById('rq-place').textContent=rq.place;
+  document.getElementById('rq-text').textContent='"'+rq.q+'"';
+  var ac=document.getElementById('rq-actions');ac.innerHTML='';
+  ['지금 한산해요','조금 붐벼요','대기 20분+'].forEach(function(t){
+    var btn=document.createElement('button');btn.type='button';btn.className='rq-quick';btn.textContent=t;
+    btn.addEventListener('click',function(){answerRequest(rq.id,t);});
+    ac.appendChild(btn);
+  });
+  var direct=document.createElement('button');direct.type='button';direct.className='rq-quick rq-direct';direct.textContent='✍ 직접 답장';
+  direct.addEventListener('click',function(){var t=prompt('현장 답변을 입력하세요');if(t&&t.trim())answerRequest(rq.id,t.trim());});
+  ac.appendChild(direct);
+  b.classList.add('show');
+  clearTimeout(reqBubbleTimer);reqBubbleTimer=setTimeout(hideReqBubble,12000);
+}
+function hideReqBubble(){var b=document.getElementById('req-bubble');if(b)b.classList.remove('show');clearTimeout(reqBubbleTimer);}
+function answerRequest(id,text){
+  var rq=fieldRequests.find(function(r){return r.id===id;});if(!rq)return;
+  rq.answers.push({t:text,ts:Date.now()});saveRequests();hideReqBubble();renderRequestMarkers();
+  var ab=document.getElementById('ai-bubble'); // 요청자에게 답변 도착 (데모)
+  if(ab){ab.textContent='📍 '+rq.place+' 현장 답변 도착: '+text;ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},5000);}
+}
+function renderRequestMarkers(){
+  reqMarkers.forEach(function(o){o.setMap(null);});reqMarkers=[];
+  if(!phoneMap||typeof google==='undefined')return;
+  fieldRequests.forEach(function(rq){
+    var lb=new MapLabel(new google.maps.LatLng(rq.lat,rq.lng),(rq.answers.length?'💬 '+rq.answers[0].t:'❓ Request'),{bg:'rgba(32,36,44,0.9)',color:'#fff',fontSize:10},phoneMap);
+    reqMarkers.push(lb);
+  });
+}
+
+/* ========== 소셜 탭: 동네 채팅 · 주제방 · 프라이빗(크레딧) ========== */
+var socTab='local', socRoom=null, socMsgs={}, socCredits=3;
+var socRooms={topic:['🍜 맛집 탐방','🏃 러닝 크루','🐶 댕댕이 산책','👶 육아 정보'],priv:[]};
+var SOC_KEY='nowhere_chat';
+function loadChat(){try{var o=JSON.parse(localStorage.getItem(SOC_KEY)||'{}');if(o.msgs)socMsgs=o.msgs;if(Array.isArray(o.priv))socRooms.priv=o.priv;if(o.credits!=null)socCredits=o.credits;}catch(e){}}
+function saveChat(){try{localStorage.setItem(SOC_KEY,JSON.stringify({msgs:socMsgs,priv:socRooms.priv,credits:socCredits}));}catch(e){}}
+function seedMsgs(room){
+  var base=room.name.replace(/^[^\s]+\s/,'');
+  socMsgs[room.key]=[{who:'동네주민',t:'오늘 날씨 좋네요 ☀️'},{who:'로컬러버',t:base+' 근처 맛집 추천 받아요!'}];
+  return socMsgs[room.key];
+}
+function renderSocial(){
+  document.querySelectorAll('.soc-tab').forEach(function(t){t.classList.toggle('active',t.dataset.soc===socTab);});
+  var body=document.getElementById('soc-body'),bar=document.getElementById('soc-inputbar');
+  if(!body)return;
+  if(socTab==='local'){var nm=focusedRegionName();socRoom={key:'local:'+(nm||'동네'),name:'📍 '+(nm?nm+' 동네 채팅':'동네 채팅')};}
+  if(socRoom&&socRoom.key.indexOf(socTab+':')===0){renderChatRoom(body,socRoom);bar.style.display='flex';}
+  else{renderRoomList(body);bar.style.display='none';}
+}
+function renderRoomList(body){
+  body.innerHTML='';
+  var wrap=document.createElement('div');wrap.className='soc-roomlist';
+  var list=(socTab==='topic')?socRooms.topic:socRooms.priv;
+  list.forEach(function(n){
+    var b=document.createElement('button');b.type='button';b.className='soc-room';
+    var cnt=(socMsgs[socTab+':'+n]||[]).length;
+    b.innerHTML='<span class="sr-name"></span><span class="sr-cnt"></span>';
+    b.querySelector('.sr-name').textContent=n;
+    b.querySelector('.sr-cnt').textContent=cnt?cnt+'개 대화':'새 방';
+    b.addEventListener('click',function(){socRoom={key:socTab+':'+n,name:n};renderSocial();});
+    wrap.appendChild(b);
+  });
+  if(socTab==='private'){
+    var mk=document.createElement('button');mk.type='button';mk.className='soc-room soc-new';
+    mk.textContent='＋ 프라이빗 방 만들기 · 크레딧 '+socCredits;
+    mk.addEventListener('click',function(){
+      if(socCredits<=0){alert('크레딧이 부족해요. (데모: 크레딧으로만 개설 가능)');return;}
+      var n=prompt('프라이빗 방 이름');if(!n||!n.trim())return;
+      socCredits--;socRooms.priv.push('🔒 '+n.trim());saveChat();renderSocial();
+    });
+    wrap.appendChild(mk);
+  }
+  if(!list.length&&socTab==='topic'){var e=document.createElement('div');e.className='soc-empty';e.textContent='주제방이 없어요.';wrap.appendChild(e);}
+  body.appendChild(wrap);
+}
+function renderChatRoom(body,room){
+  body.innerHTML='';
+  var head=document.createElement('div');head.className='soc-chathead';
+  if(socTab!=='local'){
+    var back=document.createElement('button');back.type='button';back.className='soc-back';back.textContent='‹';
+    back.addEventListener('click',function(){socRoom=null;renderSocial();});
+    head.appendChild(back);
+  }
+  var ttl=document.createElement('span');ttl.className='soc-title';ttl.textContent=room.name;head.appendChild(ttl);
+  body.appendChild(head);
+  var listEl=document.createElement('div');listEl.className='soc-msgs';
+  (socMsgs[room.key]||seedMsgs(room)).forEach(function(m){
+    var r=document.createElement('div');r.className='soc-msg'+(m.me?' me':'');
+    r.innerHTML='<span class="sm-who"></span><span class="sm-bubble"></span>';
+    r.querySelector('.sm-who').textContent=m.me?'':(m.who||'이웃');
+    r.querySelector('.sm-bubble').textContent=m.t;
+    listEl.appendChild(r);
+  });
+  body.appendChild(listEl);
+  listEl.scrollTop=listEl.scrollHeight;
+}
+function initSocial(){
+  loadChat();
+  document.querySelectorAll('.soc-tab').forEach(function(t){
+    t.addEventListener('click',function(){socTab=this.dataset.soc;if(socTab!=='local')socRoom=null;renderSocial();});
+  });
+  function send(){
+    var inp=document.getElementById('soc-input');var t=(inp.value||'').trim();
+    if(!t||!socRoom)return;inp.value='';
+    (socMsgs[socRoom.key]=socMsgs[socRoom.key]||[]).push({me:true,t:t});saveChat();renderSocial();
+    setTimeout(function(){ // 데모 응답
+      (socMsgs[socRoom.key]=socMsgs[socRoom.key]||[]).push({who:'이웃',t:'오 반가워요! 👋'});saveChat();
+      if(currentTab==='social')renderSocial();
+    },1600);
+  }
+  var sb=document.getElementById('soc-send');if(sb)sb.addEventListener('click',send);
+  var si=document.getElementById('soc-input');if(si)si.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();send();}});
+}
+function renderSumSocial(){
+  var b=document.getElementById('sum-social-body');if(!b)return;b.innerHTML='';
+  ['🔥 '+(focusedRegionName()||'우리 동네')+' 신규 카페 오픈 소식','💬 러닝 크루 주말 모집','📍 플리마켓 후기 공유 중'].forEach(function(t){
+    var chip=document.createElement('span');chip.className='sum-chip';chip.textContent=t;b.appendChild(chip);
+  });
+}
+
+/* ========== 기능 맵 (기능 관리 페이지) ========== */
+var FEATURES=[
+ {id:'mode',icon:'🗺️',name:'베이직/트렌드 모드',st:'live',grp:'코어',desc:'동(행정구역) 기준 베이직 ↔ 관리자 선정 트렌드존 기준 트렌드. 모드에 따라 노출 컨텐츠가 달라짐.',rel:['lens','zone']},
+ {id:'lens',icon:'🔍',name:'포커스 렌즈',st:'live',grp:'코어',desc:'보고 있는 구역(동/존)만 선명하게, 주변은 안개. 축척 연동 + 부드러운 전환.',rel:['mode','spot','news'],prev:'lens'},
+ {id:'zone',icon:'⬡',name:'트렌드 존',st:'live',grp:'코어',desc:'헥사곤 묶음으로 관리자가 지정하는 핫플 구역. 병합 아웃라인·라벨.',rel:['mode','lens'],prev:'zone-merge'},
+ {id:'sum',icon:'🗞️',name:'요약 공간',st:'demo',grp:'코어',desc:'상단 지면 — 탭별로 동네소식 요약 / 추천 컨텐츠 / 핫토픽 표시.',rel:['map','feed','social']},
+ {id:'ai',icon:'🤖',name:'AI Agent',st:'plan',grp:'코어',desc:'우하단 에이전트. 동네 질문 응답과 현장 Request 알림 채널.',rel:['req']},
+ {id:'spot',icon:'💬',name:'스팟 메시지',st:'live',grp:'컨텐츠',desc:'지도 위 말풍선으로 일상 공유. 포커스 밖은 옅게 표시.',rel:['lens','feed'],prev:'spot'},
+ {id:'cam',icon:'📸',name:'라이브 카메라',st:'demo',grp:'컨텐츠',desc:'찍으면 바로 피드 업로드. 위치 태그 포함, 추후 AI 컨텍스트 분석.',rel:['feed']},
+ {id:'req',icon:'📍',name:'현장 Request',st:'demo',grp:'컨텐츠',desc:'원격 유저가 특정 장소에 질문 → 현장 유저에게 퀵응답 알림(우하단 버블).',rel:['map','ai']},
+ {id:'news',icon:'📰',name:'동네소식 지면',st:'live',grp:'컨텐츠',desc:'요약 공간 캐러셀. 보는 동과 태그가 맞으면 자동 슬라이드.',rel:['lens','sum']},
+ {id:'map',icon:'🧭',name:'지도 탭',st:'live',grp:'서비스 탭',desc:'지도 기반 컨텐츠 노출. 요약 공간=현재 동네 소식.',rel:['sum','spot','req']},
+ {id:'feed',icon:'🖼️',name:'피드 탭',st:'demo',grp:'서비스 탭',desc:'그리드 피드. 포커스 구역 컨텐츠 우선 노출. 요약 공간=추천.',rel:['cam','spot','sum']},
+ {id:'social',icon:'👥',name:'소셜 탭',st:'demo',grp:'서비스 탭',desc:'동네 단체채팅 · 주제방 · 프라이빗(크레딧 개설). 요약 공간=핫토픽.',rel:['sum']}
+];
+function openFeaturePage(){
+  var pg=document.getElementById('feature-page'),body=document.getElementById('feature-body');
+  if(!pg||!body)return;
+  body.innerHTML='';
+  var grps=[];FEATURES.forEach(function(f){if(grps.indexOf(f.grp)<0)grps.push(f.grp);});
+  grps.forEach(function(g){
+    var h=document.createElement('div');h.className='ft-grp';h.textContent=g;body.appendChild(h);
+    FEATURES.filter(function(f){return f.grp===g;}).forEach(function(f){
+      var c=document.createElement('div');c.className='ft-card';c.id='ftc-'+f.id;
+      c.innerHTML='<div class="ft-head"><span class="ft-ic"></span><span class="ft-name"></span><span class="ft-st"></span></div><p class="ft-desc"></p><div class="ft-rel"></div>';
+      c.querySelector('.ft-ic').textContent=f.icon;
+      c.querySelector('.ft-name').textContent=f.name;
+      var st=c.querySelector('.ft-st');st.textContent=(f.st==='live'?'구현':(f.st==='demo'?'데모':'예정'));st.classList.add(f.st);
+      c.querySelector('.ft-desc').textContent=f.desc;
+      var rel=c.querySelector('.ft-rel');
+      (f.rel||[]).forEach(function(rid){
+        var rf=null;for(var i=0;i<FEATURES.length;i++)if(FEATURES[i].id===rid)rf=FEATURES[i];
+        if(!rf)return;
+        var chip=document.createElement('button');chip.type='button';chip.className='ft-chip';chip.textContent='↔ '+rf.name;
+        chip.addEventListener('click',function(){
+          var t=document.getElementById('ftc-'+rid);
+          if(t){t.scrollIntoView({block:'center'});t.classList.add('flash');setTimeout(function(){t.classList.remove('flash');},900);}
+        });
+        rel.appendChild(chip);
+      });
+      if(f.prev&&currentRole==='admin'){ // 관리자: 해당 설정 블록으로 점프
+        var go=document.createElement('button');go.type='button';go.className='action-btn accent small ft-go';go.textContent='⚙ 설정';
+        go.addEventListener('click',function(){jumpToSetting(f.prev);});
+        c.querySelector('.ft-head').appendChild(go);
+      }
+      body.appendChild(c);
+    });
+  });
+  pg.style.display='flex';
+}
+function jumpToSetting(prevKey){
+  document.getElementById('feature-page').style.display='none';
+  var d=document.getElementById('phone-drawer'),pc=document.getElementById('pc-drawer');
+  if(!(d&&d.classList.contains('open'))&&!(pc&&pc.classList.contains('open'))){
+    if(window.matchMedia('(max-width:768px)').matches)openPhoneDrawer();else openPcDrawer();
+  }
+  var ss=document.getElementById('settings-section'),st=document.getElementById('settings-toggle');
+  if(ss&&ss.style.display==='none'){ss.style.display='';if(st)st.classList.add('open');}
+  var sec=document.querySelector('.settings-section[data-prev="'+prevKey+'"]');
+  if(sec){
+    var group=sec.closest('#settings-section');
+    if(group)group.querySelectorAll('.acc-section').forEach(function(x){if(x!==sec)x.classList.add('collapsed');});
+    sec.classList.remove('collapsed');
+    setTimeout(function(){sec.scrollIntoView({block:'start'});sec.classList.add('flash');setTimeout(function(){sec.classList.remove('flash');},1200);},120);
+  }
+}
+function initFeaturePage(){
+  var cl=document.getElementById('feature-close');
+  if(cl)cl.addEventListener('click',function(){document.getElementById('feature-page').style.display='none';});
+  var pg=document.getElementById('feature-page');
+  if(pg)pg.addEventListener('click',function(e){if(e.target===pg)pg.style.display='none';});
+}
+
 (function(){
   initPanelCollapse();
   initPhoneControls();
@@ -2228,6 +2538,8 @@ function addAllowlistEntry(){
   initPhoneMenu();
   FACTORY_SETTINGS=snapshotSettings();initDraft(); // 공장 기본값 + 설정 편집 버퍼(DRAFT)
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();
+  window.addEventListener('resize',layoutTabPages);
   if(typeof CONFIG==='undefined'||!CONFIG.GOOGLE_MAPS_API_KEY){var it=document.getElementById('info-text');if(it)it.textContent='⚠️ config.js에 API 키를 설정해 주세요.';hideMapLoading();hideAuthOverlay();return;}
   initAuth();
 })();
