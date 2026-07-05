@@ -1540,13 +1540,15 @@ function renderZoneList() {
     item.innerHTML='<span class="zone-swatch" style="background:'+zone.color+'"></span>'+
       '<span class="zone-name-text">'+escHtml(zone.name)+'</span>'+
       '<span class="zone-count">'+zone.hexCenters.length+'</span>'+
-      '<button class="zone-act" data-act="focus" title="이동">📍</button>'+
-      '<button class="zone-act" data-act="edit" title="수정">✏️</button>'+
+      '<button class="zone-act" data-act="focus" title="지도에서 이동">📍</button>'+
+      '<button class="zone-act" data-act="card" title="카드 편집 (사진·설명·이름·색)">🖼️</button>'+
+      '<button class="zone-act" data-act="edit" title="영역 편집 (헥사곤 범위)">✏️</button>'+
       '<button class="zone-act" data-act="delete" title="삭제">🗑️</button>';
     item.querySelector('[data-act="focus"]').addEventListener('click',function(){focusZone(zone.id);});
+    item.querySelector('[data-act="card"]').addEventListener('click',function(){showInlineEdit(zone.id,item);});
     item.querySelector('[data-act="edit"]').addEventListener('click',function(){
       if(editingZoneId===zone.id)return;
-      if(currentMode!=='trend')switchMode('trend'); // 존 편집은 트렌드 모드(헥사곤)에서
+      if(currentMode!=='trend')switchMode('trend'); // 존 영역 편집은 트렌드 모드(헥사곤)에서
       if(editingZoneId)finishEditZone();startEditZone(zone.id);
     });
     item.querySelector('[data-act="delete"]').addEventListener('click',function(){deleteZone(zone.id);});
