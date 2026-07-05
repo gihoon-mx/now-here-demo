@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.38.0" />
+  <link rel="stylesheet" href="style.css?v=1.38.1" />
 </head>
 <body>
 
@@ -41,7 +41,7 @@
   <!-- PC 전체 지도 사이드바 메뉴 (폰 햄버거 드로어와 동일 내용 · 싱크) -->
   <button id="pc-menu-btn" type="button" aria-label="메뉴 열기" title="메뉴"><span></span><span></span><span></span></button>
   <div id="pc-drawer">
-    <div class="pc-drawer-head"><span>메뉴</span><button id="pc-drawer-close" type="button" aria-label="닫기">✕</button></div>
+    <div class="pc-drawer-head"><span>메뉴</span><div class="pdh-actions"><button class="pdh-feature" type="button">🧩 기능 보기</button><button id="pc-drawer-close" type="button">닫기</button></div></div>
   </div>
 
   <!-- 데이터 로딩 인디케이터 -->
@@ -58,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.38.0</span>
+        <span id="app-version">v1.38.1</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -336,7 +336,7 @@
           <div class="ppm-bot"><span id="ppm-version" class="ppm-ver"></span><button id="ppm-logout" class="action-btn small" type="button">로그아웃</button></div>
         </div>
         <div id="phone-drawer">
-          <div class="phone-drawer-head"><span>메뉴</span><button id="phone-drawer-close" type="button" aria-label="닫기">✕</button></div>
+          <div class="phone-drawer-head"><span>메뉴</span><div class="pdh-actions"><button class="pdh-feature" type="button">🧩 기능 보기</button><button id="phone-drawer-close" type="button">닫기</button></div></div>
           <div id="phone-drawer-body"></div>
         </div>
       </div>
@@ -380,7 +380,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.38.0"></script>
-  <script src="app.js?v=1.38.0"></script>
+  <script src="config.js?v=1.38.1"></script>
+  <script src="app.js?v=1.38.1"></script>
 </body>
 </html>
