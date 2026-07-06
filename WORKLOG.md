@@ -47,13 +47,14 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.44.0**
+- **현재 최신: v1.45.0**
 
 ---
 
-## 📸 현재 상태 스냅샷 (2026-07-03)
+## 📸 현재 상태 스냅샷 (2026-07-06)
 
-**최신 v1.44.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.45.0 · 라이브 정상.** 완료된 기능:
+- **v1.45.0 소셜 채팅 실시간 공유(liveChat)** ⚠️**Firestore 규칙 배포 필요**: 마지막 남은 미공유 요소였던 소셜 채팅 메시지를 계정 간 실시간 공유로 전환 → **이로써 전 콘텐츠 실시간 공유 완료**(관리자 콘텐츠 + 피드/좋아요/스팟/Request/채팅. 피드 열수·접기 등 UI 개인설정은 의도적으로 기기별 유지). firestore.rules에 `liveChat`(signedIn read+write) 추가 — **콘솔 배포 필수**(미배포 시 채팅 쓰기 permission-denied→liveWriteErr 안내. v1.42의 liveFeed/liveSpots/liveRequests 배포 여부도 함께 확인).
 - **v1.44.0 소개 덱 + 블럭 다이어그램 페이지**: ①deck.html — 8슬라이드 가로 스냅 덱(컨셉/두 렌즈/포커스 렌즈/컨텐츠 5종/탭 3종/실시간 아키텍처/링크), 키보드 화살표+도트 내비, 앱 디자인 토큰 톤 ②diagram.html — SVG 기능 블럭 다이어그램(코어→탭→컨텐츠→데이터 4계층, 실선=사용 흐름/보라 점선=실시간 데이터/빨강=좋아요→존 랭킹 파이프라인, 범례+상호 링크) ③기능 보기 상단에 [📽 소개 덱][🧩 블럭 다이어그램] 링크(.ft-docs, 새 탭). 두 페이지 모두 독립 정적 파일(인증 불필요·공유 가능).
 - **v1.43.0 하트 개선 + 기능 점검/정리 + 기능보기 갱신**: ①하트 애니 1.15s 자연화(팝→반동→머무름→위로 떠오르며 페이드) ②**전체 기능 리뷰 결과 반영**: 죽은 코드 제거(persistSpotChange), 중복 통일(inZoneAt→ptInZone, 존 중심 인라인 2곳→zoneCentroid), **모드 간 끊긴 고리 2건 수정** — 트렌드 위치명 존 밖=동 이름 폴백 / 피드 '현재 동네' 필터가 트렌드 모드에서 존 이름↔동 비교로 항상 비던 버그→존 기준(태그 우선+좌표 ptInZone) 매칭 ③**기능보기 전면 갱신**(13종): 모드 카드에 동↔존 렌즈 관계·폴백 명시, ❤️좋아요 카드 신설(존 하트합산·썸네일 연결), 실시간 공유 상태 반영(spot/cam/req/feed=live, social=demo·메시지 실시간 예정). 검증: 정리 4건·트렌드 로컬 필터·애니 1.15s·13카드 PASS.
 - **v1.42.0 유저 생성 콘텐츠 실시간 공유(피드·좋아요·스팟·Request)** ⚠️**Firestore 규칙 배포 필요**: firestore.rules에 liveFeed/liveSpots/liveRequests(signedIn read+write) 추가 → **콘솔 배포 필수**(안 하면 쓰기 permission-denied, liveWriteErr 안내). ①**피드**: feedItems=liveFeed 컬렉션 실시간(onSnapshot orderBy ts desc limit48), 추가/수정/삭제 라우팅(feedAdd/feedUpdate/feedDelete), **좋아요=문서 likes 맵(uid→true)** 계정당 1개(toggleLike 낙관적+FieldValue.delete), rebuildLikes로 feedLikes 재구성, zoneTotalHearts 그대로 동작 ②**스팟**: adminSpots(mapContent)+demoSpots(liveSpots 실시간) 분리, rebuildSpots 병합, 데모 생성/삭제/편집=liveSpots 문서(persistSpotEdit), 관리자=mapContent 유지, cloudSave는 adminSpots ③**Request**: liveRequests 실시간, 생성=문서 set, 답변=arrayUnion. 모두 hasLive() 가드로 미인증/오프라인 시 localStorage 폴백. 검증: 로컬 폴백 경로(피드 추가·좋아요 토글·수정·삭제·스팟 분리·request 가드) PASS, 콘솔 에러 0. (소셜 채팅은 이번 범위 제외)
@@ -189,6 +190,9 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ---
 
 ## 📝 변경 이력
+
+### 2026-07-06
+- **v1.45.0 — 소셜 채팅 실시간 공유(liveChat)** ⚠️**Firestore 규칙 콘솔 배포 필요**: 실시간 공유 전수 점검 결과 소셜 채팅 메시지(`nowhere_chat` localStorage)만 미공유로 남아 있었음 → `liveChat` 컬렉션으로 전환. ①`liveOn()`에 liveChat 리스너 추가(orderBy ts desc limit400 → `socLiveMsgs`에 방(room key)별 그룹·시간순), 전송=`liveChat` 문서 set(`{room,t,by,name,ts}`, name=구글 displayName/이메일 앞부분) — 낙관적 푸시 없이 스냅샷 로컬 에코가 즉시 렌더 ②렌더 단일화 `roomMsgs()`: 라이브=`seedFor()`(연출용 시드, 저장 안 함)+공유 메시지 / 폴백=기존 localStorage+1.6초 데모 자동응답(**라이브 모드에선 자동응답 비활성** — 실제 상대 계정이 응답) ③방 목록 대화 수=라이브 카운트 ④관리자 '비우기'=공유된 동네 채팅(liveChat의 `local:*` room) 문서도 삭제 ⑤기능보기 소셜 카드 demo→**live** 뱃지·설명 갱신, deck.html 유저 컨텐츠에 liveChat 추가, diagram.html 데이터 블록 liveChat+채팅 동기화 점선+v1.45 표기. 검증(프리뷰): 폴백 경로(시드+전송+데모응답)·라이브 경로(stub Firestore로 쓰기 페이로드/스냅샷 병합/me·타계정 구분/방 카운트/시드 프리픽스) 전부 PASS, 콘솔 에러 0.
 
 ### 2026-07-03
 - **v1.24.5 — 네비 활성 칩 플랫화**: 글래스 하이라이트/그림자/채도 제거, 배경 블러만 살짝(4px). 반투명 파스텔(블루/그린/보라)·흰 아이콘·글자 유지.

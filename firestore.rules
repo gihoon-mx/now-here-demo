@@ -33,11 +33,12 @@ service cloud.firestore {
       allow read:  if signedIn();
       allow write: if isAdmin();
     }
-    // 유저 생성 실시간 콘텐츠(피드 사진·좋아요 / 스팟 / 현장 Request):
+    // 유저 생성 실시간 콘텐츠(피드 사진·좋아요 / 스팟 / 현장 Request / 소셜 채팅):
     // 로그인 사용자(데모 포함)가 서로 실시간으로 읽고 쓸 수 있게 허용.
     match /liveFeed/{docId}     { allow read: if signedIn(); allow write: if signedIn(); }
     match /liveSpots/{docId}    { allow read: if signedIn(); allow write: if signedIn(); }
     match /liveRequests/{docId} { allow read: if signedIn(); allow write: if signedIn(); }
+    match /liveChat/{docId}     { allow read: if signedIn(); allow write: if signedIn(); }
     match /users/{uid} {
       allow read, write: if isAllowed() && (request.auth.uid == uid || isAdmin());
       match /{document=**} {

@@ -2176,13 +2176,13 @@ function grantAccess(user,role){
 }
 
 var contentUnsub=null, newsUnsub=null;
-/* ===== 유저 생성 콘텐츠 실시간 공유 (liveFeed / liveSpots / liveRequests) ===== */
-var liveUnsub={feed:null,spots:null,reqs:null}, feedSeq=0;
+/* ===== 유저 생성 콘텐츠 실시간 공유 (liveFeed / liveSpots / liveRequests / liveChat) ===== */
+var liveUnsub={feed:null,spots:null,reqs:null,chat:null}, feedSeq=0;
 function hasLive(){return !!(fbDb&&currentUser);}
 var liveErrShown=false;
 function liveWriteErr(e){console.warn('live write',e);
   if(!liveErrShown&&e&&/permission/i.test(e.message||'')){liveErrShown=true;
-    alert('실시간 공유 저장이 거부되었어요.\nFirestore 보안 규칙에 liveFeed/liveSpots/liveRequests 쓰기 허용을 배포했는지 확인해 주세요.');}
+    alert('실시간 공유 저장이 거부되었어요.\nFirestore 보안 규칙에 liveFeed/liveSpots/liveRequests/liveChat 쓰기 허용을 배포했는지 확인해 주세요.');}
 }
 function myUid(){return currentUser?currentUser.uid:'anon';}
 function liveOn(){
@@ -2200,6 +2200,13 @@ function liveOn(){
     fieldRequests=[];snap.forEach(function(dc){var v=dc.data();fieldRequests.push({id:dc.id,lat:v.lat,lng:v.lng,q:v.q,place:v.place,answers:v.answers||[],ts:v.ts||0});});
     renderRequestMarkers();
   },function(e){console.warn('liveRequests',e);});
+  liveUnsub.chat=fbDb.collection('liveChat').orderBy('ts','desc').limit(400).onSnapshot(function(snap){
+    socLiveMsgs={};
+    snap.forEach(function(dc){var v=dc.data();if(!v.room||!v.t)return;
+      (socLiveMsgs[v.room]=socLiveMsgs[v.room]||[]).push({id:dc.id,who:v.name||'이웃',t:v.t,me:v.by===myUid()});});
+    Object.keys(socLiveMsgs).forEach(function(k){socLiveMsgs[k].reverse();}); // desc 스냅샷 → 시간순
+    if(currentTab==='social')renderSocial();
+  },function(e){console.warn('liveChat',e);});
 }
 function liveOff(){Object.keys(liveUnsub).forEach(function(k){if(liveUnsub[k]){liveUnsub[k]();liveUnsub[k]=null;}});}
 function loadSharedContent(){ // 실시간: 다른 사람이 올린 공유 콘텐츠가 접속 중 즉시 반영
@@ -3001,17 +3008,22 @@ function renderRequestMarkers(){
 }
 
 /* ========== 소셜 탭: 동네 채팅 · 주제방 · 프라이빗(크레딧) ========== */
-var socTab='local', socRoom=null, socMsgs={}, socSeedLocal=[];
+var socTab='local', socRoom=null, socMsgs={}, socSeedLocal=[], socLiveMsgs={};
 var socRoomList=[{name:'🍜 맛집 탐방',type:'topic'},{name:'🏃 러닝 크루',type:'topic'},{name:'🐶 댕댕이 산책',type:'topic'},{name:'👶 육아 정보',type:'topic'}];
 var SOC_KEY='nowhere_chat';
 function loadChat(){try{var o=JSON.parse(localStorage.getItem(SOC_KEY)||'{}');if(o.msgs)socMsgs=o.msgs;if(Array.isArray(o.rooms))socRoomList=o.rooms;if(Array.isArray(o.seedLocal))socSeedLocal=o.seedLocal;}catch(e){}}
 function saveChat(){try{localStorage.setItem(SOC_KEY,JSON.stringify({msgs:socMsgs,rooms:socRoomList,seedLocal:socSeedLocal}));}catch(e){}}
-function seedMsgs(room){
-  if(room.key.indexOf('local:')===0&&socSeedLocal.length){socMsgs[room.key]=socSeedLocal.slice();return socMsgs[room.key];} // 관리자 시드
+function seedFor(room){ // 방 기본 대화(연출용, 저장 안 함)
+  if(room.key.indexOf('local:')===0&&socSeedLocal.length)return socSeedLocal.slice(); // 관리자 시드
   var base=room.name.replace(/^[^\s]+\s/,'');
-  socMsgs[room.key]=[{who:'동네주민',t:'오늘 날씨 좋네요 ☀️'},{who:'로컬러버',t:base+' 근처 맛집 추천 받아요!'}];
-  return socMsgs[room.key];
+  return [{who:'동네주민',t:'오늘 날씨 좋네요 ☀️'},{who:'로컬러버',t:base+' 근처 맛집 추천 받아요!'}];
 }
+function seedMsgs(room){socMsgs[room.key]=seedFor(room);return socMsgs[room.key];} // 로컬 폴백 전용
+function roomMsgs(room){ // 렌더용: 라이브=시드(연출)+공유 메시지 / 폴백=이 기기 저장분
+  if(hasLive())return seedFor(room).concat(socLiveMsgs[room.key]||[]);
+  return socMsgs[room.key]||seedMsgs(room);
+}
+function chatName(){return currentUser?(currentUser.displayName||String(currentUser.email||'').split('@')[0]||'이웃'):'이웃';}
 function renderSocial(){
   var nmLoc=focusedRegionName();
   var lt=document.querySelector('.soc-tab[data-soc="local"]');
@@ -3030,7 +3042,7 @@ function renderRoomList(body){
   var list=socRoomList.filter(function(r){return r.type===type;});
   list.forEach(function(r){
     var b=document.createElement('button');b.type='button';b.className='soc-room';
-    var cnt=(socMsgs[type+':'+r.name]||[]).length;
+    var cnt=hasLive()?((socLiveMsgs[type+':'+r.name]||[]).length):((socMsgs[type+':'+r.name]||[]).length);
     b.innerHTML='<span class="sr-name"></span><span class="sr-cnt"></span>';
     b.querySelector('.sr-name').textContent=(type==='private'?'🔒 ':'')+r.name;
     b.querySelector('.sr-cnt').textContent=cnt?cnt+'개 대화':'새 방';
@@ -3051,7 +3063,7 @@ function renderChatRoom(body,room){
   var ttl=document.createElement('span');ttl.className='soc-title';ttl.textContent=room.name;head.appendChild(ttl);
   body.appendChild(head);
   var listEl=document.createElement('div');listEl.className='soc-msgs';
-  (socMsgs[room.key]||seedMsgs(room)).forEach(function(m){
+  roomMsgs(room).forEach(function(m){
     var r=document.createElement('div');r.className='soc-msg'+(m.me?' me':'');
     r.innerHTML='<span class="sm-who"></span><span class="sm-bubble"></span>';
     r.querySelector('.sm-who').textContent=m.me?'':(m.who||'이웃');
@@ -3069,8 +3081,13 @@ function initSocial(){
   function send(){
     var inp=document.getElementById('soc-input');var t=(inp.value||'').trim();
     if(!t||!socRoom)return;inp.value='';
+    if(hasLive()){ // 계정 간 실시간 공유 (스냅샷 로컬 에코가 즉시 그려줌 — 데모 자동응답 없음)
+      fbDb.collection('liveChat').doc('c_'+Date.now()+'_'+Math.random().toString(36).slice(2,6))
+        .set({room:socRoom.key,t:t,by:myUid(),name:chatName(),ts:Date.now()}).catch(liveWriteErr);
+      return;
+    }
     (socMsgs[socRoom.key]=socMsgs[socRoom.key]||[]).push({me:true,t:t});saveChat();renderSocial();
-    setTimeout(function(){ // 데모 응답
+    setTimeout(function(){ // 데모 응답 (로컬 폴백 전용)
       (socMsgs[socRoom.key]=socMsgs[socRoom.key]||[]).push({who:'이웃',t:'오 반가워요! 👋'});saveChat();
       if(currentTab==='social')renderSocial();
     },1600);
@@ -3135,6 +3152,12 @@ function initSocialManager(){
     if(!confirm('동네 채팅의 시드와 대화 내용을 모두 비울까요?'))return;
     socSeedLocal=[];
     Object.keys(socMsgs).forEach(function(k){if(k.indexOf('local:')===0)delete socMsgs[k];});
+    if(hasLive()){ // 공유(liveChat)된 동네 채팅 메시지도 삭제
+      Object.keys(socLiveMsgs).forEach(function(k){
+        if(k.indexOf('local:')!==0)return;
+        (socLiveMsgs[k]||[]).forEach(function(m){if(m.id)fbDb.collection('liveChat').doc(m.id).delete().catch(function(e){console.warn('chat clear',e);});});
+      });
+    }
     saveChat();markCloudDirty();
     if(currentTab==='social')renderSocial();
   });
@@ -3155,7 +3178,7 @@ var FEATURES=[
  {id:'news',icon:'📰',name:'요약 지면 이미지',st:'live',grp:'컨텐츠',desc:'관리자 UI 목업 지면(탭별) — 제목·위치 카드, 보는 동과 태그가 맞으면 자동 슬라이드.',rel:['lens','sum']},
  {id:'map',icon:'🧭',name:'지도 탭',st:'live',grp:'서비스 탭',desc:'지도 기반 컨텐츠 노출 — 스팟·Request 마커, 포커스 렌즈, 요약 공간.',rel:['sum','spot','req']},
  {id:'feed',icon:'🖼️',name:'피드 탭',st:'live',grp:'서비스 탭',desc:'그리드 피드(열 1~4·핀치·간격) — 범위 필터가 모드를 따라감: 현재 동네=동(베이직)/존(트렌드), Trend Zone=근접 존, 전체=거리+최신. 실시간 공유+무한 스크롤.',rel:['cam','like','mode']},
- {id:'social',icon:'👥',name:'소셜 탭',st:'demo',grp:'서비스 탭',desc:'동네 채팅방(이름=현 위치 동/존) · 주제방/프라이빗(관리자 개설·전체 공유) · JSON/CSV 시드. 메시지 실시간 공유는 예정.',rel:['mode']}
+ {id:'social',icon:'👥',name:'소셜 탭',st:'live',grp:'서비스 탭',desc:'동네 채팅방(이름=현 위치 동/존) · 주제방/프라이빗(관리자 개설·전체 공유) · JSON/CSV 시드. 메시지 계정 간 실시간 공유(liveChat).',rel:['mode']}
 ];
 function openFeaturePage(){
   var pg=document.getElementById('feature-page'),body=document.getElementById('feature-body');
