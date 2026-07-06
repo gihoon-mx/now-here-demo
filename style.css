@@ -725,13 +725,13 @@ body.role-admin #drawer-demo{display:none;} /* 관리자는 아래 컨텐츠/설
 .rqc-a{font-size:2.5cqw;font-weight:600;color:#1d8a4e;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .rqc-a.wait{color:var(--ink3);}
 /* 스팟 메시지: 말풍선 · 세로 */
-/* 드로어 스팟 = 현재 지역 워드 클라우드 (간결한 무채색 톤 — 색 말풍선 리스트 폐지) */
-.sp-cloud{display:flex;flex-wrap:wrap;align-items:baseline;gap:1.6cqw 3cqw;padding:1cqw 0.5cqw;}
-.sp-word{background:none;border:0;padding:0;font-family:inherit;cursor:pointer;line-height:1.35;text-align:left;word-break:break-word;max-width:100%;transition:color .12s;}
-.sp-word.sw1{font-size:2.7cqw;font-weight:600;color:#98a0b0;}
-.sp-word.sw2{font-size:3.3cqw;font-weight:700;color:#6a7284;}
-.sp-word.sw3{font-size:4cqw;font-weight:800;color:#3d4350;}
-.sp-word:hover,.sp-word:active{color:var(--acc);}
+/* 드로어 스팟 = 현재 지역 클라우드: 단일 텍스트 스타일 + 얇은 테두리 필 버블 + 옅은 채색 */
+.sp-cloud{display:flex;flex-wrap:wrap;gap:1.6cqw;padding:1cqw 0.5cqw;}
+.sp-word{font-family:inherit;cursor:pointer;font-size:2.9cqw;font-weight:600;color:var(--ink);line-height:1.4;
+  padding:1.2cqw 2.7cqw;border-radius:999px;border:1px solid var(--line);background:#fff;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;
+  transition:border-color .12s,color .12s;}
+.sp-word:hover,.sp-word:active{border-color:var(--acc);color:var(--acc);}
 /* 존 인라인 편집: 설명/썸네일 */
 .zi-desc{width:100%;padding:3px 7px;margin:4px 0;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--ink);font-family:inherit;font-size:.72rem;outline:none;}
 .zi-desc:focus{border-color:var(--acc);}

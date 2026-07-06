@@ -1050,7 +1050,6 @@ function renderSummaryZones(){
   box.appendChild(buildZoneScroll());
 }
 function drawerEmpty(msg){var e=document.createElement('div');e.className='drawer-empty';e.textContent=msg;return e;}
-function hashStr(s){var h=0;s=String(s||'');for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))|0;}return Math.abs(h);}
 function spotsInFocusedRegion(){ // 드로어 워드클라우드: 현재 보는 지역(베이직=동/트렌드=존)의 스팟만
   if(currentMode==='trend'){
     var zid=phoneSelectedZoneId||(phoneLens&&phoneLens.zoneId);
@@ -1105,10 +1104,9 @@ function renderDrawerDemo(){ // 순서: 트렌드존 → 현장 Request → 스�
   else{
     var cloud=document.createElement('div');cloud.className='sp-cloud';
     focSpots.forEach(function(m){
-      var b=document.createElement('button');b.type='button';
-      var tier=1+(hashStr(m.id)%3); // 크기 티어 1~3 (id 기반 고정)
-      b.className='sp-word sw'+tier;
+      var b=document.createElement('button');b.type='button';b.className='sp-word'; // 단일 텍스트 스타일(크기 티어 폐지)
       b.textContent=(m.emoji?m.emoji+' ':'')+((m.text||'').trim()||'…');
+      b.style.background=hexToRgba(m.color||spotConfig.bgColor||'#1c66e5',0.07); // 스팟 색 아주 옅은 채색
       b.addEventListener('click',function(){setNavActive('map');switchTab('map');focusSpot(m);closeDrawer();});
       cloud.appendChild(b);
     });
