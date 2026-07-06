@@ -892,7 +892,7 @@ function newsCloudSave(){
   if(!fbDb||!currentUser||currentRole!=='admin')return;
   var total=0,items=[];
   for(var i=0;i<newsItems.length&&items.length<NEWS_MAX_COUNT;i++){var s=newsItems[i].src||'';if(total+s.length>NEWS_DOC_BUDGET)break;total+=s.length;items.push({id:newsItems[i].id,src:s,region:newsItems[i].region||'',tab:newsItems[i].tab||'map',title:newsItems[i].title||''});}
-  fbDb.collection('shared').doc('news').set({items:items,cardVer:newsCardVer,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||''})
+  fbDb.collection('shared').doc('news').set({items:items,cardVer:newsCardVer,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||'',updatedSid:SESSION_SID})
     .catch(function(e){console.warn('news save fail',e);alert('동네소식 공유 저장 실패(용량 초과 가능): '+e.message);});
 }
 // 공유 로드 (로그인 사용자 모두)
@@ -902,7 +902,7 @@ function loadNewsFromCloud(){ // 실시간: 요약 지면 이미지 변경 즉�
   newsUnsub=fbDb.collection('shared').doc('news').onSnapshot(function(doc){
     if(doc.metadata.hasPendingWrites)return;
     if(!doc.exists)return;var d=doc.data();if(!d||!Array.isArray(d.items))return;
-    if(currentRole==='admin'&&currentUser&&d.updatedBy===(currentUser.email||''))return; // 내 저장 에코 무시
+    if(d.updatedSid&&d.updatedSid===SESSION_SID)return; // 이 세션의 저장 에코만 무시 (새 접속은 항상 적용 — v1.46.1)
     newsItems=d.items.map(function(it){return {id:it.id||('n_'+(newsSeq++)),src:it.src,region:it.region||'',tab:it.tab||'map',title:it.title||''};});
     if(d.cardVer>=1&&d.cardVer<=3){newsCardVer=d.cardVer;var _cv=document.getElementById('news-cardver');if(_cv)_cv.value=String(newsCardVer);}
     try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));}catch(e){}
@@ -2132,6 +2132,7 @@ function mapStyles(){return [{elementType:'geometry',stylers:[{color:'#1d2c4d'}]
 
 /* ========== 인증 · 계정 (Firebase) ========== */
 var fbAuth=null, fbDb=null, currentUser=null, currentRole=null;
+var SESSION_SID='s_'+Math.random().toString(36).slice(2,10); // 이 접속(세션) 식별자 — 자기 저장 에코 판별용
 var cloudData=null, mapReady=false, cloudSaveTimer=null, mapBootStarted=false;
 
 function bootMap(){
@@ -2253,24 +2254,38 @@ function loadSharedContent(){ // 실시간: 다른 사람이 올린 공유 콘�
     if(doc.metadata.hasPendingWrites)return;               // 내 낙관적 로컬 에코 무시
     if(!doc.exists)return;
     var d=doc.data();
-    if(currentRole==='admin'&&currentUser&&d.updatedBy===(currentUser.email||''))return; // 내 저장 에코는 재적용 안 함(편집 보호)
+    // ⚠️ 에코 판별은 세션 ID로만: 이메일 비교는 '관리자가 새로 접속'해도 마지막 저장자=본인이라
+    // 클라우드 설정이 영영 적용되지 않고, 이후 편집 시 코드 기본값이 클라우드를 덮어쓰는 초기화 버그가 있었음(v1.46.1 수정)
+    if(d.updatedSid&&d.updatedSid===SESSION_SID)return; // 이 세션의 저장 에코만 재적용 안 함(편집 보호)
     cloudData=d;
     if(mapReady)applyCloudData(cloudData);
   },function(e){console.warn('shared live fail',e);});
   loadNewsFromCloud();   // 동네소식(지면 이미지) 실시간 로드 — 로그인 사용자 모두
 }
+function applySettingsData(s){ // 스타일 설정 병합 (클라우드·파일 백스톱 공용)
+  if(!s)return;
+  if(s.styleConfig){mergeInto(styleConfig.default,s.styleConfig.default);mergeInto(styleConfig.highlight,s.styleConfig.highlight);if(s.styleConfig.lens)mergeInto(styleConfig.lens,s.styleConfig.lens);}
+  if(s.hexStyleConfig){mergeInto(hexStyleConfig.default,s.hexStyleConfig.default);mergeInto(hexStyleConfig.selected,s.hexStyleConfig.selected);}
+  if(s.localLabelConfig)mergeInto(localLabelConfig,s.localLabelConfig);
+  if(s.zoneLabelConfig)mergeInto(zoneLabelConfig,s.zoneLabelConfig);
+  if(s.smoothEnabled!==undefined)smoothEnabled=s.smoothEnabled;
+  if(s.zoneMergeBlocks!==undefined)zoneMergeBlocks=s.zoneMergeBlocks;
+  if(s.smoothIntensity!==undefined)smoothIntensity=s.smoothIntensity;
+  if(s.hexRadiusKm!==undefined)hexRadiusKm=s.hexRadiusKm;
+}
+function loadFileDefaults(){ // repo 백스톱(settings-default.json): 코드 기본값 < 파일 < 클라우드 순으로 적용
+  fetch('settings-default.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(s){
+    if(!s||typeof s!=='object'||(!s.styleConfig&&!s.spotConfig))return; // 빈 파일({})이면 무시
+    if(cloudData)return; // 이미 클라우드 설정이 적용됨 — 클라우드 우선
+    applySettingsData(s);
+    if(s.spotConfig)mergeInto(spotConfig,s.spotConfig);
+    initDraft();syncSettingsUI();renderMiniPreviews();
+    if(mapReady){refreshMapStyles();refreshHexStyles();refreshSpotStyles();refreshZoneLabels();updateLocalLabelStyle();}
+  }).catch(function(e){});
+}
 function applyCloudData(d){
   if(!d)return;
-  if(d.settings){var s=d.settings;
-    if(s.styleConfig){mergeInto(styleConfig.default,s.styleConfig.default);mergeInto(styleConfig.highlight,s.styleConfig.highlight);if(s.styleConfig.lens)mergeInto(styleConfig.lens,s.styleConfig.lens);}
-    if(s.hexStyleConfig){mergeInto(hexStyleConfig.default,s.hexStyleConfig.default);mergeInto(hexStyleConfig.selected,s.hexStyleConfig.selected);}
-    if(s.localLabelConfig)mergeInto(localLabelConfig,s.localLabelConfig);
-    if(s.zoneLabelConfig)mergeInto(zoneLabelConfig,s.zoneLabelConfig);
-    if(s.smoothEnabled!==undefined)smoothEnabled=s.smoothEnabled;
-    if(s.zoneMergeBlocks!==undefined)zoneMergeBlocks=s.zoneMergeBlocks;
-    if(s.smoothIntensity!==undefined)smoothIntensity=s.smoothIntensity;
-    if(s.hexRadiusKm!==undefined)hexRadiusKm=s.hexRadiusKm;
-  }
+  applySettingsData(d.settings);
   if(Array.isArray(d.zones)){
     trendZones.slice().forEach(function(z){removeZoneFromMap(z);});
     trendZones=[];
@@ -2516,10 +2531,19 @@ function markCloudDirty(){
   if(!fbDb||!currentUser||currentRole!=='admin')return;
   clearTimeout(cloudSaveTimer);cloudSaveTimer=setTimeout(cloudSave,1500);
 }
+function initSettingsExport(){ // 현재 적용 설정 → JSON 복사 (repo settings-default.json 백업용)
+  var btn=document.getElementById('settings-export');if(!btn)return;
+  btn.addEventListener('click',function(){
+    var json=JSON.stringify(snapshotSettings(),null,1);
+    function done(){btn.textContent='✅ 복사됨';setTimeout(function(){btn.textContent='📋 설정 JSON 복사';},1600);}
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(json).then(done,function(){prompt('아래 JSON을 복사하세요',json);});
+    else prompt('아래 JSON을 복사하세요',json);
+  });
+}
 function cloudSave(){
   if(!fbDb||!currentUser||currentRole!=='admin')return;
   var snap=snapshotSettings(); // 라이브 설정 = 항상 '적용된' 값 (드래프트는 DRAFT에만 존재)
-  var payload={updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||'',
+  var payload={updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentUser.email||'',updatedSid:SESSION_SID,
     settings:{styleConfig:snap.styleConfig,hexStyleConfig:snap.hexStyleConfig,localLabelConfig:snap.localLabelConfig,zoneLabelConfig:snap.zoneLabelConfig,smoothEnabled:snap.smoothEnabled,smoothIntensity:snap.smoothIntensity,hexRadiusKm:snap.hexRadiusKm,zoneMergeBlocks:snap.zoneMergeBlocks},
     zones:trendZones.map(function(z){return {id:z.id,name:z.name,color:z.color,desc:z.desc||'',photo:z.photo||null,radiusKm:z.radiusKm,hexCenters:z.hexCenters,originalCenters:z.originalCenters,originalRadiusKm:z.originalRadiusKm};}),
     spots:adminSpots.map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null};}),
@@ -3338,6 +3362,8 @@ function initInstallPrompt(){
   initSidebarResize();
   initPhoneMenu();
   FACTORY_SETTINGS=snapshotSettings();initDraft(); // 공장 기본값 + 설정 편집 버퍼(DRAFT)
+  loadFileDefaults(); // repo 백스톱 설정(settings-default.json) — 공장값 캡처 후 비동기 적용, 클라우드가 오면 그쪽 우선
+  initSettingsExport();
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
   loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();renderFeedColList();
   window.addEventListener('resize',layoutTabPages);
