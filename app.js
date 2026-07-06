@@ -3426,6 +3426,153 @@ function initSocialManager(){
   renderRoomManager();
 }
 
+/* ========== 데모 시드 데이터 (관리자: 채우기/비우기 · 강남-역삼-논현) ========== */
+// 생성 이미지: 일관 디자인(그라디언트+이모지+라벨 칩). 교체 = 존 카드 편집/피드 관리에서 URL 입력.
+var SEED_PAL={food:['#ff9a6b','#ff5e7e','🍜'],cafe:['#e8c39e','#a9764f','☕'],run:['#7ee0b0','#2f9d6f','🏃'],
+  night:['#9b8cff','#5b4bd6','🌙'],shop:['#7cc0ff','#2f7bff','🛍️'],park:['#b8e986','#56ab2f','🌳'],
+  pet:['#ffd36b','#ff9f43','🐶'],art:['#f6a6ff','#b06ab3','🎨'],gym:['#8fd3f4','#4a90d9','💪'],book:['#d4b8ff','#7b61ff','📚']};
+function seedImg(theme,label){
+  var p=SEED_PAL[theme]||SEED_PAL.cafe;
+  var chip=label?'<rect x="40" y="512" rx="28" ry="28" width="'+(label.length*34+64)+'" height="60" fill="rgba(0,0,0,0.30)"/>'
+    +'<text x="72" y="554" font-size="34" font-family="sans-serif" font-weight="700" fill="#fff">'+label+'</text>':'';
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">'
+    +'<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+p[0]+'"/><stop offset="1" stop-color="'+p[1]+'"/></linearGradient></defs>'
+    +'<rect width="640" height="640" fill="url(#g)"/>'
+    +'<circle cx="520" cy="110" r="150" fill="rgba(255,255,255,0.14)"/><circle cx="110" cy="560" r="200" fill="rgba(255,255,255,0.10)"/>'
+    +'<text x="320" y="392" font-size="210" text-anchor="middle">'+p[2]+'</text>'+chip+'</svg>';
+  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+}
+function seedHexCluster(lat,lng){ // 좌표 주변 그리드 정렬 헥사 ~7개
+  var gp=getHexGridParams();
+  var ac=Math.round(lng/gp.colSpacing),ar=Math.round(lat/gp.rowSpacing);
+  var arr=[],seen={};
+  for(var dc=-1;dc<=1;dc++)for(var dr=-1;dr<=1;dr++){
+    var c=hexCenterFromColRow(ac+dc,ar+dr,gp);
+    var dl=(c.lat-lat)/gp.R_lat,dn=(c.lng-lng)/gp.R_lng;
+    if(dl*dl+dn*dn<=3.4){var k=(ac+dc)+'_'+(ar+dr);if(!seen[k]){seen[k]=1;arr.push({lat:c.lat,lng:c.lng});}}
+  }
+  return arr;
+}
+var SEED_ZONES=[
+ {id:'tzs_food',name:'강남 먹자골목',color:'#ff5e7e',theme:'food',desc:'퇴근 후 웨이팅 전쟁, 강남역 골목 맛집 라인',lat:37.4991,lng:127.0292},
+ {id:'tzs_cafe',name:'역삼 카페로드',color:'#a9764f',theme:'cafe',desc:'조용한 골목 스페셜티 카페 산책 코스',lat:37.5008,lng:127.0349},
+ {id:'tzs_park',name:'학동공원 러닝코스',color:'#2f9d6f',theme:'park',desc:'아침 러닝·저녁 산책, 동네 반려견 성지',lat:37.5147,lng:127.0300}];
+var SEED_FEED=[
+ {theme:'food',label:'수요미식회 그 집',desc:'웨이팅 40분인데 후회 없음. 곱창은 진리',kind:'cam',region:'역삼1동',zone:'tzs_food',lat:37.4988,lng:127.0295,likes:14,h:2,name:'퇴근길미식가'},
+ {theme:'food',label:'점심 특선',desc:'강남 직장인 점심 1만원 이하 몇 없는 집',kind:'post',region:'역삼1동',zone:'tzs_food',lat:37.4995,lng:127.0288,likes:9,h:5,name:'강남11년차'},
+ {theme:'cafe',label:'골목 안 로스터리',desc:'원두 직접 볶는 집. 콜드브루 미쳤다',kind:'cam',region:'역삼1동',zone:'tzs_cafe',lat:37.5010,lng:127.0352,likes:12,h:3,name:'카페투어러'},
+ {theme:'cafe',label:'창가 자리 맛집',desc:'노트북 작업하기 좋아요. 콘센트 넉넉',kind:'post',region:'역삼1동',zone:'tzs_cafe',lat:37.5004,lng:127.0344,likes:7,h:8,name:'프리랜서J'},
+ {theme:'park',label:'아침 러닝',desc:'오늘 학동공원 5km. 벚꽃 아직 남아있어요',kind:'cam',region:'논현1동',zone:'tzs_park',lat:37.5149,lng:127.0297,likes:11,h:1,name:'러닝크루장'},
+ {theme:'pet',label:'댕댕이 산책',desc:'공원에서 만난 리트리버. 순둥이 그 자체',kind:'cam',region:'논현1동',zone:'tzs_park',lat:37.5143,lng:127.0306,likes:16,h:4,name:'산책하는댕댕이'},
+ {theme:'night',label:'심야 포차',desc:'새벽 2시에도 자리 없는 그 포차',kind:'cam',region:'논현1동',zone:null,lat:37.5108,lng:127.0224,likes:8,h:26,name:'야식원정대'},
+ {theme:'shop',label:'팝업 오픈',desc:'신논현 팝업스토어 오늘 오픈! 줄 김',kind:'cam',region:'논현1동',zone:null,lat:37.5047,lng:127.0248,likes:10,h:6,name:'트렌드헌터'},
+ {theme:'gym',label:'새벽 운동',desc:'오운완. 6시 헬스장은 평화롭다',kind:'post',region:'역삼1동',zone:null,lat:37.5001,lng:127.0371,likes:5,h:7,name:'갓생살기'},
+ {theme:'book',label:'동네 책방',desc:'논현동에 이런 독립서점이 있었다니',kind:'post',region:'논현1동',zone:null,lat:37.5118,lng:127.0243,likes:6,h:30,name:'책읽는밤'},
+ {theme:'food',label:'브런치 신상',desc:'주말 브런치 신상 오픈. 프렌치토스트 추천',kind:'post',region:'논현2동',zone:null,lat:37.5165,lng:127.0355,likes:9,h:20,name:'주말미식'},
+ {theme:'cafe',label:'디저트 맛집',desc:'바스크 치즈케이크 마감 전에 가세요',kind:'cam',region:'역삼2동',zone:null,lat:37.4967,lng:127.0446,likes:13,h:9,name:'디저트지도'},
+ {theme:'art',label:'골목 벽화',desc:'출근길에 발견한 새 벽화. 사진각',kind:'cam',region:'역삼2동',zone:null,lat:37.4959,lng:127.0421,likes:4,h:11,name:'골목산책자'},
+ {theme:'run',label:'퇴근 러닝',desc:'테헤란로 야간 러닝 함께해요 (매주 화)',kind:'post',region:'역삼1동',zone:null,lat:37.5017,lng:127.0392,likes:7,h:28,name:'러닝크루장'},
+ {theme:'shop',label:'플리마켓',desc:'이번 주말 학동공원 플리마켓 열려요',kind:'post',region:'논현1동',zone:'tzs_park',lat:37.5151,lng:127.0291,likes:8,h:14,name:'동네소식통'},
+ {theme:'night',label:'루프탑',desc:'강남 야경 루프탑. 예약 필수',kind:'cam',region:'역삼1동',zone:'tzs_food',lat:37.4998,lng:127.0301,likes:15,h:50,name:'야경수집가'}];
+var SEED_SPOTS=[
+ {t:'점심 웨이팅 30분 각오하세요',emoji:'🍜',lat:37.4989,lng:127.0290,color:'#ff5e7e'},
+ {t:'여기 커피 인생템',emoji:'☕',lat:37.5009,lng:127.0347,color:'#a9764f'},
+ {t:'러닝 같이 하실 분!',emoji:'🏃',lat:37.5146,lng:127.0299,color:'#2f9d6f'},
+ {t:'분위기 미쳤다',emoji:'🌙',lat:37.5107,lng:127.0221},
+ {t:'팝업 줄 서는 중',emoji:'🛍️',lat:37.5046,lng:127.0247,color:'#2f7bff'},
+ {t:'벚꽃 아직 있어요',emoji:'🌸',lat:37.5150,lng:127.0304,color:'#f78fb3'},
+ {t:'주차 자리 없음 주의',emoji:'🚗',lat:37.4993,lng:127.0308},
+ {t:'저녁 6시 이후 골목 정체',emoji:'⚠️',lat:37.4997,lng:127.0283},
+ {t:'고양이 카페 발견',emoji:'🐱',lat:37.5115,lng:127.0238,color:'#ff9f43'},
+ {t:'독서모임 매주 목요일',emoji:'📚',lat:37.5119,lng:127.0245,color:'#7b61ff'},
+ {t:'헬스장 새벽이 한산',emoji:'💪',lat:37.5002,lng:127.0369},
+ {t:'바스크 치즈케이크 강추',emoji:'🍰',lat:37.4966,lng:127.0444,color:'#e0245e'}];
+var SEED_REQS=[
+ {q:'파이브가이즈 지금 웨이팅 얼마나 되나요?',lat:37.5011,lng:127.0257,place:'논현1동',answers:[{t:'지금 한 20분 정도예요! 회전 빨라요'}]},
+ {q:'학동공원 벚꽃 아직 볼만한가요?',lat:37.5147,lng:127.0301,place:'논현1동',answers:[]}];
+var SEED_CHAT_LOCAL=[{who:'역삼동주민',t:'오늘 미세먼지 좋네요 ☀️'},{who:'퇴근길미식가',t:'역 근처 새로 생긴 쌀국수집 가보신 분?'},{who:'카페투어러',t:'가봤어요! 국물 진하고 좋던데요 👍'},{who:'동네소식통',t:'이번 주말 학동공원 플리마켓 열린대요'}];
+var SEED_CHAT_DOCS=[
+ {room:'local:역삼1동',name:'역삼동주민',t:'역삼동 채팅방 개설 기념 인사 드려요 🙌',h:30},
+ {room:'local:역삼1동',name:'갓생살기',t:'다들 점심 어디서 드세요? 추천 좀',h:6},
+ {room:'topic:🍜 맛집 탐방',name:'퇴근길미식가',t:'이번 주 미션: 강남 곱창 최강자 찾기',h:24},
+ {room:'topic:🍜 맛집 탐방',name:'주말미식',t:'저는 먹자골목 안쪽 그 집에 한 표',h:22},
+ {room:'topic:🏃 러닝 크루',name:'러닝크루장',t:'화요일 저녁 테헤란로 러닝 모집합니다!',h:20}];
+var SEED_NEWS=[
+ {id:'ns_1',theme:'food',label:'이번 주 동네 맛집',title:'강남 먹자골목 웨이팅 리포트',region:'역삼1동',tab:'map'},
+ {id:'ns_2',theme:'park',label:'주말 플리마켓',title:'학동공원 플리마켓 토·일 열려요',region:'논현1동',tab:'map'},
+ {id:'ns_3',theme:'cafe',label:'추천 카페 5',title:'역삼 카페로드 신상 5곳 모음',region:'역삼1동',tab:'feed'}];
+function seedDemoData(){
+  if(currentRole!=='admin'){alert('관리자만 실행할 수 있어요.');return;}
+  if(!confirm('강남·역삼·논현 데모 데이터를 채울까요?\n(트렌드 존 3 · 피드 16 · 스팟 12 · Request 2 · 채팅 시드 — 공유 컬렉션에 기록되어 모든 계정에 보여요)'))return;
+  var now=Date.now();
+  // ① 트렌드 존 (id 중복 방지)
+  SEED_ZONES.forEach(function(sz){
+    if(trendZones.some(function(z){return z.id===sz.id;}))return;
+    var hc=seedHexCluster(sz.lat,sz.lng);
+    trendZones.push({id:sz.id,name:sz.name,color:sz.color,desc:sz.desc,photo:seedImg(sz.theme,sz.name),
+      radiusKm:hexRadiusKm,hexCenters:hc,originalCenters:JSON.parse(JSON.stringify(hc)),originalRadiusKm:hexRadiusKm,polygons:[],label:null});
+  });
+  if(currentMode==='trend'){showAllZonesOnMap();generateHexagons();}
+  renderZoneList();refreshZoneLabels();
+  // ② 요약 지면 (관리자 수동 이미지와 동일 구조)
+  SEED_NEWS.forEach(function(n){
+    if(newsItems.some(function(x){return x.id===n.id;}))return;
+    newsItems.push({id:n.id,src:seedImg(n.theme,n.label),region:n.region,tab:n.tab,title:n.title});
+  });
+  saveNews();renderNews();
+  // ③ 피드 / 스팟 / Request / 채팅 (라이브=공유, 폴백=로컬)
+  SEED_FEED.forEach(function(f,i){
+    var likes={};for(var j=0;j<f.likes;j++)likes['seed_l'+j]=true;
+    var doc={src:seedImg(f.theme,f.label),region:f.region,zone:f.zone,lat:f.lat,lng:f.lng,kind:f.kind,desc:f.desc,name:f.name,by:'seed_u'+i,ts:now-f.h*3600e3,likes:likes,seed:true};
+    if(hasLive())fbDb.collection('liveFeed').doc('fs_'+i).set(doc).catch(liveWriteErr);
+    else{doc.id='fs_'+i;doc.type='photo';if(!feedItems.some(function(x){return x.id===doc.id;}))feedItems.push(doc);}
+  });
+  SEED_SPOTS.forEach(function(s,i){
+    var doc={id:'sps_'+i,lat:s.lat,lng:s.lng,text:s.t,emoji:s.emoji,color:s.color||null,by:'seed_u'+i,ts:now-i*3600e3,seed:true};
+    if(hasLive())fbDb.collection('liveSpots').doc(doc.id).set(doc).catch(liveWriteErr);
+    else if(!demoSpots.some(function(x){return x.id===doc.id;})){doc.live=true;demoSpots.push(doc);}
+  });
+  SEED_REQS.forEach(function(r,i){
+    var doc={id:'rqs_'+i,lat:r.lat,lng:r.lng,q:r.q,place:r.place,answers:r.answers.map(function(a){return {t:a.t,ts:now-3600e3};}),by:'seed_u'+i,ts:now-2*3600e3,seed:true};
+    if(hasLive())fbDb.collection('liveRequests').doc(doc.id).set(doc).catch(liveWriteErr);
+    else if(!fieldRequests.some(function(x){return x.id===doc.id;}))fieldRequests.unshift(doc);
+  });
+  SEED_CHAT_DOCS.forEach(function(c,i){
+    if(hasLive())fbDb.collection('liveChat').doc('cs_'+i).set({room:c.room,t:c.t,by:'seed_u'+i,name:c.name,ts:now-c.h*3600e3,seed:true}).catch(liveWriteErr);
+  });
+  socSeedLocal=SEED_CHAT_LOCAL.slice();saveChat();
+  if(!hasLive()){saveFeed();saveLocalSpots();saveRequests();rebuildSpots();renderFeedColList();renderFeedMarkers();renderRequestMarkers();renderDrawerDemo();if(currentTab==='feed')renderFeed();}
+  markCloudDirty(); // 존·소셜 시드 → 공유문서 저장
+  alert('🌱 데모 데이터를 채웠어요. 지도를 강남·역삼 쪽으로 이동해 확인해 보세요.');
+}
+function clearDemoData(){
+  if(currentRole!=='admin'){alert('관리자만 실행할 수 있어요.');return;}
+  if(!confirm('시드로 넣은 데모 데이터만 지울까요? (직접 만든 컨텐츠는 유지)'))return;
+  var removed=trendZones.filter(function(z){return /^tzs_/.test(z.id);});
+  removed.forEach(function(z){removeZoneFromMap(z);});
+  trendZones=trendZones.filter(function(z){return !/^tzs_/.test(z.id);});
+  if(currentMode==='trend'){showAllZonesOnMap();generateHexagons();}
+  renderZoneList();
+  newsItems=newsItems.filter(function(n){return !/^ns_/.test(n.id);});saveNews();renderNews();
+  if(hasLive()){
+    ['liveFeed','liveSpots','liveRequests','liveChat'].forEach(function(col){
+      fbDb.collection(col).where('seed','==',true).get().then(function(snap){snap.forEach(function(d){d.ref.delete();});}).catch(function(e){console.warn('seed clear',col,e);});
+    });
+  }else{
+    feedItems=feedItems.filter(function(f){return !/^fs_/.test(f.id);});saveFeed();
+    demoSpots=demoSpots.filter(function(s){return !/^sps_/.test(s.id);});saveLocalSpots();
+    fieldRequests=fieldRequests.filter(function(r){return !/^rqs_/.test(r.id);});saveRequests();
+    rebuildSpots();renderFeedColList();renderFeedMarkers();renderRequestMarkers();renderDrawerDemo();if(currentTab==='feed')renderFeed();
+  }
+  socSeedLocal=[];Object.keys(socMsgs).forEach(function(k){if(k.indexOf('local:')===0)delete socMsgs[k];});saveChat();
+  markCloudDirty();
+  alert('🧹 시드 데이터를 비웠어요.');
+}
+function initDemoSeed(){
+  var f=document.getElementById('seed-fill');if(f)f.addEventListener('click',seedDemoData);
+  var c=document.getElementById('seed-clear');if(c)c.addEventListener('click',clearDemoData);
+}
+
 /* ========== 기능 맵 (기능 관리 페이지) ========== */
 var FEATURES=[
  {id:'mode',icon:'🗺️',name:'베이직/트렌드 모드',st:'live',grp:'코어',desc:'같은 지도·같은 컨텐츠를 "구획 단위"만 바꿔 보는 두 렌즈 — 베이직=행정동, 트렌드=관리자 선정 존. 위치명·렌즈·피드 필터·동네 채팅방이 모드에 따라 동↔존으로 함께 전환되고, 존 밖에서는 동 이름으로 폴백(모드 간 연결). 트렌드 전환 시 근접 존 N개 자동 뷰.',rel:['lens','zone','feed','social','sum']},
@@ -3533,7 +3680,7 @@ function initInstallPrompt(){
   loadFileDefaults(); // repo 백스톱 설정(settings-default.json) — 공장값 캡처 후 비동기 적용, 클라우드가 오면 그쪽 우선
   initSettingsExport();
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();renderFeedColList();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();renderFeedColList();
   window.addEventListener('resize',layoutTabPages);
   initInstallPrompt();
   if(typeof CONFIG==='undefined'||!CONFIG.GOOGLE_MAPS_API_KEY){var it=document.getElementById('info-text');if(it)it.textContent='⚠️ config.js에 API 키를 설정해 주세요.';hideMapLoading();hideAuthOverlay();return;}
