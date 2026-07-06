@@ -367,27 +367,34 @@ button:focus:not(:focus-visible){outline:none;}
 .cp-preset{width:100%;aspect-ratio:1;border-radius:5px;border:1px solid rgba(15,23,42,0.12);cursor:pointer;transition:transform .12s ease;padding:0;}
 .cp-preset:hover{transform:scale(1.12);}
 
-/* ========== 인증 게이트 (브랜드 스플래시 · 다크 유지) ========== */
+/* ========== 인증 게이트 (서비스 톤 스플래시 · 라이트 프로스트) ========== */
 #auth-overlay{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(120% 120% at 50% 0%,#141a2e 0%,#0b0d16 60%,#070810 100%);}
+  background:
+    radial-gradient(90% 70% at 18% 8%,rgba(47,123,255,0.14) 0%,rgba(47,123,255,0) 55%),
+    radial-gradient(80% 60% at 85% 90%,rgba(123,97,255,0.12) 0%,rgba(123,97,255,0) 55%),
+    linear-gradient(180deg,#f4f7fc 0%,#eef1f6 100%);}
 #auth-overlay.hidden{display:none;}
-.auth-card{width:min(340px,86vw);padding:34px 28px;border-radius:20px;text-align:center;
-  background:rgba(20,22,32,0.7);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);
-  border:1px solid rgba(255,255,255,0.1);box-shadow:0 24px 70px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.06);
+.auth-card{width:min(340px,86vw);padding:32px 28px 26px;border-radius:22px;text-align:center;
+  background:rgba(255,255,255,0.72);backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));-webkit-backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));
+  border:1px solid var(--glass-line,rgba(255,255,255,0.65));box-shadow:0 24px 60px rgba(15,23,42,0.14),var(--glass-hi,inset 0 1px 0 rgba(255,255,255,0.7));
   animation:panelIn .5s cubic-bezier(.22,1,.36,1) both;}
-.auth-logo{font-size:1.5rem;font-weight:800;letter-spacing:.01em;background:linear-gradient(135deg,#8ed0ff,#a78bfa);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#a7c8ff;}
-.auth-sub{margin-top:8px;font-size:.78rem;line-height:1.5;color:#9ca3af;}
+.auth-mark{width:54px;height:54px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;border-radius:18px;
+  background:linear-gradient(135deg,rgba(47,123,255,0.14),rgba(123,97,255,0.14));border:1px solid rgba(47,123,255,0.22);box-shadow:0 8px 22px rgba(47,123,255,0.16);}
+.auth-logo{font-size:1.5rem;font-weight:800;letter-spacing:.01em;background:linear-gradient(135deg,var(--acc,#2f7bff),#7b61ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--acc,#2f7bff);}
+.auth-ver{margin-top:4px;font-size:.66rem;font-weight:600;letter-spacing:.04em;color:var(--ink3,#8a93a3);}
+.auth-ver:empty{display:none;}
+.auth-sub{margin-top:8px;font-size:.78rem;line-height:1.5;color:var(--ink2,#4b5565);}
 .google-btn{margin-top:22px;width:100%;padding:11px 16px;display:flex;align-items:center;justify-content:center;gap:9px;
-  border:1px solid rgba(255,255,255,0.16);border-radius:11px;background:#fff;color:#1f2430;font-family:inherit;font-size:.86rem;font-weight:700;cursor:pointer;transition:all .18s ease;}
-.google-btn:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,0.35);}
+  border:1px solid var(--line,rgba(15,23,42,0.12));border-radius:12px;background:#fff;color:#1f2430;font-family:inherit;font-size:.86rem;font-weight:700;cursor:pointer;transition:all .18s ease;box-shadow:0 2px 8px rgba(15,23,42,0.06);}
+.google-btn:hover{transform:translateY(-1px);border-color:rgba(47,123,255,0.4);box-shadow:0 10px 24px rgba(47,123,255,0.16);}
 .google-btn:active{transform:scale(.98);}
 .google-btn .g-ico{width:20px;height:20px;border-radius:50%;background:conic-gradient(from -45deg,#ea4335 0 25%,#fbbc05 0 50%,#34a853 0 75%,#4285f4 0);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:.8rem;}
-.auth-status{margin-top:16px;font-size:.78rem;line-height:1.5;color:#c7cbd1;min-height:1px;}
-.auth-status .em{color:#8ed0ff;font-weight:600;}
-.auth-status.deny{color:#ff9a9a;}
-.auth-logout{margin-top:14px;background:none;border:none;color:#6b7280;font-family:inherit;font-size:.74rem;text-decoration:underline;cursor:pointer;}
-.auth-logout:hover{color:#9ca3af;}
-.auth-spinner{display:inline-block;width:13px;height:13px;vertical-align:-2px;margin-right:6px;border-radius:50%;border:2px solid rgba(110,198,255,0.25);border-top-color:#6ec6ff;animation:spin .7s linear infinite;}
+.auth-status{margin-top:16px;font-size:.78rem;line-height:1.5;color:var(--ink2,#4b5565);min-height:1px;}
+.auth-status .em{color:var(--acc,#2f7bff);font-weight:600;}
+.auth-status.deny{color:#e0492f;}
+.auth-logout{margin-top:14px;background:none;border:none;color:var(--ink3,#8a93a3);font-family:inherit;font-size:.74rem;text-decoration:underline;cursor:pointer;}
+.auth-logout:hover{color:var(--ink2,#4b5565);}
+.auth-spinner{display:inline-block;width:13px;height:13px;vertical-align:-2px;margin-right:6px;border-radius:50%;border:2px solid rgba(47,123,255,0.25);border-top-color:var(--acc,#2f7bff);animation:spin .7s linear infinite;}
 
 /* ========== 계정 바 ========== */
 #account-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:6px 8px;border-radius:10px;background:rgba(15,23,42,0.035);border:1px solid var(--line-soft);}
@@ -623,6 +630,33 @@ button:focus:not(:focus-visible){outline:none;}
 /* AI 버튼 회전 + AI색상 */
 .pn-ai.spin{animation:aiSpin .62s cubic-bezier(.3,1,.35,1);}
 @keyframes aiSpin{from{transform:rotate(0);}to{transform:rotate(360deg);}}
+
+/* AI 프리셋 패널: 현재 상황 맞춤 질문 10개 (AI 버튼 위 프로스트 카드) */
+.ai-presets{position:absolute;right:3cqw;bottom:calc(21cqw + env(safe-area-inset-bottom,0px));z-index:7;display:none;width:74cqw;max-height:100cqw;overflow-y:auto;padding:3cqw;border-radius:5cqw;
+  background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid var(--glass-line);box-shadow:var(--sh-l),var(--glass-hi);transform-origin:88% bottom;}
+.ai-presets.show{display:block;animation:aiPop .4s cubic-bezier(.2,1.5,.4,1) both;}
+.aip-head{padding:.6cqw 1.2cqw 2.2cqw;font-size:2.8cqw;font-weight:800;letter-spacing:-0.01em;color:var(--ink2);}
+.aip-item{display:block;width:100%;margin-bottom:1.6cqw;padding:2.5cqw 3.2cqw;text-align:left;border:1px solid var(--line-soft);border-radius:3.6cqw;
+  background:#fff;color:var(--ink);font-family:inherit;font-size:3.1cqw;font-weight:600;line-height:1.35;letter-spacing:-0.01em;cursor:pointer;transition:transform .12s ease,border-color .15s ease;}
+.aip-item:last-child{margin-bottom:0;}
+.aip-item:hover{border-color:rgba(47,123,255,0.45);}
+.aip-item:active{transform:scale(.98);}
+body.mode-trend .aip-head{color:#c2410c;}
+body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
+
+/* 트렌드 모드: AI 버튼 = 붉은 불꽃 톤 (은은한 플리커 글로우) */
+.pn-ai.ai-flame{border-color:rgba(255,106,77,0.45);animation:aiFlicker 1.8s ease-in-out infinite;}
+.pn-ai.ai-flame ellipse,.pn-ai.ai-flame path{stroke:#5c1d10;}
+.pn-ai.ai-flame ellipse{fill:#5c1d10;}
+@keyframes aiFlicker{
+  0%,100%{filter:drop-shadow(0 0 1.2cqw rgba(255,106,77,0.35));}
+  35%{filter:drop-shadow(0 0 2.8cqw rgba(255,140,60,0.6));}
+  60%{filter:drop-shadow(0 0 1.8cqw rgba(255,61,46,0.5));}
+}
+/* 트렌드 전용 클릭(활성) 색상: 화염 그라디언트 배경 */
+.pn-ai.ai-flame.ai-on{background:linear-gradient(135deg,rgba(255,61,46,0.22),rgba(255,180,60,0.22)),var(--frost);border-color:rgba(255,61,46,0.6);}
+.pn-ai.ai-flame.spin{animation:aiSpin .62s cubic-bezier(.3,1,.35,1),aiFlicker 1.8s ease-in-out infinite;}
 .pn-ai.ai-on{background:linear-gradient(135deg,rgba(47,123,255,0.16),rgba(154,119,221,0.16)),var(--frost);border-color:rgba(154,119,221,0.45);}
 
 /* 스팟 편집 모달 행 */
@@ -664,7 +698,17 @@ button:focus:not(:focus-visible){outline:none;}
 #pc-drawer-close:hover{background:#f2f5f9;color:var(--ink);}
 
 /* 햄버거 드로어: 데모 리스트(트렌드 존/스팟) */
-body.role-admin #drawer-demo{display:none;} /* 관리자는 아래 컨텐츠/설정 섹션 사용 */
+/* 드로어 탭(관리자 전용): 🧭 둘러보기(데모 메뉴) ↔ 🛠 관리자 — 모바일 실기기 관리자도 데모 메뉴 접근 */
+#drawer-tabs{display:none;gap:6px;margin-bottom:12px;padding:4px;border:1px solid var(--line-soft);border-radius:12px;background:rgba(15,23,42,0.045);}
+body.role-admin #drawer-tabs{display:flex;}
+.dt-btn{flex:1;padding:8px 0;border:none;border-radius:9px;background:transparent;color:var(--ink3);font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .18s ease;}
+.dt-btn.active{background:#fff;color:var(--ink);box-shadow:var(--sh-s);}
+/* 관리자: 선택된 탭 뷰만 표시 (데모는 role-user 규칙으로 관리자 섹션 자체가 숨김) */
+body.role-admin #phone-drawer-body.dv-admin #drawer-demo{display:none;}
+body.role-admin #phone-drawer-body:not(.dv-admin) #content-toggle-row,
+body.role-admin #phone-drawer-body:not(.dv-admin) #content-section,
+body.role-admin #phone-drawer-body:not(.dv-admin) #settings-toggle-row,
+body.role-admin #phone-drawer-body:not(.dv-admin) #settings-section{display:none!important;}
 /* 드로어 섹션: 접이식 헤더 (메인 UI 톤) */
 #drawer-demo .drawer-sec{margin-bottom:12px;padding:10px 12px 4px;border:1px solid var(--line-soft);border-radius:13px;background:#fff;box-shadow:var(--sh-s);}
 #drawer-demo .drawer-sec:last-child{margin-bottom:0;}
@@ -724,6 +768,11 @@ body.role-admin #drawer-demo{display:none;} /* 관리자는 아래 컨텐츠/설
 .rqc-q{font-size:2.9cqw;font-weight:700;color:var(--ink);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .rqc-a{font-size:2.5cqw;font-weight:600;color:#1d8a4e;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .rqc-a.wait{color:var(--ink3);}
+.rqc-thumb{width:100%;height:16cqw;object-fit:cover;border-radius:2.4cqw;border:1px solid var(--line-soft);}
+/* 현장 응답 버튼(코멘트/사진) */
+.rqc-actions{display:flex;gap:1.6cqw;width:100%;margin-top:0.6cqw;}
+.rqc-btn{flex:1;padding:1.6cqw 0;border:1px solid var(--line);border-radius:2.6cqw;background:#fff;color:var(--ink2);font-family:inherit;font-size:2.5cqw;font-weight:700;cursor:pointer;transition:all .15s ease;}
+.rqc-btn:hover,.rqc-btn:active{border-color:var(--acc);color:var(--acc);background:rgba(47,123,255,0.06);}
 /* 스팟 메시지: 말풍선 · 세로 */
 /* 드로어 스팟 = 현재 지역 클라우드: 단일 텍스트 스타일 + 얇은 테두리 필 버블 + 옅은 채색 */
 .sp-cloud{display:flex;flex-wrap:wrap;gap:1.6cqw;padding:1cqw 0.5cqw;}
@@ -743,7 +792,8 @@ body.role-admin #drawer-demo{display:none;} /* 관리자는 아래 컨텐츠/설
 
 /* 데스크톱 관리자: 폰 미러 드로어는 항상 '데모 로그인' 기준 (관리자 설정은 PC 드로어에서) */
 @media (min-width:769px){
-  body.role-admin #phone-drawer #drawer-demo{display:block;}
+  body.role-admin #phone-drawer #drawer-demo{display:block!important;} /* dv-admin 뷰여도 폰 미러는 항상 데모 리스트 */
+  body.role-admin #phone-drawer #drawer-tabs{display:none;} /* 데스크톱 폰 미러=데모 미리보기 고정 (관리자 메뉴는 PC 드로어에서) */
   body.role-admin #phone-drawer #content-toggle-row,
   body.role-admin #phone-drawer #content-section,
   body.role-admin #phone-drawer #settings-toggle-row,

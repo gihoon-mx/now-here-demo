@@ -47,13 +47,14 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.51.0**
+- **현재 최신: v1.52.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-06)
 
-**최신 v1.51.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.52.0 · 라이브 정상.** 완료된 기능:
+- **v1.52.0 UX 7종 — 스플래시 라이트·AI 프리셋·트렌드 불꽃·네비 스와이프·드로어 관리자 탭·Request 응답·피드 칩**: ①피드 존 칩=**Trend Zone 스코프에서만**(그 외엔 fc-region 동 표시) ②**스플래시 서비스 톤**(라이트 프로스트+브랜드 그라디언트 로고+📍마크) + **버전 노출**(#auth-ver, #app-version에서 JS 복사 — 버전 3곳 규칙 유지) ③**AI Agent 프리셋**(#ai-presets 패널): 클릭 시 상황(모드/탭/위치/존/Request 유무/시간대) 맞춤 질문 풀에서 **10개 랜덤**, 선택 시 데모 답변 말풍선 ④**트렌드 모드 AI 버튼=불꽃 톤**: body.mode-trend + .ai-flame(플리커 글로우 애니, 눈/입 다크레드), 그라디언트 팔레트 AI_PALETTE(트렌드 idle 주황→활성 화염 노랑·빨강 — 클릭 색상도 트렌드 전용) ⑤**하단 네비 좌우 스와이프**=지도↔피드↔소셜 전환(수평 40px+, 수직 우세 제외) ⑥**드로어 관리자 탭 분리**(#drawer-tabs 🧭둘러보기/🛠관리자, 관리자만 노출·localStorage 유지): 모바일 실기기 관리자도 데모 메뉴(존/Request/스팟) 접근 가능 — 데스크톱 폰 미러는 기존대로 데모 고정 ⑦**현장 Request 응답 버튼**: 드로어 카드에 💬답하기/📷사진(rqc-btn), 수신 버블에도 📷 사진 올리기 — 사진 답변은 answers[].img(compressNews 압축, 카드 썸네일 표시).
 - **v1.51.0 시드 분산·존 시드 제거 + 피드 핀 클러스터 + 롱프레스 이동 + 피드 view 옵션**: ①시드 좌표 분산(피드끼리 최소 85m·전체 69m, 동 라벨=dongAt 전수검증) + **존 시드 폐지**(SEED_ZONES 삭제, 🧹 비우기가 기존 tzs_* 존 삭제는 유지) ②**피드 썸네일 핀 클러스터**(월드픽셀 56px 근접 그룹, 대표사진+개수 뱃지, 탭=fitBounds 펼침, 줌 idle 재클러스터 — z13≈4그룹→z17 전부 낱개) ③**콘텐츠 이동=터치 롱프레스(450ms) 후 드래그**(스팟·피드핀, 롱프레스 전 움직임=지도 팬, 진동 피드백, 마우스는 기존 즉시 드래그) ④**피드탭 view 버튼**(1·2·3 버튼 대체) → 팝오버: 가로 배열 1~3 + 컨텐츠 종류 필터(피드 작성/라이브 카메라/스팟/지면, nowhere_feedtypes). ⚠️라이브 시드 갱신 = 관리자로 접속해 🧹 비우기 → 🌱 채우기 재실행 필요.
 - **v1.50.0 시드 확장 — 실사진 + shoomerion 소유**: 피드 16→**20**(칼국수·에스프레소바·전집·벚꽃 추가)·스팟 12→**16**(존 안 4개 추가). 이미지=**Wikimedia Commons 실사진 직링크 19장**(핫링크 허용·영구 보존, 브라우저 검증)+생성 1(벽화) — 존 사진·지면 3장도 실사진. 좋아요 총 ~200개 분산. **소유자=shoomerion@gmail.com**: 콘텐츠에 `byEmail` 저장 + 소유 판정 `ownsContent`(uid ∥ 이메일) — 해당 계정 로그인 시 시드 피드·스팟 수정/드래그/삭제 가능. ⚠️**라이브 반영 = 관리자로 라이브 접속 → 컨텐츠 설정 → 데모 데이터 → 🌱 채우기 클릭**(코드 배포만으로는 데이터 안 들어감).
 - **v1.49.0 데모 시드 데이터(강남·역삼·논현)**: 관리자 컨텐츠 설정 › 데모 데이터 — **🌱 채우기**(트렌드 존 3 + 피드 16(설명·좋아요·시간 분산) + 스팟 12 + Request 2 + 채팅 시드, Firestore 공유 컬렉션에 `seed:true` 태깅) / **🧹 시드만 비우기**(직접 만든 컨텐츠 보존). 이미지=일관 스타일 생성 SVG(`seedImg`, ~1KB, 존 카드 편집·피드 관리에서 URL 교체 가능). ⚠️라이브 시딩은 **관리자로 라이브 사이트에서 버튼 클릭** 1회 필요.
@@ -209,7 +210,15 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-06
-- **v1.51.0 — 시드 분산·존 시드 제거 + 피드 핀 클러스터 + 롱프레스 이동 + 피드 view 옵션**:
+- **v1.52.0 — UX 7종(스플래시·AI 프리셋·불꽃·스와이프·드로어 탭·Request 응답·피드 칩)**:
+  - **피드 칩**: renderFeed의 존 칩 생성을 `feedScope==='zone'` 가드로 한정 — 전체보기/현재 동네에선 우하단 fc-region(동)만.
+  - **스플래시**: #auth-overlay 다크→서비스 라이트 프로스트(브랜드 radial 배경+유리 카드+📍 auth-mark), `.auth-ver`에 부팅 시 #app-version 복사(버전 소스 단일 유지).
+  - **AI Agent**: `initAiAgent`+`aiPresetPool`(공통 10 + 트렌드=존 이름 질문/베이직=동 질문 + 탭·Request·시간대 분기)→`aiRandomPresets(10)` 셔플, #ai-presets 프로스트 패널, 프리셋 탭=답변 말풍선 7s. `updateAiVisual`이 setAiActive 대체(AI_PALETTE 모드별 그라디언트).
+  - **트렌드 불꽃**: switchMode에서 body.mode-trend 토글+재도색. CSS .pn-ai.ai-flame(aiFlicker drop-shadow 1.8s)+.ai-on 화염 배경, 프리셋 패널 헤드/호버도 주황.
+  - **네비 스와이프**: .phone-navbar touchstart/touchend(수평 40px+·수직우세 억제) → ORDER[map,feed,social] 이웃 탭 전환.
+  - **드로어 탭**: initPhoneMenu가 #drawer-tabs를 바디 최상단 삽입, `setDrawerView`(dv-admin 클래스+nowhere_drawerview). CSS: 기존 `role-admin #drawer-demo 숨김` 전역 규칙 폐지→탭 뷰 기준, 데스크톱(≥769px) 폰 미러는 탭 숨김+데모 고정(!important)으로 기존 미리보기 유지.
+  - **Request 응답**: `answerRequest(id,text,img)` 확장(Firestore arrayUnion에 img 포함, undefined 방지 조건 부착)+`answerRequestPhoto`/`initRequestAnswer`(#rq-photo-input, compressNews). 드로어 카드 button→div(중첩 버튼 방지), 💬답하기/📷사진 rqc-btn+첫 답변 사진 썸네일(rqc-thumb), 수신 버블(showReqBubble)에 📷 사진 올리기 추가.
+  - 검증(프리뷰, 헤드리스): 스플래시 스크린샷+버전 v1.52.0 / 프리셋 10개·답변 말풍선·트렌드 팔레트(idle #ffb37a→on #ffd24a)·존 질문 포함 / 모바일 뷰포트: 관리자 탭 flex·뷰 전환(demo↔admin 상호배타)·데스크톱 미러 데모 고정 / 스와이프 map→feed→map / Request 버블 버튼 5종·드로어 rqc-btn 2·사진 썸네일 / 존 태그 피드가 all 스코프에서 존 칩 0·동 표시 — 전부 PASS, 콘솔 에러 0. **실기기 터치 스와이프·사진 답변 업로드는 라이브 확인 권장.**
   - **시드 분산**: 먹자골목·카페로드·학동공원에 뭉쳐 있던 좌표를 역삼1·역삼2·논현1·논현2 일대로 재배치 — 피드끼리 최소 85m, 피드+스팟 전체 최소 69m. 동 라벨은 dong_boundary.geojson의 `dongAt`으로 전수 검증(플리마켓·파이브가이즈 Request 등 라벨↔실좌표 불일치 4건 보정).
   - **존 시드 제거**: `SEED_ZONES`·`seedHexCluster` 삭제, SEED_FEED의 zone 태그 전부 null — 시드는 피드 20·스팟 16·Request 2·채팅만. `clearDemoData`의 tzs_* 존 삭제는 유지(이미 라이브에 시딩된 존을 지우는 용도). ⚠️**라이브 반영 = 관리자 접속 → 데모 데이터 → 🧹 비우기(기존 존·구 좌표 시드 제거) → 🌱 채우기**.
   - **피드 썸네일 핀 클러스터**: `clusterFeedPins(m)` — 현재 줌의 월드픽셀 좌표로 56px 근접 그룹핑(팬과 무관, 줌에만 의존). 클러스터=대표 사진(.fp-im 스택 섀도)+개수 뱃지(.fp-n), 탭=`_expand()`(멤버 fitBounds+타이트하면 강제 줌인, 폰은 phoneFitPadding). 줌 변경 시 양 지도 idle에서 `reclusterFeedMarkers`(줌 동일하면 스킵). 시드 기준 z13≈4그룹→z15 낱개 18→z17 전부 낱개로 자연스럽게 펼쳐짐. 핀 DOM 구조 변경: 라운드/보더가 .feed-pin→**.fp-im 내부 래퍼**로(뱃지가 원 밖으로 나오게).
