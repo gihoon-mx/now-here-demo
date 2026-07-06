@@ -773,6 +773,18 @@ body.role-admin #phone-drawer-body:not(.dv-admin) #settings-section{display:none
 .rqc-actions{display:flex;gap:1.6cqw;width:100%;margin-top:0.6cqw;}
 .rqc-btn{flex:1;padding:1.6cqw 0;border:1px solid var(--line);border-radius:2.6cqw;background:#fff;color:var(--ink2);font-family:inherit;font-size:2.5cqw;font-weight:700;cursor:pointer;transition:all .15s ease;}
 .rqc-btn:hover,.rqc-btn:active{border-color:var(--acc);color:var(--acc);background:rgba(47,123,255,0.06);}
+/* 내 Request 카드: 뱃지(내 Request/상태) + 답변 목록 펼침 */
+.rq-card.mine{border-color:rgba(47,123,255,0.35);}
+.rqc-badges{display:flex;align-items:center;gap:1.6cqw;}
+.rqc-mine{font-size:2.2cqw;font-weight:800;color:#fff;background:linear-gradient(160deg,#6d9bf5,#4a7de4);padding:0.7cqw 2.2cqw;border-radius:999px;}
+.rqc-state{font-size:2.3cqw;font-weight:700;color:#1d8a4e;}
+.rqc-state.end{color:var(--ink3);}
+.rqc-answers{width:100%;display:flex;flex-direction:column;gap:1.2cqw;margin-top:1cqw;padding-top:1.8cqw;border-top:1px dashed var(--line);}
+.rqa-item{display:flex;flex-direction:column;gap:0.8cqw;background:rgba(15,23,42,0.035);border-radius:2.4cqw;padding:1.6cqw 2cqw;}
+.rqa-t{font-size:2.6cqw;font-weight:600;color:var(--ink);line-height:1.35;}
+.rqa-img{width:100%;height:16cqw;object-fit:cover;border-radius:2cqw;border:1px solid var(--line-soft);}
+.rqa-time{font-style:normal;font-size:2.1cqw;color:var(--ink3);}
+.rqa-empty{font-size:2.5cqw;color:var(--ink3);padding:1cqw 0.5cqw;}
 /* 스팟 메시지: 말풍선 · 세로 */
 /* 드로어 스팟 = 현재 지역 클라우드: 단일 텍스트 스타일 + 얇은 테두리 필 버블 + 옅은 채색 */
 .sp-cloud{display:flex;flex-wrap:wrap;gap:1.6cqw;padding:1cqw 0.5cqw;}

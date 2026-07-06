@@ -22,7 +22,7 @@
 | M04 | spots 스팟 메시지 | 안정 | 스팟 버블·컴포저·편집/드래그·워드클라우드 | `SpotBubble` `SpotComposer` `renderSpots` `spotsInFocusedRegion` `canEditSpot` | app.js | v1.51 |
 | M05 | feed 피드 | 활성 | 피드 탭·그리드·썸네일 핀·클러스터·좋아요·업로드 | `renderFeed` `feedEntriesScoped` `FeedThumb` `clusterFeedPins` `toggleLike` `feedAdd` `initFeedTools` | app.js | v1.52 |
 | M06 | social 소셜 | 안정 | 소셜 탭·채팅방(동네/주제/프라이빗)·liveChat | `renderSocial` `socRoomList` `roomMsgs` `initSocialManager` | app.js | v1.45 |
-| M07 | request 현장 Request | 활성 | Request 등록·AI Agent 실시간 응답 팝업·답변 전달 | `openRequestComposer` `showReqBubble` `reqNearMe` `answerRequest` `initRequestAnswer` `liveRequests` | app.js | v1.53 |
+| M07 | request 현장 Request | 활성 | Request 등록(10분 타임아웃)·AI Agent 실시간 응답 팝업·내 Request 답변 보기 | `openRequestComposer` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` | app.js | v1.53.1 |
 | M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·모드별 톤(불꽃) | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE` `ai-presets` | app.js | v1.53 |
 | M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·드로어(탭)·헤더 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` | app.js | v1.52 |
 | M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기 | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` | app.js | v1.46 |
@@ -44,6 +44,7 @@
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-07-07 M07: 요청자 팝업 제외·10분 타임아웃(reqActive, 시드 예외)·드로어 '내 Request' 뱃지+답변 목록 보기 (v1.53.1)
 - 2026-07-07 M07+M08: AI Agent 실시간 Request 팝업(타겟 지역 수신, 응답 2버튼), 응답 상태/결과 노출 제거 (v1.53.0)
 - 2026-07-07 M14: dev.html 개발 관리 페이지 신설 (v1.53.0)
 - 2026-07-06 M05/M08/M09/M12: v1.52.0 UX 7종 (피드 칩·AI 프리셋·불꽃·스와이프·드로어 탭·스플래시)
