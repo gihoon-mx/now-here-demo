@@ -47,13 +47,14 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.47.0**
+- **현재 최신: v1.47.1**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-06)
 
-**최신 v1.47.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.47.1 · 라이브 정상.** 완료된 기능:
+- **v1.47.1 스팟 버블 = 그림자 제거 + 배경 흐림**: `.spot-bubble` box-shadow 제거(기본+hover/선택 확대 시 그림자도), 이모지 drop-shadow 제거 → 대신 **backdrop-filter blur(6px)**(반투명 배경 설정일 때 뒤 지도가 살짝 흐려지는 유리 느낌).
 - **v1.47.0 피드 컨셉 개편 (속성 모델·Feed 작성·지면 연동·드래그)**: ①+메뉴에 **✍️ Feed 작성**(갤러리 사진+설명글 120자) 추가 — 컨텐츠 속성 `kind`(cam=라이브 카메라/post=피드 작성)·`desc`(설명글)·`name`(만든이)·ts 저장(liveFeed 문서 포함) ②피드 카드 **1:1 통일**(1열 4:5 폐지) + **LIVE 칩**(cam)·존 칩·**올린 시간**(상대 n분 전/시각/숨김 — 관리자 옵션, 클라우드 동기 feedTimeMode) ③**지역 컨텐츠 지면**(지도 탭)=관리자 수동 이미지(유지)+**현 위치 연관 피드 최대 4장 자동 노출**(가까운 순+최신, 스팟 제외, 위치·설명·존/LIVE/♥ 칩) ④**지도 핀 드래그 이동**: 만든이+관리자만(pointer 이벤트, 이동 시 동/존 자동 재태깅) ⑤관리자 피드 컨텐츠 관리 확장: 종류/존/동/설명 편집 + 만든이·시각·♥ 표시. ※+버튼 위치는 기존(좌하단) 유지 — '우하단' 요구는 AI 버튼과 충돌해 보류.
 - **v1.46.1 🔥설정 초기화 버그 근본 수정 + 설정 백스톱 파일**: 새 버전 push(리로드)마다 관리자 설정이 초기화되던 원인 = v1.41 에코 가드가 `updatedBy===내 이메일`이라 **관리자가 새로 접속해도 클라우드 설정을 영영 안 읽고**, 이후 아무 편집 시 cloudSave가 코드 기본값 설정으로 클라우드를 덮어쓰던 것. → 에코 판별을 **세션 ID(`SESSION_SID`/`updatedSid`)**로 교체(새 접속·다른 기기=적용, 같은 세션 에코만 무시). 백스톱: `settings-default.json`(repo, 코드기본값<파일<클라우드 순) + 관리자 설정의 **📋 설정 JSON 복사** 버튼으로 언제든 백업 가능.
 - **v1.46.0 피드↔지도 연결 4종**: ①피드 가로 배열 **최대 3칸**(버튼/설정/핀치 모두 1~3 클램프) ②피드 카드에 **트렌드존 칩**(존 태그 우선, 없으면 좌표 ptInZone 판정 — 존 색상 배경 `.fc-zonechip`, 좌상단) ③**피드 사진=지도 위 원형 썸네일 핀**(`FeedThumb` 오버레이, Apple Maps 무드: 흰 링+옅은 섀도·글로우 없음, 비인터랙티브 pane, 줌아웃 시 44→30→18px 축소, 메인+폰 동시, 최근 30장) — 사진 업로드/링크/카메라 시 **좌표(lat/lng) 저장**(liveFeed 문서 포함), 구버전 사진은 존 중심→동 중심 폴백(`feedItemLatLng`) ④**피드 카드 싱글탭=지도 탭 전환+해당 위치로 팬**(줌<15→16, 폰 인셋 보정, 스팟 항목은 focusSpot) — 더블탭 좋아요와 공존(360ms 탭 타이머).
@@ -195,6 +196,7 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-06
+- **v1.47.1 — 스팟 버블 그림자 제거 + 배경 흐림**: `.spot-bubble`의 box-shadow(기본 0 1px 4px + hover/`.spot-sel` 0 5px 18px) 삭제, transition에서 box-shadow 제거, `.spot-emoji`의 drop-shadow 필터 삭제. 버블에 `backdrop-filter:blur(6px)`(+웹킷) 추가 — 배경색 불투명도(bgOpacity)를 낮추면 뒤 지도가 흐려 보이는 프로스트 효과(불투명 1.0이면 시각 변화 없음). 검증: computed style box-shadow=none·backdrop-filter=blur(6px)·emoji filter=none PASS.
 - **v1.47.0 — 피드 컨셉 개편: 속성 모델 + Feed 작성 + 지면 연동 + 핀 드래그**:
   - **데이터 모델**: `feedAdd(src,region,zone,lat,lng,kind,desc)` — liveFeed 문서에 `kind`('cam' 라이브 카메라/'post' 피드 작성·업로드)·`desc`(설명글 ≤120자)·`name`(만든이=chatName)·`by`·`ts` 저장, 스냅샷 복원 포함. 구버전 항목은 kind='post'·desc='' 폴백.
   - **올리는 방식**: +메뉴 = 스팟 메시지/라이브 카메라(kind cam)/**✍️ Feed 작성**(신규 `#feed-post-input` 갤러리+`initFeedPost`: 압축→설명글 prompt→업로드, 취소 시 중단)/현장 Request. 관리자 컨텐츠 관리의 업로드·링크=kind post(기존 유지).
