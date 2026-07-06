@@ -47,13 +47,14 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.55.0**
+- **현재 최신: v1.55.1**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-06)
 
-**최신 v1.55.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.55.1 · 라이브 정상.** 완료된 기능:
+- **v1.55.1 스플래시 앱 아이콘 (M12)**: 첫 화면 📍 이모지 → **앱 아이콘 이미지**(icon-192.jpg 구름 마스코트, `<img.auth-mark>`) — 일반 앱 아이콘처럼 모서리 R컷(68px·radius 15px≈한 변의 22%, object-fit:cover).
 - **v1.55.0 모듈 인프라 — 섹션 태깅·버전 검사 CI·페이지 스탬프**: ①app.js 전 섹션 주석에 **[M##] 태그 59곳**(`grep -n "\[M07\]" app.js`로 모듈 위치 즉시 파악 — 크레딧 절약 핵심) ②**`tools/check.js`**: 버전 3곳 동기화+dev/diagram `data-app-ver` 스탬프=앱 버전+app.js 문법 검사, **pages.yml 배포 전 자동 실행**(실패=배포 중단 → dev/diagram 매 push 최신화 강제) ③3개 정적 페이지에 반영 버전 표시(dev/diagram=push마다 갱신 의무, 소개 덱=지연 허용 v1.44.0) ④MODULES.md에 **M00 공용 헬퍼(동결)**·**공유 상태 계약**(전역 소유권 테이블)·**안전 규칙**(시그니처 동결·Firestore additive-only·토큰 값 변경 금지) 문서화 ⑤diagram 블럭 현행화(Ask Map·Request 10분 팝업).
 - **v1.54.0 Request 핀·드로어 정돈 + 존 리스트 정렬 + Ask Map (M07+M03+M08+M09 ⚠️교차)**: ①**Request 전용 맵 핀**(ReqPin 오버레이): 말풍선 폐지 → 보라 그라디언트 ? 티어드롭+펄스 링 2겹(현장에 질문 신호를 쏘는 특성, 스팟/피드 핀과 구분) ②드로어 섹션 타이틀 **이모지 제거+타이포 강화**(.ds-tt .92rem/900, 스팟 지역명은 .ds-sub 보조 라벨) ③Request 카드 위치의 📍 제거 ④**Request 삭제**(deleteRequest — 본인·관리자 🗑) ⑤**존 리스트 정렬**: 포커스 존 맨 앞 → ❤ 합산 → 가까운 순(sortedZonesForList), 포커스 카드=액센트 테두리+✓ 뱃지, idle·존 선택 시 재정렬 ⑥**Ask Map 패널**: 타이틀 'Ask Map'(그라디언트), 상단 [🗺 현재 지도 요약하기](aiMapSummary — 존/피드/스팟/Request 실데이터 브리핑), 템플릿 풀 **~50개 중 5개 랜덤**, 하단 **채팅 입력**(aiChatAnswer — 키워드 매칭→템플릿 답변, 미매칭=데모 안내). 트렌드 모드=패널 요소 화염 톤.
 - **v1.53.1 현장 Request 라이프사이클 (M07)**: ①**요청자 본인에겐 수신 팝업 안 뜸**(등록 직후 2.6s 자기 시뮬레이션 제거 — 팝업은 실시간 리스너의 타겟 지역 타인에게만) ②**10분 타임아웃**(`REQ_TTL_MS`): 만료 시 지도 마커·타인 드로어에서 숨김+답변 차단(alert), 시드(seed:true)는 데모 연출용 상시 활성, 30s 주기 재렌더로 경과 반영 ③드로어 **'🙋 내 Request' 뱃지**+상태(⏳ 답변 받는 중/⏱ 종료, 만료돼도 내 것은 계속 표시) + **💬 답변 N개 보기** 토글 — 카드 안에서 답변 목록(텍스트·📷사진 썸네일·시간) 확인.
@@ -224,6 +225,7 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-07
+- **v1.55.1 — 스플래시 앱 아이콘 (M12)**: .auth-mark div(📍 그라디언트 배경)→img(icon-192.jpg), CSS 68px·border-radius 15px·object-fit:cover·옅은 보더+브랜드 섀도. dev/diagram data-app-ver 스탬프 동반 갱신.
 - **v1.55.0 — 모듈 인프라 (구조 검토 결과 반영)**:
   - **구조 검토 결론**: 전 코드=전역 함수+호이스팅이라 모듈 간 로드 순서 리스크 없음. 실위험 3가지를 장치로 상쇄 — (a)섹션 경계 부재→[M##] 태깅, (b)공유 전역/헬퍼 오염→MODULES.md 소유권 계약+M00 동결, (c)버전·문서 동기화 누락→check.js CI 강제.
   - app.js 섹션 주석 59곳 [M##] 태깅(주석만, 동작 무변). `tools/check.js` 신설 + pages.yml에 'Version sync check' 스텝(Checkout 직후). dev/diagram/deck에 `data-app-ver` + 헤더 반영 버전 표기(dev=JS로 body dataset 표시). dev.html 워크플로우 규칙 6조로 확장+프롬프트 템플릿에 grep 탐색·check.js·페이지 갱신 반영. diagram: AI 블럭 'Ask Map·요약·프리셋·채팅'(core), Request '질문(10분)→AI 팝업 응답', 헤더에 dev 링크.
