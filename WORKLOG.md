@@ -125,6 +125,14 @@ cd now-here-demo && git pull
 git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ```
 
+> 🛠 **push가 아무 출력 없이 멈출 때(수십 분도 가능)**: 시스템에 깔린 **GCM(git-credential-manager)이 자격증명 창을 띄우려다 헤드리스에서 대기**하는 것 (2026-07-06 트레이스로 확인 — `-c credential.helper='!gh ...'`는 헬퍼를 *추가*만 해서 GCM이 먼저 돌 수 있음). 해결 2가지:
+> ```bash
+> # A) 헬퍼 체인 리셋 후 gh만 사용 (빈 -c가 기존 헬퍼 제거)
+> git -c credential.helper= -c credential.helper='!gh auth git-credential' push origin main
+> # B) gh 토큰을 URL에 직접 (헬퍼 완전 우회)
+> git push "https://x-access-token:$(gh auth token)@github.com/gihoon-mx/now-here-demo.git" main
+> ```
+
 **2) Claude Code에 붙여넣을 시작 프롬프트 (예시 — 대괄호만 바꿔 사용):**
 > now-here-demo 프로젝트를 이어서 작업할 거야. 먼저 repo 루트의 `WORKLOG.md`를 읽고 현재 상태(v1.6.0)와 규칙을 파악해줘:
 > - 버전: 코드/스타일 바꿀 때마다 3곳(app-version, `?v=` 캐시버스트, 커밋메시지) 동기화해서 올리기
