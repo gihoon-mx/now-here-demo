@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Version sync check (버전 3곳 · dev/diagram 스탬프 · app.js 문법)
+        run: node tools/check.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

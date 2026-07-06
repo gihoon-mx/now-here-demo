@@ -47,13 +47,14 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.54.0**
+- **현재 최신: v1.55.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-06)
 
-**최신 v1.54.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.55.0 · 라이브 정상.** 완료된 기능:
+- **v1.55.0 모듈 인프라 — 섹션 태깅·버전 검사 CI·페이지 스탬프**: ①app.js 전 섹션 주석에 **[M##] 태그 59곳**(`grep -n "\[M07\]" app.js`로 모듈 위치 즉시 파악 — 크레딧 절약 핵심) ②**`tools/check.js`**: 버전 3곳 동기화+dev/diagram `data-app-ver` 스탬프=앱 버전+app.js 문법 검사, **pages.yml 배포 전 자동 실행**(실패=배포 중단 → dev/diagram 매 push 최신화 강제) ③3개 정적 페이지에 반영 버전 표시(dev/diagram=push마다 갱신 의무, 소개 덱=지연 허용 v1.44.0) ④MODULES.md에 **M00 공용 헬퍼(동결)**·**공유 상태 계약**(전역 소유권 테이블)·**안전 규칙**(시그니처 동결·Firestore additive-only·토큰 값 변경 금지) 문서화 ⑤diagram 블럭 현행화(Ask Map·Request 10분 팝업).
 - **v1.54.0 Request 핀·드로어 정돈 + 존 리스트 정렬 + Ask Map (M07+M03+M08+M09 ⚠️교차)**: ①**Request 전용 맵 핀**(ReqPin 오버레이): 말풍선 폐지 → 보라 그라디언트 ? 티어드롭+펄스 링 2겹(현장에 질문 신호를 쏘는 특성, 스팟/피드 핀과 구분) ②드로어 섹션 타이틀 **이모지 제거+타이포 강화**(.ds-tt .92rem/900, 스팟 지역명은 .ds-sub 보조 라벨) ③Request 카드 위치의 📍 제거 ④**Request 삭제**(deleteRequest — 본인·관리자 🗑) ⑤**존 리스트 정렬**: 포커스 존 맨 앞 → ❤ 합산 → 가까운 순(sortedZonesForList), 포커스 카드=액센트 테두리+✓ 뱃지, idle·존 선택 시 재정렬 ⑥**Ask Map 패널**: 타이틀 'Ask Map'(그라디언트), 상단 [🗺 현재 지도 요약하기](aiMapSummary — 존/피드/스팟/Request 실데이터 브리핑), 템플릿 풀 **~50개 중 5개 랜덤**, 하단 **채팅 입력**(aiChatAnswer — 키워드 매칭→템플릿 답변, 미매칭=데모 안내). 트렌드 모드=패널 요소 화염 톤.
 - **v1.53.1 현장 Request 라이프사이클 (M07)**: ①**요청자 본인에겐 수신 팝업 안 뜸**(등록 직후 2.6s 자기 시뮬레이션 제거 — 팝업은 실시간 리스너의 타겟 지역 타인에게만) ②**10분 타임아웃**(`REQ_TTL_MS`): 만료 시 지도 마커·타인 드로어에서 숨김+답변 차단(alert), 시드(seed:true)는 데모 연출용 상시 활성, 30s 주기 재렌더로 경과 반영 ③드로어 **'🙋 내 Request' 뱃지**+상태(⏳ 답변 받는 중/⏱ 종료, 만료돼도 내 것은 계속 표시) + **💬 답변 N개 보기** 토글 — 카드 안에서 답변 목록(텍스트·📷사진 썸네일·시간) 확인.
 - **v1.53.0 현장 Request 실시간 팝업 개편 + 개발 모듈 체계**: ①Request의 **응답 대기/결과 상시 노출 제거**(드로어 카드 ⏳/💬 상태줄·지도 마커 답변 텍스트 폐지 — 등록 후 일정 시간 답변을 받는 모델이므로) ②**AI Agent 실시간 수신 팝업**: liveRequests onSnapshot docChanges에서 새 Request(3분 내·내 것 제외) 감지 → **타겟 지역**(`reqNearMe`: 보는 위치 1.5km 이내 또는 같은 동) 사용자에게 팝업 — AI Agent 칩+질문+📍위치+**응답 버튼 2개**(💬 답하기/📷 사진 올리기), 하단 네비바와 동일 프로스트 유리 문법(트렌드 모드=AI 칩 화염 그라디언트) ③답변 도착=**요청자에게만** 실시간 ai-bubble 알림(reqAnsSeen 카운트 비교, 첫 스냅샷 제외), 답변자는 '전송' 확인 ④**개발 모듈 체계**: `MODULES.md`(모듈 15종 레지스트리+세션 규칙) + `dev.html`(개발 관리 페이지 — 모듈 카드·상태·앵커·의존·**세션 프롬프트 복사**), 기능 보기에 🛠 개발 관리 링크. **앞으로 세션은 모듈 단위로 작업**(아래 🧱 참고).
@@ -212,15 +213,20 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 
 ## 🧱 모듈 단위 작업 (2026-07-07~)
 
-구현은 **모듈 단위**로 진행: 모듈 맵·세션 규칙은 **`MODULES.md`**, 시각화·세션 프롬프트 생성은 **`dev.html`**(개발 관리 페이지).
+구현은 **모듈 단위**로 진행: 모듈 맵·세션 규칙·공유 상태 계약은 **`MODULES.md`**, 시각화·세션 프롬프트 생성은 **`dev.html`**(개발 관리 페이지).
 - 한 세션 = 한 모듈. dev.html에서 [세션 프롬프트 복사] → 작업 내용만 채워 시작.
-- 다른 모듈 코드 수정 금지(교차 시 WORKLOG에 ⚠️교차: M## 표기). 완료 시 MODULES.md 상태/최근 버전도 갱신.
+- 코드 탐색은 `grep -n "\[M07\]" app.js`(섹션 태그)·앵커 grep으로만 — 파일 통독 금지(크레딧 절약).
+- 다른 모듈 코드 수정 금지(교차 시 WORKLOG에 ⚠️교차: M## 표기). 완료 시 MODULES.md 상태/최근 버전 + **dev.html·diagram.html 반영(`data-app-ver` 갱신, 소개 덱 제외)**.
+- **push 전 `node tools/check.js`** — 버전 3곳·dev/diagram 스탬프·app.js 문법 검사. pages.yml 배포 전에도 자동 실행되어 실패 시 배포 중단.
 
 ---
 
 ## 📝 변경 이력
 
 ### 2026-07-07
+- **v1.55.0 — 모듈 인프라 (구조 검토 결과 반영)**:
+  - **구조 검토 결론**: 전 코드=전역 함수+호이스팅이라 모듈 간 로드 순서 리스크 없음. 실위험 3가지를 장치로 상쇄 — (a)섹션 경계 부재→[M##] 태깅, (b)공유 전역/헬퍼 오염→MODULES.md 소유권 계약+M00 동결, (c)버전·문서 동기화 누락→check.js CI 강제.
+  - app.js 섹션 주석 59곳 [M##] 태깅(주석만, 동작 무변). `tools/check.js` 신설 + pages.yml에 'Version sync check' 스텝(Checkout 직후). dev/diagram/deck에 `data-app-ver` + 헤더 반영 버전 표기(dev=JS로 body dataset 표시). dev.html 워크플로우 규칙 6조로 확장+프롬프트 템플릿에 grep 탐색·check.js·페이지 갱신 반영. diagram: AI 블럭 'Ask Map·요약·프리셋·채팅'(core), Request '질문(10분)→AI 팝업 응답', 헤더에 dev 링크.
 - **v1.54.0 — Request 핀·드로어 정돈 + 존 리스트 정렬 + Ask Map (M07+M03+M08+M09 ⚠️교차)**:
   - **M07**: `ReqPin` OverlayView(initReqPinClass, initMap에서 초기화) — .req-pin(.rp-drop ? 티어드롭 rotate -45°, .rp-ring×2 rpPulse 2s 교차) 보라(#8ed0ff→#7b61ff)=AI Agent 채널 계열. renderRequestMarkers가 MapLabel→ReqPin. `deleteRequest(id)`(live=doc.delete/로컬=filter, confirm) + 카드 우상단 .rqc-del(본인∥관리자). rqc-place 📍 제거.
   - **M09**: dsSection(key,title,sub) 3-인자 — 타이틀 이모지 제거('트렌드 존'/'현장 Request'/'스팟 메시지'), .ds-tl 래퍼+.ds-sub(스팟=포커스 지역명). .ds-tt .92rem·900·-0.02em.

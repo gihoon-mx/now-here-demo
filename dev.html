@@ -44,9 +44,9 @@ footer{max-width:1060px;margin:20px auto 0;font-size:.7rem;color:var(--ink3);tex
 footer code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(15,23,42,0.05);padding:1px 6px;border-radius:5px;}
 </style>
 </head>
-<body>
+<body data-app-ver="v1.55.0">
 <header>
-  <div><h1>🛠 <span>Now Here</span> 개발 관리</h1><p>모듈 레지스트리 · 세션별 모듈 단위 작업 — 소스: MODULES.md</p></div>
+  <div><h1>🛠 <span>Now Here</span> 개발 관리</h1><p>모듈 레지스트리 · 세션별 모듈 단위 작업 — 소스: MODULES.md · <b id="doc-ver"></b></p></div>
   <div class="links"><a href="./">📱 라이브 데모</a><a href="deck.html">📽 소개 덱</a><a href="diagram.html">🧩 다이어그램</a></div>
 </header>
 <div class="wrap">
@@ -56,13 +56,16 @@ footer code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:r
       <li>repo: <span class="repo">gihoon-mx/now-here-demo</span> — 세션 시작 시 <b>WORKLOG.md → MODULES.md</b> 순으로 읽기</li>
       <li><b>한 세션 = 한 모듈.</b> 아래 카드의 [세션 프롬프트 복사]로 시작 프롬프트를 만들어 모듈 ID를 명시</li>
       <li>다른 모듈 코드는 수정 금지 — 불가피한 교차 수정은 WORKLOG에 <b>⚠️교차: M##</b> 표기</li>
-      <li>완료 시: 버전 3곳 동기화 → WORKLOG + MODULES.md(상태/최근 버전) 갱신 → commit·push</li>
+      <li>코드 탐색은 <span class="repo">grep -n "[M07]" app.js</span> 처럼 <b>섹션 태그·앵커로만</b> — 파일 통독 금지 (크레딧 절약)</li>
+      <li>완료 시: 버전 3곳 동기화 → WORKLOG + MODULES.md 갱신 → <b>dev.html·diagram.html 변경 반영+<span class="repo">data-app-ver</span> 갱신</b>(소개 덱 제외)</li>
+      <li>push 전 <span class="repo">node tools/check.js</span> — 버전 동기화·스탬프·문법 검사 (배포 CI에서도 강제, 실패 시 배포 중단)</li>
     </ol>
   </div>
   <div class="grid" id="grid"></div>
 </div>
 <footer>모듈 정의·규칙 변경은 <code>MODULES.md</code>를 먼저 고치고 이 페이지(<code>dev.html</code>)의 데이터를 동기화하세요. · M14 pages</footer>
 <script>
+document.getElementById('doc-ver').textContent='반영 버전 '+document.body.dataset.appVer+' (push마다 갱신)';
 var MODS=[
  {id:'M01',emoji:'🗺️',name:'core-map 지도 코어',st:'stable',ver:'v1.28',files:'app.js',desc:'지도 초기화·GeoJSON 동 경계·베이직/트렌드 모드 전환·메인 지도 이벤트.',anchors:['initMap','applyGeoJsonToMap','switchMode','refreshMapStyles'],deps:[]},
  {id:'M02',emoji:'🔍',name:'lens 포커스 렌즈',st:'stable',ver:'v1.28',files:'app.js',desc:'베이직/트렌드 마스크 렌즈 — 주변 포그·헤어라인·페이드 전환·히스테리시스.',anchors:['updatePhoneLens','lensBuild','lensApply','holeRing'],deps:['M01']},
@@ -77,7 +80,7 @@ var MODS=[
  {id:'M11',emoji:'⚙️',name:'settings 관리자 설정',st:'stable',ver:'v1.48',files:'app.js',desc:'설정 블록(드래프트→적용)·미니 프리뷰·기본값/취소·클라우드 저장.',anchors:['BLOCK_DEFS','MINI_RENDER','initDraft','initBlockBars'],deps:['M12']},
  {id:'M12',emoji:'🔐',name:'auth-sync 인증·동기화',st:'stable',ver:'v1.52',files:'app.js · firestore.rules',desc:'Google 로그인·allowlist 역할·스플래시·shared/live 컬렉션 실시간 리스너.',anchors:['initAuth','showAuthOverlay','liveOn','loadSharedContent','cloudSave'],deps:[]},
  {id:'M13',emoji:'🌱',name:'seed 데모 시드',st:'stable',ver:'v1.51',files:'app.js',desc:'강남·역삼·논현 시드 데이터(피드/스팟/Request/채팅)·🌱채우기/🧹비우기.',anchors:['SEED_FEED','SEED_IMG','initDemoSeed','clearDemoData'],deps:['M12']},
- {id:'M14',emoji:'📄',name:'pages 정적 페이지',st:'active',ver:'v1.53',files:'deck.html · diagram.html · dev.html',desc:'소개 덱·기능 블럭 다이어그램·개발 관리(이 페이지) — 인증 불필요 독립 문서.',anchors:[],deps:[]},
+ {id:'M14',emoji:'📄',name:'pages 정적 페이지',st:'active',ver:'v1.55',files:'deck.html · diagram.html · dev.html · tools/check.js',desc:'소개 덱·기능 블럭 다이어그램·개발 관리(이 페이지)·버전 검사 스크립트 — dev/diagram은 push마다 반영 버전(data-app-ver) 갱신 의무(CI 강제).',anchors:[],deps:[]},
  {id:'M15',emoji:'🎨',name:'tokens 디자인 토큰',st:'stable',ver:'v1.52',files:'style.css',desc:':root CSS 변수(--acc/--frost/--glass-*)·프로스트 유리 공통 문법·타이포 위계.',anchors:[':root','--frost','--glass-blur'],deps:[]}
 ];
 var ST={stable:'안정',active:'활성 개발',plan:'계획'};
@@ -86,10 +89,10 @@ function promptFor(m){
     +'먼저 repo 루트의 WORKLOG.md와 MODULES.md를 읽고 현재 상태와 규칙을 파악해줘.\n\n'
     +'이번 세션은 ['+m.id+' '+m.name+'] 모듈만 작업해:\n'
     +'- 범위: '+m.desc+'\n'
-    +'- 코드 앵커: '+(m.anchors.length?m.anchors.join(', '):m.files)+' ('+m.files+')\n'
-    +'- 다른 모듈 코드는 수정하지 마. 불가피한 교차 수정은 WORKLOG에 ⚠️교차 표기.\n\n'
+    +'- 코드 위치: app.js에서 grep -n "['+m.id+']" 로 섹션 찾기 + 앵커: '+(m.anchors.length?m.anchors.join(', '):m.files)+' ('+m.files+')\n'
+    +'- 다른 모듈 코드는 수정하지 마(파일 통독 금지, 섹션·앵커만). 불가피한 교차 수정은 WORKLOG에 ⚠️교차 표기.\n\n'
     +'작업 내용: [여기에 작업 내용]\n\n'
-    +'작업 중 로컬 프리뷰로 검증하고, 끝나면 버전 3곳 동기화 + WORKLOG·MODULES.md 갱신 후 commit·push 해줘.';
+    +'작업 중 로컬 프리뷰로 검증하고, 끝나면 버전 3곳 동기화 + WORKLOG·MODULES.md 갱신 + dev.html(모듈 데이터·data-app-ver)·diagram.html(data-app-ver, 구조 바뀌면 블럭도) 갱신, node tools/check.js 통과 확인 후 commit·push 해줘.';
 }
 var g=document.getElementById('grid');
 MODS.forEach(function(m){

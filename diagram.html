@@ -23,10 +23,10 @@ svg{display:block;min-width:960px;width:100%;height:auto;font-family:inherit;}
 .legend .h{border-top-color:#ff4d6d;}
 </style>
 </head>
-<body>
+<body data-app-ver="v1.55.0">
 <header>
-  <div><h1>🧩 <span>Now Here</span> 기능 블럭 다이어그램</h1><p>기능 간 사용 흐름과 데이터 연결 · v1.45 기준</p></div>
-  <div class="links"><a href="deck.html">📽 소개 덱</a><a href="./">📱 라이브 데모</a></div>
+  <div><h1>🧩 <span>Now Here</span> 기능 블럭 다이어그램</h1><p>기능 간 사용 흐름과 데이터 연결 · <b>반영 버전 v1.55.0</b> (push마다 갱신)</p></div>
+  <div class="links"><a href="./">📱 라이브 데모</a><a href="deck.html">📽 소개 덱</a><a href="dev.html">🛠 개발 관리</a></div>
 </header>
 <div class="wrap">
 <svg viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">
@@ -64,8 +64,8 @@ svg{display:block;min-width:960px;width:100%;height:auto;font-family:inherit;}
 <text class="bt" x="346" y="84">🔍 포커스 렌즈</text><text class="bs" x="346" y="102">동/존 공용 · 축척 자동 + 핀 고정</text>
 <rect class="blk core" x="600" y="58" width="170" height="64" rx="12"/>
 <text class="bt" x="616" y="84">🗞️ 요약 공간</text><text class="bs" x="616" y="102">동네소식 ↔ 존 리스트</text>
-<rect class="blk" x="820" y="58" width="130" height="64" rx="12"/>
-<text class="bt" x="836" y="84">🤖 AI</text><text class="bs" x="836" y="102">Request 채널(예정)</text>
+<rect class="blk core" x="820" y="58" width="130" height="64" rx="12"/>
+<text class="bt" x="836" y="84">🤖 Ask Map</text><text class="bs" x="836" y="102">요약·프리셋·채팅</text>
 
 <!-- 코어 연결 -->
 <path class="fl" d="M260 90 H326"/><text class="lbl" x="268" y="82">단위 결정</text>
@@ -84,7 +84,7 @@ svg{display:block;min-width:960px;width:100%;height:auto;font-family:inherit;}
 
 <!-- ===== 컨텐츠 ===== -->
 <rect class="blk" x="60"  y="336" width="180" height="60" rx="12"/><text class="bt" x="76" y="360">💬 스팟 메시지</text><text class="bs" x="76" y="380">지도 말풍선 · 렌즈 밖 옅게</text>
-<rect class="blk" x="60"  y="430" width="180" height="60" rx="12"/><text class="bt" x="76" y="454">📍 현장 Request</text><text class="bs" x="76" y="474">원격 질문 → 퀵응답 버블</text>
+<rect class="blk" x="60"  y="430" width="180" height="60" rx="12"/><text class="bt" x="76" y="454">📍 현장 Request</text><text class="bs" x="76" y="474">질문(10분) → AI 팝업 응답</text>
 <rect class="blk" x="330" y="336" width="180" height="60" rx="12"/><text class="bt" x="346" y="360">📸 라이브 카메라</text><text class="bs" x="346" y="380">동+존 자동 태깅 업로드</text>
 <rect class="blk" x="330" y="430" width="180" height="60" rx="12"/><text class="bt" x="346" y="454">❤️ 좋아요</text><text class="bs" x="346" y="474">더블탭 · 계정당 1 · 실시간 합산</text>
 <rect class="blk" x="600" y="336" width="180" height="60" rx="12"/><text class="bt" x="616" y="360">⬡ 트렌드 존</text><text class="bs" x="616" y="380">하트합산 · 베스트 썸네일 카드</text>
