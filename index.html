@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.46.1" />
+  <link rel="stylesheet" href="style.css?v=1.47.0" />
 </head>
 <body>
 
@@ -58,7 +58,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.46.1</span>
+        <span id="app-version">v1.47.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -132,6 +132,7 @@
         <p class="section-hint">사진을 올리면 피드 탭에 노출돼요. 각 사진의 트렌드존을 지정하면 동(구역)이 자동으로 채워져요.</p>
         <div class="setting-row" style="margin-top:8px;"><label>그리드 열</label><select id="feed-cols" class="mini-select"><option value="1">1개 (전체폭)</option><option value="2">2개</option><option value="3">3개</option></select></div>
         <div class="setting-row"><label>사진 간격</label><select id="feed-gap" class="mini-select"><option value="0">없음</option><option value="0.6">최소</option><option value="1.2">좁게</option><option value="2.4">보통</option></select></div>
+        <div class="setting-row"><label>올린 시간</label><select id="feed-time" class="mini-select"><option value="ago">상대 (n분 전)</option><option value="clock">시각 (월/일 시:분)</option><option value="off">숨김</option></select></div>
       </div>
       <div class="settings-section">
         <h4>소셜 컨텐츠 (채팅방)</h4>
@@ -335,9 +336,11 @@
         <div id="content-add-menu" class="content-add-menu" aria-hidden="true">
           <button type="button" class="cam-item" data-add="spot"><span class="cam-ic">💬</span> 스팟 메시지</button>
           <button type="button" class="cam-item" data-add="photo"><span class="cam-ic">📸</span> 라이브 카메라</button>
+          <button type="button" class="cam-item" data-add="post"><span class="cam-ic">✍️</span> Feed 작성</button>
           <button type="button" class="cam-item" data-add="request"><span class="cam-ic">📍</span> 현장 Request</button>
         </div>
         <input type="file" id="feed-photo-input" accept="image/*" capture="environment" style="display:none" />
+        <input type="file" id="feed-post-input" accept="image/*" style="display:none" />
         <!-- 프로필 메뉴(우상단 P 클릭) : 계정 정보 + 로그아웃 -->
         <div id="phone-profile-menu" aria-hidden="true">
           <div class="ppm-top"><span class="acct-dot"></span><span id="ppm-email" class="ppm-email"></span></div>
@@ -392,7 +395,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.46.1"></script>
-  <script src="app.js?v=1.46.1"></script>
+  <script src="config.js?v=1.47.0"></script>
+  <script src="app.js?v=1.47.0"></script>
 </body>
 </html>
