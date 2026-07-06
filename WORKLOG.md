@@ -47,13 +47,14 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.53.1**
+- **현재 최신: v1.54.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-06)
 
-**최신 v1.53.1 · 라이브 정상.** 완료된 기능:
+**최신 v1.54.0 · 라이브 정상.** 완료된 기능:
+- **v1.54.0 Request 핀·드로어 정돈 + 존 리스트 정렬 + Ask Map (M07+M03+M08+M09 ⚠️교차)**: ①**Request 전용 맵 핀**(ReqPin 오버레이): 말풍선 폐지 → 보라 그라디언트 ? 티어드롭+펄스 링 2겹(현장에 질문 신호를 쏘는 특성, 스팟/피드 핀과 구분) ②드로어 섹션 타이틀 **이모지 제거+타이포 강화**(.ds-tt .92rem/900, 스팟 지역명은 .ds-sub 보조 라벨) ③Request 카드 위치의 📍 제거 ④**Request 삭제**(deleteRequest — 본인·관리자 🗑) ⑤**존 리스트 정렬**: 포커스 존 맨 앞 → ❤ 합산 → 가까운 순(sortedZonesForList), 포커스 카드=액센트 테두리+✓ 뱃지, idle·존 선택 시 재정렬 ⑥**Ask Map 패널**: 타이틀 'Ask Map'(그라디언트), 상단 [🗺 현재 지도 요약하기](aiMapSummary — 존/피드/스팟/Request 실데이터 브리핑), 템플릿 풀 **~50개 중 5개 랜덤**, 하단 **채팅 입력**(aiChatAnswer — 키워드 매칭→템플릿 답변, 미매칭=데모 안내). 트렌드 모드=패널 요소 화염 톤.
 - **v1.53.1 현장 Request 라이프사이클 (M07)**: ①**요청자 본인에겐 수신 팝업 안 뜸**(등록 직후 2.6s 자기 시뮬레이션 제거 — 팝업은 실시간 리스너의 타겟 지역 타인에게만) ②**10분 타임아웃**(`REQ_TTL_MS`): 만료 시 지도 마커·타인 드로어에서 숨김+답변 차단(alert), 시드(seed:true)는 데모 연출용 상시 활성, 30s 주기 재렌더로 경과 반영 ③드로어 **'🙋 내 Request' 뱃지**+상태(⏳ 답변 받는 중/⏱ 종료, 만료돼도 내 것은 계속 표시) + **💬 답변 N개 보기** 토글 — 카드 안에서 답변 목록(텍스트·📷사진 썸네일·시간) 확인.
 - **v1.53.0 현장 Request 실시간 팝업 개편 + 개발 모듈 체계**: ①Request의 **응답 대기/결과 상시 노출 제거**(드로어 카드 ⏳/💬 상태줄·지도 마커 답변 텍스트 폐지 — 등록 후 일정 시간 답변을 받는 모델이므로) ②**AI Agent 실시간 수신 팝업**: liveRequests onSnapshot docChanges에서 새 Request(3분 내·내 것 제외) 감지 → **타겟 지역**(`reqNearMe`: 보는 위치 1.5km 이내 또는 같은 동) 사용자에게 팝업 — AI Agent 칩+질문+📍위치+**응답 버튼 2개**(💬 답하기/📷 사진 올리기), 하단 네비바와 동일 프로스트 유리 문법(트렌드 모드=AI 칩 화염 그라디언트) ③답변 도착=**요청자에게만** 실시간 ai-bubble 알림(reqAnsSeen 카운트 비교, 첫 스냅샷 제외), 답변자는 '전송' 확인 ④**개발 모듈 체계**: `MODULES.md`(모듈 15종 레지스트리+세션 규칙) + `dev.html`(개발 관리 페이지 — 모듈 카드·상태·앵커·의존·**세션 프롬프트 복사**), 기능 보기에 🛠 개발 관리 링크. **앞으로 세션은 모듈 단위로 작업**(아래 🧱 참고).
 - **v1.52.0 UX 7종 — 스플래시 라이트·AI 프리셋·트렌드 불꽃·네비 스와이프·드로어 관리자 탭·Request 응답·피드 칩**: ①피드 존 칩=**Trend Zone 스코프에서만**(그 외엔 fc-region 동 표시) ②**스플래시 서비스 톤**(라이트 프로스트+브랜드 그라디언트 로고+📍마크) + **버전 노출**(#auth-ver, #app-version에서 JS 복사 — 버전 3곳 규칙 유지) ③**AI Agent 프리셋**(#ai-presets 패널): 클릭 시 상황(모드/탭/위치/존/Request 유무/시간대) 맞춤 질문 풀에서 **10개 랜덤**, 선택 시 데모 답변 말풍선 ④**트렌드 모드 AI 버튼=불꽃 톤**: body.mode-trend + .ai-flame(플리커 글로우 애니, 눈/입 다크레드), 그라디언트 팔레트 AI_PALETTE(트렌드 idle 주황→활성 화염 노랑·빨강 — 클릭 색상도 트렌드 전용) ⑤**하단 네비 좌우 스와이프**=지도↔피드↔소셜 전환(수평 40px+, 수직 우세 제외) ⑥**드로어 관리자 탭 분리**(#drawer-tabs 🧭둘러보기/🛠관리자, 관리자만 노출·localStorage 유지): 모바일 실기기 관리자도 데모 메뉴(존/Request/스팟) 접근 가능 — 데스크톱 폰 미러는 기존대로 데모 고정 ⑦**현장 Request 응답 버튼**: 드로어 카드에 💬답하기/📷사진(rqc-btn), 수신 버블에도 📷 사진 올리기 — 사진 답변은 answers[].img(compressNews 압축, 카드 썸네일 표시).
@@ -220,7 +221,11 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-07-07
-- **v1.53.1 — 현장 Request 라이프사이클 (M07)**:
+- **v1.54.0 — Request 핀·드로어 정돈 + 존 리스트 정렬 + Ask Map (M07+M03+M08+M09 ⚠️교차)**:
+  - **M07**: `ReqPin` OverlayView(initReqPinClass, initMap에서 초기화) — .req-pin(.rp-drop ? 티어드롭 rotate -45°, .rp-ring×2 rpPulse 2s 교차) 보라(#8ed0ff→#7b61ff)=AI Agent 채널 계열. renderRequestMarkers가 MapLabel→ReqPin. `deleteRequest(id)`(live=doc.delete/로컬=filter, confirm) + 카드 우상단 .rqc-del(본인∥관리자). rqc-place 📍 제거.
+  - **M09**: dsSection(key,title,sub) 3-인자 — 타이틀 이모지 제거('트렌드 존'/'현장 Request'/'스팟 메시지'), .ds-tl 래퍼+.ds-sub(스팟=포커스 지역명). .ds-tt .92rem·900·-0.02em.
+  - **M03**: `focusedZoneId`(선택>렌즈>센터 존)+`sortedZonesForList`(포커스→zoneTotalHearts→거리²). buildZoneScroll 정렬 적용+makeZoneCard(zone,focused) — .tz-card.focus(2.5px 액센트 링)+.tzf-check(✓ 원형 뱃지). phoneMap idle의 renderSummaryZones 갱신을 list 한정→트렌드 지도탭 상시로, selectPhoneZone 끝에 renderSummaryZones().
+  - **M08**: 패널 재구성 — .aip-head 'Ask Map'(브랜드 그라디언트 텍스트, 트렌드=화염), `#aip-summary`(.aip-special 풀폭 그라디언트)→`aiMapSummary()`(지역·렌즈·존 수·최고 인기 존 ❤·피드·스팟·활성 Request 브리핑, 9s), 템플릿 풀 40 공통+상황별(트렌드 6/베이직 3/탭·Request 1~2)≈**45~50개**, `aiRandomPresets(5)`. 하단 .aip-chat(input+➤)=`aiChatAnswer`(공백 분리 키워드 스코어 매칭). 입력/버튼 stopPropagation으로 패널 유지.
   - **요청자 팝업 제외**: openRequestComposer의 `setTimeout(showReqBubble, 2600)` 시뮬레이션 제거, 로컬 폴백 rq에도 `by:myUid()` 저장(내 Request 판정용). 전송 확인 버블에 '10분간 답변 수신' 명시.
   - **10분 타임아웃**: `REQ_TTL_MS=600000`, `reqActive(rq)`(seed=상시 활성), `isMyReq(rq)`. 적용: 지도 마커 필터·수신 팝업 게이트(3분→TTL, 시드 제외)·answerRequest 차단 가드·드로어 타인 카드 필터. 30s setInterval로 renderRequestMarkers(→드로어 포함) 재렌더.
   - **내 Request 답변 보기**: 드로어 카드 mine 분기 — .rqc-badges(🙋 내 Request 그라디언트 필+⏳/⏱ 상태), [💬 답변 N개 보기] 토글 → .rqc-answers 목록(.rqa-item: 텍스트/사진/timeAgo). 타인 카드는 기존 답하기/사진 유지. 리스너 매핑에 seed 필드 추가.

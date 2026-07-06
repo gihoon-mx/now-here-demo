@@ -636,7 +636,24 @@ button:focus:not(:focus-visible){outline:none;}
   background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   border:1px solid var(--glass-line);box-shadow:var(--sh-l),var(--glass-hi);transform-origin:88% bottom;}
 .ai-presets.show{display:block;animation:aiPop .4s cubic-bezier(.2,1.5,.4,1) both;}
-.aip-head{padding:.6cqw 1.2cqw 2.2cqw;font-size:2.8cqw;font-weight:800;letter-spacing:-0.01em;color:var(--ink2);}
+.aip-head{padding:.6cqw 1.2cqw 2.2cqw;font-size:3.6cqw;font-weight:900;letter-spacing:-0.02em;
+  background:linear-gradient(135deg,var(--acc),#7b61ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--acc);}
+body.mode-trend .aip-head{background:linear-gradient(135deg,#ff8c3c,#ff3d2e);-webkit-background-clip:text;background-clip:text;}
+/* 🗺 현재 지도 요약하기 — 상단 특별 버튼 */
+.aip-special{display:block;width:100%;margin-bottom:2cqw;padding:2.6cqw 3.2cqw;border:none;border-radius:3.6cqw;cursor:pointer;
+  font-family:inherit;font-size:3cqw;font-weight:800;letter-spacing:-0.01em;color:#fff;text-align:left;
+  background:linear-gradient(135deg,#6d9bf5,#7b61ff);box-shadow:0 0.8cqw 2.8cqw rgba(123,97,255,0.4),inset 0 1px 0 rgba(255,255,255,0.3);transition:transform .15s ease;}
+.aip-special:active{transform:scale(.98);}
+body.mode-trend .aip-special{background:linear-gradient(135deg,#ff8c3c,#ff3d2e);box-shadow:0 0.8cqw 2.8cqw rgba(255,61,46,0.4),inset 0 1px 0 rgba(255,255,255,0.3);}
+/* 하단 채팅 입력 */
+.aip-chat{display:flex;gap:1.6cqw;margin-top:2cqw;padding-top:2.2cqw;border-top:1px solid var(--line-soft);}
+.aip-chat input{flex:1;min-width:0;padding:2.2cqw 3cqw;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink);font-family:inherit;font-size:2.9cqw;outline:none;}
+.aip-chat input:focus{border-color:var(--acc);}
+body.mode-trend .aip-chat input:focus{border-color:#ff6a4d;}
+.aip-chat button{flex-shrink:0;width:9cqw;height:9cqw;border:none;border-radius:50%;cursor:pointer;color:#fff;font-size:3.4cqw;
+  background:linear-gradient(160deg,#6d9bf5,#4a7de4);box-shadow:0 0.8cqw 2.6cqw rgba(74,125,228,0.42);transition:transform .15s ease;}
+.aip-chat button:active{transform:scale(.92);}
+body.mode-trend .aip-chat button{background:linear-gradient(160deg,#ff8c3c,#ff3d2e);box-shadow:0 0.8cqw 2.6cqw rgba(255,61,46,0.42);}
 .aip-item{display:block;width:100%;margin-bottom:1.6cqw;padding:2.5cqw 3.2cqw;text-align:left;border:1px solid var(--line-soft);border-radius:3.6cqw;
   background:#fff;color:var(--ink);font-family:inherit;font-size:3.1cqw;font-weight:600;line-height:1.35;letter-spacing:-0.01em;cursor:pointer;transition:transform .12s ease,border-color .15s ease;}
 .aip-item:last-child{margin-bottom:0;}
@@ -714,7 +731,9 @@ body.role-admin #phone-drawer-body:not(.dv-admin) #settings-section{display:none
 #drawer-demo .drawer-sec:last-child{margin-bottom:0;}
 #drawer-demo .drawer-sec.folded{padding-bottom:10px;}
 .ds-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:2px 0 8px;border:none;background:none;cursor:pointer;font-family:inherit;}
-.ds-head .ds-tt{font-size:.8rem;font-weight:800;letter-spacing:-0.01em;color:var(--ink);}
+.ds-head .ds-tl{display:flex;align-items:baseline;gap:7px;min-width:0;}
+.ds-head .ds-tt{font-size:.92rem;font-weight:900;letter-spacing:-0.02em;color:var(--ink);} /* 이모지 없는 섹션 타이틀 */
+.ds-head .ds-sub{font-size:.7rem;font-weight:500;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ds-head .ds-chev{font-style:normal;font-size:.66rem;color:var(--ink3);transition:transform .25s cubic-bezier(.22,1,.36,1);}
 .drawer-sec.folded .ds-chev{transform:rotate(-90deg);}
 .drawer-sec.folded .ds-head{padding-bottom:2px;}
@@ -724,6 +743,10 @@ body.role-admin #phone-drawer-body:not(.dv-admin) #settings-section{display:none
 .tz-scroll{display:flex;gap:2.6cqw;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none;}
 .tz-scroll::-webkit-scrollbar{display:none;}
 .tz-card{position:relative;flex:0 0 auto;width:42cqw;height:50cqw;border:none;padding:0;cursor:pointer;font-family:inherit;border-radius:4cqw;overflow:hidden;box-shadow:var(--sh-s);background:#e9edf3;}
+/* 포커스된 존 카드: 액센트 테두리 + 체크 뱃지 (리스트 맨 앞) */
+.tz-card.focus{box-shadow:0 0 0 2.5px var(--acc),var(--sh-m,var(--sh-s));}
+.tzf-check{position:absolute;top:2cqw;right:2cqw;z-index:3;width:6.2cqw;height:6.2cqw;display:flex;align-items:center;justify-content:center;border-radius:50%;
+  background:var(--acc);color:#fff;font-size:3.4cqw;font-weight:900;box-shadow:0 0.6cqw 2cqw rgba(47,123,255,0.45);}
 .tz-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:none;border-radius:0;box-shadow:none;}
 .tz-ph{display:flex;align-items:center;justify-content:center;font-size:15cqw;}
 .tz-card::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,14,22,0) 55%,rgba(10,14,22,0.28) 100%);pointer-events:none;}
@@ -763,7 +786,9 @@ body.role-admin #phone-drawer-body:not(.dv-admin) #settings-section{display:none
 /* 현장 Request 카드 · 가로 스크롤 */
 .rq-scroll{display:flex;gap:2.4cqw;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none;}
 .rq-scroll::-webkit-scrollbar{display:none;}
-.rq-card{flex:0 0 auto;width:52cqw;display:flex;flex-direction:column;align-items:flex-start;gap:1.2cqw;text-align:left;background:#fff;border:1px solid var(--line-soft);border-radius:3.4cqw;padding:2.8cqw 3.2cqw;box-shadow:var(--sh-s);cursor:pointer;font-family:inherit;}
+.rq-card{position:relative;flex:0 0 auto;width:52cqw;display:flex;flex-direction:column;align-items:flex-start;gap:1.2cqw;text-align:left;background:#fff;border:1px solid var(--line-soft);border-radius:3.4cqw;padding:2.8cqw 3.2cqw;box-shadow:var(--sh-s);cursor:pointer;font-family:inherit;}
+.rqc-del{position:absolute;top:1.6cqw;right:1.6cqw;z-index:2;width:6cqw;height:6cqw;display:flex;align-items:center;justify-content:center;border:none;border-radius:50%;background:rgba(15,23,42,0.05);font-size:2.7cqw;cursor:pointer;opacity:.75;transition:all .15s ease;}
+.rqc-del:hover{background:rgba(224,73,47,0.12);opacity:1;}
 .rqc-place{font-size:2.5cqw;font-weight:800;color:var(--acc-deep);}
 .rqc-q{font-size:2.9cqw;font-weight:700;color:var(--ink);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .rqc-a{font-size:2.5cqw;font-weight:600;color:#1d8a4e;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -773,6 +798,19 @@ body.role-admin #phone-drawer-body:not(.dv-admin) #settings-section{display:none
 .rqc-actions{display:flex;gap:1.6cqw;width:100%;margin-top:0.6cqw;}
 .rqc-btn{flex:1;padding:1.6cqw 0;border:1px solid var(--line);border-radius:2.6cqw;background:#fff;color:var(--ink2);font-family:inherit;font-size:2.5cqw;font-weight:700;cursor:pointer;transition:all .15s ease;}
 .rqc-btn:hover,.rqc-btn:active{border-color:var(--acc);color:var(--acc);background:rgba(47,123,255,0.06);}
+/* 현장 Request 전용 맵 핀: 펄스 링(현장에 질문 신호) + ? 티어드롭 — AI Agent 보라 계열 */
+.req-pin{position:absolute;transform:translate(-50%,-100%);width:40px;height:44px;pointer-events:none;z-index:5;}
+.req-pin .rp-drop{position:absolute;left:50%;top:2px;width:26px;height:26px;margin-left:-13px;
+  background:linear-gradient(150deg,#8ed0ff,#7b61ff);border:2px solid #fff;
+  border-radius:50% 50% 50% 6px;transform:rotate(-45deg);transform-origin:center;
+  box-shadow:0 3px 10px rgba(123,97,255,0.45);}
+.req-pin .rp-drop i{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  transform:rotate(45deg);font-style:normal;font-size:14px;font-weight:900;color:#fff;line-height:1;}
+.req-pin .rp-ring{position:absolute;left:50%;top:15px;width:26px;height:26px;margin-left:-13px;border-radius:50%;
+  border:2px solid rgba(123,97,255,0.55);animation:rpPulse 2s ease-out infinite;}
+.req-pin .rp-ring.r2{animation-delay:1s;}
+@keyframes rpPulse{0%{transform:scale(.5);opacity:.9;}80%{transform:scale(2.1);opacity:0;}100%{transform:scale(2.1);opacity:0;}}
+
 /* 내 Request 카드: 뱃지(내 Request/상태) + 답변 목록 펼침 */
 .rq-card.mine{border-color:rgba(47,123,255,0.35);}
 .rqc-badges{display:flex;align-items:center;gap:1.6cqw;}
