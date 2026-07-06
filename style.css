@@ -171,7 +171,7 @@ button:focus:not(:focus-visible){outline:none;}
 .map-label-tag{position:absolute;transform:translate(-50%,-50%);padding:3px 10px;border-radius:20px;font-family:inherit;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;pointer-events:none;letter-spacing:.01em;box-shadow:0 2px 10px rgba(0,0,0,0.4),0 0 0 1px rgba(255,255,255,0.08);text-shadow:0 1px 2px rgba(0,0,0,0.4);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
 
 /* ========== 스팟 메시지 말풍선 ========== */
-.spot-marker{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;pointer-events:auto;cursor:pointer;transition:opacity .25s ease;}
+.spot-marker{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;pointer-events:auto;cursor:pointer;transition:opacity .25s ease;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;} /* touch-action/user-select — 롱프레스 드래그 중 pointercancel·iOS 셀렉션 방지(지도 팬은 JS라 영향 없음) */
 /* 포커스 렌즈/선택 존 밖 스팟: 살짝 가라앉혀 현재 구역 컨텐츠에 몰입 */
 .spot-marker.spot-out{opacity:.42;}
 .spot-bubble{max-width:180px;padding:4px 7px;border-radius:13px;font-family:inherit;font-weight:600;line-height:1.3;white-space:pre-wrap;word-break:break-word;text-align:center;background:var(--spot-bg,#1c66e5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);position:relative;transition:transform .16s cubic-bezier(.34,1.56,.64,1);transform-origin:center bottom;} /* 그림자 없음 · 배경 살짝 흐림(반투명 배경일 때 유리 느낌) */
@@ -813,11 +813,21 @@ body.role-user #allowlist-btn{display:none!important;}
 #social-page.open{display:flex;flex-direction:column;overflow:hidden;}
 /* 피드 그리드 */
 #feed-tools{display:flex;align-items:center;justify-content:space-between;gap:1cqw;padding:2cqw 3cqw 0;}
-#feed-tools .fsc-group,#feed-tools .fcq-group{display:flex;gap:1cqw;align-items:center;}
+#feed-tools .fsc-group{display:flex;gap:1cqw;align-items:center;}
 #feed-tools .fsc{border:1px solid var(--line-soft);border-radius:3cqw;background:rgba(255,255,255,0.85);color:var(--ink3);font-family:inherit;font-size:2.5cqw;font-weight:700;padding:1.1cqw 2.4cqw;cursor:pointer;white-space:nowrap;}
 #feed-tools .fsc.active{background:var(--acc);border-color:transparent;color:#fff;}
-#feed-tools .fcq{width:5.6cqw;height:5.6cqw;border:1px solid var(--line-soft);border-radius:1.8cqw;background:rgba(255,255,255,0.85);color:var(--ink3);font-family:inherit;font-size:2.5cqw;font-weight:700;cursor:pointer;}
-#feed-tools .fcq.active{background:var(--acc);border-color:transparent;color:#fff;}
+/* view 버튼 하나 → 보기 옵션 팝오버 (가로 배열 · 컨텐츠 종류 필터) */
+#feed-tools .fview-wrap{position:relative;}
+#feed-view-btn{width:6.2cqw;height:6.2cqw;display:flex;align-items:center;justify-content:center;border:1px solid var(--line-soft);border-radius:1.8cqw;background:rgba(255,255,255,0.85);color:var(--ink3);cursor:pointer;padding:0;}
+#feed-view-btn svg{width:60%;height:60%;}
+#feed-view-pop{position:absolute;right:0;top:calc(100% + 1.4cqw);z-index:60;display:none;flex-direction:column;gap:1.4cqw;min-width:52cqw;padding:2.8cqw;border-radius:3cqw;background:rgba(255,255,255,0.94);backdrop-filter:blur(var(--glass-blur,20px));-webkit-backdrop-filter:blur(var(--glass-blur,20px));border:1px solid var(--line-soft);box-shadow:0 8px 26px rgba(15,23,42,0.16);}
+#feed-view-pop.open{display:flex;}
+#feed-view-pop .fv-lb{font-size:2.4cqw;font-weight:800;color:var(--ink3);}
+#feed-view-pop .fv-row{display:flex;gap:1.2cqw;flex-wrap:wrap;}
+#feed-view-pop .fvc{width:6.6cqw;height:6.6cqw;border:1px solid var(--line-soft);border-radius:1.8cqw;background:rgba(255,255,255,0.9);color:var(--ink3);font-family:inherit;font-size:2.6cqw;font-weight:700;cursor:pointer;}
+#feed-view-pop .fvc.active{background:var(--acc);border-color:transparent;color:#fff;}
+#feed-view-pop .fvt{border:1px solid var(--line-soft);border-radius:3cqw;background:rgba(255,255,255,0.9);color:var(--ink3);font-family:inherit;font-size:2.5cqw;font-weight:700;padding:1.1cqw 2.2cqw;cursor:pointer;white-space:nowrap;opacity:.55;}
+#feed-view-pop .fvt.active{background:rgba(47,123,255,0.10);border-color:var(--acc);color:var(--acc);opacity:1;}
 #feed-page{touch-action:pan-y;} /* 핀치는 열 변경에 사용 */
 #feed-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2cqw;padding:3cqw;}
 /* 피드 카드 = 전 열수 1:1 비율 통일 (v1.47.0) */
@@ -845,11 +855,17 @@ body.role-user #allowlist-btn{display:none!important;}
 .feed-card .fc-like.on{color:#ff7d9b;}
 .feed-card.txt .fc-like{color:#e0245e;background:rgba(224,36,94,0.1);backdrop-filter:none;-webkit-backdrop-filter:none;}
 .fc-heart{position:absolute;left:50%;top:50%;font-size:10cqw;color:#ff4d6d;pointer-events:none;text-shadow:0 2px 10px rgba(0,0,0,0.25);animation:heartPop 1.15s cubic-bezier(.22,1,.36,1) forwards;}
-/* 피드 썸네일 지도 핀: 원형 사진 + 흰 링 (글로우 없음, 옅은 드롭섀도만) */
-.feed-pin{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(15,23,42,0.28);overflow:hidden;background:#dfe3ea;pointer-events:none;transition:width .15s,height .15s;}
+/* 피드 썸네일 지도 핀: 원형 사진 + 흰 링 (글로우 없음, 옅은 드롭섀도만) — 뱃지가 밖으로 나가도록 래퍼(.fp-im)에 라운드 */
+.feed-pin{position:absolute;transform:translate(-50%,-50%);pointer-events:none;transition:width .15s,height .15s;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+.feed-pin .fp-im{width:100%;height:100%;box-sizing:border-box;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(15,23,42,0.28);overflow:hidden;background:#dfe3ea;}
 .feed-pin img{width:100%;height:100%;object-fit:cover;display:block;-webkit-user-drag:none;user-select:none;}
-.feed-pin.editable{pointer-events:auto;cursor:grab;touch-action:none;} /* 만든이·관리자 = 드래그로 위치 이동 */
-.feed-pin.editable.dragging{cursor:grabbing;box-shadow:0 3px 9px rgba(15,23,42,0.38);}
+.feed-pin.editable{pointer-events:auto;cursor:grab;touch-action:none;} /* 만든이·관리자 = 롱프레스(터치)/드래그(마우스)로 위치 이동 */
+.feed-pin.editable.dragging{cursor:grabbing;}
+.feed-pin.editable.dragging .fp-im{box-shadow:0 3px 9px rgba(15,23,42,0.38);}
+/* 클러스터 핀: 겹친 사진 느낌 + 개수 뱃지, 탭=펼치기 */
+.feed-pin.cluster{pointer-events:auto;cursor:pointer;touch-action:manipulation;}
+.feed-pin.cluster .fp-im{box-shadow:0 1px 5px rgba(15,23,42,0.28),3.5px 3.5px 0 -1.5px #fff,4px 4.5px 6px rgba(15,23,42,0.22);}
+.feed-pin .fp-n{position:absolute;right:-5px;top:-5px;min-width:16px;height:16px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:0 4px;border-radius:9px;background:var(--acc);border:1.5px solid #fff;color:#fff;font-size:10px;font-weight:800;line-height:1;}
 /* 자연스러운 하트: 통통 팝 → 잠시 머무름 → 위로 떠오르며 서서히 사라짐 */
 @keyframes heartPop{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.3);}
