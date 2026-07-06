@@ -952,16 +952,23 @@ body.role-user #allowlist-btn{display:none!important;}
 #soc-inputbar input:focus{border-color:var(--acc);}
 #soc-inputbar button{flex-shrink:0;border:none;border-radius:5cqw;background:var(--acc);color:#fff;font-family:inherit;font-size:3cqw;font-weight:700;padding:0 4.2cqw;cursor:pointer;}
 /* 현장 Request 수신 버블 (우하단 · AI 버블 문법) */
-.req-bubble{position:absolute;right:3cqw;bottom:calc(21cqw + env(safe-area-inset-bottom,0px));z-index:8;width:66cqw;padding:3cqw 3.4cqw;border-radius:4cqw;
-  background:rgba(255,255,255,0.95);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-  border:1px solid var(--glass-line);box-shadow:var(--sh-l),var(--glass-hi);transform-origin:88% bottom;display:none;}
+.req-bubble{position:absolute;right:3cqw;bottom:calc(21cqw + env(safe-area-inset-bottom,0px));z-index:8;width:66cqw;padding:3cqw 3.4cqw;border-radius:5cqw;
+  background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid var(--glass-line);box-shadow:0 1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);transform-origin:88% bottom;display:none;}
 .req-bubble.show{display:block;animation:aiPop .5s cubic-bezier(.2,1.6,.35,1) both;}
-.req-bubble .rq-head{font-size:2.7cqw;font-weight:800;color:var(--acc-deep);margin-bottom:1.2cqw;}
-.req-bubble .rq-text{font-size:3.2cqw;font-weight:700;color:var(--ink);line-height:1.4;margin-bottom:2.2cqw;}
-.req-bubble .rq-actions{display:flex;flex-wrap:wrap;gap:1.4cqw;}
-.req-bubble .rq-quick{border:1px solid rgba(47,123,255,0.35);background:rgba(47,123,255,0.07);color:var(--acc-deep);font-family:inherit;font-size:2.8cqw;font-weight:700;padding:1.6cqw 2.8cqw;border-radius:3.2cqw;cursor:pointer;}
-.req-bubble .rq-quick:active{transform:scale(.95);}
-.req-bubble .rq-direct{border-style:dashed;}
+/* AI Agent 수신 팝업 — 하단 네비바와 같은 프로스트 유리 문법 */
+.req-bubble .rq-agent{display:flex;align-items:center;gap:1.6cqw;font-size:2.7cqw;font-weight:800;letter-spacing:-0.01em;color:var(--ink2);margin-bottom:1.8cqw;}
+.req-bubble .rq-ai{display:inline-flex;align-items:center;justify-content:center;width:5.4cqw;height:5.4cqw;border-radius:50%;font-size:2.9cqw;color:#fff;
+  background:linear-gradient(135deg,#8ed0ff,#a78bfa);box-shadow:0 0.6cqw 2cqw rgba(154,119,221,0.4);}
+body.mode-trend .req-bubble .rq-ai{background:linear-gradient(135deg,#ffb37a,#ff3d2e);box-shadow:0 0.6cqw 2cqw rgba(255,90,60,0.4);}
+.req-bubble .rq-text{font-size:3.3cqw;font-weight:700;color:var(--ink);line-height:1.4;margin-bottom:1cqw;}
+.req-bubble .rq-place{font-size:2.7cqw;font-weight:700;color:var(--acc-deep);margin-bottom:2.4cqw;}
+.req-bubble .rq-actions{display:flex;gap:2cqw;}
+/* 응답 버튼 2개: 네비 활성 칩과 동일한 필 문법 (파랑 그라디언트 / 화이트 유리) */
+.rq-btn{flex:1;padding:2.4cqw 0;border-radius:5cqw;font-family:inherit;font-size:2.9cqw;font-weight:800;letter-spacing:-0.01em;cursor:pointer;transition:transform .15s ease;
+  border:1px solid var(--glass-line);background:var(--frost);color:#3c434e;box-shadow:0 0.8cqw 2.6cqw rgba(16,24,40,0.12),var(--glass-hi);}
+.rq-btn.primary{border:none;color:#fff;background:linear-gradient(160deg,#6d9bf5,#4a7de4);box-shadow:0 0.8cqw 2.6cqw rgba(74,125,228,0.42),inset 0 1px 0 rgba(255,255,255,0.3);}
+.rq-btn:active{transform:scale(.96);}
 /* 기능 맵 페이지 */
 #feature-btn{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font-family:inherit;font-size:.8rem;font-weight:700;letter-spacing:.01em;cursor:pointer;transition:all .2s ease;display:flex;align-items:center;justify-content:space-between;gap:4px;}
 #feature-btn:hover{background:#f2f5f9;border-color:rgba(15,23,42,0.2);}
@@ -969,7 +976,7 @@ body.role-user #allowlist-btn{display:none!important;}
 .ft-docs{display:flex;gap:8px;margin-bottom:10px;}
 .ft-docs a{flex:1;text-align:center;text-decoration:none;font-size:.78rem;font-weight:800;padding:10px 8px;border-radius:11px;letter-spacing:-0.01em;}
 .ft-docs a:first-child{background:var(--acc);color:#fff;box-shadow:0 4px 14px rgba(47,123,255,0.3);}
-.ft-docs a:last-child{border:1.5px solid rgba(47,123,255,0.35);color:var(--acc-deep);background:rgba(47,123,255,0.06);}
+.ft-docs a:not(:first-child){border:1.5px solid rgba(47,123,255,0.35);color:var(--acc-deep);background:rgba(47,123,255,0.06);}
 .ft-grp{font-size:.66rem;font-weight:800;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 7px;}
 .ft-grp:first-child{margin-top:0;}
 .ft-card{padding:10px 12px;border:1px solid var(--line-soft);border-radius:11px;background:#fff;box-shadow:var(--sh-s);margin-bottom:7px;transition:box-shadow .3s ease;}

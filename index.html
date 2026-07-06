@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.52.0" />
+  <link rel="stylesheet" href="style.css?v=1.53.0" />
 </head>
 <body>
 
@@ -60,7 +60,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.52.0</span>
+        <span id="app-version">v1.53.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -339,8 +339,9 @@
           <div class="aip-list" id="aip-list"></div>
         </div>
         <div id="req-bubble" class="req-bubble" aria-hidden="true">
-          <div class="rq-head">📍 <span id="rq-place"></span> · 현장 Request</div>
+          <div class="rq-agent"><span class="rq-ai" aria-hidden="true">✦</span>AI Agent · 현장 Request</div>
           <div class="rq-text" id="rq-text"></div>
+          <div class="rq-place">📍 <span id="rq-place"></span></div>
           <div class="rq-actions" id="rq-actions"></div>
         </div>
         <!-- 컨텐츠 추가 팝업 (스팟 메시지 / 피드 사진) -->
@@ -372,8 +373,9 @@
     <div class="modal-card feature-card">
       <div class="modal-head"><span>🧩 기능 보기</span><button id="feature-close" class="acct-btn" type="button">✕</button></div>
       <div class="ft-docs">
-        <a href="deck.html" target="_blank" rel="noopener">📽 서비스 소개 덱</a>
-        <a href="diagram.html" target="_blank" rel="noopener">🧩 블럭 다이어그램</a>
+        <a href="deck.html" target="_blank" rel="noopener">📽 소개 덱</a>
+        <a href="diagram.html" target="_blank" rel="noopener">🧩 다이어그램</a>
+        <a href="dev.html" target="_blank" rel="noopener">🛠 개발 관리</a>
       </div>
       <p class="section-hint">하이퍼로컬 SNS 기능 구성과 관계도. 관계 칩(↔)을 누르면 해당 기능으로 이동합니다.</p>
       <div id="feature-body"></div>
@@ -407,7 +409,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.52.0"></script>
-  <script src="app.js?v=1.52.0"></script>
+  <script src="config.js?v=1.53.0"></script>
+  <script src="app.js?v=1.53.0"></script>
 </body>
 </html>

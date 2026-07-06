@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Now Here — 개발 관리</title>
+<link rel="icon" type="image/jpeg" href="favicon.jpg" />
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--acc:#2f7bff;--acc-deep:#1f5fe0;--ink:#20242c;--ink2:#555b66;--ink3:#8a919d;--line:rgba(15,23,42,0.1);--bg:#eef1f6;}
+body{font-family:'Pretendard Variable',Pretendard,'Apple SD Gothic Neo',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding:26px 18px 70px;}
+header{max-width:1060px;margin:0 auto 16px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+h1{font-size:1.35rem;font-weight:900;letter-spacing:-0.02em;}
+h1 span{color:var(--acc-deep);}
+header p{font-size:.78rem;color:var(--ink3);margin-top:3px;}
+.links a{text-decoration:none;font-size:.78rem;font-weight:800;color:var(--acc-deep);background:rgba(47,123,255,0.1);padding:7px 13px;border-radius:999px;margin-left:6px;white-space:nowrap;}
+.wrap{max-width:1060px;margin:0 auto;}
+.rules{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px 18px;box-shadow:0 8px 24px rgba(16,24,40,0.08);margin-bottom:16px;}
+.rules h2{font-size:.92rem;font-weight:900;margin-bottom:8px;}
+.rules ol{margin-left:18px;font-size:.8rem;line-height:1.75;color:var(--ink2);}
+.rules b{color:var(--ink);}
+.rules .repo{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.76rem;background:rgba(47,123,255,0.08);color:var(--acc-deep);padding:2px 7px;border-radius:6px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+.mod{position:relative;background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px 16px 13px;box-shadow:0 8px 24px rgba(16,24,40,0.08);display:flex;flex-direction:column;gap:8px;}
+.mod-top{display:flex;align-items:center;gap:8px;}
+.mod-id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.7rem;font-weight:800;color:var(--ink3);}
+.mod-name{font-size:.95rem;font-weight:900;letter-spacing:-0.01em;flex:1;}
+.st{font-size:.64rem;font-weight:800;padding:3px 9px;border-radius:999px;letter-spacing:.02em;}
+.st.stable{background:rgba(52,194,110,0.12);color:#1d8a4e;}
+.st.active{background:rgba(47,123,255,0.12);color:var(--acc-deep);}
+.st.plan{background:rgba(15,23,42,0.07);color:var(--ink3);}
+.mod-desc{font-size:.78rem;line-height:1.55;color:var(--ink2);}
+.mod-meta{font-size:.68rem;color:var(--ink3);}
+.mod-meta b{color:var(--ink2);font-weight:700;}
+.anchors{display:flex;flex-wrap:wrap;gap:4px;}
+.anchors code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.66rem;background:rgba(15,23,42,0.05);border:1px solid var(--line);color:var(--ink2);padding:2px 6px;border-radius:6px;}
+.deps{display:flex;flex-wrap:wrap;gap:4px;}
+.deps span{font-size:.64rem;font-weight:700;color:#9a77dd;background:rgba(154,119,221,0.1);padding:2px 8px;border-radius:999px;}
+.copy{margin-top:2px;align-self:flex-start;border:1.5px solid rgba(47,123,255,0.35);background:rgba(47,123,255,0.06);color:var(--acc-deep);font-family:inherit;font-size:.72rem;font-weight:800;padding:7px 13px;border-radius:10px;cursor:pointer;transition:all .15s ease;}
+.copy:hover{background:rgba(47,123,255,0.14);}
+.copy.ok{background:#1d8a4e;border-color:#1d8a4e;color:#fff;}
+footer{max-width:1060px;margin:20px auto 0;font-size:.7rem;color:var(--ink3);text-align:center;line-height:1.7;}
+footer code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(15,23,42,0.05);padding:1px 6px;border-radius:5px;}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>🛠 <span>Now Here</span> 개발 관리</h1><p>모듈 레지스트리 · 세션별 모듈 단위 작업 — 소스: MODULES.md</p></div>
+  <div class="links"><a href="./">📱 라이브 데모</a><a href="deck.html">📽 소개 덱</a><a href="diagram.html">🧩 다이어그램</a></div>
+</header>
+<div class="wrap">
+  <div class="rules">
+    <h2>🧱 세션 워크플로우</h2>
+    <ol>
+      <li>repo: <span class="repo">gihoon-mx/now-here-demo</span> — 세션 시작 시 <b>WORKLOG.md → MODULES.md</b> 순으로 읽기</li>
+      <li><b>한 세션 = 한 모듈.</b> 아래 카드의 [세션 프롬프트 복사]로 시작 프롬프트를 만들어 모듈 ID를 명시</li>
+      <li>다른 모듈 코드는 수정 금지 — 불가피한 교차 수정은 WORKLOG에 <b>⚠️교차: M##</b> 표기</li>
+      <li>완료 시: 버전 3곳 동기화 → WORKLOG + MODULES.md(상태/최근 버전) 갱신 → commit·push</li>
+    </ol>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+<footer>모듈 정의·규칙 변경은 <code>MODULES.md</code>를 먼저 고치고 이 페이지(<code>dev.html</code>)의 데이터를 동기화하세요. · M14 pages</footer>
+<script>
+var MODS=[
+ {id:'M01',emoji:'🗺️',name:'core-map 지도 코어',st:'stable',ver:'v1.28',files:'app.js',desc:'지도 초기화·GeoJSON 동 경계·베이직/트렌드 모드 전환·메인 지도 이벤트.',anchors:['initMap','applyGeoJsonToMap','switchMode','refreshMapStyles'],deps:[]},
+ {id:'M02',emoji:'🔍',name:'lens 포커스 렌즈',st:'stable',ver:'v1.28',files:'app.js',desc:'베이직/트렌드 마스크 렌즈 — 주변 포그·헤어라인·페이드 전환·히스테리시스.',anchors:['updatePhoneLens','lensBuild','lensApply','holeRing'],deps:['M01']},
+ {id:'M03',emoji:'⬡',name:'zones 트렌드 존',st:'stable',ver:'v1.51',files:'app.js',desc:'헥사 그리드·존 생성/편집/삭제·존 카드(글래스/리스트)·병합 아웃라인·하트 합산.',anchors:['generateHexagons','trendZones','zoneOutlineLoops','makeZoneCard'],deps:['M01']},
+ {id:'M04',emoji:'💬',name:'spots 스팟 메시지',st:'stable',ver:'v1.51',files:'app.js',desc:'스팟 버블(지도 고정 크기)·컴포저·본인 편집/드래그·드로어 워드클라우드.',anchors:['SpotBubble','SpotComposer','renderSpots','canEditSpot'],deps:['M01','M12']},
+ {id:'M05',emoji:'🖼️',name:'feed 피드',st:'active',ver:'v1.52',files:'app.js',desc:'피드 탭 그리드·스코프/종류 필터·썸네일 핀+클러스터·좋아요·업로드(카메라/갤러리).',anchors:['renderFeed','feedEntriesScoped','FeedThumb','clusterFeedPins','toggleLike'],deps:['M01','M12']},
+ {id:'M06',emoji:'👥',name:'social 소셜',st:'stable',ver:'v1.45',files:'app.js',desc:'동네 채팅방(포커스 구역)·주제방·프라이빗·liveChat 실시간 공유.',anchors:['renderSocial','socRoomList','roomMsgs'],deps:['M12']},
+ {id:'M07',emoji:'📍',name:'request 현장 Request',st:'active',ver:'v1.53',files:'app.js',desc:'Request 등록 → 타겟 지역 사용자에게 AI Agent 실시간 응답 팝업(💬답하기·📷사진) → 요청자에게 도착 알림.',anchors:['openRequestComposer','showReqBubble','reqNearMe','answerRequest'],deps:['M01','M08','M12']},
+ {id:'M08',emoji:'🤖',name:'ai-agent AI 에이전트',st:'active',ver:'v1.53',files:'app.js',desc:'우하단 AI 버튼·상황 맞춤 프리셋 10 랜덤·모드별 아이콘 톤(트렌드=불꽃)·알림 말풍선.',anchors:['initAiAgent','aiPresetPool','updateAiVisual','AI_PALETTE'],deps:['M07']},
+ {id:'M09',emoji:'📱',name:'shell 폰 셸',st:'stable',ver:'v1.52',files:'app.js',desc:'폰 미러 레이아웃·탭 전환(네비 스와이프)·햄버거 드로어(둘러보기/관리자 탭)·헤더.',anchors:['initPhoneMirror','switchTab','initPhoneMenu','renderDrawerDemo','setDrawerView'],deps:['M05','M06']},
+ {id:'M10',emoji:'📰',name:'news 요약 지면',st:'stable',ver:'v1.46',files:'app.js',desc:'헤더 아래 캐러셀 지면(탭별)·카드 3버전·접기·연관 피드 자동 노출.',anchors:['renderNews','newsItems','initSummaryCollapse'],deps:['M05']},
+ {id:'M11',emoji:'⚙️',name:'settings 관리자 설정',st:'stable',ver:'v1.48',files:'app.js',desc:'설정 블록(드래프트→적용)·미니 프리뷰·기본값/취소·클라우드 저장.',anchors:['BLOCK_DEFS','MINI_RENDER','initDraft','initBlockBars'],deps:['M12']},
+ {id:'M12',emoji:'🔐',name:'auth-sync 인증·동기화',st:'stable',ver:'v1.52',files:'app.js · firestore.rules',desc:'Google 로그인·allowlist 역할·스플래시·shared/live 컬렉션 실시간 리스너.',anchors:['initAuth','showAuthOverlay','liveOn','loadSharedContent','cloudSave'],deps:[]},
+ {id:'M13',emoji:'🌱',name:'seed 데모 시드',st:'stable',ver:'v1.51',files:'app.js',desc:'강남·역삼·논현 시드 데이터(피드/스팟/Request/채팅)·🌱채우기/🧹비우기.',anchors:['SEED_FEED','SEED_IMG','initDemoSeed','clearDemoData'],deps:['M12']},
+ {id:'M14',emoji:'📄',name:'pages 정적 페이지',st:'active',ver:'v1.53',files:'deck.html · diagram.html · dev.html',desc:'소개 덱·기능 블럭 다이어그램·개발 관리(이 페이지) — 인증 불필요 독립 문서.',anchors:[],deps:[]},
+ {id:'M15',emoji:'🎨',name:'tokens 디자인 토큰',st:'stable',ver:'v1.52',files:'style.css',desc:':root CSS 변수(--acc/--frost/--glass-*)·프로스트 유리 공통 문법·타이포 위계.',anchors:[':root','--frost','--glass-blur'],deps:[]}
+];
+var ST={stable:'안정',active:'활성 개발',plan:'계획'};
+function promptFor(m){
+  return 'now-here-demo 프로젝트(gihoon-mx/now-here-demo)를 이어서 작업할 거야.\n'
+    +'먼저 repo 루트의 WORKLOG.md와 MODULES.md를 읽고 현재 상태와 규칙을 파악해줘.\n\n'
+    +'이번 세션은 ['+m.id+' '+m.name+'] 모듈만 작업해:\n'
+    +'- 범위: '+m.desc+'\n'
+    +'- 코드 앵커: '+(m.anchors.length?m.anchors.join(', '):m.files)+' ('+m.files+')\n'
+    +'- 다른 모듈 코드는 수정하지 마. 불가피한 교차 수정은 WORKLOG에 ⚠️교차 표기.\n\n'
+    +'작업 내용: [여기에 작업 내용]\n\n'
+    +'작업 중 로컬 프리뷰로 검증하고, 끝나면 버전 3곳 동기화 + WORKLOG·MODULES.md 갱신 후 commit·push 해줘.';
+}
+var g=document.getElementById('grid');
+MODS.forEach(function(m){
+  var d=document.createElement('div');d.className='mod';
+  d.innerHTML='<div class="mod-top"><span style="font-size:1.1rem">'+m.emoji+'</span><span class="mod-name">'+m.name+'</span><span class="st '+m.st+'">'+ST[m.st]+'</span></div>'
+    +'<div class="mod-meta"><span class="mod-id">'+m.id+'</span> · <b>'+m.files+'</b> · 최근 '+m.ver+'</div>'
+    +'<div class="mod-desc">'+m.desc+'</div>'
+    +(m.anchors.length?'<div class="anchors">'+m.anchors.map(function(a){return '<code>'+a+'</code>';}).join('')+'</div>':'')
+    +(m.deps.length?'<div class="deps">'+m.deps.map(function(x){return '<span>↔ '+x+'</span>';}).join('')+'</div>':'');
+  var btn=document.createElement('button');btn.type='button';btn.className='copy';btn.textContent='📋 세션 프롬프트 복사';
+  btn.addEventListener('click',function(){
+    var txt=promptFor(m);
+    function done(){btn.classList.add('ok');btn.textContent='✅ 복사됨';setTimeout(function(){btn.classList.remove('ok');btn.textContent='📋 세션 프롬프트 복사';},1600);}
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(done,function(){window.prompt('아래 내용을 복사하세요',txt);});}
+    else window.prompt('아래 내용을 복사하세요',txt);
+  });
+  d.appendChild(btn);
+  g.appendChild(d);
+});
+</script>
+</body>
+</html>
