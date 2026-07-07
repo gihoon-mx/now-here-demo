@@ -18,7 +18,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.60.0" />
+  <link rel="stylesheet" href="style.css?v=1.61.0" />
 </head>
 <body>
 
@@ -61,7 +61,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.60.0</span>
+        <span id="app-version">v1.61.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -334,6 +334,13 @@
               </g>
               <ellipse cx="17.6" cy="21" rx="2" ry="2.7" fill="#2b3038"/>
               <ellipse cx="26.4" cy="21" rx="2" ry="2.7" fill="#2b3038"/>
+              <g class="ai-shades" aria-hidden="true"><!-- 트렌드 모드 전용 선글라스 (CSS .ai-flame로 표시) -->
+                <path d="M11 18.4 L14 19.3 M33 18.4 L30 19.3" stroke="#1d222b" stroke-width="1.4" stroke-linecap="round"/>
+                <rect x="13.5" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
+                <rect x="22.3" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
+                <path d="M21.4 20 h1.4" stroke="#1d222b" stroke-width="1.8" stroke-linecap="round"/>
+                <path class="sh-hi" d="M15.2 19.9 q1.5 -0.9 3 0" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1" stroke-linecap="round"/>
+              </g>
               <path d="M17.8 25.8 Q22 29.2 26.2 25.8" fill="none" stroke="#2b3038" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
@@ -430,7 +437,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=1.60.0"></script>
-  <script src="app.js?v=1.60.0"></script>
+  <script src="config.js?v=1.61.0"></script>
+  <script src="app.js?v=1.61.0"></script>
 </body>
 </html>
