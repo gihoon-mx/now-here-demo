@@ -47,13 +47,14 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.57.0**
+- **현재 최신: v1.57.1**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-07)
 
-**최신 v1.57.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.57.1 · 라이브 정상.** 완료된 기능:
+- **v1.57.1 Google Maps API 키 일원화 (config.js)**: 구 지도전용 키(`hot-hot-map` 프로젝트, `AIzaSyAA6A…`)를 폐기하고 **Firebase 키(`now-here-demo` 프로젝트, `AIzaSyCF63…`)에 Maps JavaScript API를 추가해 단일 키로 통합**. config.js에 `GCP_API_KEY` 상수 1곳 → `GOOGLE_MAPS_API_KEY`·`FIREBASE.apiKey`가 함께 참조(향후 로테이션도 1곳만). Map ID도 새 값(`b14f18…`, now-here-demo 프로젝트)으로 교체. 클라이언트 키라 노출은 정상 — 보안은 Cloud Console HTTP 리퍼러/API 제약이 담당(아래 ☁️ 외부 설정 갱신). 검증: config 배선(맵키=Firebase키 일치·구키 제거·새 MapID)·콘솔 에러 0·네트워크 실패 0 PASS. ⚠️**지도 타일 실렌더는 로그인 게이트 뒤라 로컬 프리뷰로 미검증** — 라이브 배포 후 로그인해 확인 필요. ⚠️**구 키(`AIzaSyAA6A…`)는 라이브 확인 후 Console에서 삭제/비활성**(git 히스토리에 영구 잔존 → 제약 없으면 악용 가능).
 - **v1.57.0 Twemoji 통일 렌더링 (M00 신설 섹션, ⚠️교차: M10)**: iOS/Android/PC 기기별로 다르게 보이던 네이티브 이모지를 **Twemoji SVG로 전역 통일**. ①index.html에 `@twemoji/api@15.1.0` CDN 스크립트(app.js보다 먼저 동기 로드, **로드 실패 시 네이티브 이모지 폴백**) ②app.js `[M00] initTwemoji`: 초기 `twemoji.parse(document.body)` + **MutationObserver**(childList+characterData)로 이후 렌더되는 모든 DOM 자동 치환 — rAF 배치(프레임당 1회·중복 제거), IMG/SCRIPT/STYLE/**svg 내부 스킵**(SVG `<text>`에 이모지 넣으면 깨지므로 금지 주석) ③style.css `img.emoji` 사이징(1em, 카드류 범용 img 규칙에 안 밀리게 `!important` 방어) + `#cp-placeholder::before`의 CSS `content:'📰'`는 Twemoji가 못 바꿔 **배경이미지(1f4f0.svg)로 교체**(⚠️교차: M10 컴포넌트 CSS). 대상 아님(네이티브 유지): input/textarea 입력값·native alert/confirm·seedImg 생성 이미지(data URI) 내부 이모지. 하트(♥·❤)도 twemoji 레드 하트로 치환됨 — 기존 디자인이 레드 계열(#ff4d6d)이라 유지 판단. 검증: 초기 파싱 25개 치환·신규 노드/textContent 갱신 옵저버 경로 치환·사이징 1em(11.52px)·이모지 픽커 클로저 전달이라 안전(코드 확인)·콘솔 에러 0·네트워크 실패 0 PASS.
 - **v1.56.0 시드 3지역 확장 + 수량·밀집도 옵션 (M13)**: ①시드 데이터를 **지역별 구조**(`SEED_AREAS` 앵커 + `SEED_FEED/SPOTS/REQS = {gangnam,jamsil,seongsu}`)로 재편 — **잠실·석촌호수**(피드 10·스팟 7·Request 1: 새내 먹자골목·석촌호수 러닝/벚꽃·롯데타워·송리단길)와 **성수·서울숲**(피드 10·스팟 7·Request 1: 서울숲·붉은벽돌 카페·창고 전시·뚝섬) 추가, 실사진 5장 신규(Wikimedia HEAD 200 검증: lotteTower·lotteWorld·seongsuBrick·seongsuShop·ttukPark), 채팅(local:잠실2동·잠실본동·성수2가1동+주제방 2)·지면(ns_4·ns_5) 확장 → 총 **피드 40·스팟 30·Request 4** ②채우기 옵션 2종(관리자 › 데모 데이터): **수량**(전체/⅔/⅓ — 지역별 균등 샘플링 `seedPick`으로 지리 분산 유지) + **밀집도**(촘촘 0.55/보통/넓게 1.4 — 지역 앵커 기준 좌표 오프셋 스케일 `seedFlat`, 이동한 좌표는 `dongAt`로 동 라벨 재판정·경계 밖=원 라벨 유지) ③문서 id=전체 목록 기준 고정 인덱스(gi) — 재채우기 시 같은 문서 덮어씀(**수량 줄일 땐 🧹 비우기 먼저**, confirm에 안내) ④기존 강남 피드 3건 이미지 정리(석촌호수·서울숲 실사진을 해당 지역 아이템으로 이관, 강남 쪽은 생성 이미지 폴백). 검증(node·dong_boundary.geojson 전수): 전 좌표×밀집도 3단(0.55/1/1.4) 동 경계 내 판정 PASS·표기 동 라벨 실제 행정동과 전수 일치(9건 교정)·피드 간 최소거리(강남 85m/잠실 256m/성수 111m)·수량 샘플링(40/27/13)·gi 유일성 PASS. ⚠️라이브 반영 = 관리자로 라이브 접속 → 🧹 비우기 → 🌱 채우기 재실행.
 - **v1.55.1 스플래시 앱 아이콘 (M12)**: 첫 화면 📍 이모지 → **앱 아이콘 이미지**(icon-192.jpg 구름 마스코트, `<img.auth-mark>`) — 일반 앱 아이콘처럼 모서리 R컷(68px·radius 15px≈한 변의 22%, object-fit:cover).
@@ -195,14 +196,15 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 
 계정: `gihoon.mx@gmail.com` / GCP 프로젝트 2개
 
-- **`now-here-demo`**: Firebase 프로젝트. Firebase 브라우저 키, OAuth 웹 클라이언트, Firebase Authentication(Google 로그인).
-- **`hot-hot-map`**: Maps Platform API 키.
+- **`now-here-demo`**: Firebase 프로젝트. **단일 키(`AIzaSyCF63…` = config.js `GCP_API_KEY`)로 Maps JavaScript API + Firebase 공용**(2026-07-07 v1.57.1 일원화), OAuth 웹 클라이언트, Firebase Authentication(Google 로그인), Map ID `b14f18…`.
+- ~~**`hot-hot-map`**: Maps Platform API 키~~ — **폐기(v1.57.1)**. 구 지도전용 키(`AIzaSyAA6A…`)는 더 안 씀. 라이브 지도 확인 후 Console에서 삭제/비활성화할 것(git 히스토리에 잔존).
 
-⚠️ **배포 도메인(github.io)이 바뀌면** 아래 4곳에 새 도메인을 추가해야 지도·로그인이 안 깨짐:
-1. now-here-demo → Firebase 브라우저 키 · HTTP 리퍼러
+⚠️ **배포 도메인(github.io)이 바뀌면** 아래 3곳에 새 도메인을 추가해야 지도·로그인이 안 깨짐:
+1. now-here-demo → **단일 키 · HTTP 리퍼러**(이제 이 한 키가 지도+Firebase 둘 다 — 앱 도메인 + 아래 firebaseapp.com/web.app 모두 필요)
 2. now-here-demo → OAuth 웹 클라이언트 · 승인된 JavaScript 원본
-3. hot-hot-map → Maps Platform 키 · HTTP 리퍼러
-4. Firebase Console → Authentication → Settings → **승인된 도메인**
+3. Firebase Console → Authentication → Settings → **승인된 도메인**
+
+> 🔑 **단일 키 제약(권장)**: Application restriction=Websites(HTTP 리퍼러: `https://gihoon-mx.github.io/*` + firebaseapp/web.app + 로컬 테스트 `http://localhost:8765/*`), API restriction=**Maps JavaScript API + Identity Toolkit API(Firebase Auth)** 등 실제 쓰는 것만. 키 하나가 지도·로그인·Firestore를 모두 여니 API 제약 목록에 Firebase가 쓰는 API도 포함돼야 함(과도 제한 시 로그인 깨짐).
 
 ⚠️⚠️ **Firebase 브라우저 키(1번)의 HTTP 리퍼러에는 앱 도메인과 별개로 아래가 항상 있어야 함** (없으면 Google 로그인이 403 `API_KEY_HTTP_REFERRER_BLOCKED` → "The requested action is invalid."로 깨짐. 로그인 팝업이 이 도메인에서 돌기 때문):
 - `https://now-here-demo.firebaseapp.com/*`
