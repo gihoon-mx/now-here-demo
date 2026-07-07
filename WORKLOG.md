@@ -47,13 +47,14 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v1.56.0**
+- **현재 최신: v1.57.0**
 
 ---
 
 ## 📸 현재 상태 스냅샷 (2026-07-07)
 
-**최신 v1.56.0 · 라이브 정상.** 완료된 기능:
+**최신 v1.57.0 · 라이브 정상.** 완료된 기능:
+- **v1.57.0 Twemoji 통일 렌더링 (M00 신설 섹션, ⚠️교차: M10)**: iOS/Android/PC 기기별로 다르게 보이던 네이티브 이모지를 **Twemoji SVG로 전역 통일**. ①index.html에 `@twemoji/api@15.1.0` CDN 스크립트(app.js보다 먼저 동기 로드, **로드 실패 시 네이티브 이모지 폴백**) ②app.js `[M00] initTwemoji`: 초기 `twemoji.parse(document.body)` + **MutationObserver**(childList+characterData)로 이후 렌더되는 모든 DOM 자동 치환 — rAF 배치(프레임당 1회·중복 제거), IMG/SCRIPT/STYLE/**svg 내부 스킵**(SVG `<text>`에 이모지 넣으면 깨지므로 금지 주석) ③style.css `img.emoji` 사이징(1em, 카드류 범용 img 규칙에 안 밀리게 `!important` 방어) + `#cp-placeholder::before`의 CSS `content:'📰'`는 Twemoji가 못 바꿔 **배경이미지(1f4f0.svg)로 교체**(⚠️교차: M10 컴포넌트 CSS). 대상 아님(네이티브 유지): input/textarea 입력값·native alert/confirm·seedImg 생성 이미지(data URI) 내부 이모지. 하트(♥·❤)도 twemoji 레드 하트로 치환됨 — 기존 디자인이 레드 계열(#ff4d6d)이라 유지 판단. 검증: 초기 파싱 25개 치환·신규 노드/textContent 갱신 옵저버 경로 치환·사이징 1em(11.52px)·이모지 픽커 클로저 전달이라 안전(코드 확인)·콘솔 에러 0·네트워크 실패 0 PASS.
 - **v1.56.0 시드 3지역 확장 + 수량·밀집도 옵션 (M13)**: ①시드 데이터를 **지역별 구조**(`SEED_AREAS` 앵커 + `SEED_FEED/SPOTS/REQS = {gangnam,jamsil,seongsu}`)로 재편 — **잠실·석촌호수**(피드 10·스팟 7·Request 1: 새내 먹자골목·석촌호수 러닝/벚꽃·롯데타워·송리단길)와 **성수·서울숲**(피드 10·스팟 7·Request 1: 서울숲·붉은벽돌 카페·창고 전시·뚝섬) 추가, 실사진 5장 신규(Wikimedia HEAD 200 검증: lotteTower·lotteWorld·seongsuBrick·seongsuShop·ttukPark), 채팅(local:잠실2동·잠실본동·성수2가1동+주제방 2)·지면(ns_4·ns_5) 확장 → 총 **피드 40·스팟 30·Request 4** ②채우기 옵션 2종(관리자 › 데모 데이터): **수량**(전체/⅔/⅓ — 지역별 균등 샘플링 `seedPick`으로 지리 분산 유지) + **밀집도**(촘촘 0.55/보통/넓게 1.4 — 지역 앵커 기준 좌표 오프셋 스케일 `seedFlat`, 이동한 좌표는 `dongAt`로 동 라벨 재판정·경계 밖=원 라벨 유지) ③문서 id=전체 목록 기준 고정 인덱스(gi) — 재채우기 시 같은 문서 덮어씀(**수량 줄일 땐 🧹 비우기 먼저**, confirm에 안내) ④기존 강남 피드 3건 이미지 정리(석촌호수·서울숲 실사진을 해당 지역 아이템으로 이관, 강남 쪽은 생성 이미지 폴백). 검증(node·dong_boundary.geojson 전수): 전 좌표×밀집도 3단(0.55/1/1.4) 동 경계 내 판정 PASS·표기 동 라벨 실제 행정동과 전수 일치(9건 교정)·피드 간 최소거리(강남 85m/잠실 256m/성수 111m)·수량 샘플링(40/27/13)·gi 유일성 PASS. ⚠️라이브 반영 = 관리자로 라이브 접속 → 🧹 비우기 → 🌱 채우기 재실행.
 - **v1.55.1 스플래시 앱 아이콘 (M12)**: 첫 화면 📍 이모지 → **앱 아이콘 이미지**(icon-192.jpg 구름 마스코트, `<img.auth-mark>`) — 일반 앱 아이콘처럼 모서리 R컷(68px·radius 15px≈한 변의 22%, object-fit:cover).
 - **v1.55.0 모듈 인프라 — 섹션 태깅·버전 검사 CI·페이지 스탬프**: ①app.js 전 섹션 주석에 **[M##] 태그 59곳**(`grep -n "\[M07\]" app.js`로 모듈 위치 즉시 파악 — 크레딧 절약 핵심) ②**`tools/check.js`**: 버전 3곳 동기화+dev/diagram `data-app-ver` 스탬프=앱 버전+app.js 문법 검사, **pages.yml 배포 전 자동 실행**(실패=배포 중단 → dev/diagram 매 push 최신화 강제) ③3개 정적 페이지에 반영 버전 표시(dev/diagram=push마다 갱신 의무, 소개 덱=지연 허용 v1.44.0) ④MODULES.md에 **M00 공용 헬퍼(동결)**·**공유 상태 계약**(전역 소유권 테이블)·**안전 규칙**(시그니처 동결·Firestore additive-only·토큰 값 변경 금지) 문서화 ⑤diagram 블럭 현행화(Ask Map·Request 10분 팝업).

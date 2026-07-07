@@ -615,6 +615,38 @@ function buildEmojiPicker(container,getSel,onSel){
   container.appendChild(add);
 }
 
+/* ========== [M00] Twemoji 통일 렌더링 (OS 무관 동일 이모지) ========== */
+// 네이티브 이모지(iOS/Android/PC 상이) → Twemoji SVG <img class="emoji">로 전역 치환.
+// CDN(@twemoji/api) 로드 실패 시 네이티브 이모지 그대로(폴백). 인풋 value·native alert/confirm·seedImg(데이터URI 이미지) 내부는 대상 아님.
+// 주의: SVG <text>에는 이모지 금지(치환 시 <img>가 SVG 안에 들어가 라벨이 깨짐 — svg 내부는 스킵함).
+var TW_OPTS={folder:'svg',ext:'.svg',base:'https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/'};
+var twQueue=[],twPending=false;
+function twParse(el){if(window.twemoji&&el&&el.nodeType===1&&!(el.closest&&el.closest('svg')))twemoji.parse(el,TW_OPTS);}
+function twSchedule(el){ // rAF 배치: 렌더 함수들이 노드를 대량 추가해도 프레임당 1회만 파싱
+  if(!window.twemoji||!el)return;
+  twQueue.push(el);
+  if(twPending)return;twPending=true;
+  requestAnimationFrame(function(){
+    twPending=false;
+    var q=twQueue.splice(0),done=[];
+    for(var i=0;i<q.length;i++){var t=q[i];if(!t.isConnected||done.indexOf(t)>=0)continue;done.push(t);twParse(t);}
+  });
+}
+function initTwemoji(){
+  if(!window.twemoji)return; // CDN 실패 → 네이티브 이모지 유지
+  twParse(document.body);
+  new MutationObserver(function(muts){
+    for(var i=0;i<muts.length;i++){var m=muts[i];
+      if(m.type==='characterData'){if(m.target.parentElement)twSchedule(m.target.parentElement);continue;}
+      for(var j=0;j<m.addedNodes.length;j++){var n=m.addedNodes[j];
+        if(n.nodeType===3)n=n.parentElement; // textContent 교체 등 텍스트 노드 추가 → 부모 파싱
+        if(n&&n.nodeType===1&&n.tagName!=='IMG'&&n.tagName!=='SCRIPT'&&n.tagName!=='STYLE')twSchedule(n);
+      }
+    }
+  }).observe(document.body,{childList:true,subtree:true,characterData:true});
+}
+initTwemoji(); // 즉시 실행(스크립트가 body 끝에서 로드) — 인증 스플래시부터 통일 렌더링
+
 /* ========== [M04] 스팟 입력 팝업 오버레이 (지도 위, 추가한 포인트 옆) ========== */
 function SpotComposer(latLng,targetMap){this.position=latLng;this.div=null;this.emoji=currentSpotEmoji||((spotConfig.emojis&&spotConfig.emojis[0])||'💬');this.setMap(targetMap||map);}
 function initSpotComposerClass(){

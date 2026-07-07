@@ -489,7 +489,7 @@ button:focus:not(:focus-visible){outline:none;}
 .cp-slide{flex:0 0 100%;height:100%;}
 .cp-slide img{width:100%;height:100%;object-fit:cover;display:block;-webkit-user-drag:none;user-select:none;pointer-events:none;}
 #cp-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;gap:1.6cqw;align-items:center;justify-content:center;font-size:2.9cqw;font-weight:600;color:#a4adbb;letter-spacing:.06em;pointer-events:none;}
-#cp-placeholder::before{content:'📰';font-size:6.5cqw;line-height:1;opacity:.5;}
+#cp-placeholder::before{content:'';width:6.5cqw;height:6.5cqw;background:url(https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/svg/1f4f0.svg) center/contain no-repeat;opacity:.5;} /* 📰 CSS content는 Twemoji가 못 바꿔 배경이미지로 통일 */
 #cp-frame.has-news #cp-placeholder{display:none;}
 /* ── 요약 카드 요소 (이미지+제목+위치) · 버전 1/2/3 (레퍼런스 카드 스타일) ── */
 .cp-slide{position:relative;}
@@ -1065,3 +1065,7 @@ body.mode-trend .req-bubble .rq-ai{background:linear-gradient(135deg,#ffb37a,#ff
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;}
 }
+
+/* ── [M00] Twemoji 통일 이모지: 치환된 <img class="emoji"> 텍스트 흐름 사이징 ──
+   카드류 범용 img 규칙(.cp-slide img width:100% 등, 더 높은 특이도)에 왜곡되지 않도록 !important로 고정 */
+img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vertical-align:-.12em!important;display:inline-block!important;object-fit:contain!important;border-radius:0!important;aspect-ratio:auto!important;flex:none!important;min-height:0!important;-webkit-mask-image:none!important;mask-image:none!important;pointer-events:none;}
