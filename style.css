@@ -186,9 +186,12 @@ button:focus:not(:focus-visible){outline:none;}
 .spot-marker.spot-dot.spot-dot-emoji{opacity:1;}
 .spot-marker.spot-dot.spot-dot-emoji .spot-emoji{display:block!important;}
 .spot-marker.spot-dot.spot-dot-emoji .spot-bubble,.spot-marker.spot-dot.spot-dot-emoji .spot-dotmark{display:none!important;}
-.spot-bubble::after{content:'';position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--spot-bg,#1c66e5);border-bottom:0;}
+.spot-bubble::after{content:'';position:absolute;border:6px solid transparent;} /* 꼬리 방향은 배치 방향(_dir)에 따라 tl-* 클래스로 (v1.59) */
 .spot-bubble.no-tail::after{display:none;}
-.spot-bubble.tail-up::after{top:-6px;bottom:auto;border:6px solid transparent;border-bottom-color:var(--spot-bg,#1c66e5);border-top:0;}
+.spot-bubble.tl-b::after{left:50%;bottom:-6px;transform:translateX(-50%);border-top-color:var(--spot-bg,#1c66e5);border-bottom:0;} /* 위로 배치=아래 꼬리 */
+.spot-bubble.tl-t::after{left:50%;top:-6px;transform:translateX(-50%);border-bottom-color:var(--spot-bg,#1c66e5);border-top:0;} /* 아래로 배치=위 꼬리 */
+.spot-bubble.tl-r::after{top:50%;right:-6px;transform:translateY(-50%);border-left-color:var(--spot-bg,#1c66e5);border-right:0;} /* 좌로 배치=오른 꼬리 */
+.spot-bubble.tl-l::after{top:50%;left:-6px;transform:translateY(-50%);border-right-color:var(--spot-bg,#1c66e5);border-left:0;} /* 우로 배치=왼 꼬리 */
 .spot-emoji{line-height:1;transition:transform .16s cubic-bezier(.34,1.56,.64,1);}
 /* 롤오버/선택 시 테두리 대신 살짝 커지며 강조 */
 .spot-marker:hover,.spot-marker.spot-sel{z-index:5;}
