@@ -3835,7 +3835,7 @@ function initSocialManager(){
   renderRoomManager();
 }
 
-/* ========== [M13] 데모 시드 데이터 (관리자: 채우기/비우기 · 강남-역삼-논현) ========== */
+/* ========== [M13] 데모 시드 데이터 (관리자: 채우기/비우기 · 강남-잠실-성수 3지역 · 수량/밀집도 옵션) ========== */
 // 생성 이미지: 일관 디자인(그라디언트+이모지+라벨 칩). 교체 = 존 카드 편집/피드 관리에서 URL 입력.
 var SEED_PAL={food:['#ff9a6b','#ff5e7e','🍜'],cafe:['#e8c39e','#a9764f','☕'],run:['#7ee0b0','#2f9d6f','🏃'],
   night:['#9b8cff','#5b4bd6','🌙'],shop:['#7cc0ff','#2f7bff','🛍️'],park:['#b8e986','#56ab2f','🌳'],
@@ -3876,15 +3876,28 @@ var SEED_IMG={
  flea7:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Dongmyo_Flea_Market_07.jpg/960px-Dongmyo_Flea_Market_07.jpg',
  rooftop:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Seoul_Skyline_Night_2018.jpg/960px-Seoul_Skyline_Night_2018.jpg',
  garosu:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Garosu-gil_at_night.jpg/960px-Garosu-gil_at_night.jpg',
- gwangjang:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Korean_pancakes_and_pan-fried_foods_at_Gwangjang_Market.jpg/960px-Korean_pancakes_and_pan-fried_foods_at_Gwangjang_Market.jpg'};
+ gwangjang:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Korean_pancakes_and_pan-fried_foods_at_Gwangjang_Market.jpg/960px-Korean_pancakes_and_pan-fried_foods_at_Gwangjang_Market.jpg',
+ // 잠실·성수 시드용 (HEAD 200 검증 2026-07-07)
+ lotteTower:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Lotte_World_Tower_near_Cheongdam_Bridge_crop.jpg/960px-Lotte_World_Tower_near_Cheongdam_Bridge_crop.jpg',
+ lotteWorld:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Lotte_World_day_view_5.jpg/960px-Lotte_World_day_view_5.jpg',
+ seongsuBrick:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Industrial_buildings_in_Seongsu-dong.jpg/960px-Industrial_buildings_in_Seongsu-dong.jpg',
+ seongsuShop:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Camera_shop_seongsu_seoul_3.jpg/960px-Camera_shop_seongsu_seoul_3.jpg',
+ ttukPark:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Ttukseom_Hangang_Park_20260416_2.jpg/960px-Ttukseom_Hangang_Park_20260416_2.jpg'};
 var SEED_OWNER='shoomerion@gmail.com'; // 시드 콘텐츠 소유자 — 이 계정으로 로그인하면 수정·이동·삭제 가능
-// 시드 좌표: 역삼1·역삼2·논현1·논현2 일대에 골고루 분산(같은 성격만 근접 허용 — 밀집 시 지도 클러스터가 묶어줌)
-var SEED_FEED=[
+// 지역 앵커: 밀집도 옵션의 스케일 기준점 (앵커에서의 오프셋을 배율로 늘리고 줄임 — seedFlat)
+var SEED_AREAS={
+ gangnam:{name:'강남·역삼·논현',lat:37.5050,lng:127.0310},
+ jamsil:{name:'잠실·석촌호수',lat:37.5110,lng:127.0975},
+ seongsu:{name:'성수·서울숲',lat:37.5435,lng:127.0500}};
+var SEED_AREA_ORDER=['gangnam','jamsil','seongsu']; // 평탄화 순서 고정 = 문서 id(전체 인덱스) 안정
+// 시드 좌표: 지역별 일대에 골고루 분산(같은 성격만 근접 허용 — 밀집 시 지도 클러스터가 묶어줌). 동 라벨은 채우기 시점에 dongAt로 재판정.
+var SEED_FEED={
+ gangnam:[
  {theme:'food',img:'gopchang',label:'수요미식회 그 집',desc:'웨이팅 40분인데 후회 없음. 곱창은 진리',kind:'cam',region:'역삼1동',zone:null,lat:37.4983,lng:127.0301,likes:14,h:2,name:'퇴근길미식가'},
  {theme:'food',img:'kfood8',label:'점심 특선',desc:'강남 직장인 점심 1만원 이하 몇 없는 집',kind:'post',region:'역삼1동',zone:null,lat:37.4996,lng:127.0338,likes:9,h:5,name:'강남11년차'},
  {theme:'cafe',img:'latte',label:'골목 안 로스터리',desc:'원두 직접 볶는 집. 라떼아트 미쳤다',kind:'cam',region:'역삼1동',zone:null,lat:37.5021,lng:127.0330,likes:12,h:3,name:'카페투어러'},
  {theme:'cafe',img:'cafeInt',label:'창가 자리 맛집',desc:'노트북 작업하기 좋아요. 콘센트 넉넉',kind:'post',region:'역삼1동',zone:null,lat:37.4972,lng:127.0322,likes:7,h:8,name:'프리랜서J'},
- {theme:'park',img:'parkPath',label:'아침 러닝',desc:'오늘 학동공원 5km 완주. 공기 최고',kind:'cam',region:'논현1동',zone:null,lat:37.5148,lng:127.0296,likes:11,h:1,name:'러닝크루장'},
+ {theme:'park',img:null,label:'아침 러닝',desc:'오늘 학동공원 5km 완주. 공기 최고',kind:'cam',region:'논현1동',zone:null,lat:37.5148,lng:127.0296,likes:11,h:1,name:'러닝크루장'},
  {theme:'pet',img:'dog',label:'댕댕이 산책',desc:'공원에서 만난 리트리버. 순둥이 그 자체',kind:'cam',region:'논현1동',zone:null,lat:37.5122,lng:127.0272,likes:16,h:4,name:'산책하는댕댕이'},
  {theme:'night',img:'pojang',label:'심야 포차',desc:'새벽 2시에도 자리 없는 그 포차',kind:'cam',region:'논현1동',zone:null,lat:37.5100,lng:127.0224,likes:8,h:26,name:'야식원정대'},
  {theme:'shop',img:'gangnam',label:'팝업 오픈',desc:'신논현 팝업스토어 오늘 오픈! 줄 김',kind:'cam',region:'논현1동',zone:null,lat:37.5052,lng:127.0243,likes:10,h:6,name:'트렌드헌터'},
@@ -3893,14 +3906,37 @@ var SEED_FEED=[
  {theme:'food',img:'brunch',label:'브런치 신상',desc:'주말 브런치 신상 오픈. 프렌치토스트 추천',kind:'post',region:'논현2동',zone:null,lat:37.5168,lng:127.0350,likes:9,h:20,name:'주말미식'},
  {theme:'cafe',img:'cheesecake',label:'디저트 맛집',desc:'치즈케이크 마감 전에 가세요',kind:'cam',region:'역삼2동',zone:null,lat:37.4972,lng:127.0450,likes:13,h:9,name:'디저트지도'},
  {theme:'art',img:null,label:'골목 벽화',desc:'출근길에 발견한 새 벽화. 사진각',kind:'cam',region:'역삼2동',zone:null,lat:37.4950,lng:127.0413,likes:4,h:11,name:'골목산책자'},
- {theme:'run',img:'seokchonLake',label:'퇴근 러닝',desc:'호수 한 바퀴 야간 러닝 함께해요 (매주 화)',kind:'post',region:'역삼1동',zone:null,lat:37.5028,lng:127.0392,likes:7,h:28,name:'러닝크루장'},
+ {theme:'run',img:null,label:'퇴근 러닝',desc:'테헤란로 야간 러닝 함께해요 (매주 화)',kind:'post',region:'역삼1동',zone:null,lat:37.5028,lng:127.0392,likes:7,h:28,name:'러닝크루장'},
  {theme:'shop',img:'flea3',label:'플리마켓',desc:'이번 주말 학동공원 플리마켓 열려요',kind:'post',region:'논현1동',zone:null,lat:37.5142,lng:127.0302,likes:8,h:14,name:'동네소식통'},
  {theme:'night',img:'rooftop',label:'루프탑',desc:'강남 야경 루프탑. 예약 필수',kind:'cam',region:'역삼1동',zone:null,lat:37.5008,lng:127.0284,likes:15,h:50,name:'야경수집가'},
  {theme:'food',img:'noodle',label:'칼국수 맛집',desc:'점심 칼국수 오픈런 성공. 육수가 예술',kind:'cam',region:'역삼1동',zone:null,lat:37.4959,lng:127.0345,likes:6,h:4,name:'점심원정대'},
  {theme:'cafe',img:'espresso',label:'에스프레소 바',desc:'서서 마시는 에바. 2잔이 국룰입니다',kind:'post',region:'역삼1동',zone:null,lat:37.5013,lng:127.0354,likes:10,h:12,name:'카페투어러'},
  {theme:'food',img:'kfood9',label:'전집 발견',desc:'비 오는 날 전+막걸리 조합 아시죠',kind:'cam',region:'논현1동',zone:null,lat:37.5088,lng:127.0263,likes:12,h:16,name:'막걸리동호회'},
- {theme:'park',img:'cherry',label:'벚꽃 스팟',desc:'벚꽃 마지막 주라는데 오늘이 절정',kind:'cam',region:'논현1동',zone:null,lat:37.5133,lng:127.0310,likes:18,h:3,name:'꽃놀이객'}];
-var SEED_SPOTS=[
+ {theme:'park',img:null,label:'벚꽃 스팟',desc:'벚꽃 마지막 주라는데 오늘이 절정',kind:'cam',region:'논현1동',zone:null,lat:37.5133,lng:127.0310,likes:18,h:3,name:'꽃놀이객'}],
+ jamsil:[
+ {theme:'food',img:null,label:'새내 먹자골목',desc:'잠실새내 전골목, 퇴근길 웨이팅 시작됐어요',kind:'cam',region:'잠실2동',zone:null,lat:37.5117,lng:127.0870,likes:13,h:2,name:'새내토박이'},
+ {theme:'run',img:'seokchonLake',label:'석촌호수 러닝',desc:'호수 두 바퀴 5km, 야경이 진짜 미쳤어요',kind:'cam',region:'잠실3동',zone:null,lat:37.5081,lng:127.0989,likes:15,h:1,name:'호수러너'},
+ {theme:'night',img:'lotteTower',label:'타워 야경',desc:'555m 위에서 보는 서울. 예약 필수',kind:'cam',region:'잠실6동',zone:null,lat:37.5124,lng:127.1027,likes:18,h:3,name:'전망대덕후'},
+ {theme:'park',img:'cherry',label:'석촌호수 벚꽃',desc:'벚꽃축제 시작! 동호 쪽이 한산해요',kind:'cam',region:'잠실6동',zone:null,lat:37.5107,lng:127.1056,likes:20,h:2,name:'꽃놀이객'},
+ {theme:'shop',img:null,label:'지하상가 쇼핑',desc:'잠실역 지하상가에서 가디건 득템했어요',kind:'post',region:'잠실6동',zone:null,lat:37.5138,lng:127.1004,likes:6,h:9,name:'쇼핑고수'},
+ {theme:'cafe',img:null,label:'석촌동 카페',desc:'석촌동 골목 조용한 로스터리 발견',kind:'post',region:'석촌동',zone:null,lat:37.5065,lng:127.1032,likes:8,h:6,name:'카페투어러'},
+ {theme:'pet',img:null,label:'한강 산책',desc:'잠실 한강공원 댕댕이 천국이에요',kind:'cam',region:'잠실3동',zone:null,lat:37.5170,lng:127.0917,likes:11,h:4,name:'산책하는댕댕이'},
+ {theme:'shop',img:'lotteWorld',label:'놀이공원 대기',desc:'자이로드롭 대기 50분... 그래도 간다',kind:'cam',region:'잠실3동',zone:null,lat:37.5113,lng:127.0985,likes:17,h:5,name:'놀이공원러'},
+ {theme:'food',img:null,label:'새내 심야식당',desc:'새벽까지 하는 국밥집, 해장 성지',kind:'post',region:'잠실본동',zone:null,lat:37.5098,lng:127.0846,likes:7,h:27,name:'야식원정대'},
+ {theme:'book',img:null,label:'송리단길 책방',desc:'송리단길 독립서점, 큐레이션 좋아요',kind:'post',region:'송파1동',zone:null,lat:37.5077,lng:127.1063,likes:5,h:12,name:'책읽는밤'}],
+ seongsu:[
+ {theme:'park',img:'parkMay',label:'서울숲 피크닉',desc:'서울숲 잔디밭 돗자리 자리 아직 있어요',kind:'cam',region:'성수1가1동',zone:null,lat:37.5442,lng:127.0392,likes:16,h:2,name:'숲세권주민'},
+ {theme:'run',img:'parkPath',label:'숲길 러닝',desc:'아침 서울숲 러닝, 은행나무길 코스 추천',kind:'cam',region:'성수1가1동',zone:null,lat:37.5460,lng:127.0421,likes:12,h:1,name:'러닝크루장'},
+ {theme:'cafe',img:'seongsuBrick',label:'붉은벽돌 카페',desc:'공장 개조 카페, 천장 높이 실화냐',kind:'cam',region:'성수2가3동',zone:null,lat:37.5424,lng:127.0559,likes:19,h:3,name:'카페투어러'},
+ {theme:'art',img:null,label:'창고 전시',desc:'이번 주 전시 무료, 굿즈도 예뻐요',kind:'post',region:'성수2가1동',zone:null,lat:37.5417,lng:127.0568,likes:9,h:7,name:'전시헌터'},
+ {theme:'shop',img:'seongsuShop',label:'카메라 소품샵',desc:'필카 소품샵 구경만 1시간 순삭',kind:'cam',region:'성수2가3동',zone:null,lat:37.5447,lng:127.0526,likes:8,h:5,name:'트렌드헌터'},
+ {theme:'food',img:null,label:'수제버거 신상',desc:'성수 수제버거 신상, 패티 두께 보소',kind:'cam',region:'성수2가3동',zone:null,lat:37.5436,lng:127.0545,likes:14,h:4,name:'점심원정대'},
+ {theme:'park',img:'ttukPark',label:'뚝섬 한강뷰',desc:'뚝섬 유원지 자전거 타고 한 바퀴',kind:'cam',region:'성수1가1동',zone:null,lat:37.5385,lng:127.0475,likes:10,h:6,name:'자전거출근러'},
+ {theme:'cafe',img:null,label:'뚝섬역 베이커리',desc:'갓 나온 소금빵 시간 맞춰 가세요',kind:'post',region:'성수1가2동',zone:null,lat:37.5469,lng:127.0459,likes:13,h:6,name:'디저트지도'},
+ {theme:'gym',img:null,label:'클라이밍장',desc:'성수 클라이밍 초보 강습 좋아요',kind:'post',region:'성수2가3동',zone:null,lat:37.5455,lng:127.0568,likes:6,h:10,name:'갓생살기'},
+ {theme:'night',img:null,label:'성수 야장',desc:'야장 시즌 시작, 골목 분위기 최고',kind:'cam',region:'성수2가1동',zone:null,lat:37.5412,lng:127.0530,likes:10,h:8,name:'야경수집가'}]};
+var SEED_SPOTS={
+ gangnam:[
  {t:'점심 웨이팅 30분 각오하세요',emoji:'🍜',lat:37.4990,lng:127.0302,color:'#ff5e7e'},
  {t:'여기 커피 인생템',emoji:'☕',lat:37.5019,lng:127.0341,color:'#a9764f'},
  {t:'러닝 같이 하실 분!',emoji:'🏃',lat:37.5144,lng:127.0290,color:'#2f9d6f'},
@@ -3916,46 +3952,99 @@ var SEED_SPOTS=[
  {t:'칼국수 오픈런 성공',emoji:'🍲',lat:37.4966,lng:127.0355,color:'#ff5e7e'},
  {t:'라떼아트 클래스 모집 중',emoji:'🎨',lat:37.5006,lng:127.0327,color:'#a9764f'},
  {t:'벚꽃 포토스팟은 여기',emoji:'📸',lat:37.5155,lng:127.0299,color:'#f78fb3'},
- {t:'불금 번개 8시 어떠세요',emoji:'🍻',lat:37.5001,lng:127.0290}];
-var SEED_REQS=[
+ {t:'불금 번개 8시 어떠세요',emoji:'🍻',lat:37.5001,lng:127.0290}],
+ jamsil:[
+ {t:'새내 골목 지금 웨이팅 김',emoji:'🍜',lat:37.5120,lng:127.0862,color:'#ff5e7e'},
+ {t:'호수 러닝 코스 최고',emoji:'🏃',lat:37.5087,lng:127.0967,color:'#2f9d6f'},
+ {t:'전망대 뷰 미쳤다',emoji:'🌃',lat:37.5128,lng:127.1032,color:'#5b4bd6'},
+ {t:'벚꽃 포토스팟은 동호 쪽',emoji:'📸',lat:37.5109,lng:127.1053,color:'#f78fb3'},
+ {t:'지하상가 세일 중',emoji:'🛍️',lat:37.5139,lng:127.0997,color:'#2f7bff'},
+ {t:'석촌동 카페 발견',emoji:'☕',lat:37.5063,lng:127.1030,color:'#a9764f'},
+ {t:'심야 국밥 자리 있어요',emoji:'🍲',lat:37.5101,lng:127.0838}],
+ seongsu:[
+ {t:'서울숲 산책 최고',emoji:'🌳',lat:37.5439,lng:127.0387,color:'#56ab2f'},
+ {t:'신상 카페 오픈했어요',emoji:'☕',lat:37.5426,lng:127.0552,color:'#a9764f'},
+ {t:'전시 오늘 무료 입장',emoji:'🎨',lat:37.5419,lng:127.0571,color:'#b06ab3'},
+ {t:'수제화 장인 가게 여기',emoji:'👟',lat:37.5450,lng:127.0530},
+ {t:'갓 나온 소금빵 냄새',emoji:'🥐',lat:37.5470,lng:127.0462,color:'#ff9f43'},
+ {t:'소품샵 구경 오세요',emoji:'🛍️',lat:37.5482,lng:127.0547,color:'#2f7bff'},
+ {t:'강변 자전거길 뷰 맛집',emoji:'🚲',lat:37.5391,lng:127.0468,color:'#2f9d6f'}]};
+var SEED_REQS={
+ gangnam:[
  {q:'파이브가이즈 지금 웨이팅 얼마나 되나요?',lat:37.5060,lng:127.0272,place:'논현1동',answers:[{t:'지금 한 20분 정도예요! 회전 빨라요'}]},
- {q:'학동공원 벚꽃 아직 볼만한가요?',lat:37.5147,lng:127.0301,place:'논현1동',answers:[]}];
+ {q:'학동공원 벚꽃 아직 볼만한가요?',lat:37.5147,lng:127.0301,place:'논현1동',answers:[]}],
+ jamsil:[
+ {q:'롯데타워 전망대 지금 웨이팅 어때요?',lat:37.5126,lng:127.1023,place:'잠실6동',answers:[{t:'평일 낮이라 10분 컷이에요!'}]}],
+ seongsu:[
+ {q:'대림창고 오늘 전시 입장 줄 긴가요?',lat:37.5418,lng:127.0566,place:'성수2가1동',answers:[]}]};
 var SEED_CHAT_LOCAL=[{who:'역삼동주민',t:'오늘 미세먼지 좋네요 ☀️'},{who:'퇴근길미식가',t:'역 근처 새로 생긴 쌀국수집 가보신 분?'},{who:'카페투어러',t:'가봤어요! 국물 진하고 좋던데요 👍'},{who:'동네소식통',t:'이번 주말 학동공원 플리마켓 열린대요'}];
 var SEED_CHAT_DOCS=[
  {room:'local:역삼1동',name:'역삼동주민',t:'역삼동 채팅방 개설 기념 인사 드려요 🙌',h:30},
  {room:'local:역삼1동',name:'갓생살기',t:'다들 점심 어디서 드세요? 추천 좀',h:6},
  {room:'topic:🍜 맛집 탐방',name:'퇴근길미식가',t:'이번 주 미션: 강남 곱창 최강자 찾기',h:24},
  {room:'topic:🍜 맛집 탐방',name:'주말미식',t:'저는 먹자골목 안쪽 그 집에 한 표',h:22},
- {room:'topic:🏃 러닝 크루',name:'러닝크루장',t:'화요일 저녁 테헤란로 러닝 모집합니다!',h:20}];
+ {room:'topic:🏃 러닝 크루',name:'러닝크루장',t:'화요일 저녁 테헤란로 러닝 모집합니다!',h:20},
+ {room:'local:잠실2동',name:'호수러너',t:'석촌호수 벚꽃 이번 주가 피크예요 🌸',h:5},
+ {room:'local:잠실본동',name:'새내토박이',t:'새내 먹자골목에 국밥집 새로 열었어요',h:8},
+ {room:'local:성수2가1동',name:'숲세권주민',t:'이번 주말 서울숲 플리마켓 다들 가시나요?',h:7},
+ {room:'topic:🍜 맛집 탐방',name:'점심원정대',t:'성수 수제버거 vs 새내 국밥, 이번 주 미션',h:4}];
 var SEED_NEWS=[
  {id:'ns_1',theme:'food',img:'gwangjang',label:'이번 주 동네 맛집',title:'강남 먹자골목 웨이팅 리포트',region:'역삼1동',tab:'map'},
  {id:'ns_2',theme:'park',img:'flea7',label:'주말 플리마켓',title:'학동공원 플리마켓 토·일 열려요',region:'논현1동',tab:'map'},
- {id:'ns_3',theme:'cafe',img:'latteHeart',label:'추천 카페 5',title:'역삼 카페로드 신상 5곳 모음',region:'역삼1동',tab:'feed'}];
+ {id:'ns_3',theme:'cafe',img:'latteHeart',label:'추천 카페 5',title:'역삼 카페로드 신상 5곳 모음',region:'역삼1동',tab:'feed'},
+ {id:'ns_4',theme:'park',img:null,label:'석촌호수 벚꽃',title:'석촌호수 벚꽃길 주말 혼잡 예보',region:'잠실2동',tab:'map'},
+ {id:'ns_5',theme:'cafe',img:null,label:'성수 신상 카페',title:'성수 붉은벽돌 카페 신상 6곳',region:'성수2가1동',tab:'feed'}];
+// 수량 옵션: 지역별 배열에서 비율만큼 균등 샘플링(지리 분산 유지)
+function seedPick(arr,ratio){
+  if(ratio>=1)return arr.slice();
+  var n=Math.max(1,Math.round(arr.length*ratio)),out=[],step=arr.length/n;
+  for(var i=0;i<n;i++)out.push(arr[Math.floor(i*step)]);
+  return out;
+}
+// 지역별 시드 배열 평탄화: gi=전체 목록 기준 고정 인덱스(→ 문서 id 안정, 재채우기 시 같은 문서 덮어씀),
+// 밀집도(dens)≠1이면 지역 앵커(SEED_AREAS) 기준으로 좌표 오프셋을 스케일
+function seedFlat(byArea,ratio,dens){
+  var out=[],base=0;
+  SEED_AREA_ORDER.forEach(function(a){
+    var arr=byArea[a]||[],c=SEED_AREAS[a];
+    var idx=arr.map(function(it,i){return{it:it,gi:base+i};});
+    seedPick(idx,ratio).forEach(function(w){
+      var o={gi:w.gi},k;for(k in w.it)o[k]=w.it[k];
+      if(dens!==1&&typeof o.lat==='number'){o.lat=c.lat+(o.lat-c.lat)*dens;o.lng=c.lng+(o.lng-c.lng)*dens;}
+      out.push(o);
+    });
+    base+=arr.length;
+  });
+  return out;
+}
 function seedDemoData(){
   if(currentRole!=='admin'){alert('관리자만 실행할 수 있어요.');return;}
-  if(!confirm('강남·역삼·논현 데모 데이터를 채울까요?\n(피드 20 · 스팟 16 · Request 2 · 채팅 시드 — 공유 컬렉션에 기록되어 모든 계정에 보여요.\n트렌드 존은 만들지 않아요. 컨텐츠 소유자: '+SEED_OWNER+')'))return;
+  var amtEl=document.getElementById('seed-amount'),denEl=document.getElementById('seed-density');
+  var ratio=amtEl?(parseFloat(amtEl.value)||1):1,dens=denEl?(parseFloat(denEl.value)||1):1;
+  var feeds=seedFlat(SEED_FEED,ratio,dens),spots=seedFlat(SEED_SPOTS,ratio,dens),reqs=seedFlat(SEED_REQS,ratio,dens);
+  if(!confirm('강남·잠실·성수 데모 데이터를 채울까요?\n(피드 '+feeds.length+' · 스팟 '+spots.length+' · Request '+reqs.length+' · 채팅 시드 — 공유 컬렉션에 기록되어 모든 계정에 보여요.\n수량 '+Math.round(ratio*100)+'% · 밀집도 '+(dens===1?'보통':(dens<1?'촘촘':'넓게'))+' — 수량을 줄여 다시 채울 땐 🧹 비우기 먼저.\n트렌드 존은 만들지 않아요. 컨텐츠 소유자: '+SEED_OWNER+')'))return;
   var now=Date.now();
   // ① 트렌드 존 시드는 만들지 않음(기존 tzs_* 존은 🧹 비우기로 삭제) — 존은 관리자가 직접 관리
-  // ② 요약 지면 (관리자 수동 이미지와 동일 구조)
+  // ② 요약 지면 (관리자 수동 이미지와 동일 구조 — 수량·밀집도 무관 전체)
   SEED_NEWS.forEach(function(n){
     if(newsItems.some(function(x){return x.id===n.id;}))return;
     newsItems.push({id:n.id,src:(n.img?SEED_IMG[n.img]:seedImg(n.theme,n.label)),region:n.region,tab:n.tab,title:n.title});
   });
   saveNews();renderNews();
-  // ③ 피드 / 스팟 / Request / 채팅 (라이브=공유, 폴백=로컬)
-  SEED_FEED.forEach(function(f,i){
+  // ③ 피드 / 스팟 / Request / 채팅 (라이브=공유, 폴백=로컬). 밀집도로 좌표가 움직이면 동 라벨 재판정(dongAt, 경계 밖=원 라벨 유지)
+  feeds.forEach(function(f){
     var likes={};for(var j=0;j<f.likes;j++)likes['seed_l'+j]=true;
-    var doc={src:(f.img?SEED_IMG[f.img]:seedImg(f.theme,f.label)),region:f.region,zone:f.zone,lat:f.lat,lng:f.lng,kind:f.kind,desc:f.desc,name:f.name,by:'seed_u'+i,byEmail:SEED_OWNER,ts:now-f.h*3600e3,likes:likes,seed:true};
-    if(hasLive())fbDb.collection('liveFeed').doc('fs_'+i).set(doc).catch(liveWriteErr);
-    else{doc.id='fs_'+i;doc.type='photo';if(!feedItems.some(function(x){return x.id===doc.id;}))feedItems.push(doc);}
+    var doc={src:(f.img?SEED_IMG[f.img]:seedImg(f.theme,f.label)),region:dongAt(f.lat,f.lng)||f.region,zone:f.zone,lat:f.lat,lng:f.lng,kind:f.kind,desc:f.desc,name:f.name,by:'seed_u'+f.gi,byEmail:SEED_OWNER,ts:now-f.h*3600e3,likes:likes,seed:true};
+    if(hasLive())fbDb.collection('liveFeed').doc('fs_'+f.gi).set(doc).catch(liveWriteErr);
+    else{doc.id='fs_'+f.gi;doc.type='photo';if(!feedItems.some(function(x){return x.id===doc.id;}))feedItems.push(doc);}
   });
-  SEED_SPOTS.forEach(function(s,i){
-    var doc={id:'sps_'+i,lat:s.lat,lng:s.lng,text:s.t,emoji:s.emoji,color:s.color||null,by:'seed_u'+i,byEmail:SEED_OWNER,ts:now-i*3600e3,seed:true};
+  spots.forEach(function(s){
+    var doc={id:'sps_'+s.gi,lat:s.lat,lng:s.lng,text:s.t,emoji:s.emoji,color:s.color||null,by:'seed_u'+s.gi,byEmail:SEED_OWNER,ts:now-s.gi*3600e3,seed:true};
     if(hasLive())fbDb.collection('liveSpots').doc(doc.id).set(doc).catch(liveWriteErr);
     else if(!demoSpots.some(function(x){return x.id===doc.id;})){doc.live=true;demoSpots.push(doc);}
   });
-  SEED_REQS.forEach(function(r,i){
-    var doc={id:'rqs_'+i,lat:r.lat,lng:r.lng,q:r.q,place:r.place,answers:r.answers.map(function(a){return {t:a.t,ts:now-3600e3};}),by:'seed_u'+i,ts:now-2*3600e3,seed:true};
+  reqs.forEach(function(r){
+    var doc={id:'rqs_'+r.gi,lat:r.lat,lng:r.lng,q:r.q,place:dongAt(r.lat,r.lng)||r.place,answers:r.answers.map(function(a){return {t:a.t,ts:now-3600e3};}),by:'seed_u'+r.gi,ts:now-2*3600e3,seed:true};
     if(hasLive())fbDb.collection('liveRequests').doc(doc.id).set(doc).catch(liveWriteErr);
     else if(!fieldRequests.some(function(x){return x.id===doc.id;}))fieldRequests.unshift(doc);
   });
@@ -3965,7 +4054,7 @@ function seedDemoData(){
   socSeedLocal=SEED_CHAT_LOCAL.slice();saveChat();
   if(!hasLive()){saveFeed();saveLocalSpots();saveRequests();rebuildSpots();renderFeedColList();renderFeedMarkers();renderRequestMarkers();renderDrawerDemo();if(currentTab==='feed')renderFeed();}
   markCloudDirty(); // 존·소셜 시드 → 공유문서 저장
-  alert('🌱 데모 데이터를 채웠어요. 지도를 강남·역삼 쪽으로 이동해 확인해 보세요.');
+  alert('🌱 데모 데이터를 채웠어요 (피드 '+feeds.length+' · 스팟 '+spots.length+' · Request '+reqs.length+'). 강남·잠실·성수 지도를 확인해 보세요.');
 }
 function clearDemoData(){
   if(currentRole!=='admin'){alert('관리자만 실행할 수 있어요.');return;}

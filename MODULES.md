@@ -55,7 +55,7 @@
 | M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기 | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` | app.js | v1.46 |
 | M11 | settings 관리자 설정 | 안정 | 설정 블록·드래프트/적용·미니 프리뷰 | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` | app.js | v1.48 |
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` + `firestore.rules` | app.js | v1.52 |
-| M13 | seed 데모 시드 | 안정 | 시드 데이터(피드/스팟/Request/채팅)·채우기/비우기 | `SEED_FEED` `SEED_IMG` `initDemoSeed` `clearDemoData` | app.js | v1.51 |
+| M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 3지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.56 |
 | M14 | pages 정적 페이지 | 활성 | 소개 덱·다이어그램·개발 관리 페이지 | — | deck.html diagram.html dev.html | v1.53 |
 | M15 | tokens 디자인 토큰 | 안정 | CSS 변수·프로스트/글래스 공통 문법 | `:root` `--acc` `--frost` `--glass-*` | style.css | v1.52 |
 
@@ -71,6 +71,7 @@
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-07-07 M13: 시드 3지역 확장(강남+잠실·성수, 지역별 배열 구조 `SEED_AREAS`) + 채우기 수량(균등 샘플링)·밀집도(앵커 기준 좌표 스케일+동 재판정) 옵션 (v1.56.0)
 - 2026-07-07 인프라: app.js 전 섹션 `[M##]` 태깅(59곳, grep 탐색용), `tools/check.js`(버전·스탬프·문법 CI 검사), dev/diagram `data-app-ver` 스탬프, 공유 상태 계약·안전 규칙 문서화 (v1.55.0)
 - 2026-07-07 M07+M03+M08+M09 ⚠️교차: Request 전용 핀·삭제, 드로어 타이틀 정돈, 존 리스트 정렬(포커스→❤→거리)+포커스 표시, Ask Map 패널(요약 버튼·풀 50/5·채팅) (v1.54.0)
 - 2026-07-07 M07: 요청자 팝업 제외·10분 타임아웃(reqActive, 시드 예외)·드로어 '내 Request' 뱃지+답변 목록 보기 (v1.53.1)

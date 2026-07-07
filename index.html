@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.55.1" />
+  <link rel="stylesheet" href="style.css?v=1.56.0" />
 </head>
 <body>
 
@@ -60,7 +60,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.55.1</span>
+        <span id="app-version">v1.56.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -145,8 +145,10 @@
         <p class="section-hint">주제방/프라이빗은 관리자만 개설·수정(전체 공유). 동네 채팅 기본 대화는 JSON [{"who":"닉","t":"내용"}] 또는 CSV(닉,내용 한 줄씩)로 채워요.</p>
       </div>
       <div class="settings-section">
-        <h4>데모 데이터 (강남·역삼·논현)</h4>
-        <p class="section-hint">실제 유저들이 쓰는 것처럼 보이는 가상 컨텐츠(트렌드 존 3·피드 20·스팟 16·Request 2·채팅)를 공유 컬렉션에 채워요. 이미지=실사진 링크(Wikimedia). 소유자=shoomerion@gmail.com(해당 계정으로 수정·이동 가능). 존 카드 편집/피드 관리에서 URL 교체 가능.</p>
+        <h4>데모 데이터 (강남·잠실·성수)</h4>
+        <p class="section-hint">실제 유저들이 쓰는 것처럼 보이는 가상 컨텐츠(3지역: 피드 40·스팟 30·Request 4·채팅)를 공유 컬렉션에 채워요. 이미지=실사진 링크(Wikimedia). 소유자=shoomerion@gmail.com(해당 계정으로 수정·이동 가능). 존 카드 편집/피드 관리에서 URL 교체 가능.</p>
+        <div class="setting-row"><label>수량</label><select id="seed-amount" class="mini-select"><option value="1">전체 (기본)</option><option value="0.66">보통 ⅔</option><option value="0.33">적게 ⅓</option></select><label>밀집도</label><select id="seed-density" class="mini-select"><option value="1">보통 (기본)</option><option value="0.55">촘촘</option><option value="1.4">넓게</option></select></div>
+        <p class="section-hint">수량=지역별 균등 샘플링 비율, 밀집도=지역 중심 기준 퍼짐 정도(동 라벨 자동 재판정). 수량을 줄여 다시 채울 땐 🧹 비우기 먼저.</p>
         <div class="setting-row"><button id="seed-fill" class="action-btn accent small" type="button">🌱 데모 데이터 채우기</button><button id="seed-clear" class="action-btn danger small" type="button">🧹 시드만 비우기</button></div>
       </div>
     </div>
@@ -414,7 +416,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="config.js?v=1.55.1"></script>
-  <script src="app.js?v=1.55.1"></script>
+  <script src="config.js?v=1.56.0"></script>
+  <script src="app.js?v=1.56.0"></script>
 </body>
 </html>
