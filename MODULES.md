@@ -73,6 +73,7 @@
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-07-07 M03+M05+M07+M08+M09+M13 ⚠️교차: v1.61.0 UX 5종 — 시드 생성 이미지 17건 전량 실사진(Commons 검증), 존 리스트 좋아요순(포커스 맨앞 이동 폐지), 핀 클램프 2.4→1.3, 트렌드 AI 선글라스(.ai-shades), 스팟 의견 버블(liveChat room='spot:<id>' 재사용)
 - 2026-07-07 M00+M04+M05+M07+M09 ⚠️교차: v1.60.0 UX 7종 — declutter 방향 안정화(줌 흔들림 픽스), 컨텐츠 상세 팝업(`openContentPop`), 스팟 카드 지도 배경(Static API·투명도/축척), Request 남은시간(분/초 1초 티커), 온도 수동 오버라이드(`heatTOf` 존/피드/스팟), 스플래시 투명, 아이콘 라운드 PNG
 - 2026-07-07 M00(declutter 추가) ⚠️교차 M04+M05+M07: 마커 겹침 방지(`declutterBoxes` 4방향 배치)·말풍선 자유 방향(꼬리 tl-* 4종)·피드/Request 핀 줌 스케일을 `spotScale`로 통일 (v1.59.0)
 - 2026-07-07 M04+M05+M07 ⚠️교차(M00 추가): 지도 컨텐츠 모드 컬러 — 베이직=무채색 통일/트렌드=좋아요 온도색(`heatColor`·`feedHeatT`·`zoneHeatT`, --heat+body.mode-trend 스코프) + Request 핀 26→34px 크기 통일 (v1.58.0)
