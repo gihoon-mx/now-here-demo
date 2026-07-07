@@ -343,6 +343,7 @@ function initSpotBubbleClass(){
     var bubble=document.createElement('div');bubble.className='spot-bubble';
     var emoji=document.createElement('div');emoji.className='spot-emoji';
     var dot=document.createElement('div');dot.className='spot-dotmark';
+    var cmt=document.createElement('span');cmt.className='spot-cmt';bubble.appendChild(cmt);this.cmtEl=cmt; // 의견 수 뱃지 (v1.63)
     wrap.appendChild(bubble);wrap.appendChild(emoji);wrap.appendChild(dot);
     wrap.addEventListener('pointerdown',function(e){self._onDown(e);}); // 포인터 = 마우스+터치(모바일 데모 드래그)
     wrap.addEventListener('click',function(e){ // 탭=상세 팝업 (편집 권한자 탭은 _onDown 경로가 팝업을 열어 중복 방지)
@@ -408,6 +409,13 @@ function initSpotBubbleClass(){
     var baseCol=mono?MONO_PIN:heatColor(heatTOf(s,zoneHeatT(s.lat,s.lng))); // 스팟 수동 온도(temp) 우선, 자동=속한 존 열기
     if(this.dotEl)this.dotEl.style.background=hexToRgba(baseCol,1); // 점 색상 = 버블 색상 규칙과 동일
     this.bubbleEl.textContent=t;
+    if(this.cmtEl){ // 의견 수 뱃지 — textContent 대입이 자식을 지우므로 다시 부착 (색=모드 규칙과 동일)
+      var cn=(typeof spotComments==='function')?spotComments(s.id).length:0;
+      this.cmtEl.textContent=cn?('💬'+cn):'';
+      this.cmtEl.style.display=cn?'':'none';
+      this.cmtEl.style.background=hexToRgba(baseCol,1);
+      this.bubbleEl.appendChild(this.cmtEl);
+    }
     this.bubbleEl.style.display=t?'':'none';
     this.bubbleEl.style.color=mono?MONO_INK:'#fff';
     this.bubbleEl.style.fontSize=(Number(c.fontSize)||13)+'px';
@@ -465,7 +473,6 @@ function initSpotBubbleClass(){
 /* ========== [M05] 피드 썸네일 지도 핀 (원형 사진 · Apple Maps 무드, 글로우 없음) ==========
    근접(픽셀) 핀은 클러스터 1개(대표 사진+개수 뱃지)로 묶고, 탭하면 멤버 범위로 줌인해 펼쳐짐 */
 var feedThumbOverlays=[], phoneFeedThumbOverlays=[];
-var CONTENT_PIN_BASE=44; // 피드 썸네일·Request 핀 기준 크기(줌16 기준, spotScale 곱해 줌 연동)
 var LP_MS=450, LP_TOL=8; // 터치 롱프레스 = 콘텐츠 이동 시작(짧은 탭·지도 팬과 구분). 마우스는 즉시 드래그
 function FeedThumb(cluster,m){ // cluster={pos,items:[{f,pos},…]} — 1개=단일 핀, 여러 개=클러스터
   this.members=cluster.items;this.item=cluster.items[0].f;
@@ -555,9 +562,12 @@ function initFeedThumbClass(){
     var px=p.fromLatLngToDivPixel(this.position);if(!px)return;
     this.div.style.left=px.x+'px';this.div.style.top=px.y+'px';this._ax=px.x;this._ay=px.y; // 앵커(declutter 참조)
     var m=this.getMap(),z=m?m.getZoom():15;
-    // 스팟 메시지와 동일한 줌 스케일(spotScale, 기준 줌 16·줌당 2배). 핀 가시성 위해 표시 배율만 0.34~1.3 클램프(줌인 시 사진 핀이 스팟을 압도하지 않게 — v1.61)
-    var s=Math.round(CONTENT_PIN_BASE*Math.max(0.34,Math.min(1.3,spotScale(z))));
-    this.div.style.width=s+'px';this.div.style.height=s+'px';
+    // v1.63: 스팟 이모지와 완전히 동일한 크기 로직 — 기준 크기=spotConfig.emojiSize, 곡선=spotScale(클램프 없음), 점 전환 기준도 동일
+    var mpp2=mapMpp(m),isDot=mpp2?((mpp2*64)>spotDotScaleM()):(z<13);
+    var base=Number(spotConfig.emojiSize)||26;
+    var px2=isDot?12:Math.max(10,Math.round(base*spotScale(z)));
+    this.div.style.width=px2+'px';this.div.style.height=px2+'px';
+    this.div.classList.toggle('fp-dot',isDot);
   };
   FeedThumb.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
 }
@@ -777,6 +787,7 @@ function addSpotComment(id,t){
     return;
   }
   (socMsgs[k]=socMsgs[k]||[]).push({me:true,who:chatName(),t:t});saveChat();
+  if(typeof refreshSpotStyles==='function')refreshSpotStyles(); // 로컬 폴백: 버블 뱃지 즉시 갱신
 }
 function closeContentPop(){var m=document.getElementById('content-pop');if(m)m.style.display='none';cpopRefresh=null;}
 function cpopGoMap(kind,data){ // 팝업 '📍 지도에서 보기' — 컨텐츠 탭=팝업 통일 규칙에서 위치 이동은 이 버튼으로
@@ -797,22 +808,17 @@ function openContentPop(kind,data){
   var m=document.getElementById('content-pop'),body=document.getElementById('cpop-body'),tt=document.getElementById('cpop-title');
   if(!m||!body||!data)return;
   body.innerHTML='';
+  // 헤더 액션(v1.63): 제목과 얼라인 — [📍 지도보기][✏️ 수정(권한자)] ... [닫기]
+  var ha=document.getElementById('cpop-head-actions');if(ha)ha.innerHTML='';
+  function headAct(label,fn,accent){if(!ha)return;var b=document.createElement('button');b.type='button';b.className='cpop-hbtn'+(accent?' accent':'');b.textContent=label;b.addEventListener('click',fn);ha.appendChild(b);}
+  headAct('📍 지도보기',function(){cpopGoMap(kind,data);});
   if(kind==='spot'){
     tt.textContent='스팟 메시지';
     body.innerHTML='<div class="cps"><span class="cps-emoji"></span><p class="cps-text"></p><span class="cps-region"></span></div>';
     body.querySelector('.cps-emoji').textContent=data.emoji||'💬';
     body.querySelector('.cps-text').textContent=data.text||'(빈 메시지)';
     body.querySelector('.cps-region').textContent='📍 '+(dongAt(data.lat,data.lng)||'지정 위치');
-    var ar=document.createElement('div');ar.className='cpop-actions';
-    var gm=document.createElement('button');gm.type='button';gm.className='action-btn small';gm.textContent='📍 지도에서 보기';
-    gm.addEventListener('click',function(){cpopGoMap('spot',data);});
-    ar.appendChild(gm);
-    if(canEditSpot(data)){ // 권한자: 팝업에서 편집 진입
-      var eb=document.createElement('button');eb.type='button';eb.className='action-btn accent small';eb.textContent='✏️ 수정';
-      eb.addEventListener('click',function(){closeContentPop();openSpotEditor(data.id);});
-      ar.appendChild(eb);
-    }
-    body.appendChild(ar);
+    if(canEditSpot(data))headAct('✏️ 수정',function(){closeContentPop();openSpotEditor(data.id);},true); // 권한자: 헤더에서 편집 진입
     // 의견(댓글): 메시지 버블 리스트 + 입력 (liveChat room='spot:<id>' 실시간 공유)
     var cbox=document.createElement('div');cbox.className='cps-comments';
     function renderCms(){
@@ -851,11 +857,7 @@ function openContentPop(kind,data){
     r2.innerHTML='<span class="cpf-like">♥ '+L.n+'</span><span class="cpf-time"></span>'+(data.kind==='cam'?'<span class="fc-live">LIVE</span>':'');
     r2.querySelector('.cpf-time').textContent=data.ts?timeAgo(data.ts):'';
     wrap.appendChild(r2);
-    body.appendChild(wrap);
-    var gaF=document.createElement('div');gaF.className='cpop-actions';
-    var gbF=document.createElement('button');gbF.type='button';gbF.className='action-btn small';gbF.textContent='📍 지도에서 보기';
-    gbF.addEventListener('click',function(){cpopGoMap('feed',data);});
-    gaF.appendChild(gbF);body.appendChild(gaF);
+    body.appendChild(wrap); // 지도 보기 버튼은 헤더 공통(headAct)
   }else if(kind==='req'){
     tt.textContent='현장 Request';
     var mineR=(typeof isMyReq==='function')&&isMyReq(data),act=reqActive(data),n=(data.answers||[]).length;
@@ -883,11 +885,7 @@ function openContentPop(kind,data){
       });
       body.appendChild(ansBox);
     }
-    var gaR=document.createElement('div');gaR.className='cpop-actions';
-    var gbR=document.createElement('button');gbR.type='button';gbR.className='action-btn small';gbR.textContent='📍 지도에서 보기';
-    gbR.addEventListener('click',function(){cpopGoMap('req',data);});
-    gaR.appendChild(gbR);body.appendChild(gaR);
-  }
+  } // 지도 보기 버튼은 헤더 공통(headAct)
   m.style.display='flex';
 }
 function initContentPop(){
@@ -2305,6 +2303,10 @@ function switchMode(mode,opts){
   document.querySelector('.mode-indicator').classList.toggle('right',mode==='trend');
   document.body.classList.toggle('mode-trend',mode==='trend'); // AI 버튼 불꽃 톤 등 트렌드 전용 스타일 스코프
   if(typeof updateAiVisual==='function')updateAiVisual();
+  // v1.63 모드 전환 트랜스폼: AI 아이콘 스핀(선글라스 착탈 연출) + 지도 살짝 펄스
+  var aiB=document.querySelector('.pn-ai');
+  if(aiB){aiB.classList.remove('spin');void aiB.offsetWidth;aiB.classList.add('spin');setTimeout(function(){aiB.classList.remove('spin');},700);}
+  ['map','phone-map'].forEach(function(id){var el=document.getElementById(id);if(el){el.classList.remove('mode-morph');void el.offsetWidth;el.classList.add('mode-morph');setTimeout(function(){el.classList.remove('mode-morph');},650);}});
   if(mode==='local'){
     clearHexagons();selectedHexes.clear();
     if(boundsListener){google.maps.event.removeListener(boundsListener);boundsListener=null;}
@@ -2840,6 +2842,7 @@ function liveOn(){
     Object.keys(socLiveMsgs).forEach(function(k){socLiveMsgs[k].reverse();}); // desc 스냅샷 → 시간순
     if(currentTab==='social')renderSocial();
     if(typeof cpopRefresh==='function')cpopRefresh(); // 스팟 의견 팝업 열려 있으면 실시간 반영
+    if(typeof refreshSpotStyles==='function')refreshSpotStyles(); // 스팟 버블 의견 수 뱃지 갱신 (v1.63)
   },function(e){console.warn('liveChat',e);});
 }
 function liveOff(){Object.keys(liveUnsub).forEach(function(k){if(liveUnsub[k]){liveUnsub[k]();liveUnsub[k]=null;}});}
@@ -3485,9 +3488,15 @@ function zoneDistLabel(zone){ // 현재 지도 센터 기준 직선거리 · 존
   var ce=zoneCentroid(zone),d=haversineM(lat,lng,ce.lat,ce.lng);
   return d>=1000?(d/1000).toFixed(1)+' km':(Math.round(d/10)*10)+' m';
 }
-function zoneBestPhoto(zone){ // 존 썸네일 = 해당 존 태깅 사진 중 최다 좋아요 (없으면 존 photo)
+function zoneBestPhoto(zone){ // 존 썸네일 = 존 컨텐츠(존 태깅 + 존 범위 안 좌표 피드) 사진 중 최다 좋아요 (없으면 존 photo)
+  // v1.63 버그픽스: 시드/일반 피드는 zone 태그가 없어도(zone:null) 좌표가 존 안이면 포함 — 하트합산(zoneTotalHearts)과 기준 통일
   var best=null,bn=-1;
-  feedItems.forEach(function(f){if(f.zone===zone.id){var n=likeInfo(f.id).n;if(n>bn){bn=n;best=f;}}});
+  feedItems.forEach(function(f){
+    if(!f.src)return;
+    var belongs=(f.zone===zone.id);
+    if(!belongs&&typeof feedItemLatLng==='function'){var pos=feedItemLatLng(f);if(pos&&ptInZone(zone,pos.lat,pos.lng))belongs=true;}
+    if(belongs){var n=likeInfo(f.id).n;if(n>bn){bn=n;best=f;}}
+  });
   return best?best.src:(zone.photo||null);
 }
 function loadFeed(){try{var a=JSON.parse(localStorage.getItem(FEED_KEY)||'[]');if(Array.isArray(a))feedItems=a;}catch(e){}}

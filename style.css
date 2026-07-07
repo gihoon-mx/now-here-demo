@@ -803,7 +803,7 @@ body.role-admin #phone-drawer-body:not(.dv-admin) #settings-section{display:none
 .rqc-btn:hover,.rqc-btn:active{border-color:var(--acc);color:var(--acc);background:rgba(47,123,255,0.06);}
 /* 현장 Request 전용 맵 핀: 펄스 링(현장에 질문 신호) + ? 티어드롭 — AI Agent 보라 계열 */
 .req-pin{position:absolute;transform:translate(-50%,-100%);width:48px;height:56px;pointer-events:none;z-index:5;} /* v1.58 크기 통일: 드롭 26→34px, 피드 핀(44px)과 비슷한 시각 크기 */
-.req-pin .rp-drop{position:absolute;left:50%;top:2px;width:34px;height:34px;margin-left:-17px;
+.req-pin .rp-drop{position:absolute;left:50%;top:2px;width:34px;height:34px;margin-left:-17px;pointer-events:auto;cursor:pointer; /* v1.63: 탭=상세 팝업 (컨테이너 pointer-events:none이 클릭을 막던 버그 픽스) */
   background:linear-gradient(150deg,#c6cdd7,#8f97a4);border:2px solid #fff; /* 베이직=무채색 통일 — 트렌드 온도색은 아래 mode-trend 스코프 */
   border-radius:50% 50% 50% 6px;transform:rotate(-45deg);transform-origin:center;
   box-shadow:0 3px 10px rgba(90,100,115,0.4);}
@@ -962,7 +962,7 @@ body.role-user #allowlist-btn{display:none!important;}
 .feed-card.txt .fc-like{color:#e0245e;background:rgba(224,36,94,0.1);backdrop-filter:none;-webkit-backdrop-filter:none;}
 .fc-heart{position:absolute;left:50%;top:50%;font-size:10cqw;color:#ff4d6d;pointer-events:none;text-shadow:0 2px 10px rgba(0,0,0,0.25);animation:heartPop 1.15s cubic-bezier(.22,1,.36,1) forwards;}
 /* 피드 썸네일 지도 핀: 원형 사진 + 흰 링 (글로우 없음, 옅은 드롭섀도만) — 뱃지가 밖으로 나가도록 래퍼(.fp-im)에 라운드 */
-.feed-pin{position:absolute;transform:translate(-50%,-50%);pointer-events:none;transition:width .15s,height .15s;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+.feed-pin{position:absolute;transform:translate(-50%,-50%);pointer-events:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 .feed-pin .fp-im{width:100%;height:100%;box-sizing:border-box;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(15,23,42,0.28);overflow:hidden;background:#dfe3ea;}
 .feed-pin img{width:100%;height:100%;object-fit:cover;display:block;-webkit-user-drag:none;user-select:none;}
 .feed-pin.editable{pointer-events:auto;cursor:grab;touch-action:none;} /* 만든이·관리자 = 롱프레스(터치)/드래그(마우스)로 위치 이동 */
@@ -1119,3 +1119,24 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 #cpop-body .cpc-t{font-size:.8rem;font-weight:600;color:var(--ink);word-break:break-word;}
 #cpop-body .cps-inputrow{display:flex;gap:6px;margin-top:10px;}
 #cpop-body .cps-inputrow input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;font-size:.8rem;}
+
+/* ── v1.63 팝업 헤더 액션(제목|지도보기·수정|닫기) + 프로스트 배경 ── */
+.cpop-head{gap:8px;}
+.cpop-head #cpop-title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cpop-head-actions{display:flex;gap:4px;flex-shrink:0;}
+.cpop-hbtn{border:none;background:none;font-family:inherit;font-size:.74rem;font-weight:800;color:var(--ink2);padding:5px 7px;border-radius:9px;cursor:pointer;white-space:nowrap;transition:background .15s ease;}
+.cpop-hbtn:hover{background:rgba(15,23,42,0.06);}
+.cpop-hbtn.accent{color:var(--acc,#2f7bff);}
+.cpop-card{background:rgba(255,255,255,0.72);backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));-webkit-backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));} /* 네비바와 같은 프로스트 유리 */
+
+/* ── v1.63 스팟 의견 수 뱃지 (버블 우상단, 색=모드 규칙) ── */
+.spot-cmt{position:absolute;right:-8px;top:-9px;font-size:9px;font-weight:800;color:#fff;border-radius:999px;padding:2px 5px;line-height:1;box-shadow:0 0 0 1.5px #fff;white-space:nowrap;}
+
+/* ── v1.63 피드 핀 점 모드(스팟 점 전환 기준과 동일 시점) ── */
+.feed-pin.fp-dot{opacity:.75;}
+.feed-pin.fp-dot .fp-im{border-width:1.5px;box-shadow:0 1px 3px rgba(15,23,42,0.25);}
+.feed-pin.fp-dot .fp-n{display:none;}
+
+/* ── v1.63 베이직↔트렌드 전환 트랜스폼(지도 펄스 — AI 아이콘은 기존 aiSpin 재사용) ── */
+#map.mode-morph,#phone-map.mode-morph{animation:mapMorph .55s cubic-bezier(.22,1,.36,1);}
+@keyframes mapMorph{0%{transform:scale(1);}38%{transform:scale(1.02);}100%{transform:scale(1);}}

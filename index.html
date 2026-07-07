@@ -18,7 +18,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.62.0" />
+  <link rel="stylesheet" href="style.css?v=1.63.0" />
 </head>
 <body>
 
@@ -61,7 +61,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.62.0</span>
+        <span id="app-version">v1.63.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -424,10 +424,10 @@
     </div>
   </div>
 
-  <!-- 지도 컨텐츠 상세 팝업 (스팟/피드/Request 탭 → 크게 보기) -->
+  <!-- 지도 컨텐츠 상세 팝업 (스팟/피드/Request 탭 → 크게 보기) — 헤더: 제목 | 액션(지도보기·수정) | 닫기 -->
   <div id="content-pop" class="modal-overlay" style="display:none;">
     <div class="modal-card cpop-card">
-      <div class="modal-head"><span id="cpop-title">상세</span><button id="cpop-close" class="acct-btn" type="button">✕</button></div>
+      <div class="modal-head cpop-head"><span id="cpop-title">상세</span><div class="cpop-head-actions" id="cpop-head-actions"></div><button id="cpop-close" class="cpop-hbtn" type="button">닫기</button></div>
       <div id="cpop-body"></div>
     </div>
   </div>
@@ -437,7 +437,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=1.62.0"></script>
-  <script src="app.js?v=1.62.0"></script>
+  <script src="config.js?v=1.63.0"></script>
+  <script src="app.js?v=1.63.0"></script>
 </body>
 </html>
