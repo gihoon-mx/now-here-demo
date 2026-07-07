@@ -44,7 +44,7 @@ footer{max-width:1060px;margin:20px auto 0;font-size:.7rem;color:var(--ink3);tex
 footer code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(15,23,42,0.05);padding:1px 6px;border-radius:5px;}
 </style>
 </head>
-<body data-app-ver="v1.59.0">
+<body data-app-ver="v1.60.0">
 <header>
   <div><h1>🛠 <span>Now Here</span> 개발 관리</h1><p>모듈 레지스트리 · 세션별 모듈 단위 작업 — 소스: MODULES.md · <b id="doc-ver"></b></p></div>
   <div class="links"><a href="./">📱 라이브 데모</a><a href="deck.html">📽 소개 덱</a><a href="diagram.html">🧩 다이어그램</a></div>
@@ -70,12 +70,12 @@ var MODS=[
  {id:'M01',emoji:'🗺️',name:'core-map 지도 코어',st:'stable',ver:'v1.28',files:'app.js',desc:'지도 초기화·GeoJSON 동 경계·베이직/트렌드 모드 전환·메인 지도 이벤트.',anchors:['initMap','applyGeoJsonToMap','switchMode','refreshMapStyles'],deps:[]},
  {id:'M02',emoji:'🔍',name:'lens 포커스 렌즈',st:'stable',ver:'v1.28',files:'app.js',desc:'베이직/트렌드 마스크 렌즈 — 주변 포그·헤어라인·페이드 전환·히스테리시스.',anchors:['updatePhoneLens','lensBuild','lensApply','holeRing'],deps:['M01']},
  {id:'M03',emoji:'⬡',name:'zones 트렌드 존',st:'active',ver:'v1.54',files:'app.js',desc:'헥사 그리드·존 생성/편집/삭제·존 카드(글래스/리스트)·병합 아웃라인·하트 합산.',anchors:['generateHexagons','trendZones','zoneOutlineLoops','makeZoneCard'],deps:['M01']},
- {id:'M04',emoji:'💬',name:'spots 스팟 메시지',st:'stable',ver:'v1.59',files:'app.js',desc:'스팟 버블(자유 방향·겹침 방지 declutter)·컴포저·편집/드래그·워드클라우드. 모드 컬러: 베이직=무채색/트렌드=존 온도색.',anchors:['SpotBubble','SpotComposer','renderSpots','canEditSpot'],deps:['M01','M12']},
- {id:'M05',emoji:'🖼️',name:'feed 피드',st:'active',ver:'v1.59',files:'app.js',desc:'피드 탭 그리드·스코프/종류 필터·썸네일 핀+클러스터·좋아요·업로드(카메라/갤러리).',anchors:['renderFeed','feedEntriesScoped','FeedThumb','clusterFeedPins','toggleLike'],deps:['M01','M12']},
+ {id:'M04',emoji:'💬',name:'spots 스팟 메시지',st:'stable',ver:'v1.60',files:'app.js',desc:'스팟 버블(자유 방향·겹침 방지 declutter)·컴포저·편집/드래그·워드클라우드. 모드 컬러: 베이직=무채색/트렌드=존 온도색.',anchors:['SpotBubble','SpotComposer','renderSpots','canEditSpot'],deps:['M01','M12']},
+ {id:'M05',emoji:'🖼️',name:'feed 피드',st:'active',ver:'v1.60',files:'app.js',desc:'피드 탭 그리드·스코프/종류 필터·썸네일 핀+클러스터·좋아요·업로드(카메라/갤러리).',anchors:['renderFeed','feedEntriesScoped','FeedThumb','clusterFeedPins','toggleLike'],deps:['M01','M12']},
  {id:'M06',emoji:'👥',name:'social 소셜',st:'stable',ver:'v1.45',files:'app.js',desc:'동네 채팅방(포커스 구역)·주제방·프라이빗·liveChat 실시간 공유.',anchors:['renderSocial','socRoomList','roomMsgs'],deps:['M12']},
- {id:'M07',emoji:'📍',name:'request 현장 Request',st:'active',ver:'v1.59',files:'app.js',desc:'Request 등록(10분 타임아웃)·전용 펄스 핀·삭제 → 타겟 지역 사용자에게 AI Agent 실시간 응답 팝업(💬답하기·📷사진, 요청자 제외) → 요청자는 도착 알림+드로어 내 Request에서 답변 확인.',anchors:['openRequestComposer','showReqBubble','reqNearMe','reqActive','answerRequest'],deps:['M01','M08','M12']},
+ {id:'M07',emoji:'📍',name:'request 현장 Request',st:'active',ver:'v1.60',files:'app.js',desc:'Request 등록(10분 타임아웃)·전용 펄스 핀·삭제 → 타겟 지역 사용자에게 AI Agent 실시간 응답 팝업(💬답하기·📷사진, 요청자 제외) → 요청자는 도착 알림+드로어 내 Request에서 답변 확인.',anchors:['openRequestComposer','showReqBubble','reqNearMe','reqActive','answerRequest'],deps:['M01','M08','M12']},
  {id:'M08',emoji:'🤖',name:'ai-agent AI 에이전트',st:'active',ver:'v1.54',files:'app.js',desc:'Ask Map 패널(지도 요약·프리셋 풀 50/노출 5·채팅 입력)·모드별 아이콘 톤(트렌드=불꽃)·알림 말풍선.',anchors:['initAiAgent','aiPresetPool','aiMapSummary','aiChatAnswer','updateAiVisual'],deps:['M07']},
- {id:'M09',emoji:'📱',name:'shell 폰 셸',st:'stable',ver:'v1.54',files:'app.js',desc:'폰 미러 레이아웃·탭 전환(네비 스와이프)·햄버거 드로어(둘러보기/관리자 탭)·헤더.',anchors:['initPhoneMirror','switchTab','initPhoneMenu','renderDrawerDemo','setDrawerView'],deps:['M05','M06']},
+ {id:'M09',emoji:'📱',name:'shell 폰 셸',st:'stable',ver:'v1.60',files:'app.js',desc:'폰 미러 레이아웃·탭 전환(네비 스와이프)·햄버거 드로어(둘러보기/관리자 탭)·헤더.',anchors:['initPhoneMirror','switchTab','initPhoneMenu','renderDrawerDemo','setDrawerView'],deps:['M05','M06']},
  {id:'M10',emoji:'📰',name:'news 요약 지면',st:'stable',ver:'v1.46',files:'app.js',desc:'헤더 아래 캐러셀 지면(탭별)·카드 3버전·접기·연관 피드 자동 노출.',anchors:['renderNews','newsItems','initSummaryCollapse'],deps:['M05']},
  {id:'M11',emoji:'⚙️',name:'settings 관리자 설정',st:'stable',ver:'v1.48',files:'app.js',desc:'설정 블록(드래프트→적용)·미니 프리뷰·기본값/취소·클라우드 저장.',anchors:['BLOCK_DEFS','MINI_RENDER','initDraft','initBlockBars'],deps:['M12']},
  {id:'M12',emoji:'🔐',name:'auth-sync 인증·동기화',st:'stable',ver:'v1.52',files:'app.js · firestore.rules',desc:'Google 로그인·allowlist 역할·스플래시·shared/live 컬렉션 실시간 리스너.',anchors:['initAuth','showAuthOverlay','liveOn','loadSharedContent','cloudSave'],deps:[]},

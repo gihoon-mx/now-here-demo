@@ -377,9 +377,8 @@ button:focus:not(:focus-visible){outline:none;}
     radial-gradient(80% 60% at 85% 90%,rgba(123,97,255,0.12) 0%,rgba(123,97,255,0) 55%),
     linear-gradient(180deg,#f4f7fc 0%,#eef1f6 100%);}
 #auth-overlay.hidden{display:none;}
-.auth-card{width:min(340px,86vw);padding:32px 28px 26px;border-radius:22px;text-align:center;
-  background:rgba(255,255,255,0.72);backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));-webkit-backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));
-  border:1px solid var(--glass-line,rgba(255,255,255,0.65));box-shadow:0 24px 60px rgba(15,23,42,0.14),var(--glass-hi,inset 0 1px 0 rgba(255,255,255,0.7));
+.auth-card{width:min(340px,86vw);padding:32px 28px 26px;text-align:center;
+  background:transparent;border:none;box-shadow:none; /* v1.60: 흰 박스 없이 배경 위 직접 표시 */
   animation:panelIn .5s cubic-bezier(.22,1,.36,1) both;}
 /* 앱 아이콘(구름 마스코트): 일반 앱 아이콘처럼 모서리 R값 컷 (한 변의 ~22%) */
 .auth-mark{display:block;width:68px;height:68px;margin:0 auto 12px;object-fit:cover;border-radius:15px;
@@ -1078,3 +1077,28 @@ body.mode-trend .req-bubble .rq-ai{background:linear-gradient(135deg,#ffb37a,#ff
 /* ── [M00] Twemoji 통일 이모지: 치환된 <img class="emoji"> 텍스트 흐름 사이징 ──
    카드류 범용 img 규칙(.cp-slide img width:100% 등, 더 높은 특이도)에 왜곡되지 않도록 !important로 고정 */
 img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vertical-align:-.12em!important;display:inline-block!important;object-fit:contain!important;border-radius:0!important;aspect-ratio:auto!important;flex:none!important;min-height:0!important;-webkit-mask-image:none!important;mask-image:none!important;pointer-events:none;}
+
+/* ── [M09] 지도 컨텐츠 상세 팝업 (스팟/피드/Request 탭 → 크게 보기) ── */
+.cpop-card{width:min(340px,88vw);max-height:76vh;overflow-y:auto;}
+#cpop-body .cps{text-align:center;padding:6px 2px 2px;}
+#cpop-body .cps-emoji{font-size:44px;line-height:1;display:block;}
+#cpop-body .cps-text{margin:10px 0 6px;font-size:1rem;font-weight:700;line-height:1.45;color:var(--ink);white-space:pre-wrap;word-break:break-word;}
+#cpop-body .cps-region{font-size:.76rem;color:var(--ink3);}
+#cpop-body .cpf-img{width:100%;border-radius:14px;display:block;}
+#cpop-body .cpf-desc{margin:10px 2px 2px;font-size:.9rem;font-weight:600;line-height:1.5;color:var(--ink);word-break:break-word;}
+#cpop-body .cpf-row{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:.78rem;color:var(--ink2);flex-wrap:wrap;}
+#cpop-body .cpf-name{font-weight:800;color:var(--ink);}
+#cpop-body .cpf-like{color:#ff4d6d;font-weight:800;}
+#cpop-body .cpf-time{color:var(--ink3);}
+#cpop-body .cpr-q{font-size:.98rem;font-weight:800;line-height:1.5;color:var(--ink);word-break:break-word;}
+#cpop-body .cpr-state{margin-top:8px;font-size:.78rem;font-weight:700;color:var(--ink2);}
+#cpop-body .rqc-answers{margin-top:10px;}
+.cpop-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+
+/* Request 남은 시간 칩 (드로어 카드·상세 팝업 — 1초 티커가 텍스트 갱신) */
+.rqc-left{display:inline-flex;align-items:center;font-size:.7rem;font-weight:800;color:#d97706;background:rgba(255,178,36,0.14);border-radius:999px;padding:2px 8px;margin-top:6px;width:fit-content;}
+.rqc-left:empty{display:none;}
+
+/* 피드 스팟 카드: 해당 위치 지도 배경 (관리자: 투명도·축척) */
+.feed-card .fc-mapbg{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:cover;border-radius:inherit;pointer-events:none;z-index:0;}
+.feed-card.txt .fc-emoji,.feed-card.txt .fc-text{position:relative;z-index:1;}
