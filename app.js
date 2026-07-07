@@ -393,12 +393,16 @@ function initSpotBubbleClass(){
     this.emojiEl.textContent=s.emoji||'💬';
     this.emojiEl.style.fontSize=(Number(c.emojiSize)||26)+'px';
     this.emojiEl.style.letterSpacing=(Number(c.emojiLetterSpacing)||0)+'px';
-    if(this.dotEl)this.dotEl.style.background=hexToRgba(s.color||c.bgColor||'#1c66e5',1); // 점 색상 = 버블 색상(개별 변경 포함)
+    // 모드별 컬러 규칙(v1.58): 베이직=무채색 통일(화이트 버블+잉크 텍스트+그레이 점) / 트렌드=온도색(속한 존의 좋아요 열기)
+    // — 개별 스팟 색(s.color)·설정 색(bgColor/textColor)은 지도 위에선 모드 규칙이 우선(드로어 칩 등 리스트엔 개별 색 유지)
+    var mono=currentMode!=='trend';
+    var baseCol=mono?MONO_PIN:heatColor(zoneHeatT(s.lat,s.lng));
+    if(this.dotEl)this.dotEl.style.background=hexToRgba(baseCol,1); // 점 색상 = 버블 색상 규칙과 동일
     this.bubbleEl.textContent=t;
     this.bubbleEl.style.display=t?'':'none';
-    this.bubbleEl.style.color=c.textColor||'#fff';
+    this.bubbleEl.style.color=mono?MONO_INK:'#fff';
     this.bubbleEl.style.fontSize=(Number(c.fontSize)||13)+'px';
-    this.bubbleEl.style.setProperty('--spot-bg',hexToRgba(s.color||c.bgColor||'#1c66e5',Math.min(Number(c.bgOpacity),0.82))); // 배경흐림(blur)이 보이도록 알파 상한 0.82 (더 낮게는 설정대로)
+    this.bubbleEl.style.setProperty('--spot-bg',mono?hexToRgba('#ffffff',Math.min(Number(c.bgOpacity),0.88)):hexToRgba(baseCol,Math.min(Number(c.bgOpacity),0.82))); // 배경흐림(blur)이 보이도록 알파 상한 (더 낮게는 설정대로)
     // 레이아웃: 이모지 위치/간격, 말풍선 둥글기/꼬리
     var pos=c.emojiPos||'bottom', vertical=(pos==='top'||pos==='bottom');
     this.div.style.flexDirection=vertical?'column':'row';
@@ -465,6 +469,9 @@ function initFeedThumbClass(){
     var im=document.createElement('div');im.className='fp-im';
     var img=document.createElement('img');img.src=this.item.src;img.alt='';im.appendChild(img);
     d.appendChild(im);
+    // 온도색(트렌드 모드에서만 CSS body.mode-trend 스코프로 발현): 좋아요 온도, 클러스터=멤버 중 최고 온도
+    var ht=0;this.members.forEach(function(m){var f=m.f||m;var t2=feedHeatT(f.id);if(t2>ht)ht=t2;});
+    d.style.setProperty('--heat',heatColor(ht));
     this.div=d;
     if(n>1){ // 클러스터: 대표 사진 + 개수 뱃지, 탭=멤버 범위로 줌인(펼치기)
       d.classList.add('cluster');
@@ -646,6 +653,30 @@ function initTwemoji(){
   }).observe(document.body,{childList:true,subtree:true,characterData:true});
 }
 initTwemoji(); // 즉시 실행(스크립트가 body 끝에서 로드) — 인증 스플래시부터 통일 렌더링
+
+/* ========== [M00] 온도 컬러 팔레트 (지도 컨텐츠 모드별 색 규칙) ========== */
+// 베이직 모드=무채색 통일 / 트렌드 모드=좋아요 기반 '온도'로 화염 그라디언트(AI_PALETTE 화염 톤과 같은 계열).
+// 사진 컨텐츠 자체는 컬러 유지 — 크롬(버블·핀·뱃지·링)만 모드 색 규칙을 따름.
+var HEAT_STOPS=['#ffc24a','#ff6a4d','#ff2e1f']; // 식음(앰버) → 중간(주황) → 뜨거움(빨강)
+var MONO_PIN='#aab2bf', MONO_INK='#2a3140';      // 베이직 무채색: 핀/점 그레이 · 텍스트 잉크
+function lerpHex(a,b,t){
+  function h(x){return parseInt(x,16);}
+  var A=[h(a.slice(1,3)),h(a.slice(3,5)),h(a.slice(5,7))],B=[h(b.slice(1,3)),h(b.slice(3,5)),h(b.slice(5,7))];
+  return '#'+A.map(function(v,i){var o=Math.round(v+(B[i]-v)*t);return ('0'+o.toString(16)).slice(-2);}).join('');
+}
+function heatColor(t){ // t: 0(식음)~1(뜨거움)
+  t=Math.max(0,Math.min(1,Number(t)||0));
+  return t<0.5?lerpHex(HEAT_STOPS[0],HEAT_STOPS[1],t*2):lerpHex(HEAT_STOPS[1],HEAT_STOPS[2],(t-0.5)*2);
+}
+function feedHeatT(id){ // 피드 온도 = 좋아요 / 현재 최다 좋아요 (읽기 전용: M05 feedItems·likeInfo)
+  var max=0;feedItems.forEach(function(f){var n=likeInfo(f.id).n;if(n>max)max=n;});
+  return max>0?likeInfo(id).n/max:0;
+}
+function zoneHeatT(lat,lng){ // 좌표 온도 = 속한 트렌드 존 하트합산 / 최다 존 (스팟·Request용. 읽기 전용: M03 trendZones)
+  var mine=-1,max=0;
+  trendZones.forEach(function(z){var h=zoneTotalHearts(z);if(h>max)max=h;if(mine<0&&ptInZone(z,lat,lng))mine=h;});
+  return (mine>=0&&max>0)?mine/max:0;
+}
 
 /* ========== [M04] 스팟 입력 팝업 오버레이 (지도 위, 추가한 포인트 옆) ========== */
 function SpotComposer(latLng,targetMap){this.position=latLng;this.div=null;this.emoji=currentSpotEmoji||((spotConfig.emojis&&spotConfig.emojis[0])||'💬');this.setMap(targetMap||map);}
@@ -3628,6 +3659,7 @@ function initReqPinClass(){
     var d=document.createElement('div');d.className='req-pin';
     d.innerHTML='<span class="rp-ring"></span><span class="rp-ring r2"></span><span class="rp-drop"><i>?</i></span>';
     d.title=this.rq.place+' · 현장 Request';
+    d.style.setProperty('--heat',heatColor(zoneHeatT(this.rq.lat,this.rq.lng))); // 트렌드 모드 온도색(속한 존 열기) — 베이직은 CSS 무채색
     this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);
   };
   ReqPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}};

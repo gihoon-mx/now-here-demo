@@ -800,16 +800,19 @@ body.role-admin #phone-drawer-body:not(.dv-admin) #settings-section{display:none
 .rqc-btn{flex:1;padding:1.6cqw 0;border:1px solid var(--line);border-radius:2.6cqw;background:#fff;color:var(--ink2);font-family:inherit;font-size:2.5cqw;font-weight:700;cursor:pointer;transition:all .15s ease;}
 .rqc-btn:hover,.rqc-btn:active{border-color:var(--acc);color:var(--acc);background:rgba(47,123,255,0.06);}
 /* 현장 Request 전용 맵 핀: 펄스 링(현장에 질문 신호) + ? 티어드롭 — AI Agent 보라 계열 */
-.req-pin{position:absolute;transform:translate(-50%,-100%);width:40px;height:44px;pointer-events:none;z-index:5;}
-.req-pin .rp-drop{position:absolute;left:50%;top:2px;width:26px;height:26px;margin-left:-13px;
-  background:linear-gradient(150deg,#8ed0ff,#7b61ff);border:2px solid #fff;
+.req-pin{position:absolute;transform:translate(-50%,-100%);width:48px;height:56px;pointer-events:none;z-index:5;} /* v1.58 크기 통일: 드롭 26→34px, 피드 핀(44px)과 비슷한 시각 크기 */
+.req-pin .rp-drop{position:absolute;left:50%;top:2px;width:34px;height:34px;margin-left:-17px;
+  background:linear-gradient(150deg,#c6cdd7,#8f97a4);border:2px solid #fff; /* 베이직=무채색 통일 — 트렌드 온도색은 아래 mode-trend 스코프 */
   border-radius:50% 50% 50% 6px;transform:rotate(-45deg);transform-origin:center;
-  box-shadow:0 3px 10px rgba(123,97,255,0.45);}
+  box-shadow:0 3px 10px rgba(90,100,115,0.4);}
 .req-pin .rp-drop i{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  transform:rotate(45deg);font-style:normal;font-size:14px;font-weight:900;color:#fff;line-height:1;}
-.req-pin .rp-ring{position:absolute;left:50%;top:15px;width:26px;height:26px;margin-left:-13px;border-radius:50%;
-  border:2px solid rgba(123,97,255,0.55);animation:rpPulse 2s ease-out infinite;}
+  transform:rotate(45deg);font-style:normal;font-size:17px;font-weight:900;color:#fff;line-height:1;}
+.req-pin .rp-ring{position:absolute;left:50%;top:20px;width:34px;height:34px;margin-left:-17px;border-radius:50%;
+  border:2px solid rgba(120,130,145,0.5);animation:rpPulse 2s ease-out infinite;}
 .req-pin .rp-ring.r2{animation-delay:1s;}
+/* 트렌드 모드 = 온도색(--heat: 속한 존 좋아요 열기, ReqPin이 인라인 주입) */
+body.mode-trend .req-pin .rp-drop{background:linear-gradient(150deg,#ffb37a,var(--heat,#ff3d2e));box-shadow:0 3px 10px rgba(255,80,50,0.4);}
+body.mode-trend .req-pin .rp-ring{border-color:rgba(255,90,60,0.55);}
 @keyframes rpPulse{0%{transform:scale(.5);opacity:.9;}80%{transform:scale(2.1);opacity:0;}100%{transform:scale(2.1);opacity:0;}}
 
 /* 내 Request 카드: 뱃지(내 Request/상태) + 답변 목록 펼침 */
@@ -966,7 +969,10 @@ body.role-user #allowlist-btn{display:none!important;}
 /* 클러스터 핀: 겹친 사진 느낌 + 개수 뱃지, 탭=펼치기 */
 .feed-pin.cluster{pointer-events:auto;cursor:pointer;touch-action:manipulation;}
 .feed-pin.cluster .fp-im{box-shadow:0 1px 5px rgba(15,23,42,0.28),3.5px 3.5px 0 -1.5px #fff,4px 4.5px 6px rgba(15,23,42,0.22);}
-.feed-pin .fp-n{position:absolute;right:-5px;top:-5px;min-width:16px;height:16px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:0 4px;border-radius:9px;background:var(--acc);border:1.5px solid #fff;color:#fff;font-size:10px;font-weight:800;line-height:1;}
+.feed-pin .fp-n{position:absolute;right:-5px;top:-5px;min-width:16px;height:16px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:0 4px;border-radius:9px;background:#8a919d;border:1.5px solid #fff;color:#fff;font-size:10px;font-weight:800;line-height:1;} /* 베이직=무채색 뱃지 */
+/* 트렌드 모드 = 온도색(--heat: 좋아요 온도, FeedThumb이 인라인 주입 — 클러스터는 멤버 최고 온도) */
+body.mode-trend .feed-pin .fp-im{border-color:var(--heat,#ffc24a);}
+body.mode-trend .feed-pin .fp-n{background:var(--heat,#ff6a4d);}
 /* 자연스러운 하트: 통통 팝 → 잠시 머무름 → 위로 떠오르며 서서히 사라짐 */
 @keyframes heartPop{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.3);}
