@@ -18,7 +18,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.63.0" />
+  <link rel="stylesheet" href="style.css?v=1.64.0" />
 </head>
 <body>
 
@@ -61,7 +61,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.63.0</span>
+        <span id="app-version">v1.64.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -244,6 +244,7 @@
         <div class="row-cap">선택 헥사곤</div>
         <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-hex-sel-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
         <div class="row-cap">존 표시 · 라벨</div>
+        <div class="setting-row"><label>라벨 표시</label><label class="toggle-switch"><input type="checkbox" id="zone-label-toggle" checked /><span class="toggle-slider"></span></label></div>
         <div class="setting-row"><label>내부 경계 숨김</label><label class="toggle-switch"><input type="checkbox" id="zone-merge-toggle" /><span class="toggle-slider"></span></label></div>
         <div class="setting-row"><label>라벨 크기</label><input type="range" id="zone-label-size" min="4" max="200" step="1" value="11" /><span class="range-val">11</span></div>
         <div class="setting-row"><label>라벨 글자색</label><button type="button" class="color-trigger" id="ct-zone-label-text"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
@@ -437,7 +438,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=1.63.0"></script>
-  <script src="app.js?v=1.63.0"></script>
+  <script src="config.js?v=1.64.0"></script>
+  <script src="app.js?v=1.64.0"></script>
 </body>
 </html>

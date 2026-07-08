@@ -39,7 +39,7 @@ var editingZoneBackup = null;
 
 /* ========== [M11] 라벨 설정 ========== */
 var localLabelConfig = { enabled:false, fontSize:12, textColor:'#ffffff', bgColor:'#111318', bgOpacity:0.72 };
-var zoneLabelConfig  = { fontSize:11, textColor:'#ffffff', bgOpacity:1.0 };
+var zoneLabelConfig  = { show:true, fontSize:11, textColor:'#ffffff', bgOpacity:1.0 };
 var localLabel = null;          // 로컬모드 선택 구역 라벨 오버레이
 var selectedFeatureName = null; // 현재 선택 구역 표시명
 var selectedFeatureId = null;   // 폰 미러용 선택 구역 식별자
@@ -312,12 +312,16 @@ function initMapLabelClass(){
   MapLabel.prototype.onAdd=function(){var d=document.createElement('div');d.className='map-label-tag';this._apply(d);d.textContent=this.text;this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);};
   MapLabel.prototype.updateStyle=function(style){this.style=style||{};if(this.div)this._apply(this.div);};
   MapLabel.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);
-    if(this.div&&pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';
+    if(this.div&&pos){
       // v1.62 라벨 크기 안정화: 스팟과 동일한 spotScale 곡선으로 줌 연동(클램프 0.7~1.6) — 고정 px는 줌마다 지면 대비 상대 크기가 들쭉날쭉해 보였음
-      var m=this.getMap(),z=m&&m.getZoom&&m.getZoom();
-      if(z!=null){var s=Math.max(0.7,Math.min(1.6,spotScale(z)));
-        if(CSS_ZOOM_OK)this.div.style.zoom=s;
-        else this.div.style.transform='translate(-50%,-50%) scale('+s+')';}
+      var m=this.getMap(),z=m&&m.getZoom&&m.getZoom(),s=(z!=null)?Math.max(0.7,Math.min(1.6,spotScale(z))):1;
+      if(CSS_ZOOM_OK){
+        // v1.64 버그픽스: CSS zoom은 크기뿐 아니라 left/top 오프셋까지 s배로 곱해 렌더 → 앵커가 pos*s로 밀려 줌마다 라벨이 흔들렸음. 좌표를 s로 나눠 보정(렌더 위치=pos, 중심 정렬은 CSS translate(-50%,-50%))
+        this.div.style.zoom=s;this.div.style.left=(pos.x/s)+'px';this.div.style.top=(pos.y/s)+'px';
+      }else{
+        this.div.style.zoom='';this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';
+        this.div.style.transform='translate(-50%,-50%) scale('+s+')';
+      }
     }};
   MapLabel.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
 }
@@ -1574,6 +1578,7 @@ function updateLocalLabelStyle(){if(localLabel){localLabel.updateStyle(localLabe
 
 /* ========== [M03] 존 라벨 스타일 ========== */
 function zoneLabelStyle(zoneColor){return {bg:hexToRgba(zoneColor,Number(zoneLabelConfig.bgOpacity)),color:zoneLabelConfig.textColor,fontSize:Number(zoneLabelConfig.fontSize)};}
+function zoneLabelsShown(){return zoneLabelConfig.show!==false;} // v1.64 존 라벨 표시 토글(undefined=구버전 클라 호환 → 표시)
 function refreshZoneLabels(){trendZones.forEach(function(z){if(z.label)z.label.updateStyle(zoneLabelStyle(z.color));});refreshPhoneZoneLabels();}
 
 /* ========== [M09] 폰 미러 (모바일 미리보기) ========== */
@@ -1641,7 +1646,7 @@ function syncPhoneZones(){
     });
     if(zoneMergeBlocks)addZoneOutline(zone.hexCenters,gp,zone.color,phoneMap,polys);   // 합쳐진 외곽선만
     var label=null;
-    if(zone.hexCenters.length>0)label=new MapLabel(new google.maps.LatLng(sumLat/zone.hexCenters.length,sumLng/zone.hexCenters.length),zone.name,zoneLabelStyle(zone.color),phoneMap);
+    if(zone.hexCenters.length>0&&zoneLabelsShown())label=new MapLabel(new google.maps.LatLng(sumLat/zone.hexCenters.length,sumLng/zone.hexCenters.length),zone.name,zoneLabelStyle(zone.color),phoneMap);
     phoneZoneOverlays.push({polygons:polys,label:label,color:zone.color,zoneId:zone.id});
   });
 }
@@ -2076,7 +2081,7 @@ function renderZoneOnMap(zone) {
     sumLat+=c.lat; sumLng+=c.lng;
   });
   if(zoneMergeBlocks)addZoneOutline(zone.hexCenters,gp,zone.color,map,zone.polygons);   // 합쳐진 외곽선만
-  if (zone.hexCenters.length>0) {
+  if (zone.hexCenters.length>0 && zoneLabelsShown()) {
     zone.label=new MapLabel(new google.maps.LatLng(sumLat/zone.hexCenters.length,sumLng/zone.hexCenters.length),zone.name,zoneLabelStyle(zone.color),map);
   }
 }
@@ -2477,6 +2482,7 @@ function syncSettingsUI(){
   setRange('hex-radius',DRAFT.hexRadiusKm,function(v){return v.toFixed(1)+'km';});
   setCheck('local-label-toggle',DRAFT.localLabelConfig.enabled);
   setCheck('zone-merge-toggle',DRAFT.zoneMergeBlocks);
+  setCheck('zone-label-toggle',DRAFT.zoneLabelConfig.show!==false);
   setRange('local-label-size',DRAFT.localLabelConfig.fontSize);
   setRange('zone-label-size',DRAFT.zoneLabelConfig.fontSize);
   setRange('zone-label-bg-opacity',DRAFT.zoneLabelConfig.bgOpacity);
@@ -2548,6 +2554,8 @@ function initSettingsPanel(){
   bindInput('zone-label-bg-opacity','range',DRAFT.zoneLabelConfig,'bgOpacity',mpNoop);
   var zmt=document.getElementById('zone-merge-toggle');
   if(zmt)zmt.addEventListener('change',function(){DRAFT.zoneMergeBlocks=this.checked;markDirtyFrom(this);});
+  var zlt=document.getElementById('zone-label-toggle');
+  if(zlt)zlt.addEventListener('change',function(){DRAFT.zoneLabelConfig.show=this.checked;markDirtyFrom(this);});
 
   enhanceRangeInputs();      // 슬라이더 옆 숫자 직접 입력 추가
   initSettingsAccordion();   // 설정 섹션 아코디언화
@@ -2955,7 +2963,7 @@ var MINI_RENDER={
     if(DRAFT.zoneMergeBlocks)zoneOutlineLoops(centers,gp).forEach(function(loop){
       strokes+='<polygon points="'+loop.map(function(pt){return pt.lng.toFixed(1)+','+pt.lat.toFixed(1);}).join(' ')+'" fill="none" stroke="'+col+'" stroke-width="1.8"/>';});
     var zl=DRAFT.zoneLabelConfig;
-    var chip='<g><rect x="112" y="25" width="48" height="14" rx="7" fill="'+hexToRgba(col,Number(zl.bgOpacity))+'"/><text x="136" y="35.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="'+zl.textColor+'">강남 핫플</text></g>';
+    var chip=(zl.show!==false)?'<g><rect x="112" y="25" width="48" height="14" rx="7" fill="'+hexToRgba(col,Number(zl.bgOpacity))+'"/><text x="136" y="35.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="'+zl.textColor+'">강남 핫플</text></g>':'';
     mpSvg(el,'<polygon points="'+mpHexPts(26,32,14)+'" '+mpRegionAttr(d)+'/>'+
       '<polygon points="'+mpHexPts(58,32,14)+'" fill="'+hexToRgba(sl.fillColor,Number(sl.fillOpacity))+'" stroke="'+hexToRgba(sl.strokeColor,Number(sl.strokeOpacity))+'" stroke-width="1.6"/>'+
       fills+strokes+chip+
@@ -3012,7 +3020,7 @@ var REGION_FIELDS=['strokeColor','fillColor','strokeWeight','strokeOpacity','fil
 var LENS_FIELDS=['fogColor','fogOpacity','lineColor','lineOpacity','trendScaleM','fadeMs','switchZoomN'];
 var SPOT_FIELDS=['maxChars','fontSize','textColor','bgColor','bgOpacity','emojiSize','emojiPos','emojiGap','emojiLetterSpacing','bubbleRadius','tail','dotScaleM','dotStyle'];
 var LLABEL_FIELDS=['enabled','fontSize','textColor','bgColor','bgOpacity'];
-var ZLABEL_FIELDS=['fontSize','textColor','bgOpacity'];
+var ZLABEL_FIELDS=['show','fontSize','textColor','bgOpacity'];
 function objBlock(getLive,getDraft,getFact,fields,refresh){
   return {
     apply:function(){copyFields(getLive(),getDraft(),fields);if(refresh)refresh();},
@@ -3051,9 +3059,11 @@ var BLOCK_DEFS={
     apply:function(){
       copyFields(hexStyleConfig.default,DRAFT.hexStyleConfig.default,REGION_FIELDS);
       copyFields(hexStyleConfig.selected,DRAFT.hexStyleConfig.selected,REGION_FIELDS);
+      var prevZShow=(zoneLabelConfig.show!==false); // v1.64: 표시 토글 변경 시 라벨 생성/제거 위해 재렌더 필요
       copyFields(zoneLabelConfig,DRAFT.zoneLabelConfig,ZLABEL_FIELDS);
       refreshHexStyles();refreshZoneLabels();
       if(zoneMergeBlocks!==DRAFT.zoneMergeBlocks){zoneMergeBlocks=DRAFT.zoneMergeBlocks;rerenderZones();}
+      else if(prevZShow!==(zoneLabelConfig.show!==false))rerenderZones();
       if(hexRadiusKm!==DRAFT.hexRadiusKm){hexRadiusKm=DRAFT.hexRadiusKm;selectedHexes.clear();if(editingZoneId)cancelEditZone();rezoneAllToCurrentRadius();if(currentMode==='trend'){generateHexagons();updateZoneSaveUI();}}
     },
     cancel:function(){
