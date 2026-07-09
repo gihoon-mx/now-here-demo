@@ -58,7 +58,7 @@
 | M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·모드별 톤(불꽃) | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE` `aiMapSummary` `aiChatAnswer` | app.js | v1.61 |
 | M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·드로어(탭)·헤더·페이지 모드 분기 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `PAGE_MODE` | app.js | v1.65 |
 | M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기 | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` | app.js | v1.46 |
-| M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openColorPopup` `makeColorControl` | app.js | v1.65 |
+| M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — PC=전부 펼침·폰 드로어=아코디언 | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openColorPopup` `makeColorControl` `initSettingsAccordion` | app.js | v1.66 |
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 3지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.61 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
@@ -76,6 +76,7 @@
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-07-09 M11+M14 + M09 CSS ⚠️교차: v1.66.0 — 관리자 메뉴 내비 카테고리 강조(글자 확대+경계선), 관리자 지도 햄버거 제거(admin.html #pc-menu-btn/#pc-drawer), 관리자 설정 아코디언 비활성(전부 펼침, initSettingsAccordion 분기), 폰 드로어 설정 터치 최적화 CSS(page-app 스코프 — PC/폰 설정 화면 분리·값만 공유)
 - 2026-07-09 M09+M11+M12+M14 + M03/M04 ⚠️교차: v1.65.0 — 서비스/관리자 페이지 분리(index=폰 앱·admin.html 신설, PAGE_MODE 분기), 관리자 대형 메뉴 팝업(initAdminMenu: 컨텐츠/스타일/시스템 카테고리 내비+패널), 색상 팝업 통일(팔레트=온도4+#1428A0, 전 팝업 투명도: textOpacity·스팟 alpha·존 fillA — 네이티브 컬러 입력 3곳 팝업 교체), check.js admin 검사 추가
 - 2026-07-08 M03 + M00(MapLabel 위치보정 버그픽스) + M11 ⚠️교차: v1.64.0 — 줌 시 존 라벨 위치 밀림 픽스(CSS `zoom`이 `left/top`까지 배율 곱하던 문제 → `pos/s` 보정), 존 라벨 표시/숨김 토글(`zoneLabelsShown`·`zoneLabelConfig.show`, 동 라벨 `enabled` 패턴 미러링·클라우드 동기·additive)
 - 2026-07-07 M00(MapLabel 수정)+M02+M03+M05+M07+M09 ⚠️교차: v1.62.0 — 라벨 spotScale 줌 연동(0.7~1.6), 컨텐츠 탭=팝업 통일(📍 지도 보기), 포커스 자동 해제(autoReleaseFocus)+지도 탭 선택 3개 이상 게이트

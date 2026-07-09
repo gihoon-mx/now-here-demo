@@ -2636,6 +2636,7 @@ function enhanceRangeInputs(){
 
 /* ========== [M11] 설정 섹션 아코디언 (탭처럼 펼침/접힘) ========== */
 function initSettingsAccordion(){
+  if(IS_ADMIN_PAGE)return; // v1.66 관리자 페이지=팝업 내비가 섹션을 하나씩 보여주므로 접기 없이 전부 펼침(폰 드로어만 아코디언)
   var contentIdx=0;
   document.querySelectorAll('#settings-section .settings-section,#content-section .settings-section').forEach(function(sec){
     var h=sec.querySelector('h4');if(!h||h._acc)return;h._acc=true;

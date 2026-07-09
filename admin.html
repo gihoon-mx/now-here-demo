@@ -10,7 +10,7 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=1.65.0" />
+  <link rel="stylesheet" href="style.css?v=1.66.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -32,7 +32,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v1.65.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v1.66.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -58,11 +58,7 @@
   <div id="map"></div>
   <div id="scale-legend" aria-hidden="true"></div>
 
-  <!-- PC 전체 지도 드로어 (둘러보기 전용 — 관리 메뉴는 탑바 팝업) -->
-  <button id="pc-menu-btn" type="button" aria-label="메뉴 열기" title="메뉴"><span></span><span></span><span></span></button>
-  <div id="pc-drawer">
-    <div class="pc-drawer-head"><span>메뉴</span><div class="pdh-actions"><button class="pdh-feature" type="button">🧩 기능 보기</button><button id="pc-drawer-close" type="button">닫기</button></div></div>
-  </div>
+  <!-- v1.66: 지도 좌측 상단 햄버거(PC 드로어) 제거 — 관리는 탑바 메뉴 팝업, 둘러보기는 폰 미리보기 햄버거로 -->
 
   <!-- 데이터 로딩 인디케이터 -->
   <div id="map-loading" role="status" aria-live="polite">
@@ -478,7 +474,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=1.65.0"></script>
-  <script src="app.js?v=1.65.0"></script>
+  <script src="config.js?v=1.66.0"></script>
+  <script src="app.js?v=1.66.0"></script>
 </body>
 </html>
