@@ -17,6 +17,19 @@ if (!av) fail.push('index.html: #app-version 스팬 없음');
   else if (m[1] !== av) fail.push('index.html: ' + f + '?v=' + m[1] + ' ≠ 앱 v' + av);
 });
 
+// ①-b admin.html(관리자 페이지, v1.65~) — #app-version·캐시버스트가 앱 버전과 일치해야 함
+var adm = read('admin.html');
+var admV = (adm.match(/id="app-version">v([\d.]+)</) || [])[1];
+if (!admV) fail.push('admin.html: #app-version 스팬 없음');
+else if (admV !== av) fail.push('admin.html: #app-version v' + admV + ' ≠ 앱 v' + av);
+['style.css', 'app.js', 'config.js'].forEach(function (f) {
+  var m = adm.match(new RegExp(f.replace('.', '\\.') + '\\?v=([\\d.]+)'));
+  if (!m) fail.push('admin.html: ' + f + ' 캐시버스트(?v=) 없음');
+  else if (m[1] !== av) fail.push('admin.html: ' + f + '?v=' + m[1] + ' ≠ 앱 v' + av);
+});
+if (!/window\.PAGE_MODE='admin'/.test(adm)) fail.push("admin.html: window.PAGE_MODE='admin' 스크립트 없음");
+if (!/window\.PAGE_MODE='app'/.test(idx)) fail.push("index.html: window.PAGE_MODE='app' 스크립트 없음");
+
 // ② dev.html·diagram.html 반영 버전 스탬프 = 앱 버전 (매 push 변경 반영 + 스탬프 갱신 의무)
 //    deck.html은 콘텐츠 기준 버전이라 지연 허용 — 참고 출력만.
 function stamp(f) { var m = read(f).match(/data-app-ver="v([\d.]+)"/); return m ? m[1] : null; }
@@ -34,4 +47,4 @@ if (fail.length) {
   console.error('\n❌ check 실패 (' + fail.length + '건):\n- ' + fail.join('\n- ') + '\n');
   process.exit(1);
 }
-console.log('✅ check OK — 앱 v' + av + ' · 버전 3곳 동기화 · dev/diagram 스탬프 일치 · app.js 문법 정상');
+console.log('✅ check OK — 앱 v' + av + ' · 버전 동기화(index+admin) · dev/diagram 스탬프 일치 · app.js 문법 정상');

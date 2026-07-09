@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta name="description" content="Now Here 관리자 페이지 — PC 지도·스타일 설정·컨텐츠 관리" />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
+  <title>Now Here Admin</title>
+  <link rel="stylesheet" href="style.css?v=1.65.0" />
+  <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
+</head>
+<body class="page-admin">
+
+  <!-- 인증 게이트 (관리자 전용 — 데모유저는 서비스로 안내) -->
+  <div id="auth-overlay">
+    <div class="auth-card">
+      <img class="auth-mark" src="icon-192.png" alt="Now Here 앱 아이콘" />
+      <div class="auth-logo">Now Here <span style="font-size:.6em;color:var(--ink3);">Admin</span></div>
+      <div class="auth-ver" id="auth-ver"></div>
+      <p class="auth-sub" id="auth-sub">관리자 페이지 · 접근 권한이 필요합니다</p>
+      <button id="google-login-btn" class="google-btn" type="button">
+        <span class="g-ico" aria-hidden="true">G</span> Google로 계속하기
+      </button>
+      <div id="auth-status" class="auth-status"></div>
+      <button id="auth-logout" class="auth-logout" type="button" style="display:none;">다른 계정으로 로그인</button>
+    </div>
+  </div>
+
+  <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
+  <header id="admin-topbar">
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v1.65.0</span></div>
+    <div id="mode-toggle">
+      <div class="mode-indicator"></div>
+      <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
+      <button class="mode-btn" data-mode="trend"><span class="mode-icon">⬡</span> 트렌드</button>
+    </div>
+    <nav class="atb-menus">
+      <button type="button" data-adm-open="c-spot">🗂 컨텐츠 관리</button>
+      <button type="button" data-adm-open="s-spot">🎨 스타일 설정</button>
+      <button type="button" data-adm-open="y-preview">🛠 시스템</button>
+    </nav>
+    <div class="atb-right">
+      <a class="atb-link" href="index.html" target="_blank" rel="noopener">📱 서비스 열기</a>
+      <div id="account-row" style="display:none;">
+        <span class="acct-dot"></span>
+        <span id="account-email" class="acct-email"></span>
+        <button id="allowlist-btn" class="acct-btn" type="button" title="접근 권한 관리" style="display:none;">👥</button>
+        <button id="logout-btn" class="acct-btn" type="button" title="로그아웃">⎋</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="app-shell">
+  <div id="map"></div>
+  <div id="scale-legend" aria-hidden="true"></div>
+
+  <!-- PC 전체 지도 드로어 (둘러보기 전용 — 관리 메뉴는 탑바 팝업) -->
+  <button id="pc-menu-btn" type="button" aria-label="메뉴 열기" title="메뉴"><span></span><span></span><span></span></button>
+  <div id="pc-drawer">
+    <div class="pc-drawer-head"><span>메뉴</span><div class="pdh-actions"><button class="pdh-feature" type="button">🧩 기능 보기</button><button id="pc-drawer-close" type="button">닫기</button></div></div>
+  </div>
+
+  <!-- 데이터 로딩 인디케이터 -->
+  <div id="map-loading" role="status" aria-live="polite">
+    <span class="spinner" aria-hidden="true"></span>경계 데이터를 불러오는 중…
+  </div>
+
+  <div id="sidebar-resizer" title="사이드바 폭 조절 (드래그)" aria-label="사이드바 폭 조절"></div>
+  <aside id="sidebar">
+
+  <!-- 폰 미리보기 (서비스 화면 미러) -->
+  <div id="phone-mirror">
+      <div class="phone-bar">
+        <span class="phone-bar-title">📱 미리보기</span>
+        <button id="phone-collapse" type="button" aria-expanded="true" aria-label="폰 화면 접기" title="폰 화면 접기"></button>
+      </div>
+      <div class="phone-screen">
+        <div class="phone-notch"></div>
+        <div id="phone-map" class="phone-map"></div>
+        <!-- 서비스 탭 페이지: 피드(그리드) / 소셜(채팅) — 지도 탭에서는 숨김 -->
+        <div id="feed-page" class="tab-page"><div id="feed-tools"></div><div id="feed-grid"></div></div>
+        <div id="social-page" class="tab-page">
+          <div class="soc-tabs">
+            <button class="soc-tab active" type="button" data-soc="local">동네 채팅방</button>
+            <button class="soc-tab" type="button" data-soc="topic">주제방</button>
+            <button class="soc-tab" type="button" data-soc="private">프라이빗</button>
+          </div>
+          <div id="soc-body"></div>
+          <div id="soc-inputbar"><input id="soc-input" type="text" maxlength="200" placeholder="메시지 보내기" /><button id="soc-send" type="button">전송</button></div>
+        </div>
+        <div class="phone-header">
+          <div class="phone-appbar">
+            <button class="pa-btn" id="phone-hamburger" type="button" aria-label="메뉴 열기" title="메뉴"><span></span><span></span><span></span></button>
+            <span class="pa-loc" id="phone-loc"><span class="pa-loc-name">···</span></span>
+            <button class="pa-profile" id="phone-profile" type="button" aria-label="프로필 · 계정" title="계정"><img id="pa-profile-img" alt="" /><span id="pa-profile-initial">P</span></button>
+          </div>
+          <!-- 지역 콘텐츠 지면 (동네소식) : 여러 이미지 좌우 스와이프 캐러셀. 편집은 관리자 메뉴 › 요약 지면 -->
+          <div id="phone-content-page">
+            <button id="sum-collapse" type="button" title="지면 접기" aria-label="지면 접기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg></button>
+            <div id="cp-frame">
+              <div id="cp-track"></div>
+              <span id="cp-placeholder">지역 콘텐츠 지면</span>
+              <div id="cp-dots" aria-hidden="true"></div>
+            </div>
+            <div id="cp-zones"></div>
+          </div>
+          <!-- 지도 위 오버레이(헤더 하단 앵커): 축척(좌) · 위치칩(중앙) 가로 정렬 -->
+          <div class="pa-mode" id="phone-mode">
+            <button class="pm-btn active" type="button" data-mode="local">베이직</button>
+            <button class="pm-btn" type="button" data-mode="trend">트렌드</button>
+          </div>
+          <div id="phone-scale" aria-hidden="true"></div>
+        </div>
+        <div class="phone-navbar">
+          <button class="pn-add" type="button" data-nav="add" title="컨텐츠 추가" aria-label="컨텐츠 추가">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <div class="pn-group">
+            <button class="pn-item active" type="button" data-nav="map">
+              <span class="pn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.2v13.8l6-2.2 6 2.2 6-2.2V4l-6 2.2L9 4Z"/><path d="M9 4v13.8M15 6.2V20"/></svg></span>
+              <span class="pn-lb">지도</span>
+            </button>
+            <button class="pn-item" type="button" data-nav="feed">
+              <span class="pn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4.5" width="16" height="6" rx="1.6"/><rect x="4" y="13.5" width="16" height="6" rx="1.6"/></svg></span>
+              <span class="pn-lb">피드</span>
+            </button>
+            <button class="pn-item" type="button" data-nav="social">
+              <span class="pn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c0-3 2.5-5.2 5.5-5.2s5.5 2.2 5.5 5.2"/><circle cx="17.2" cy="9.5" r="2.2"/><path d="M16 14.2c2.4.2 4.5 2 4.5 4.8"/></svg></span>
+              <span class="pn-lb">소셜</span>
+            </button>
+          </div>
+          <button class="pn-ai" type="button" data-nav="agent" title="AI Agent" aria-label="AI Agent">
+            <svg viewBox="0 0 44 44" aria-hidden="true">
+              <defs>
+                <linearGradient id="aiBlob" gradientUnits="userSpaceOnUse" x1="7" y1="6" x2="37" y2="38">
+                  <stop offset="0" stop-color="#cbd0d8"/>
+                  <stop offset="1" stop-color="#cbd0d8"/>
+                </linearGradient>
+              </defs>
+              <g fill="url(#aiBlob)">
+                <circle cx="22" cy="22" r="13.5"/>
+                <circle cx="35" cy="22" r="7"/>
+                <circle cx="31.2" cy="31.2" r="7"/>
+                <circle cx="22" cy="35" r="7"/>
+                <circle cx="12.8" cy="31.2" r="7"/>
+                <circle cx="9" cy="22" r="7"/>
+                <circle cx="12.8" cy="12.8" r="7"/>
+                <circle cx="22" cy="9" r="7"/>
+                <circle cx="31.2" cy="12.8" r="7"/>
+              </g>
+              <ellipse cx="17.6" cy="21" rx="2" ry="2.7" fill="#2b3038"/>
+              <ellipse cx="26.4" cy="21" rx="2" ry="2.7" fill="#2b3038"/>
+              <g class="ai-shades" aria-hidden="true"><!-- 트렌드 모드 전용 선글라스 (CSS .ai-flame로 표시) -->
+                <path d="M11 18.4 L14 19.3 M33 18.4 L30 19.3" stroke="#1d222b" stroke-width="1.4" stroke-linecap="round"/>
+                <rect x="13.5" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
+                <rect x="22.3" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
+                <path d="M21.4 20 h1.4" stroke="#1d222b" stroke-width="1.8" stroke-linecap="round"/>
+                <path class="sh-hi" d="M15.2 19.9 q1.5 -0.9 3 0" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1" stroke-linecap="round"/>
+              </g>
+              <path d="M17.8 25.8 Q22 29.2 26.2 25.8" fill="none" stroke="#2b3038" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div id="ai-bubble" class="ai-bubble" aria-hidden="true">오늘 우리 동네 일상이 궁금하신가요?</div>
+        <div id="ai-presets" class="ai-presets" aria-hidden="true">
+          <div class="aip-head">Ask Map</div>
+          <button id="aip-summary" class="aip-special" type="button">🗺 현재 지도 요약하기</button>
+          <div class="aip-list" id="aip-list"></div>
+          <div class="aip-chat">
+            <input id="aip-input" type="text" maxlength="120" placeholder="지도에 무엇이든 물어보세요" />
+            <button id="aip-send" type="button" aria-label="보내기">➤</button>
+          </div>
+        </div>
+        <div id="req-bubble" class="req-bubble" aria-hidden="true">
+          <div class="rq-agent"><span class="rq-ai" aria-hidden="true">✦</span>AI Agent · 현장 Request</div>
+          <div class="rq-text" id="rq-text"></div>
+          <div class="rq-place">📍 <span id="rq-place"></span></div>
+          <div class="rq-actions" id="rq-actions"></div>
+        </div>
+        <!-- 컨텐츠 추가 팝업 (스팟 메시지 / 피드 사진) -->
+        <div id="content-add-menu" class="content-add-menu" aria-hidden="true">
+          <button type="button" class="cam-item" data-add="spot"><span class="cam-ic">💬</span> 스팟 메시지</button>
+          <button type="button" class="cam-item" data-add="photo"><span class="cam-ic">📸</span> 라이브 카메라</button>
+          <button type="button" class="cam-item" data-add="post"><span class="cam-ic">✍️</span> Feed 작성</button>
+          <button type="button" class="cam-item" data-add="request"><span class="cam-ic">📍</span> 현장 Request</button>
+        </div>
+        <input type="file" id="feed-photo-input" accept="image/*" capture="environment" style="display:none" />
+        <input type="file" id="feed-post-input" accept="image/*" style="display:none" />
+        <input type="file" id="rq-photo-input" accept="image/*" capture="environment" style="display:none" />
+        <!-- 프로필 메뉴(우상단 P 클릭) : 계정 정보 + 로그아웃 -->
+        <div id="phone-profile-menu" aria-hidden="true">
+          <div class="ppm-top"><span class="acct-dot"></span><span id="ppm-email" class="ppm-email"></span></div>
+          <div class="ppm-bot"><span id="ppm-version" class="ppm-ver"></span><button id="ppm-logout" class="action-btn small" type="button">로그아웃</button></div>
+        </div>
+        <div id="phone-drawer">
+          <div class="phone-drawer-head"><span>메뉴</span><div class="pdh-actions"><button class="pdh-feature" type="button">🧩 기능 보기</button><button id="phone-drawer-close" type="button">닫기</button></div></div>
+          <div id="phone-drawer-body"></div>
+        </div>
+      </div>
+  </div>
+  </aside>
+  </div>
+
+  <!-- ═══════ 관리자 메뉴 대형 팝업 (v1.65): 좌 카테고리 내비 + 우 패널 ═══════ -->
+  <div id="admin-menu" class="modal-overlay" style="display:none;">
+    <div class="modal-card adm-card">
+      <div class="modal-head"><span id="adm-title">관리자 메뉴</span><button id="adm-close" class="acct-btn" type="button">✕</button></div>
+      <div class="adm-body">
+        <nav id="adm-nav">
+          <div class="adm-nav-cap">🗂 컨텐츠 관리</div>
+          <button type="button" data-panel="c-spot">💬 스팟 메시지</button>
+          <button type="button" data-panel="c-zone">⬡ 트렌드 존</button>
+          <button type="button" data-panel="c-feed">🖼 피드</button>
+          <button type="button" data-panel="c-social">👥 소셜 채팅방</button>
+          <button type="button" data-panel="c-news">📰 요약 지면</button>
+          <button type="button" data-panel="c-seed">🌱 데모 데이터</button>
+          <div class="adm-nav-cap">🎨 스타일 설정</div>
+          <button type="button" data-panel="s-spot">💬 스팟 말풍선</button>
+          <button type="button" data-panel="s-region">🗺 동 구역·라벨</button>
+          <button type="button" data-panel="s-zone">⬡ 트렌드 존·라벨</button>
+          <button type="button" data-panel="s-lens">🔍 포커스 렌즈</button>
+          <div class="adm-nav-cap">🛠 시스템</div>
+          <button type="button" data-panel="y-preview">📱 미리보기 · 백업</button>
+          <button type="button" data-panel="y-account">👥 계정 · 권한</button>
+          <button type="button" data-panel="y-docs">📚 문서 · 개발</button>
+        </nav>
+        <div id="adm-panels">
+
+          <!-- 숨김 스텁 (레거시 토글 배선 유지용 — 관리자 페이지는 팝업 내비로 대체) -->
+          <div class="settings-toggle-row" id="content-toggle-row" style="display:none;"><button id="content-toggle" type="button"></button></div>
+          <div class="settings-toggle-row" id="settings-toggle-row" style="display:none;"><button id="settings-toggle" type="button"></button></div>
+          <p id="info-text" style="display:none;"></p>
+
+          <!-- ── 🗂 컨텐츠 관리 ── -->
+          <div id="content-section" style="display:none;">
+            <div class="settings-section" data-adm="c-spot" data-prev="spot-view">
+              <h4>스팟 메시지</h4>
+              <div id="spot-add-row" class="spot-add-row">
+                <button id="spot-add-btn" class="action-btn accent">💬 스팟 메시지 추가</button>
+                <p class="section-hint">버튼을 누른 뒤 지도를 클릭하면 그 자리에 입력 팝업이 떠요.</p>
+              </div>
+              <div id="spot-list-area" style="display:none;">
+                <div id="spot-list"></div>
+              </div>
+            </div>
+            <div class="settings-section" data-adm="c-zone">
+              <h4>트렌드 존 관리</h4>
+              <div id="zone-save-area" style="display:none;">
+                <div class="zone-action-row">
+                  <button id="zone-save-btn" class="action-btn accent">트렌드 존 저장</button>
+                  <button id="hex-deselect-btn" class="action-btn danger">전체 해제</button>
+                </div>
+                <div id="zone-form" style="display:none;">
+                  <input type="text" id="zone-name-input" placeholder="존 이름" maxlength="20" />
+                  <div class="color-palette" id="zone-palette"></div>
+                  <div class="zone-form-row">
+                    <button type="button" class="color-trigger" id="ct-zone-new" title="존 색·채움 투명도"><span class="ct-swatch"><span class="ct-fill"></span></span></button>
+                    <button id="zone-confirm-btn" class="action-btn accent small">저장</button>
+                    <button id="zone-cancel-btn" class="action-btn small">취소</button>
+                  </div>
+                </div>
+              </div>
+              <div id="zone-edit-bar" style="display:none;">
+                <span id="zone-edit-label">편집 중</span>
+                <button type="button" class="color-trigger" id="ct-zone-edit" title="존 색·채움 투명도"><span class="ct-swatch"><span class="ct-fill"></span></span></button>
+                <button id="zone-edit-done" class="action-btn accent small">완료</button>
+                <button id="zone-edit-cancel" class="action-btn small">취소</button>
+              </div>
+              <div id="zone-list-area" style="display:none;">
+                <div id="zone-list"></div>
+              </div>
+              <div class="setting-row" style="margin-top:8px;"><label>목록 카드</label><select id="zone-card-style" class="mini-select"><option value="glass">글래스 캡션</option><option value="list">리스트 (별점·거리)</option></select></div>
+              <p class="section-hint">트렌드 모드에서 지도의 헥사곤을 선택하면 새 존을 만들 수 있어요. 카드 스타일은 존 리스트·트렌드 요약 공간에 반영돼요.</p>
+            </div>
+            <div class="settings-section" data-adm="c-feed">
+              <h4>피드 컨텐츠</h4>
+              <button id="feed-add-btn" class="action-btn accent" type="button" style="width:100%;">＋ 사진 추가 (업로드)</button>
+              <input type="file" id="feed-file" accept="image/*" multiple hidden />
+              <div class="news-url-row"><input type="url" id="feed-url-input" placeholder="또는 이미지 링크(https://...) 붙여넣기" /><button id="feed-url-btn" class="action-btn accent small" type="button">링크</button></div>
+              <div id="feedcol-list"></div>
+              <p class="section-hint">사진을 올리면 피드 탭에 노출돼요. 각 사진의 트렌드존을 지정하면 동(구역)이 자동으로 채워져요.</p>
+              <div class="setting-row" style="margin-top:8px;"><label>그리드 열</label><select id="feed-cols" class="mini-select"><option value="1">1개 (전체폭)</option><option value="2">2개</option><option value="3">3개</option></select></div>
+              <div class="setting-row"><label>사진 간격</label><select id="feed-gap" class="mini-select"><option value="0">없음</option><option value="0.6">최소</option><option value="1.2">좁게</option><option value="2.4">보통</option></select></div>
+              <div class="setting-row"><label>올린 시간</label><select id="feed-time" class="mini-select"><option value="ago">상대 (n분 전)</option><option value="clock">시각 (월/일 시:분)</option><option value="off">숨김</option></select></div>
+              <div class="setting-row"><label>스팟 지도 배경</label><select id="spotmap-op" class="mini-select"><option value="0">끔</option><option value="0.2">옅게</option><option value="0.35">보통</option><option value="0.55">진하게</option></select><select id="spotmap-scale" class="mini-select"><option value="50">50 m</option><option value="100">100 m</option><option value="200">200 m</option></select></div>
+              <p class="section-hint">피드 탭의 스팟 메시지 카드 배경에 해당 위치 지도를 연하게 깔아요. 축척=카드 128px 기준. ⚠️ API 키에 Maps Static API 허용 필요(미허용 시 배경 없이 표시).</p>
+            </div>
+            <div class="settings-section" data-adm="c-social">
+              <h4>소셜 컨텐츠 (채팅방)</h4>
+              <div class="al-add"><input id="room-name" type="text" placeholder="방 이름" maxlength="20" /><select id="room-type" class="mini-select"><option value="topic">주제방</option><option value="private">프라이빗</option></select><button id="room-add" class="action-btn accent small" type="button">추가</button></div>
+              <div id="room-list"></div>
+              <div class="setting-row" style="margin-top:8px;"><label>동네 채팅</label><button id="chat-fill" class="action-btn small" type="button">📄 JSON/CSV 채우기</button><button id="chat-clear" class="action-btn danger small" type="button">비우기</button></div>
+              <input type="file" id="chat-file" accept=".json,.csv,application/json,text/csv" hidden />
+              <p class="section-hint">주제방/프라이빗은 관리자만 개설·수정(전체 공유). 동네 채팅 기본 대화는 JSON [{"who":"닉","t":"내용"}] 또는 CSV(닉,내용 한 줄씩)로 채워요.</p>
+            </div>
+            <div class="settings-section" data-adm="c-news">
+              <h4>요약 공간 지면 (탭별 이미지)</h4>
+              <button id="news-add-btn" class="action-btn accent" type="button">🖼 이미지 업로드</button>
+              <input type="file" id="news-file" accept="image/*" multiple hidden />
+              <div class="news-url-row">
+                <input type="url" id="news-url-input" placeholder="이미지 링크(https://...) 붙여넣기" />
+                <button id="news-url-btn" class="action-btn accent small" type="button">링크</button>
+              </div>
+              <div class="setting-row" style="margin-top:8px;"><label>카드 스타일</label><select id="news-cardver" class="mini-select"><option value="1">버전 1 · 풀 이미지</option><option value="2">버전 2 · 분할 카드</option><option value="3">버전 3 · 글라스 캡션</option></select></div>
+              <div id="news-list"></div>
+              <p class="section-hint">상단 요약 공간에 노출할 UI 목업 이미지. 각 이미지의 탭(지도/피드/소셜)을 지정하면 해당 탭에서만 보여요. 피드 컨텐츠와는 별개.</p>
+            </div>
+            <div class="settings-section" data-adm="c-seed">
+              <h4>데모 데이터 (강남·잠실·성수)</h4>
+              <p class="section-hint">실제 유저들이 쓰는 것처럼 보이는 가상 컨텐츠(3지역: 피드 40·스팟 30·Request 4·채팅)를 공유 컬렉션에 채워요. 이미지=실사진 링크(Wikimedia). 소유자=shoomerion@gmail.com(해당 계정으로 수정·이동 가능). 존 카드 편집/피드 관리에서 URL 교체 가능.</p>
+              <div class="setting-row"><label>수량</label><select id="seed-amount" class="mini-select"><option value="1">전체 (기본)</option><option value="0.66">보통 ⅔</option><option value="0.33">적게 ⅓</option></select><label>밀집도</label><select id="seed-density" class="mini-select"><option value="1">보통 (기본)</option><option value="0.55">촘촘</option><option value="1.4">넓게</option></select></div>
+              <p class="section-hint">수량=지역별 균등 샘플링 비율, 밀집도=지역 중심 기준 퍼짐 정도(동 라벨 자동 재판정). 수량을 줄여 다시 채울 땐 🧹 비우기 먼저.</p>
+              <div class="setting-row"><button id="seed-fill" class="action-btn accent small" type="button">🌱 데모 데이터 채우기</button><button id="seed-clear" class="action-btn danger small" type="button">🧹 시드만 비우기</button></div>
+            </div>
+          </div>
+
+          <!-- ── 🎨 스타일 설정 (드래프트 → 적용) ── -->
+          <div id="settings-section" style="display:none;">
+            <div id="settings-apply-bar" class="sab">
+              <span class="sab-dot" aria-hidden="true"></span>
+              <span id="sab-msg" class="sab-msg">모든 변경 적용됨</span>
+              <button id="sab-default" class="action-btn small" type="button" title="코드 기본값으로 (적용 전 프리뷰)">기본값</button>
+              <button id="sab-revert" class="action-btn small" type="button" style="display:none;" title="마지막 적용 상태로 되돌리기">취소</button>
+              <button id="sab-apply" class="action-btn accent small" type="button" style="display:none;">전체 적용</button>
+            </div>
+            <p class="section-hint">설정 변경은 각 블록의 <b>미리보기 타일에만</b> 반영돼요. 블록의 <b>적용</b>(또는 위 <b>전체 적용</b>)을 눌러야 실제 지도와 모든 사용자에게 저장됩니다.</p>
+            <div class="settings-section" data-adm="s-spot" data-prev="spot">
+              <h4>스팟 메시지 기본 스타일</h4>
+              <div class="setting-row"><label>이모지 위치</label><select id="spot-emoji-pos" class="mini-select"><option value="bottom">아래</option><option value="top">위</option><option value="left">왼쪽</option><option value="right">오른쪽</option></select></div>
+              <div class="setting-row"><label>이모지 자간</label><input type="range" id="spot-emoji-letter" min="-8" max="16" step="1" value="0" /><span class="range-val">0</span></div>
+              <div class="setting-row"><label>버블 간격</label><input type="range" id="spot-emoji-gap" min="0" max="14" step="1" value="2" /><span class="range-val">2</span></div>
+              <div class="setting-row"><label>말풍선 둥글기</label><input type="range" id="spot-bubble-radius" min="0" max="24" step="1" value="13" /><span class="range-val">13</span></div>
+              <div class="setting-row"><label>꼬리 표시</label><label class="toggle-switch"><input type="checkbox" id="spot-tail" checked /><span class="toggle-slider"></span></label></div>
+              <div class="setting-row"><label>최대 글자수</label><input type="range" id="spot-max-chars" min="10" max="120" step="5" value="40" /><span class="range-val">40</span></div>
+              <div class="setting-row"><label>글자 크기</label><input type="range" id="spot-font-size" min="4" max="80" step="1" value="13" /><span class="range-val">13</span></div>
+              <div class="setting-row"><label>이모지 크기</label><input type="range" id="spot-emoji-size" min="4" max="120" step="1" value="26" /><span class="range-val">26</span></div>
+              <div class="setting-row"><label>점 전환 축척(m)</label><input type="range" id="spot-dot-scale" min="100" max="5000" step="50" value="1000" /><span class="range-val">1000</span></div>
+              <div class="setting-row"><label>작을 때</label><select id="spot-dot-style" class="mini-select"><option value="dot">점으로</option><option value="emoji">이모지로</option></select></div>
+              <div class="setting-row"><label>글자색</label><button type="button" class="color-trigger" id="ct-spot-text"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-spot-bg"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+            </div>
+            <div class="settings-section" data-adm="s-region" data-prev="region">
+              <h4>동 구역 스타일</h4>
+              <div class="row-cap">비선택 구역</div>
+              <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-default-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <div class="setting-row"><label>테두리</label><button type="button" class="color-trigger" id="ct-default-stroke"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <div class="setting-row"><label>선 굵기</label><input type="range" id="default-stroke-weight" min="0" max="50" step="0.5" value="1" /><span class="range-val">1</span></div>
+              <div class="row-cap">선택 구역</div>
+              <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-highlight-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <div class="setting-row"><label>테두리</label><button type="button" class="color-trigger" id="ct-highlight-stroke"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <div class="setting-row"><label>선 굵기</label><input type="range" id="highlight-stroke-weight" min="0" max="50" step="0.5" value="4" /><span class="range-val">4</span></div>
+              <div class="row-cap">경계 스무딩</div>
+              <div class="setting-row"><label>활성화</label><label class="toggle-switch"><input type="checkbox" id="smooth-toggle" /><span class="toggle-slider"></span></label></div>
+              <div class="setting-row"><label>강도</label><input type="range" id="smooth-intensity" min="0" max="1" step="0.1" value="0.5" /><span class="range-val">0.5</span></div>
+              <div class="row-cap">선택 라벨</div>
+              <div class="setting-row"><label>표시</label><label class="toggle-switch"><input type="checkbox" id="local-label-toggle" /><span class="toggle-slider"></span></label></div>
+              <div class="setting-row"><label>글자 크기</label><input type="range" id="local-label-size" min="4" max="200" step="1" value="12" /><span class="range-val">12</span></div>
+              <div class="setting-row"><label>글자색</label><button type="button" class="color-trigger" id="ct-local-label-text"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-local-label-bg"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+            </div>
+            <div class="settings-section" data-adm="s-zone" data-prev="trendzone">
+              <h4>트렌드 존 스타일</h4>
+              <div class="row-cap">헥사곤 그리드</div>
+              <div class="setting-row"><label>반경</label><input type="range" id="hex-radius" min="0.1" max="50" step="0.1" value="1" /><span class="range-val" id="hex-radius-label">1.0km</span></div>
+              <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-hex-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <div class="setting-row"><label>테두리</label><button type="button" class="color-trigger" id="ct-hex-stroke"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <div class="row-cap">선택 헥사곤</div>
+              <div class="setting-row"><label>배경</label><button type="button" class="color-trigger" id="ct-hex-sel-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <div class="row-cap">존 표시 · 라벨</div>
+              <div class="setting-row"><label>라벨 표시</label><label class="toggle-switch"><input type="checkbox" id="zone-label-toggle" checked /><span class="toggle-slider"></span></label></div>
+              <div class="setting-row"><label>내부 경계 숨김</label><label class="toggle-switch"><input type="checkbox" id="zone-merge-toggle" /><span class="toggle-slider"></span></label></div>
+              <div class="setting-row"><label>라벨 크기</label><input type="range" id="zone-label-size" min="4" max="200" step="1" value="11" /><span class="range-val">11</span></div>
+              <div class="setting-row"><label>라벨 글자색</label><button type="button" class="color-trigger" id="ct-zone-label-text"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <div class="setting-row"><label>라벨 배경 투명</label><input type="range" id="zone-label-bg-opacity" min="0" max="1" step="0.05" value="1" /><span class="range-val">1.0</span></div>
+            </div>
+            <div class="settings-section" data-adm="s-lens" data-prev="lens">
+              <h4>포커스 렌즈</h4>
+              <div class="setting-row"><label>베이직 발동(m)</label><input type="range" id="highlight-spot-scale" min="50" max="3000" step="50" value="200" /><span class="range-val">200</span></div>
+              <div class="setting-row"><label>트렌드 발동(m)</label><input type="range" id="lens-trend-scale" min="50" max="5000" step="50" value="300" /><span class="range-val">300</span></div>
+              <div class="setting-row"><label>전환 속도(ms)</label><input type="range" id="lens-fade-ms" min="50" max="1000" step="50" value="250" /><span class="range-val">250</span></div>
+              <div class="setting-row"><label>전환 존 개수</label><input type="range" id="lens-switch-n" min="1" max="6" step="1" value="3" /><span class="range-val">3</span></div>
+              <div class="setting-row"><label>주변 안개</label><button type="button" class="color-trigger" id="ct-dim-fill"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <div class="setting-row"><label>구역 테두리</label><button type="button" class="color-trigger" id="ct-dim-stroke"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+              <p class="section-hint">축척이 발동값(m) 이하로 확대되면 보는 구역(베이직=동, 트렌드=존)만 선명하게 남기고 주변을 안개로 가라앉힙니다. 트렌드는 줌인 시 존 채움·라벨이 사라지고 아웃라인+안개만 남아요. 페이드·히스테리시스(꺼짐 1.3배) 적용, 렌즈 밖 스팟 옅게, 동네소식은 해당 동 이미지로 슬라이드.</p>
+            </div>
+          </div>
+
+          <!-- ── 🛠 시스템 ── -->
+          <div class="adm-sys" data-adm="y-preview">
+            <h4>📱 미리보기 · 설정 백업</h4>
+            <div class="settings-section">
+              <div class="setting-row"><label>폰 표시영역 오버레이</label><label class="toggle-switch"><input type="checkbox" id="phone-viewport-toggle" checked /><span class="toggle-slider"></span></label></div>
+              <p class="section-hint">우측 폰 미리보기가 보는 범위를 PC 지도 위에 사각형으로 표시해요.</p>
+              <div class="setting-row" id="settings-export-row">
+                <button id="settings-export" class="action-btn small" type="button" title="현재 적용된 설정 전체를 JSON으로 복사">📋 설정 JSON 복사</button>
+                <span class="section-hint" style="margin:0;">repo <b>settings-default.json</b>에 붙여넣으면 배포 기본값 백업이 돼요</span>
+              </div>
+            </div>
+          </div>
+          <div class="adm-sys" data-adm="y-account">
+            <h4>👥 계정 · 접근 권한</h4>
+            <div class="settings-section">
+              <button id="adm-allowlist" class="action-btn accent" type="button">👥 접근 권한 관리 열기</button>
+              <p class="section-hint">Google 계정 이메일로 데모유저/관리자 권한을 부여·회수해요. 관리자=모든 관리 메뉴, 데모유저=서비스 열람+모드 전환.</p>
+            </div>
+          </div>
+          <div class="adm-sys" data-adm="y-docs">
+            <h4>📚 문서 · 개발</h4>
+            <div class="settings-section">
+              <div class="adm-docs">
+                <a href="deck.html" target="_blank" rel="noopener">📽 소개 덱</a>
+                <a href="diagram.html" target="_blank" rel="noopener">🧩 다이어그램</a>
+                <a href="dev.html" target="_blank" rel="noopener">🛠 개발 관리</a>
+              </div>
+              <button class="pdh-feature action-btn small" type="button">🧩 기능 보기 (기능 맵)</button>
+              <p class="section-hint">기능 구성·관계도는 🧩 기능 보기에서, 모듈·세션 규칙은 개발 관리 페이지에서 확인해요.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 기능 맵 (기능 관리 — 데모도 열람, 관리자는 설정 점프) -->
+  <div id="feature-page" class="modal-overlay" style="display:none;">
+    <div class="modal-card feature-card">
+      <div class="modal-head"><span>🧩 기능 보기</span><button id="feature-close" class="acct-btn" type="button">✕</button></div>
+      <div class="ft-docs">
+        <a href="deck.html" target="_blank" rel="noopener">📽 소개 덱</a>
+        <a href="diagram.html" target="_blank" rel="noopener">🧩 다이어그램</a>
+        <a href="dev.html" target="_blank" rel="noopener">🛠 개발 관리</a>
+      </div>
+      <p class="section-hint">하이퍼로컬 SNS 기능 구성과 관계도. 관계 칩(↔)을 누르면 해당 기능으로 이동합니다.</p>
+      <div id="feature-body"></div>
+    </div>
+  </div>
+
+  <!-- 접근 권한 관리 (관리자) -->
+  <div id="allowlist-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head"><span>접근 권한 관리</span><button id="allowlist-close" class="acct-btn" type="button">✕</button></div>
+      <div class="al-add">
+        <input id="al-email" type="email" placeholder="user@gmail.com" autocomplete="off" />
+        <select id="al-role"><option value="user">데모유저</option><option value="admin">관리자</option></select>
+        <button id="al-add-btn" class="action-btn accent small" type="button">추가</button>
+      </div>
+      <div id="al-list" class="al-list"></div>
+    </div>
+  </div>
+
+  <!-- 스팟 메시지 수정 (관리자) -->
+  <div id="spot-edit-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head"><span>스팟 메시지 수정</span><button id="spot-edit-close" class="acct-btn" type="button">✕</button></div>
+      <div class="se-row"><label>이모지</label><div class="spot-emoji-pick" id="se-emoji-pick"></div></div>
+      <div class="se-row"><label>메시지</label><input id="se-text" type="text" maxlength="120" placeholder="메시지 입력" /></div>
+      <div class="se-row"><label>버블 색</label><button type="button" class="color-trigger" id="se-color"><span class="ct-swatch"><span class="ct-fill"></span></span></button></div>
+      <div class="se-row"><label>온도</label><input id="se-temp" type="number" min="0" max="100" step="1" placeholder="자동 (존 열기)" title="0~100 · 비우면 자동(속한 존의 좋아요 열기)" /></div>
+      <div class="se-actions"><button id="se-delete" class="action-btn danger small" type="button">삭제</button><button id="se-save" class="action-btn accent small" type="button">완료</button></div>
+    </div>
+  </div>
+
+  <!-- 지도 컨텐츠 상세 팝업 (스팟/피드/Request 탭 → 크게 보기) — 헤더: 제목 | 액션(지도보기·수정) | 닫기 -->
+  <div id="content-pop" class="modal-overlay" style="display:none;">
+    <div class="modal-card cpop-card">
+      <div class="modal-head cpop-head"><span id="cpop-title">상세</span><div class="cpop-head-actions" id="cpop-head-actions"></div><button id="cpop-close" class="cpop-hbtn" type="button">닫기</button></div>
+      <div id="cpop-body"></div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
+  <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
+  <script src="config.js?v=1.65.0"></script>
+  <script src="app.js?v=1.65.0"></script>
+</body>
+</html>

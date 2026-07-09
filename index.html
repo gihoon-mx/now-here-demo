@@ -17,10 +17,11 @@
   <!-- apple-touch-icon은 정사각 원본 유지(iOS가 자체 라운드 마스킹 — 미리 깎으면 모서리가 검게 나옴). 파비콘·매니페스트=라운드 컷 PNG -->
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
-  <title>Now Here Demo</title>
-  <link rel="stylesheet" href="style.css?v=1.64.0" />
+  <title>Now Here</title>
+  <link rel="stylesheet" href="style.css?v=1.65.0" />
+  <script>window.PAGE_MODE='app';</script><!-- v1.65 서비스 페이지(폰 앱). 관리자 지도·설정은 admin.html -->
 </head>
-<body>
+<body class="page-app">
 
   <!-- 인증 게이트 -->
   <div id="auth-overlay">
@@ -61,7 +62,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.64.0</span>
+        <span id="app-version">v1.65.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -108,7 +109,7 @@
             <input type="text" id="zone-name-input" placeholder="존 이름" maxlength="20" />
             <div class="color-palette" id="zone-palette"></div>
             <div class="zone-form-row">
-              <input type="color" id="zone-color-input" value="#DE2F2A" />
+              <button type="button" class="color-trigger" id="ct-zone-new" title="존 색·채움 투명도"><span class="ct-swatch"><span class="ct-fill"></span></span></button>
               <button id="zone-confirm-btn" class="action-btn accent small">저장</button>
               <button id="zone-cancel-btn" class="action-btn small">취소</button>
             </div>
@@ -116,7 +117,7 @@
         </div>
         <div id="zone-edit-bar" style="display:none;">
           <span id="zone-edit-label">편집 중</span>
-          <input type="color" id="zone-edit-color" class="edit-color-picker" />
+          <button type="button" class="color-trigger" id="ct-zone-edit" title="존 색·채움 투명도"><span class="ct-swatch"><span class="ct-fill"></span></span></button>
           <button id="zone-edit-done" class="action-btn accent small">완료</button>
           <button id="zone-edit-cancel" class="action-btn small">취소</button>
         </div>
@@ -438,7 +439,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=1.64.0"></script>
-  <script src="app.js?v=1.64.0"></script>
+  <script src="config.js?v=1.65.0"></script>
+  <script src="app.js?v=1.65.0"></script>
 </body>
 </html>
