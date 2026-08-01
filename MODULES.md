@@ -63,6 +63,7 @@
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 3지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.61 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
 | M15 | tokens 디자인 토큰 | 안정 | CSS 변수·프로스트/글래스 공통 문법 | `:root` `--acc` `--frost` `--glass-*` | style.css | v1.52 |
+| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인 부팅·무음 시드 / postMessage 시나리오 재생 (Persona VC 콘솔이 iframe 으로 사용) | `IS_EMBED` `startEmbed` `NH_SCENARIOS` `nhRun` `nhAct` `nhReset` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.67 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
 
@@ -73,8 +74,28 @@
 - M07 request · M08 ai-agent → 서로 연동 (AI 버블/팝업 공유)
 - 모든 UI 모듈 → **M15 tokens** (색·프로스트 문법)
 - M09 shell 은 각 탭 모듈(M05/M06)의 진입점 (switchTab)
+- **M16 scenario-bridge → M01·M09·M13** (읽기·호출 전용). 자기 화면 로직을 만들지 않고
+  동결 앵커만 부른다 — 앵커 시그니처가 바뀌면 시나리오가 조용히 멈춘다.
+
+## 🎬 M16 임베드 계약 (Persona VC 콘솔 ↔ Now Here)
+
+콘솔이 `index.html?embed=1` 을 iframe 으로 띄운다. **임베드는 Firebase 를 붙이지 않는다** —
+시연은 매번 같은 화면이어야 하는데 실데이터는 그날 달라지고, 로그인·allowlist·규칙이 전부
+시연 중 실패 지점이 되기 때문이다. 대신 M13 시드를 무음(`seedDemoData({silent:true})`)으로 깐다.
+
+| 방향 | 메시지 |
+|---|---|
+| 콘솔 → 앱 | `{source:'persona-vc', type:'nh:list'}` · `{type:'nh:run', id}` · `{type:'nh:stop'}` |
+| 앱 → 콘솔 | `nh:ready{version,scenarios[]}` · `nh:begin{id,name,total,concern}` · `nh:step{i,total,say,concern,key,action}` · `nh:done{id}` · `nh:error{message}` |
+
+- 명령은 `EMBED_ORIGINS` 에 있는 오리진에서 온 것만 받는다. 새 콘솔 주소가 생기면 여기에 추가.
+- 시나리오 추가는 `NH_SCENARIOS` 에 항목을 넣는 것으로 끝난다. 스텝의 `a` 는
+  `tab·mode·pop·popclose·request·drawer·wait` 뿐이고, **새 액션을 만들 때도 기존 앵커만 부른다.**
+- `nhRun` 은 항상 `nhReset()` 으로 시작한다 (앞 회차가 연 팝업·드로어가 남으면 다음 시연이 가려진다).
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-01 M16 신설 + M13 ⚠️교차: v1.67.0 — `?embed=1` 임베드 모드(무로그인 부팅·무음 시드), postMessage 시나리오 브리지, Now Here 시나리오 4종(우려 상황 2종 포함). `seedDemoData(opts)` 에 optional `silent` 추가(IS_EMBED 일 때만 유효 — 아니면 클라우드에 쓰이므로 관리자 확인 유지)
 
 - 2026-07-09 M11+M14 + M09 CSS ⚠️교차: v1.66.0 — 관리자 메뉴 내비 카테고리 강조(글자 확대+경계선), 관리자 지도 햄버거 제거(admin.html #pc-menu-btn/#pc-drawer), 관리자 설정 아코디언 비활성(전부 펼침, initSettingsAccordion 분기), 폰 드로어 설정 터치 최적화 CSS(page-app 스코프 — PC/폰 설정 화면 분리·값만 공유)
 - 2026-07-09 M09+M11+M12+M14 + M03/M04 ⚠️교차: v1.65.0 — 서비스/관리자 페이지 분리(index=폰 앱·admin.html 신설, PAGE_MODE 분기), 관리자 대형 메뉴 팝업(initAdminMenu: 컨텐츠/스타일/시스템 카테고리 내비+패널), 색상 팝업 통일(팔레트=온도4+#1428A0, 전 팝업 투명도: textOpacity·스팟 alpha·존 fillA — 네이티브 컬러 입력 3곳 팝업 교체), check.js admin 검사 추가

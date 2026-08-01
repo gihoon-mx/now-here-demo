@@ -238,6 +238,41 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 
 ## 📝 변경 이력
 
+### 2026-08-01
+- **v1.67.0 — 임베드 모드 + 시나리오 브리지 (M16 신설, M13 ⚠️교차)**:
+  - **왜**: Persona VC(콘솔)의 컨셉이 바뀌었다. 페르소나가 앱을 상상해서 쓰는 게 아니라
+    **실제 Now Here 를 콘솔 안에 띄워 놓고**, 서베이에서 페르소나가 말한 시나리오 —
+    특히 **우려하는 상황** — 을 그 위에서 재생해 보여준다. 그래서 Now Here 쪽에
+    ① 로그인 없이 뜨는 임베드 모드와 ② 밖에서 조작을 받는 통로가 필요해졌다.
+  - **`?embed=1` 임베드 모드** (`IS_EMBED`·`startEmbed`): `initAuth()` 대신 타는 경로.
+    Firebase 를 아예 붙이지 않고 `hideAuthOverlay()` → `bootMap()` → 경계 로드 완료
+    (`mapReady`) 후 시드를 무음으로 깐다. **실데이터를 쓰지 않는 게 의도다** — 시연은
+    매번 같은 화면이어야 하는데 실데이터는 그날 비어 있을 수도 달라질 수도 있고,
+    로그인·allowlist·규칙 재게시가 전부 시연 중 실패 지점이 된다. `firestore.rules` 는
+    건드리지 않았다 (익명 쓰기 구멍을 만들지 않기 위해).
+  - **`seedDemoData(opts)`** — optional `silent` 추가(시그니처 동결 규칙 준수).
+    `IS_EMBED` 일 때만 유효하다: 임베드가 아니면 시드가 공유 컬렉션에 쓰이므로
+    관리자 확인창을 그대로 거친다. `markCloudDirty()` 는 fbDb 가 없어 자연히 no-op.
+  - **시나리오 브리지** (`initScenarioBridge`·`nhRun`·`nhAct`): postMessage 로
+    `nh:list`/`nh:run`/`nh:stop` 을 받고 `nh:ready`/`nh:begin`/`nh:step`/`nh:done` 을 돌려준다.
+    `EMBED_ORIGINS` 에 있는 오리진의 메시지만 받는다. 계약은 MODULES.md "M16 임베드 계약".
+  - **앱 조작은 전부 기존 동결 앵커**(`switchTab`·`switchMode`·`openContentPop`·
+    `openRequestComposer`·`openPhoneDrawer`)로만 한다. M16 은 순서와 페르소나 대사만 들고
+    있어서, 화면 로직이 두 벌이 되지 않는다.
+  - **`nhReset()` 를 재생 앞에 둔다** — 앞 회차가 열어둔 팝업·드로어가 남으면 다음 시연이
+    그 뒤에서 조용히 흘러간다 (실제로 겪고 넣었다). 재생 중 다른 시나리오를 걸면
+    토큰으로 앞 회차를 무효화해 스텝이 섞이지 않는다.
+  - **시나리오 4종**: `first-visit`(처음 온 동네 둘러보기) · `field-request`(지금 거기 어떤지
+    물어보기) · **`privacy-worry`(내 위치가 얼마나 드러나나)** · **`empty-neighborhood`
+    (우리 동네엔 아무것도 없다)**. 뒤 둘이 우려 시나리오이고, 스텝에 `concern` 플래그가
+    붙어 콘솔에서 따로 표시된다.
+  - **검증**(로컬 :8765 · 1280px): 로그인 오버레이 없이 부팅, 시드 30스팟·40피드·4Request,
+    `privacy-worry` 재생 시 스팟 팝업에 **동 이름이 찍히는 것**을 그대로 보여줌(그게 그 페르소나의
+    우려 지점), `first-visit` 완주 후 mode=trend·tab=feed, 재생 중 다른 시나리오로 전환 시
+    스텝 섞임 없음·상태 초기화 확인, 콘솔 에러 0. `node tools/check.js` 통과.
+  - **남은 것**: 지도 타일은 로컬(:8765)에서 API 키 리퍼러 제한에 막혀 회색으로 뜬다 —
+    실제 Pages 도메인에서는 정상. 콘솔(Persona VC) 쪽 재생 패널은 그쪽 저장소 작업.
+
 ### 2026-07-07
 - **v1.55.1 — 스플래시 앱 아이콘 (M12)**: .auth-mark div(📍 그라디언트 배경)→img(icon-192.jpg), CSS 68px·border-radius 15px·object-fit:cover·옅은 보더+브랜드 섀도. dev/diagram data-app-ver 스탬프 동반 갱신.
 - **v1.55.0 — 모듈 인프라 (구조 검토 결과 반영)**:

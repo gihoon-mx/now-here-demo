@@ -4461,12 +4461,15 @@ function seedFlat(byArea,ratio,dens){
   });
   return out;
 }
-function seedDemoData(){
-  if(currentRole!=='admin'){alert('관리자만 실행할 수 있어요.');return;}
+function seedDemoData(opts){
+  // opts.silent: 임베드(M16) 전용 무음 경로 — 확인창·완료 알림 없이 깐다.
+  // IS_EMBED 로 한 번 더 막는다: 임베드가 아니면 클라우드에 쓰이므로 관리자 확인을 거쳐야 한다.
+  var silent=!!(opts&&opts.silent&&IS_EMBED);
+  if(!silent&&currentRole!=='admin'){alert('관리자만 실행할 수 있어요.');return;}
   var amtEl=document.getElementById('seed-amount'),denEl=document.getElementById('seed-density');
   var ratio=amtEl?(parseFloat(amtEl.value)||1):1,dens=denEl?(parseFloat(denEl.value)||1):1;
   var feeds=seedFlat(SEED_FEED,ratio,dens),spots=seedFlat(SEED_SPOTS,ratio,dens),reqs=seedFlat(SEED_REQS,ratio,dens);
-  if(!confirm('강남·잠실·성수 데모 데이터를 채울까요?\n(피드 '+feeds.length+' · 스팟 '+spots.length+' · Request '+reqs.length+' · 채팅 시드 — 공유 컬렉션에 기록되어 모든 계정에 보여요.\n수량 '+Math.round(ratio*100)+'% · 밀집도 '+(dens===1?'보통':(dens<1?'촘촘':'넓게'))+' — 수량을 줄여 다시 채울 땐 🧹 비우기 먼저.\n트렌드 존은 만들지 않아요. 컨텐츠 소유자: '+SEED_OWNER+')'))return;
+  if(!silent&&!confirm('강남·잠실·성수 데모 데이터를 채울까요?\n(피드 '+feeds.length+' · 스팟 '+spots.length+' · Request '+reqs.length+' · 채팅 시드 — 공유 컬렉션에 기록되어 모든 계정에 보여요.\n수량 '+Math.round(ratio*100)+'% · 밀집도 '+(dens===1?'보통':(dens<1?'촘촘':'넓게'))+' — 수량을 줄여 다시 채울 땐 🧹 비우기 먼저.\n트렌드 존은 만들지 않아요. 컨텐츠 소유자: '+SEED_OWNER+')'))return;
   var now=Date.now();
   // ① 트렌드 존 시드는 만들지 않음(기존 tzs_* 존은 🧹 비우기로 삭제) — 존은 관리자가 직접 관리
   // ② 요약 지면 (관리자 수동 이미지와 동일 구조 — 수량·밀집도 무관 전체)
@@ -4497,8 +4500,8 @@ function seedDemoData(){
   });
   socSeedLocal=SEED_CHAT_LOCAL.slice();saveChat();
   if(!hasLive()){saveFeed();saveLocalSpots();saveRequests();rebuildSpots();renderFeedColList();renderFeedMarkers();renderRequestMarkers();renderDrawerDemo();if(currentTab==='feed')renderFeed();}
-  markCloudDirty(); // 존·소셜 시드 → 공유문서 저장
-  alert('🌱 데모 데이터를 채웠어요 (피드 '+feeds.length+' · 스팟 '+spots.length+' · Request '+reqs.length+'). 강남·잠실·성수 지도를 확인해 보세요.');
+  markCloudDirty(); // 존·소셜 시드 → 공유문서 저장 (임베드는 fbDb 가 없어 no-op)
+  if(!silent)alert('🌱 데모 데이터를 채웠어요 (피드 '+feeds.length+' · 스팟 '+spots.length+' · Request '+reqs.length+'). 강남·잠실·성수 지도를 확인해 보세요.');
 }
 function clearDemoData(){
   if(currentRole!=='admin'){alert('관리자만 실행할 수 있어요.');return;}
@@ -4660,6 +4663,173 @@ function initAdminMenu(){
   var alb=document.getElementById('adm-allowlist');if(alb)alb.addEventListener('click',openAllowlistManager); // 시스템 › 계정·권한
 }
 
+/* ========== [M16] scenario-bridge 임베드 · 시나리오 재생 ==========
+   콘솔(Persona VC)이 이 앱을 iframe 으로 띄우고 시나리오를 재생시키기 위한 모듈.
+   앱을 조작하는 것은 전부 기존 동결 앵커(switchTab·switchMode·openContentPop…)이고,
+   이 모듈은 그 호출 순서와 페르소나 대사만 들고 있다 — 화면 로직을 새로 만들지 않는다.
+
+   임베드(?embed=1)는 Firebase 를 붙이지 않는다. 시연은 매번 같은 화면이어야 하는데
+   실데이터는 그날 비어 있을 수도 달라질 수도 있고, 로그인·allowlist·규칙이 전부
+   시연 중 실패 지점이 되기 때문이다. 대신 M13 시드를 무음으로 깔아 화면을 채운다. */
+
+var IS_EMBED=(function(){try{return /[?&]embed=1(?:&|$)/.test(location.search);}catch(e){return false;}})();
+
+// 명령을 받아들일 부모 오리진. 여기 없는 곳에서 온 메시지는 무시한다.
+var EMBED_ORIGINS=[
+  'https://persona-vc--persona-lab-503406.asia-east1.hosted.app',
+  'http://localhost:3010','http://localhost:3011',
+  'https://gihoon-mx.github.io' // 이 저장소 자체(직접 테스트용)
+];
+
+/* 시나리오 — 서베이에서 페르소나가 말한 상황을 Now Here 위에서 재현한다.
+   concern:true 인 스텝은 "우려 상황" 으로 콘솔에서 따로 표시된다. */
+var NH_SCENARIOS=[
+  {
+    id:'first-visit', name:'처음 온 동네 둘러보기',
+    persona:'낯선 동네에 막 도착한 사람',
+    steps:[
+      {a:'wait',ms:900,say:'약속보다 30분 일찍 도착했다. 여기 뭐가 있는지 하나도 모르겠는데.'},
+      {a:'tab',v:'map',ms:1400,say:'일단 지도부터. 내 주변이 밝게 떠오른다.'},
+      {a:'pop',v:'spot',i:0,ms:2600,say:'누가 남긴 한마디가 보인다. 리뷰 앱보다 이게 더 지금 같다.'},
+      {a:'popclose',ms:700},
+      {a:'tab',v:'feed',ms:2200,say:'사진으로 보니 분위기가 훨씬 빨리 잡힌다.'},
+      {a:'mode',v:'trend',ms:2400,say:'트렌드로 바꾸니 사람들이 몰리는 구역이 묶여서 보인다. 여기로 가면 되겠다.',key:true}
+    ]
+  },
+  {
+    id:'field-request', name:'지금 거기 어떤지 물어보기',
+    persona:'가기 전에 확인하고 싶은 사람',
+    steps:[
+      {a:'wait',ms:900,say:'지금 줄이 긴지 아닌지가 제일 궁금하다. 전화하기는 좀 그렇고.'},
+      {a:'tab',v:'map',ms:1200},
+      {a:'request',ms:2600,say:'그 자리에 있는 사람한테 물어볼 수 있다니. 이건 검색으로는 안 되는 거다.',key:true},
+      {a:'popclose',ms:600},
+      {a:'drawer',ms:2400,say:'답이 오면 여기서 확인하면 되는구나.'}
+    ]
+  },
+  {
+    id:'privacy-worry', name:'내 위치가 얼마나 드러나나',
+    persona:'위치 공개가 꺼려지는 사람',
+    concern:true,
+    steps:[
+      {a:'wait',ms:900,say:'써보기 전에 이것부터 확인하고 싶다. 내가 어디 있는지 어디까지 남지?'},
+      {a:'tab',v:'map',ms:1300},
+      {a:'pop',v:'spot',i:1,ms:3000,say:'남긴 글에 동 이름이 같이 찍힌다. 이게 내 이름이랑 붙으면 사는 곳이 그대로 드러나는 거 아닌가.',concern:true,key:true},
+      {a:'popclose',ms:700},
+      {a:'drawer',ms:3000,say:'지운다는 버튼은 보이는데, 이미 본 사람한테서도 지워지는 건지는 모르겠다.',concern:true}
+    ]
+  },
+  {
+    id:'empty-neighborhood', name:'우리 동네엔 아무것도 없다',
+    persona:'중심가 밖에 사는 사람',
+    concern:true,
+    steps:[
+      {a:'wait',ms:900,say:'강남은 꽉 차 있던데, 우리 동네도 그런지 보자.'},
+      {a:'tab',v:'map',ms:1300},
+      {a:'mode',v:'local',ms:2800,say:'우리 쪽으로 오니 비어 있다. 결국 사람 많은 데만 굴러가는 서비스인가.',concern:true,key:true},
+      {a:'tab',v:'feed',ms:2800,say:'피드도 죄다 다른 동네다. 내가 첫 글을 써야 하는 건 부담스럽다.',concern:true}
+    ]
+  }
+];
+
+function nhScenario(id){for(var i=0;i<NH_SCENARIOS.length;i++)if(NH_SCENARIOS[i].id===id)return NH_SCENARIOS[i];return null;}
+function nhScenarioList(){return NH_SCENARIOS.map(function(s){
+  return {id:s.id,name:s.name,persona:s.persona,concern:!!s.concern,steps:s.steps.length};});}
+
+/* 시드된 콘텐츠에서 i 번째를 고른다 — 시나리오가 좌표를 직접 들지 않게 한다. */
+function nhPick(kind,i){
+  var arr=(kind==='spot')?(typeof demoSpots!=='undefined'?demoSpots:[])
+         :(kind==='feed')?(typeof feedItems!=='undefined'?feedItems:[])
+         :(typeof fieldRequests!=='undefined'?fieldRequests:[]);
+  if(!arr||!arr.length)return null;
+  return arr[Math.min(i||0,arr.length-1)];
+}
+
+/* 스텝 하나를 화면 동작으로 옮긴다. 여기서만 앵커를 부른다. */
+function nhAct(st){
+  try{
+    if(st.a==='tab'&&typeof switchTab==='function')switchTab(st.v);
+    else if(st.a==='mode'&&typeof switchMode==='function'&&st.v!==currentMode)switchMode(st.v);
+    else if(st.a==='pop'){var d=nhPick(st.v,st.i);if(d&&typeof openContentPop==='function')openContentPop(st.v,d);}
+    else if(st.a==='popclose'){if(typeof closeContentPop==='function')closeContentPop();}
+    else if(st.a==='request'&&typeof openRequestComposer==='function')openRequestComposer();
+    else if(st.a==='drawer'&&typeof openPhoneDrawer==='function')openPhoneDrawer();
+  }catch(e){console.warn('[M16] step fail',st,e);}
+}
+
+var nhRunToken=0;
+function nhStop(){nhRunToken++;}
+
+/* 재생 전 초기화 — 시연은 몇 번을 돌려도 같은 곳에서 시작해야 한다.
+   앞 시나리오가 열어둔 팝업·드로어가 남으면 다음 회차가 그 뒤에서 조용히 흘러간다. */
+function nhReset(){
+  try{
+    if(typeof closeContentPop==='function')closeContentPop();
+    if(typeof closeDrawer==='function')closeDrawer();
+    if(typeof closeComposer==='function')closeComposer();
+    if(typeof switchTab==='function')switchTab('map');
+    if(typeof switchMode==='function'&&currentMode!=='local')switchMode('local');
+  }catch(e){console.warn('[M16] reset',e);}
+}
+
+function nhRun(id,reply){
+  var sc=nhScenario(id);
+  if(!sc){nhPost(reply,{type:'nh:error',message:'없는 시나리오: '+id});return;}
+  nhStop();nhReset();
+  var token=++nhRunToken, i=0;
+  nhPost(reply,{type:'nh:begin',id:sc.id,name:sc.name,total:sc.steps.length,concern:!!sc.concern});
+  (function next(){
+    if(token!==nhRunToken)return;            // 새 재생/중지가 들어오면 이 회차는 조용히 끝난다
+    if(i>=sc.steps.length){nhPost(reply,{type:'nh:done',id:sc.id});return;}
+    var st=sc.steps[i];
+    nhAct(st);
+    nhPost(reply,{type:'nh:step',id:sc.id,i:i,total:sc.steps.length,
+      say:st.say||'',concern:!!st.concern,key:!!st.key,action:st.a});
+    i++;
+    setTimeout(next,st.ms||1500);
+  })();
+}
+
+function nhPost(target,msg){
+  if(!target||!target.win)return;
+  msg.source='now-here';
+  try{target.win.postMessage(msg,target.origin);}catch(e){}
+}
+
+function initScenarioBridge(){
+  window.addEventListener('message',function(e){
+    if(EMBED_ORIGINS.indexOf(e.origin)<0)return;                 // 허용 오리진만
+    var d=e.data;if(!d||typeof d!=='object'||d.source!=='persona-vc')return;
+    var reply={win:e.source,origin:e.origin};
+    if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList()});
+    else if(d.type==='nh:run')nhRun(d.id,reply);
+    else if(d.type==='nh:stop'){nhStop();nhPost(reply,{type:'nh:stopped'});}
+  });
+  // 부모가 언제 붙을지 모르므로 준비되면 알린다 (시나리오 목록은 비밀이 아니다)
+  if(window.parent&&window.parent!==window){
+    try{window.parent.postMessage({source:'now-here',type:'nh:ready',
+      version:nhVersion(),scenarios:nhScenarioList()},'*');}catch(e){}
+  }
+}
+function nhVersion(){var el=document.getElementById('app-version');return el?el.textContent:'';}
+
+/* 임베드 부팅 — 인증을 건너뛰고 지도를 띄운 뒤 시드를 무음으로 깐다. */
+function startEmbed(){
+  document.body.classList.add('embed-mode','role-user'); // role-user: 관리자 UI 를 CSS 로 닫아둔다
+  hideAuthOverlay();
+  bootMap();
+  var tries=0;
+  (function whenReady(){
+    if(typeof mapReady!=='undefined'&&mapReady){
+      seedDemoData({silent:true});   // 경계 로드 후에 깔아야 dongAt 이 동 이름을 제대로 붙인다
+      initScenarioBridge();
+      return;
+    }
+    if(++tries>200){initScenarioBridge();return;} // 24초 넘게 안 되면 시드 없이라도 브리지는 연다
+    setTimeout(whenReady,120);
+  })();
+}
+
 (function(){
   var avEl=document.getElementById('auth-ver'),apv=document.getElementById('app-version'); // 스플래시에 버전 노출 (#app-version 단일 소스)
   if(avEl&&apv)avEl.textContent=apv.textContent;
@@ -4678,5 +4848,6 @@ function initAdminMenu(){
   setInterval(function(){try{tickReqRemain();}catch(e){}},1000); // Request 남은 시간(분/초) 1초 갱신 — 텍스트만(경량)
   initInstallPrompt();
   if(typeof CONFIG==='undefined'||!CONFIG.GOOGLE_MAPS_API_KEY){var it=document.getElementById('info-text');if(it)it.textContent='⚠️ config.js에 API 키를 설정해 주세요.';hideMapLoading();hideAuthOverlay();return;}
+  if(IS_EMBED){startEmbed();return;} // [M16] 임베드: Firebase 없이 시드로 띄운다 (로그인 없음)
   initAuth();
 })();
