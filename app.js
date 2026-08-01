@@ -4746,6 +4746,13 @@ var NH_SCENARIOS=[
   {
     id:'first-visit', name:'처음 온 동네 둘러보기',
     persona:'낯선 동네에 막 도착한 사람', area:'seongsu',
+    // 이 사람이 볼 것은 "낯선 동네의 지금" 이다 — 그 장면을 직접 깐다 (v1.72).
+    seed:{
+      spots:[{t:'30분 때울 데 찾으면 여기 3층 조용해요',emoji:'☕'},
+             {t:'서울숲 쪽 출구가 덜 붐벼요',emoji:'🌳'}],
+      feeds:[{theme:'cafe',label:'처음 온 사람용',desc:'성수 처음이면 연무장길부터. 30분이면 한 바퀴 돌아요',name:'성수토박이'},
+             {theme:'park',label:'지금 서울숲',desc:'지금 서울숲 잔디밭 자리 넉넉해요',name:'숲세권주민'}]
+    },
     steps:[
       {a:'wait',ms:900,say:'약속보다 30분 일찍 도착했다. 여기 뭐가 있는지 하나도 모르겠는데.'},
       {a:'area',v:'seongsu',ms:1800,say:'성수에서 보기로 했는데, 와 본 적이 없다.'},
@@ -4763,7 +4770,8 @@ var NH_SCENARIOS=[
     // 답변 대기 중인 내 Request 가 화면에 있어야 이 시나리오가 성립한다.
     // 전역 시드로는 못 만든다(10분 타임아웃) — 회차마다 새로 깐다.
     seed:{reqs:[{q:'석촌호수 벚꽃 지금 사람 많나요?',answerIn:9000,
-                 answer:'동호 쪽은 아직 걸을 만해요. 서호는 붐빕니다'}]},
+                 answer:'동호 쪽은 아직 걸을 만해요. 서호는 붐빕니다'}],
+          feeds:[{theme:'park',label:'20분 전 석촌호수',desc:'방금 서호 쪽 지나왔는데 줄이 꽤 길어요',name:'호수러너'}]},
     steps:[
       {a:'wait',ms:900,say:'지금 줄이 긴지 아닌지가 제일 궁금하다. 전화하기는 좀 그렇고.'},
       {a:'area',v:'jamsil',ms:1800,say:'석촌호수 벚꽃 보러 가려는데 사람이 얼마나 많을까.'},
@@ -4779,6 +4787,9 @@ var NH_SCENARIOS=[
     id:'privacy-worry', name:'내 위치가 얼마나 드러나나',
     persona:'위치 공개가 꺼려지는 사람', area:'gangnam',
     concern:true,
+    // 이 시나리오는 "동 이름이 같이 찍힌 남의 글" 이 화면에 있어야 성립한다 (v1.72).
+    seed:{spots:[{t:'퇴근길에 여기 자주 옵니다',emoji:'🍜'},
+                 {t:'주말마다 이 공원에서 산책해요',emoji:'🐕'}]},
     steps:[
       {a:'wait',ms:900,say:'써보기 전에 이것부터 확인하고 싶다. 내가 어디 있는지 어디까지 남지?'},
       {a:'area',v:'gangnam',ms:1700},
@@ -4786,7 +4797,8 @@ var NH_SCENARIOS=[
       {a:'popclose',ms:600},
       {a:'write',v:'커피 맛있는 집 찾는 중',ms:5200,
        say:'직접 하나 써 보자. 어디까지 남는지는 써 봐야 안다.',key:true},
-      {a:'pop',v:'spot',i:0,ms:3400,
+      // i:-1 = 방금 쓴 글. i:0 이면 남의 글이 열려서 "방금 쓴 글" 이 거짓말이 된다.
+      {a:'pop',v:'spot',i:-1,ms:3400,
        say:'방금 쓴 글에 동 이름이 그대로 붙었다. 이게 내 계정이랑 묶이면 사는 곳이 드러나는 거 아닌가.',
        concern:true,key:true},
       {a:'popclose',ms:600},
@@ -4852,10 +4864,35 @@ var NH_AREA_ZOOM=14;
    area 스텝으로 지역이 정해져 있으면 그 지역 반경 안의 것만 고른다: 방학동으로 옮겨 놓고
    강남 스팟을 열면 지도는 방학동인데 팝업만 강남이라 시연이 거짓말을 한다.
    그 지역에 아무것도 없으면 null 을 돌려준다 — 없는 게 사실이면 없는 채로 보여준다. */
+function nhStore(kind){
+  return (kind==='spot')?(typeof demoSpots!=='undefined'?demoSpots:[])
+        :(kind==='feed')?(typeof feedItems!=='undefined'?feedItems:[])
+        :(typeof fieldRequests!=='undefined'?fieldRequests:[]);
+}
+/* 이번 회차에 **이 시나리오가 만든 것** — 깔아둔 seed + 재생 중 직접 쓴 글. 생성 순서 그대로. */
+function nhOwn(kind){
+  var ids=(nhTempIds&&nhTempIds[kind])||[];
+  if(!ids.length)return [];
+  var arr=nhStore(kind),out=[],i,j;
+  for(i=0;i<ids.length;i++)for(j=0;j<arr.length;j++)
+    if(arr[j]&&arr[j].id===ids[i]){out.push(arr[j]);break;}
+  return out;
+}
+/* i 는 시나리오가 선언한 순서. **음수면 뒤에서부터** — i:-1 = 방금 만든 것(직접 쓴 글). */
+function nhAt(arr,i){
+  i=i|0;
+  var k=(i<0)?(arr.length+i):i;
+  return arr[Math.min(Math.max(k,0),arr.length-1)];
+}
+/* 콘텐츠 고르기 (v1.72).
+   **이번 회차가 만든 것이 있으면 그 안에서만** 고른다. 전역 시드에서 앞에서부터 고르면
+   지역만 같으면 시나리오가 달라도 **똑같은 콘텐츠**가 열려서, 화면상으로는 네 시나리오가
+   다 같은 이야기가 된다 (v1.71까지 "매번 똑같이 보이던" 원인).
+   시나리오가 아무것도 안 깔았을 때만 전역 시드로 간다 — 그때는 지역 반경으로 거른다. */
 function nhPick(kind,i){
-  var arr=(kind==='spot')?(typeof demoSpots!=='undefined'?demoSpots:[])
-         :(kind==='feed')?(typeof feedItems!=='undefined'?feedItems:[])
-         :(typeof fieldRequests!=='undefined'?fieldRequests:[]);
+  var own=nhOwn(kind);
+  if(own.length)return nhAt(own,i);
+  var arr=nhStore(kind);
   if(!arr||!arr.length)return null;
   var c=nhAreaKey&&SEED_AREAS[nhAreaKey];
   if(c&&typeof haversineM==='function'){
@@ -4864,7 +4901,7 @@ function nhPick(kind,i){
     });
     if(!arr.length)return null;
   }
-  return arr[Math.min(i||0,arr.length-1)];
+  return nhAt(arr,i);
 }
 
 /* ── v1.71 쓰기 액션이 쓰는 보조들 ─────────────────────────
@@ -5009,14 +5046,21 @@ function nhSweepTemp(){
 
 /* 시나리오가 선언한 seed 를 깐다 — "이 시나리오가 성립하려면 화면에 무엇이 있어야 하나".
    전역 시드로는 못 만드는 상황(답변 대기 중인 내 Request 등)을 회차마다 새로 만든다. */
+/* 배치는 **결정적**이어야 한다 — 시연은 몇 번을 돌려도 같은 자리에 같은 것이 있어야 한다
+   (v1.71까지는 Math.random 이라 회차마다 위치가 달라졌다). 황금각으로 중심 둘레에 흩어
+   개수가 늘어도 서로 겹치지 않는다. 종류마다 base 를 달리 줘서 스팟·피드·Request 가 포개지지 않는다. */
+function nhSpread(c,i){
+  var a=i*2.399963,r=0.0015+0.0008*(i%3);
+  return {lat:c.lat+r*Math.cos(a),lng:c.lng+r*Math.sin(a)*1.25};
+}
 function nhSeedScenario(sc,token){
   if(!sc||!sc.seed)return;
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
-  var jit=function(n){return (n-0.5)*0.006;};
+  var stamp=Date.now();
   (sc.seed.reqs||[]).slice(0,3).forEach(function(r,i){
     if(typeof fieldRequests==='undefined')return;
-    var id='rqn_'+Date.now()+'_'+i;
-    var lat=c.lat+jit(Math.random()),lng=c.lng+jit(Math.random());
+    var id='rqn_'+stamp+'_'+i,p=nhSpread(c,i);
+    var lat=p.lat,lng=p.lng;
     fieldRequests.push({id:id,q:String(r.q||'').slice(0,120),lat:lat,lng:lng,
       place:(typeof dongAt==='function'?dongAt(lat,lng):'')||c.name,
       answers:[],ts:Date.now(),by:(typeof myUid==='function'?myUid():'anon'),seed:false});
@@ -5031,13 +5075,32 @@ function nhSeedScenario(sc,token){
   });
   (sc.seed.spots||[]).slice(0,4).forEach(function(s,i){
     if(typeof demoSpots==='undefined')return;
-    var id='spn_'+Date.now()+'_'+i;
-    demoSpots.push({id:id,lat:c.lat+jit(Math.random()),lng:c.lng+jit(Math.random()),
+    var id='spn_'+stamp+'_'+i,p=nhSpread(c,10+i);
+    demoSpots.push({id:id,lat:p.lat,lng:p.lng,
       text:String(s.t||'').slice(0,80),emoji:s.emoji||'💬',live:true});
     nhTempIds.spot.push(id);
   });
+  /* 피드도 시나리오가 깐다 (v1.72) — 없으면 `like`·`scroll`·`scope` 가 늘 같은 전역 카드를
+     건드려서 "이 사람이 무엇에 반응했나" 가 시나리오마다 같아진다.
+     사진은 seedImg 로 그린다(테마 색 + 라벨) — 외부 이미지에 기대지 않아 회차마다 똑같이 뜬다. */
+  (sc.seed.feeds||[]).slice(0,4).forEach(function(f,i){
+    if(typeof feedItems==='undefined')return;
+    var id='fdn_'+stamp+'_'+i,p=nhSpread(c,20+i);
+    feedItems.push({id:id,
+      src:(typeof seedImg==='function'?seedImg(f.theme||'cafe',f.label||''):''),
+      region:(typeof dongAt==='function'?dongAt(p.lat,p.lng):'')||c.name,zone:null,
+      lat:p.lat,lng:p.lng,kind:'post',
+      desc:String(f.desc||f.label||'').slice(0,120),
+      name:String(f.name||'동네주민').slice(0,20),
+      by:'nh_tmp',ts:Date.now()-(i+1)*3600e3,likes:{},seed:false,type:'photo'});
+    nhTempIds.feed.push(id);
+  });
   if(typeof rebuildSpots==='function')rebuildSpots();
   if(typeof renderRequestMarkers==='function')renderRequestMarkers();
+  if((sc.seed.feeds||[]).length){
+    if(typeof renderFeed==='function')renderFeed();
+    if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+  }
 }
 
 function nhReset(){
@@ -5088,7 +5151,11 @@ function nhSanitize(raw){
     var sps=(Array.isArray(rs.spots)?rs.spots:[]).slice(0,4).map(function(s){
       s=s||{};return {t:String(s.t||'').slice(0,80),emoji:String(s.emoji||'💬').slice(0,4)};
     }).filter(function(s){return s.t;});
-    if(reqs.length||sps.length)seed={reqs:reqs,spots:sps};
+    var fds=(Array.isArray(rs.feeds)?rs.feeds:[]).slice(0,4).map(function(f){
+      f=f||{};return {label:String(f.label||'').slice(0,40),desc:String(f.desc||'').slice(0,120),
+        theme:String(f.theme||'').slice(0,16),name:String(f.name||'').slice(0,20)};
+    }).filter(function(f){return f.desc||f.label;});
+    if(reqs.length||sps.length||fds.length)seed={reqs:reqs,spots:sps,feeds:fds};
   }
   return {id:String(raw.id||'inline'),name:String(raw.name||'시나리오').slice(0,80),
     persona:String(raw.persona||'').slice(0,80),concern:!!raw.concern,

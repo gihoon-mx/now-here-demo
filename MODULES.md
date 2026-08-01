@@ -64,7 +64,7 @@
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
 | M15 | tokens 디자인 토큰 | 안정 | CSS 변수·프로스트/글래스 공통 문법 | `:root` `--acc` `--frost` `--glass-*` | style.css | v1.52 |
-| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / 시나리오별 seed 주입·회수 | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhTempIds` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.71 |
+| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed: Request·스팟·피드) 주입·회수 — pop·like 는 그 무대에서만 고른다** | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.72 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
 
@@ -94,6 +94,15 @@
 프레임이 그보다 넓으면 남는 폭이 전부 무대 배경으로 보였다. **양쪽이 다 계산하면 반드시
 어긋나므로 계산하는 자리를 하나로 모았다** — 콘솔이 iframe 을 `aspect-ratio:9/19.5` 로 준다.
 라운드·그림자도 콘솔 래퍼가 들고 있어서 앱에서는 뺀다.
+
+**시나리오별 무대** (v1.72): 시나리오는 `seed` 로 자기 화면을 깐다 —
+`{reqs:[{q,answer,answerIn}] , spots:[{t,emoji}] , feeds:[{theme,label,desc,name}]}`
+(각 최대 3·4·4건). **깐 것이 하나라도 있으면 `pop`·`like` 는 그 안에서만 고른다**(`nhOwn`).
+전역 시드에서 앞에서부터 고르던 v1.71 까지는 **지역만 같으면 시나리오가 달라도 같은 콘텐츠**가
+열려서, 화면상으로는 네 시나리오가 다 같은 이야기로 보였다. `i` 는 선언 순서이고 **음수는
+뒤에서부터** — `i:-1` 이 "방금 쓴 글" 이다(그 전에는 `i:0` 이 남의 글을 열어 대사가 거짓이 됐다).
+배치는 `nhSpread` 로 **결정적**이다 — 시연은 몇 번을 돌려도 같은 자리여야 한다.
+피드 사진은 `seedImg`(테마 색 + 라벨)로 그려서 외부 이미지에 기대지 않는다.
 
 **지역 이동** (v1.70): `{a:'area', v:'gangnam'|'jamsil'|'seongsu'|'dobong'}`. 갈 수 있는 곳은
 시드가 깔린 지역뿐이라 `nh:ready` 의 `areas[]` 로 알려준다 — 콘솔에 복사해 두지 않는다.
@@ -126,6 +135,7 @@
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-01 M16 (M13 ⚠️교차): v1.72.0 — **시나리오마다 다른 콘텐츠**. `nhPick` 이 그 시나리오가 깐 것(`nhOwn`)에서만 고르고, 없을 때만 전역 시드로 간다. `seed.feeds` 신설(좋아요·스크롤 대상도 시나리오 것). 음수 인덱스(`i:-1`=방금 쓴 글) — privacy-worry 의 `pop i:0` 이 남의 글을 열어 대사가 거짓이던 것을 고침. 배치를 `nhSpread` 결정적 좌표로(Math.random 제거). 표본 4종에 각자 무대 부여
 - 2026-08-01 M16+M13 ⚠️교차 M04/M05/M06/M07/M10/M12(임베드 격리·역할): v1.71.0 — 액션 7종 추가(`like` `write` `answer` `chat` `ai` `scope` `scroll`)로 시나리오가 **보기만 하지 않고 실제로 쓴다**. 시나리오별 `seed` 블록(재생 직전 주입·리셋 시 회수, `answerIn` 으로 재생 도중 답변 도착). 시나리오 4종을 서로 다른 기능을 쓰도록 재작성. `nhEmbedIsolate` — 임베드는 localStorage 를 쓰지도 읽지도 않는다
 - 2026-08-01 M16+M13 ⚠️교차 M09(`cpopGoMap` optional 줌 + `goMapCam` 투영 폴백)·M15(CSS): v1.70.0 — `area` 지역 이동 액션(동결 앵커 `cpopGoMap` 호출), `nhPick` 이 지역 반경으로 콘텐츠를 거른다, `nh:ready` 에 `areas[]` 추가. 시드 4지역으로 확장(강남·잠실·성수 보강 + **방학·쌍문 신설, 일부러 희박하게**) — 우려 시나리오 `empty-neighborhood` 가 실제로 빈 화면을 보여주게 됐다. 임베드 여백 제거(프레임 비율은 콘솔이 책임진다). ⚠️ 시드 항목이 늘어 `gi`(문서 인덱스)가 밀렸다 — 클라우드 시드는 🧹 비우기 후 다시 채워야 한다
 - 2026-08-01 M16 + M15 ⚠️교차: v1.69.0 — 임베드는 폭과 무관하게 항상 폰 UI (`page-app` 무대 연출을 미디어쿼리 밖에서 다시 검). *(레지스트리 갱신이 v1.67 에서 멈춰 있던 것을 v1.70 에서 같이 바로잡음)*
