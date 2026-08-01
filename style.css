@@ -1156,6 +1156,22 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
   body.page-app .phone-screen{width:min(430px,calc((100dvh - 56px)*9/19.5));}
 }
 
+/* ── [M16] 임베드(?embed=1): 폭과 무관하게 항상 폰 UI ──
+   콘솔의 iframe 폭은 레이아웃에 따라 390px 이 되기도 하고 700px 이 되기도 한다.
+   위 page-app 규칙은 769px 이상에서만 걸려서, 좁은 프레임에서는 폰이 아니라
+   모바일 웹처럼 전체를 채워 버린다. 임베드는 "폰 화면을 보여주는 자리" 이므로
+   미디어쿼리 밖에서 같은 무대 연출을 다시 건다 (값은 위와 동일, 폭 상한만 추가). */
+body.embed-mode #map,body.embed-mode #map-loading,body.embed-mode #scale-legend,
+body.embed-mode #pc-menu-btn,body.embed-mode #pc-drawer,
+body.embed-mode #sidebar-resizer,body.embed-mode #left-panel{display:none!important;}
+body.embed-mode #app-shell{display:flex;justify-content:center;align-items:center;height:100%;
+  background:radial-gradient(1200px 800px at 30% 20%,#e9efff 0%,#eef1f6 45%,#e4e9f2 100%);}
+body.embed-mode #sidebar{position:static;flex:none;width:auto!important;height:auto;padding:0;margin:0;gap:0;border:none;background:none;overflow:visible;}
+body.embed-mode #phone-mirror{position:static;padding:0;background:none;}
+body.embed-mode .phone-bar{display:none;}
+/* 프레임이 좁아도 넘치지 않게 가로 상한을 같이 건다 */
+body.embed-mode .phone-screen{width:min(430px,calc((100dvh - 28px)*9/19.5),calc(100vw - 24px));}
+
 /* ── 관리자 페이지: 탑바 + 지도 전면 + 폰 미리보기(우측) ── */
 body.page-admin #app-shell{height:calc(100% - 52px);}
 #admin-topbar{position:relative;z-index:5000;display:flex;align-items:center;gap:14px;height:52px;padding:0 14px;
