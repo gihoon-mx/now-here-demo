@@ -2738,6 +2738,11 @@ function renderMyLocation(){ // 현재 위치 마커: 블루 점 + 흰 링 + 옅
   });
 }
 function initMyLocation(){ // 앱 시작: 내 위치(줌15) → 실패/미지원 시 서울시 전역
+  /* 임베드(M16)는 **GPS 를 쓰지 않는다** (v1.73). 실제 위치로 지도가 가면 모든 시나리오가
+     "지금 내가 있는 곳" 에서 시작하는데, 거기엔 시드가 없어서 화면이 비고 회차마다 다른
+     동네에서 벌어진다 — D25 의 "시연은 매번 같은 결과여야 한다" 와 정면으로 어긋난다.
+     시연 도중 위치 권한 팝업이 뜨는 것도 막고, 내 위치 점(myLocation)도 찍지 않는다. */
+  if(IS_EMBED){if(typeof nhGoHome==='function')nhGoHome();return;}
   var seoul=function(){if(map){map.setCenter({lat:37.5665,lng:126.978});map.setZoom(11);}};
   if(!navigator.geolocation){seoul();return;}
   navigator.geolocation.getCurrentPosition(function(pos){
@@ -4859,6 +4864,19 @@ var nhAreaKey='';
 var nhTempIds={spot:[],feed:[],req:[],chat:[]};
 /* 지역 이동 줌 — "동네 전체" 가 보이는 값. 시연은 매번 같은 그림이어야 하므로 고정한다. */
 var NH_AREA_ZOOM=14;
+/* 임베드가 처음 서는 곳 — 시나리오가 area 로 옮기기 전까지 시연 세계의 기본값이다.
+   GPS 대신 이걸 쓴다(initMyLocation): 첫 화면부터 시드가 깔린 동네여야 콘텐츠가 보인다. */
+var NH_HOME_AREA='gangnam';
+function nhGoHome(){
+  var c=SEED_AREAS[NH_HOME_AREA]||SEED_AREAS.gangnam;
+  nhAreaKey=NH_HOME_AREA;
+  // goMapCam 을 쓰는 이유: 임베드의 PC 지도는 display:none 이라 투영이 없고 panTo 가
+  // 조용히 무시된다. 카메라는 PC → 폰 단방향 미러라 그러면 폰까지 같이 멈춘다.
+  if(typeof goMapCam==='function'){
+    goMapCam(map,c.lat,c.lng,NH_AREA_ZOOM);
+    if(typeof phoneMap!=='undefined'&&phoneMap)goMapCam(phoneMap,c.lat,c.lng,NH_AREA_ZOOM);
+  }
+}
 
 /* 시드된 콘텐츠에서 i 번째를 고른다 — 시나리오가 좌표를 직접 들지 않게 한다.
    area 스텝으로 지역이 정해져 있으면 그 지역 반경 안의 것만 고른다: 방학동으로 옮겨 놓고
@@ -5106,7 +5124,9 @@ function nhSeedScenario(sc,token){
 function nhReset(){
   try{
     nhSweepTemp();
-    nhAreaKey=''; // 앞 회차가 방학동에 서 있었으면 다음 회차의 pop 이 조용히 빈손이 된다
+    // 앞 회차가 방학동에 서 있었으면 다음 회차의 pop 이 조용히 빈손이 된다 —
+    // 비워 두지 않고 **기본 무대로 되돌린다** (v1.73). 회차마다 같은 곳에서 시작해야 한다.
+    if(typeof nhGoHome==='function')nhGoHome();else nhAreaKey='';
     if(typeof closeComposer==='function')closeComposer();
     if(typeof closeContentPop==='function')closeContentPop();
     if(typeof closeDrawer==='function')closeDrawer();
