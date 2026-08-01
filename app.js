@@ -4828,8 +4828,16 @@ var NH_SCENARIOS=[
 ];;
 
 function nhScenario(id){for(var i=0;i<NH_SCENARIOS.length;i++)if(NH_SCENARIOS[i].id===id)return NH_SCENARIOS[i];return null;}
+/* 표본 시나리오 목록. `steps` 는 **개수와 정의를 같이** 준다 (v1.74) —
+   콘솔이 재생 전에 타임라인을 다 보여주고(그전에는 번호만 있는 자리였다), 특정 단계부터
+   다시 보기(앞 단계 빨리감기)를 하려면 콘솔이 정의를 알아야 한다. 개수만 주던 시절의
+   콘솔과도 호환되도록 `steps` 는 숫자 그대로 두고 `plan` 을 따로 싣는다. */
 function nhScenarioList(){return NH_SCENARIOS.map(function(s){
   return {id:s.id,name:s.name,persona:s.persona,concern:!!s.concern,steps:s.steps.length,
+    plan:s.steps.map(function(st){
+      return {a:st.a,v:st.v||'',i:st.i|0,say:st.say||'',
+        concern:!!st.concern,key:!!st.key,ms:st.ms|0};}),
+    seed:s.seed||null,
     area:s.area||'',areaName:(s.area&&SEED_AREAS[s.area]?SEED_AREAS[s.area].name:'')};});}
 
 /* ⚠️교차 M04/M05/M06/M07/M10 — 임베드는 상태를 남기지도 물려받지도 않는다.

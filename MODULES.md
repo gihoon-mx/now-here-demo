@@ -64,7 +64,7 @@
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
 | M15 | tokens 디자인 토큰 | 안정 | CSS 변수·프로스트/글래스 공통 문법 | `:root` `--acc` `--frost` `--glass-*` | style.css | v1.52 |
-| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed: Request·스팟·피드) 주입·회수 — pop·like 는 그 무대에서만 고른다** | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.73 |
+| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed: Request·스팟·피드) 주입·회수 — pop·like 는 그 무대에서만 고른다** | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.74 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
 
@@ -94,6 +94,11 @@
 프레임이 그보다 넓으면 남는 폭이 전부 무대 배경으로 보였다. **양쪽이 다 계산하면 반드시
 어긋나므로 계산하는 자리를 하나로 모았다** — 콘솔이 iframe 을 `aspect-ratio:9/19.5` 로 준다.
 라운드·그림자도 콘솔 래퍼가 들고 있어서 앱에서는 뺀다.
+
+`nh:ready` 는 표본 시나리오의 **스텝 정의(`plan`)와 `seed` 도 같이 준다** (v1.74).
+개수만 주던 시절에는 콘솔 타임라인이 앱 표본을 "번호만 있는 자리" 로 두고 재생하면서
+채웠고, 특정 단계부터 다시 보기도 할 수 없었다(콘솔이 정의를 몰라 inline run 을 못 만든다).
+`steps` 는 **숫자 그대로 두고** `plan` 을 따로 실어 옛 콘솔과도 호환된다.
 
 **임베드는 GPS 를 쓰지 않는다** (v1.73): `initMyLocation` 이 `IS_EMBED` 면 위치를 묻지 않고
 기본 무대(`NH_HOME_AREA`=강남)에 선다. 실제 위치로 지도가 가면 **모든 시나리오가 "지금 내가
@@ -141,6 +146,7 @@
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-01 M16: v1.74.0 — `nh:ready` 가 표본 시나리오의 스텝 정의(`plan`)·`seed` 를 같이 준다. 콘솔이 재생 전 타임라인 전체를 보여주고, 단계를 눌러 그 지점부터 다시 보기(앞 단계 빨리감기)를 할 수 있다. `steps`(개수)는 그대로 둬서 옛 콘솔과 호환
 - 2026-08-01 M16: v1.73.0 — **임베드 GPS 미사용**. `initMyLocation` 이 임베드면 기본 무대(`nhGoHome`, 강남)에 서고 위치를 묻지 않는다. 그전에는 실제 GPS 로 지도가 가서 모든 시나리오가 사용자의 현재 위치에서 시작했다(시드가 없는 자리 → 빈 화면). `nhReset` 도 기본 무대로 복귀
 - 2026-08-01 M16 (M13 ⚠️교차): v1.72.0 — **시나리오마다 다른 콘텐츠**. `nhPick` 이 그 시나리오가 깐 것(`nhOwn`)에서만 고르고, 없을 때만 전역 시드로 간다. `seed.feeds` 신설(좋아요·스크롤 대상도 시나리오 것). 음수 인덱스(`i:-1`=방금 쓴 글) — privacy-worry 의 `pop i:0` 이 남의 글을 열어 대사가 거짓이던 것을 고침. 배치를 `nhSpread` 결정적 좌표로(Math.random 제거). 표본 4종에 각자 무대 부여
 - 2026-08-01 M16+M13 ⚠️교차 M04/M05/M06/M07/M10/M12(임베드 격리·역할): v1.71.0 — 액션 7종 추가(`like` `write` `answer` `chat` `ai` `scope` `scroll`)로 시나리오가 **보기만 하지 않고 실제로 쓴다**. 시나리오별 `seed` 블록(재생 직전 주입·리셋 시 회수, `answerIn` 으로 재생 도중 답변 도착). 시나리오 4종을 서로 다른 기능을 쓰도록 재작성. `nhEmbedIsolate` — 임베드는 localStorage 를 쓰지도 읽지도 않는다
