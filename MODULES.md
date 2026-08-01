@@ -85,8 +85,14 @@
 
 | 방향 | 메시지 |
 |---|---|
-| 콘솔 → 앱 | `{source:'persona-vc', type:'nh:list'}` · `{type:'nh:run', id}` · `{type:'nh:stop'}` |
-| 앱 → 콘솔 | `nh:ready{version,scenarios[]}` · `nh:begin{id,name,total,concern}` · `nh:step{i,total,say,concern,key,action}` · `nh:done{id}` · `nh:error{message}` |
+| 콘솔 → 앱 | `{source:'persona-vc', type:'nh:list'}` · `{type:'nh:run', id}` · `{type:'nh:run', scenario:{...}}` · `{type:'nh:stop'}` |
+| 앱 → 콘솔 | `nh:ready{version,scenarios[],actions[]}` · `nh:begin{id,name,total,concern}` · `nh:step{i,total,say,concern,key,action}` · `nh:done{id}` · `nh:error{message}` |
+
+**콘솔이 보내온 시나리오** (v1.68): `nh:run` 에 `scenario` 를 실으면 `NH_SCENARIOS` 에 없는
+시나리오도 재생한다 — 서베이에서 뽑은 시나리오는 콘솔에 있기 때문이다. 받은 정의는
+`nhSanitize()` 를 반드시 통과한다: 액션은 `NH_ACTIONS` 화이트리스트뿐(모르는 액션은 버림),
+스텝 20개·대사 300자·스텝 간격 400~6000ms 로 자른다. **임의 코드는 돌지 않는다.**
+`nh:ready` 가 `actions` 로 지금 앱이 아는 액션 목록을 같이 알려주므로, 콘솔은 그것만 쓰면 된다.
 
 - 명령은 `EMBED_ORIGINS` 에 있는 오리진에서 온 것만 받는다. 새 콘솔 주소가 생기면 여기에 추가.
 - 시나리오 추가는 `NH_SCENARIOS` 에 항목을 넣는 것으로 끝난다. 스텝의 `a` 는
@@ -95,6 +101,7 @@
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-01 M16: v1.68.0 — `nh:run` 이 콘솔이 보내온 시나리오 정의(`scenario`)를 받는다. 서베이에서 뽑은 시나리오는 앱 상수에 없고 콘솔에 있기 때문. `nhSanitize()` 로 액션 화이트리스트·길이 상한을 강제하고, `nh:ready` 가 `actions` 목록을 알려준다
 - 2026-08-01 M16 신설 + M13 ⚠️교차: v1.67.0 — `?embed=1` 임베드 모드(무로그인 부팅·무음 시드), postMessage 시나리오 브리지, Now Here 시나리오 4종(우려 상황 2종 포함). `seedDemoData(opts)` 에 optional `silent` 추가(IS_EMBED 일 때만 유효 — 아니면 클라우드에 쓰이므로 관리자 확인 유지)
 
 - 2026-07-09 M11+M14 + M09 CSS ⚠️교차: v1.66.0 — 관리자 메뉴 내비 카테고리 강조(글자 확대+경계선), 관리자 지도 햄버거 제거(admin.html #pc-menu-btn/#pc-drawer), 관리자 설정 아코디언 비활성(전부 펼침, initSettingsAccordion 분기), 폰 드로어 설정 터치 최적화 CSS(page-app 스코프 — PC/폰 설정 화면 분리·값만 공유)

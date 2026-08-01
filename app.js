@@ -4772,9 +4772,28 @@ function nhReset(){
   }catch(e){console.warn('[M16] reset',e);}
 }
 
-function nhRun(id,reply){
-  var sc=nhScenario(id);
-  if(!sc){nhPost(reply,{type:'nh:error',message:'없는 시나리오: '+id});return;}
+/* 콘솔이 보내온 시나리오를 받아들인다 (v1.68) — 서베이에서 뽑은 시나리오는 여기 상수에
+   없고 콘솔에 있다. 액션 어휘는 여전히 아래 화이트리스트뿐이라 임의 코드가 돌지 않는다. */
+var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait'];
+function nhSanitize(raw){
+  if(!raw||!Array.isArray(raw.steps)||!raw.steps.length)return null;
+  var steps=[];
+  for(var i=0;i<raw.steps.length&&steps.length<20;i++){
+    var s=raw.steps[i]||{};
+    if(NH_ACTIONS.indexOf(s.a)<0)continue;              // 모르는 액션은 버린다
+    steps.push({a:s.a,v:String(s.v||''),i:(s.i|0),
+      say:String(s.say||'').slice(0,300),
+      concern:!!s.concern,key:!!s.key,
+      ms:Math.min(Math.max(s.ms|0,400),6000)});          // 시연이 멈춰 보이지 않게 상·하한
+  }
+  if(!steps.length)return null;
+  return {id:String(raw.id||'inline'),name:String(raw.name||'시나리오').slice(0,80),
+    persona:String(raw.persona||'').slice(0,80),concern:!!raw.concern,steps:steps};
+}
+
+function nhRun(id,reply,inline){
+  var sc=inline?nhSanitize(inline):nhScenario(id);
+  if(!sc){nhPost(reply,{type:'nh:error',message:inline?'시나리오 형식이 올바르지 않습니다.':'없는 시나리오: '+id});return;}
   nhStop();nhReset();
   var token=++nhRunToken, i=0;
   nhPost(reply,{type:'nh:begin',id:sc.id,name:sc.name,total:sc.steps.length,concern:!!sc.concern});
@@ -4801,14 +4820,14 @@ function initScenarioBridge(){
     if(EMBED_ORIGINS.indexOf(e.origin)<0)return;                 // 허용 오리진만
     var d=e.data;if(!d||typeof d!=='object'||d.source!=='persona-vc')return;
     var reply={win:e.source,origin:e.origin};
-    if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList()});
-    else if(d.type==='nh:run')nhRun(d.id,reply);
+    if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS});
+    else if(d.type==='nh:run')nhRun(d.id,reply,d.scenario);
     else if(d.type==='nh:stop'){nhStop();nhPost(reply,{type:'nh:stopped'});}
   });
   // 부모가 언제 붙을지 모르므로 준비되면 알린다 (시나리오 목록은 비밀이 아니다)
   if(window.parent&&window.parent!==window){
     try{window.parent.postMessage({source:'now-here',type:'nh:ready',
-      version:nhVersion(),scenarios:nhScenarioList()},'*');}catch(e){}
+      version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS},'*');}catch(e){}
   }
 }
 function nhVersion(){var el=document.getElementById('app-version');return el?el.textContent:'';}
