@@ -4937,6 +4937,36 @@ function nhPick(kind,i){
 /* 지금 지역의 피드 하나 — 좋아요·스크롤 대상 */
 function nhFeedPick(i){return nhPick('feed',i);}
 
+/* 지금 보고 있는 지도 중심. 임베드에서 PC 지도가 숨어 있어도 좌표는 살아 있다. */
+function nhCenter(){
+  var m=map||phoneMap;if(!m)return null;
+  var c=m.getCenter&&m.getCenter();
+  if(c)return {lat:c.lat(),lng:c.lng()};
+  var a=nhAreaKey&&SEED_AREAS[nhAreaKey];
+  return a?{lat:a.lat,lng:a.lng}:null;
+}
+/* 줌만 바꾼다 — 중심은 그대로. 'in'/'out' 은 한 단계, 숫자면 그 값으로. */
+function nhZoom(v){
+  var m=map||phoneMap;if(!m||!m.getZoom)return;
+  var now=m.getZoom()||NH_AREA_ZOOM,z;
+  if(v==='in')z=now+2;else if(v==='out')z=now-2;else z=parseInt(v,10);
+  if(!isFinite(z))return;
+  // 너무 멀면 동네가 안 보이고 너무 가까우면 핀만 남는다.
+  z=Math.min(18,Math.max(11,z));
+  var c=nhCenter();if(!c)return;
+  goMapCam(map,c.lat,c.lng,z);
+  if(phoneMap)goMapCam(phoneMap,c.lat,c.lng,z);
+}
+/* i 번째 콘텐츠로 카메라를 옮겨 확대한다. **팝업은 열지 않는다** — 여는 것은 pop 의 일이고,
+   focus 는 "저기를 보라" 는 연출이다. 둘을 합치면 시나리오가 둘을 따로 쓸 수 없다. */
+function nhFocus(kind,i){
+  var d=nhPick(kind||'spot',i);
+  if(!d||d.lat==null||d.lng==null)return;
+  if(typeof switchTab==='function')switchTab('map');
+  goMapCam(map,d.lat,d.lng,17);
+  if(phoneMap)goMapCam(phoneMap,d.lat,d.lng,17);
+}
+
 /* 글쓰기: 진짜 컴포저를 열어 보여주고(addSpotContent) 잠시 뒤 커밋한다.
    바로 넣지 않는 이유 — 시연에서 "이 사람이 쓰는 중" 이 보여야 한다. */
 function nhWriteSpot(text,token,ms){
@@ -5034,6 +5064,11 @@ function nhAct(st,token){
     else if(st.a==='chat')nhChat(st.v,st.say&&st.v==='send'?st.say:(st.i?st.say:''));
     else if(st.a==='ai')nhAi(token,st.ms);
     else if(st.a==='scope'){if(typeof switchTab==='function')switchTab('feed');nhScope(st.v);}
+    // ── v1.75 카메라 연출 ──
+    // 자체 지도 조작을 만들지 않고 goMapCam(동결 앵커)만 부른다. **양쪽 지도를 같이 움직인다** —
+    // 카메라는 PC → 폰 단방향 미러라 폰만 움직이면 다음 idle 이 되돌린다 (area 와 같은 이유).
+    else if(st.a==='zoom')nhZoom(st.v);
+    else if(st.a==='focus')nhFocus(st.v,st.i);
     else if(st.a==='scroll'){
       var el=document.querySelector('#phone-drawer.open .pd-body')||
              document.querySelector('.tabpage.active .feed-col')||
@@ -5147,7 +5182,8 @@ function nhReset(){
 /* 콘솔이 보내온 시나리오를 받아들인다 (v1.68) — 서베이에서 뽑은 시나리오는 여기 상수에
    없고 콘솔에 있다. 액션 어휘는 여전히 아래 화이트리스트뿐이라 임의 코드가 돌지 않는다. */
 var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
-  'like','write','answer','chat','ai','scope','scroll']; // v1.71: 보기만 하지 않고 실제로 한다
+  'like','write','answer','chat','ai','scope','scroll', // v1.71: 보기만 하지 않고 실제로 한다
+  'zoom','focus']; // v1.75: 카메라 연출 — 시연에서 "어디를 보라" 를 화면이 말한다
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
