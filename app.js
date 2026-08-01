@@ -4481,6 +4481,11 @@ var SEED_CHAT_DOCS=[
  {room:'local:성수2가1동',name:'숲세권주민',t:'이번 주말 서울숲 플리마켓 다들 가시나요?',h:7},
  {room:'topic:🍜 맛집 탐방',name:'점심원정대',t:'성수 수제버거 vs 새내 국밥, 이번 주 미션',h:4},
  {room:'local:성수2가3동',name:'트렌드헌터',t:'연무장길 플리마켓 오늘까지래요. 가실 분?',h:3},
+ {room:'local:성수2가1동',name:'전시헌터',t:'대림창고 전시 오늘 무료입장이래요',h:5},
+ {room:'local:성수2가1동',name:'숲세권주민',t:'오 저도 지금 가는 중이에요 👋',h:4},
+ {room:'local:역삼1동',name:'점심원정대',t:'오늘 칼국수집 12시 전에 가면 자리 있어요',h:2},
+ {room:'local:역삼1동',name:'프리랜서J',t:'2층 카페 콘센트 자리 세 개 비었습니다',h:1},
+ {room:'local:잠실2동',name:'호수러너',t:'벚꽃 동호 쪽이 훨씬 한산해요. 참고하세요',h:2},
  {room:'topic:🏃 러닝 크루',name:'호수러너',t:'토요일 아침 석촌호수 한 바퀴 같이 뛰실 분',h:9},
  // 한산한 동네: 방 자체는 있는데 답이 안 달린다 — 이것도 우려 시나리오의 근거다
  {room:'local:방학2동',name:'동네한바퀴',t:'여기 쓰는 분 계신가요? 방학천 산책로 좋더라고요',h:34}];
@@ -4743,24 +4748,31 @@ var NH_SCENARIOS=[
     persona:'낯선 동네에 막 도착한 사람', area:'seongsu',
     steps:[
       {a:'wait',ms:900,say:'약속보다 30분 일찍 도착했다. 여기 뭐가 있는지 하나도 모르겠는데.'},
-      {a:'area',v:'seongsu',ms:1600,say:'성수에서 보기로 했는데, 와 본 적이 없다.'},
-      {a:'tab',v:'map',ms:1400,say:'일단 지도부터. 내 주변이 밝게 떠오른다.'},
+      {a:'area',v:'seongsu',ms:1800,say:'성수에서 보기로 했는데, 와 본 적이 없다.'},
       {a:'pop',v:'spot',i:0,ms:2600,say:'누가 남긴 한마디가 보인다. 리뷰 앱보다 이게 더 지금 같다.'},
-      {a:'popclose',ms:700},
-      {a:'tab',v:'feed',ms:2200,say:'사진으로 보니 분위기가 훨씬 빨리 잡힌다.'},
-      {a:'mode',v:'trend',ms:2400,say:'트렌드로 바꾸니 사람들이 몰리는 구역이 묶여서 보인다. 여기로 가면 되겠다.',key:true}
+      {a:'popclose',ms:600},
+      {a:'ai',ms:4200,say:'물어보면 알려주나? 이 동네 뭐가 좋은지 아직 감이 안 온다.',key:true},
+      {a:'scope',v:'local',ms:2400,say:'이 동네 것만 모아서 보니 훨씬 정리된다.'},
+      {a:'like',i:0,ms:2200,say:'여기 가봐야겠다. 일단 저장해 두는 느낌으로 하트.',key:true},
+      {a:'mode',v:'trend',ms:2400,say:'트렌드로 바꾸니 사람들이 몰리는 구역이 묶여서 보인다.'}
     ]
   },
   {
     id:'field-request', name:'지금 거기 어떤지 물어보기',
     persona:'가기 전에 확인하고 싶은 사람', area:'jamsil',
+    // 답변 대기 중인 내 Request 가 화면에 있어야 이 시나리오가 성립한다.
+    // 전역 시드로는 못 만든다(10분 타임아웃) — 회차마다 새로 깐다.
+    seed:{reqs:[{q:'석촌호수 벚꽃 지금 사람 많나요?',answerIn:9000,
+                 answer:'동호 쪽은 아직 걸을 만해요. 서호는 붐빕니다'}]},
     steps:[
       {a:'wait',ms:900,say:'지금 줄이 긴지 아닌지가 제일 궁금하다. 전화하기는 좀 그렇고.'},
-      {a:'area',v:'jamsil',ms:1500,say:'석촌호수 벚꽃 보러 가려는데 사람이 얼마나 많을까.'},
-      {a:'tab',v:'map',ms:1200},
-      {a:'request',ms:2600,say:'그 자리에 있는 사람한테 물어볼 수 있다니. 이건 검색으로는 안 되는 거다.',key:true},
+      {a:'area',v:'jamsil',ms:1800,say:'석촌호수 벚꽃 보러 가려는데 사람이 얼마나 많을까.'},
+      {a:'request',ms:2800,say:'그 자리에 있는 사람한테 물어볼 수 있다니. 검색으로는 안 되는 거다.',key:true},
       {a:'popclose',ms:600},
-      {a:'drawer',ms:2400,say:'답이 오면 여기서 확인하면 되는구나.'}
+      {a:'drawer',ms:3000,say:'올려두고 기다리는 중. 답이 오면 여기서 보면 되는구나.'},
+      {a:'wait',ms:4200,say:'…'},
+      {a:'answer',v:'동호 쪽은 아직 걸을 만해요. 서호는 붐빕니다',ms:4000,
+       say:'답이 왔다. 동호 쪽으로 가면 되겠다 — 이건 지도만 봐서는 절대 모르는 정보다.',key:true}
     ]
   },
   {
@@ -4769,10 +4781,15 @@ var NH_SCENARIOS=[
     concern:true,
     steps:[
       {a:'wait',ms:900,say:'써보기 전에 이것부터 확인하고 싶다. 내가 어디 있는지 어디까지 남지?'},
-      {a:'area',v:'gangnam',ms:1500},
-      {a:'tab',v:'map',ms:1300},
-      {a:'pop',v:'spot',i:1,ms:3000,say:'남긴 글에 동 이름이 같이 찍힌다. 이게 내 이름이랑 붙으면 사는 곳이 그대로 드러나는 거 아닌가.',concern:true,key:true},
-      {a:'popclose',ms:700},
+      {a:'area',v:'gangnam',ms:1700},
+      {a:'pop',v:'spot',i:1,ms:3000,say:'남의 글에도 동 이름이 같이 찍혀 있다. 내 것도 그렇게 되나?'},
+      {a:'popclose',ms:600},
+      {a:'write',v:'커피 맛있는 집 찾는 중',ms:5200,
+       say:'직접 하나 써 보자. 어디까지 남는지는 써 봐야 안다.',key:true},
+      {a:'pop',v:'spot',i:0,ms:3400,
+       say:'방금 쓴 글에 동 이름이 그대로 붙었다. 이게 내 계정이랑 묶이면 사는 곳이 드러나는 거 아닌가.',
+       concern:true,key:true},
+      {a:'popclose',ms:600},
       {a:'drawer',ms:3000,say:'지운다는 버튼은 보이는데, 이미 본 사람한테서도 지워지는 건지는 모르겠다.',concern:true}
     ]
   },
@@ -4782,22 +4799,52 @@ var NH_SCENARIOS=[
     concern:true,
     steps:[
       {a:'wait',ms:900,say:'강남은 꽉 차 있던데, 우리 동네도 그런지 보자.'},
-      {a:'area',v:'gangnam',ms:2200,say:'강남은 이렇게 빽빽하다. 볼 게 계속 나온다.'},
-      {a:'area',v:'dobong',ms:3000,say:'우리 동네로 오니 화면이 텅 비었다. 결국 사람 많은 데만 굴러가는 서비스인가.',concern:true,key:true},
-      {a:'pop',v:'spot',i:0,ms:2800,say:'하나 있는 글이 "여기 쓰는 사람 저뿐인가요" 다. 딱 내 얘기다.',concern:true},
+      {a:'area',v:'gangnam',ms:2400,say:'강남은 이렇게 빽빽하다. 볼 게 계속 나온다.'},
+      {a:'area',v:'dobong',ms:3200,say:'우리 동네로 오니 화면이 텅 비었다. 결국 사람 많은 데만 굴러가는 서비스인가.',concern:true,key:true},
+      {a:'pop',v:'spot',i:0,ms:3000,say:'하나 있는 글이 "여기 글 남기는 사람 저뿐인가요" 다. 딱 내 얘기다.',concern:true},
       {a:'popclose',ms:600},
-      {a:'tab',v:'feed',ms:2800,say:'피드에도 우리 동네 글은 손에 꼽는다. 내가 첫 글을 써야 하는 건 부담스럽다.',concern:true}
+      {a:'scope',v:'local',ms:2800,say:'현재 동네로 거르니 남는 게 손에 꼽는다.',concern:true},
+      {a:'chat',v:'local',ms:3400,say:'채팅방이라도 있나 했는데 여기도 조용하다.',concern:true,key:true},
+      {a:'wait',ms:2600,say:'내가 첫 글을 써야 하는 건 부담스럽다. 아무도 안 보는 데다 쓰는 기분이라.',concern:true}
     ]
   }
-];
+];;
 
 function nhScenario(id){for(var i=0;i<NH_SCENARIOS.length;i++)if(NH_SCENARIOS[i].id===id)return NH_SCENARIOS[i];return null;}
 function nhScenarioList(){return NH_SCENARIOS.map(function(s){
   return {id:s.id,name:s.name,persona:s.persona,concern:!!s.concern,steps:s.steps.length,
     area:s.area||'',areaName:(s.area&&SEED_AREAS[s.area]?SEED_AREAS[s.area].name:'')};});}
 
+/* ⚠️교차 M04/M05/M06/M07/M10 — 임베드는 상태를 남기지도 물려받지도 않는다.
+   시연은 매번 같은 화면에서 시작해야 한다(D25). v1.71 에서 시나리오가 **글을 쓰기**
+   시작하면서 두 구멍이 생겼다:
+   (a) 쓰기 경로가 localStorage 에 저장해서 회차마다 콘텐츠가 쌓인다.
+   (b) 임베드와 실제 앱이 **같은 오리진**(github.io)이라, 실제 앱을 써 본 사람의
+       localStorage 가 임베드로 그대로 새어 들어온다.
+   저장 함수가 다섯 군데에 흩어져 있어 각각 막는 대신 **저장 자체를 무음으로** 만들고,
+   부팅 때 담겨 있던 콘텐츠를 비운 뒤 시드를 깐다. 임베드에서만 걸린다. */
+function nhEmbedIsolate(){
+  try{
+    var set=localStorage.setItem.bind(localStorage);
+    localStorage.setItem=function(k,v){
+      if(String(k).indexOf('nowhere_')===0)return; // 이 앱의 상태 키만 막는다
+      return set(k,v);
+    };
+  }catch(e){}
+  try{
+    if(typeof feedItems!=='undefined')feedItems.length=0;
+    if(typeof demoSpots!=='undefined')demoSpots.length=0;
+    if(typeof fieldRequests!=='undefined')fieldRequests.length=0;
+    if(typeof newsItems!=='undefined')newsItems.length=0;
+    if(typeof feedLikes!=='undefined')Object.keys(feedLikes).forEach(function(k){delete feedLikes[k];});
+    if(typeof socMsgs!=='undefined')Object.keys(socMsgs).forEach(function(k){delete socMsgs[k];});
+  }catch(e){}
+}
+
 /* 지금 시나리오가 서 있는 지역 (area 스텝이 정한다). 빈 값이면 전 지역에서 고른다. */
 var nhAreaKey='';
+/* 이번 회차가 만든 것들 — 시나리오 seed 와 재생 중 쓴 글. nhReset 이 전부 걷어낸다. */
+var nhTempIds={spot:[],feed:[],req:[],chat:[]};
 /* 지역 이동 줌 — "동네 전체" 가 보이는 값. 시연은 매번 같은 그림이어야 하므로 고정한다. */
 var NH_AREA_ZOOM=14;
 
@@ -4820,8 +4867,83 @@ function nhPick(kind,i){
   return arr[Math.min(i||0,arr.length-1)];
 }
 
+/* ── v1.71 쓰기 액션이 쓰는 보조들 ─────────────────────────
+   전부 기존 앵커/전역을 거치고, 만든 것은 nhTempIds 에 적어 nhReset 이 걷어간다.
+   임베드는 저장이 무음이므로(nhEmbedIsolate) 이 콘텐츠는 새로고침에도 남지 않는다. */
+
+/* 지금 지역의 피드 하나 — 좋아요·스크롤 대상 */
+function nhFeedPick(i){return nhPick('feed',i);}
+
+/* 글쓰기: 진짜 컴포저를 열어 보여주고(addSpotContent) 잠시 뒤 커밋한다.
+   바로 넣지 않는 이유 — 시연에서 "이 사람이 쓰는 중" 이 보여야 한다. */
+function nhWriteSpot(text,token,ms){
+  if(typeof addSpotContent!=='function')return;
+  // **지도 중심에 기대지 않는다.** addSpotContent 는 중심이 없으면(투영 전·지도 오류)
+  // 조용히 아무것도 안 한다 — 시연에서는 "글을 썼는데 아무 일도 없음" 으로 보인다.
+  // 시나리오가 서 있는 지역 좌표를 직접 준다: 회차마다 같은 자리에 남는 이점도 있다.
+  var c=SEED_AREAS[nhAreaKey]||null;
+  var ctr=(typeof phoneMap!=='undefined'&&phoneMap&&phoneMap.getCenter)?phoneMap.getCenter():null;
+  var ll=c?new google.maps.LatLng(c.lat+0.0012,c.lng+0.0012):ctr;
+  if(!ll)return;
+  addTargetMap=(typeof phoneMap!=='undefined')?phoneMap:null;
+  addAtLatLng=ll;
+  addSpotContent();
+  addAtLatLng=null; // 다음 사용자 조작이 이 좌표를 물려받지 않게 바로 비운다
+  var ov=(typeof composerOverlay!=='undefined')?composerOverlay:null;
+  if(!ov)return;
+  var typed=String(text||'').slice(0,80);
+  setTimeout(function(){ // 글자가 들어차는 것을 보여준다
+    if(token!==nhRunToken||!ov.textEl)return;
+    ov.textEl.value=typed;
+  },220);
+  setTimeout(function(){
+    if(token!==nhRunToken)return;
+    var before=(typeof demoSpots!=='undefined')?demoSpots.length:0;
+    try{ov.commit();}catch(e){}
+    if(typeof demoSpots!=='undefined')
+      for(var i=before;i<demoSpots.length;i++)nhTempIds.spot.push(demoSpots[i].id);
+  },Math.max(900,Math.round((ms||2600)*0.55)));
+}
+
+/* 채팅: 동네방 또는 주제방을 열고, 말이 있으면 보낸다. */
+function nhChat(kind,say){
+  if(typeof socTab==='undefined')return;
+  socTab=(kind==='topic')?'topic':'local';
+  if(kind==='topic'&&typeof socRoomList!=='undefined'&&socRoomList.length){
+    var r=socRoomList.filter(function(x){return x.type==='topic';})[0];
+    if(r)socRoom={key:'topic:'+r.name,name:r.name};
+  }else{socRoom=null;}
+  if(typeof switchTab==='function')switchTab('social');
+  if(typeof renderSocial==='function')renderSocial();
+  if(say&&typeof socRoom!=='undefined'&&socRoom&&typeof socMsgs!=='undefined'){
+    var k=socRoom.key;(socMsgs[k]=socMsgs[k]||[]).push({name:'나',t:String(say).slice(0,120),ts:Date.now()});
+    nhTempIds.chat.push(k);
+    if(typeof renderSocial==='function')renderSocial();
+  }
+}
+
+/* AI 에이전트: 실제 버튼을 눌러 패널을 열고, 프리셋 하나를 고른다. */
+function nhAi(token,ms){
+  var btn=document.querySelector('#phone-mirror .pn-ai')||document.querySelector('.pn-ai');
+  if(!btn)return;
+  btn.click();
+  setTimeout(function(){
+    if(token!==nhRunToken)return;
+    var item=document.querySelector('#aip-list .aip-item');
+    if(item)item.click();
+  },Math.max(700,Math.round((ms||2600)*0.4)));
+}
+
+/* 피드 보기 범위 칩 (전체보기 / 현재 동네 / Trend Zone) — 실제 칩을 누른다 */
+function nhScope(v){
+  var b=document.querySelector('.fsc[data-s="'+(v||'local')+'"]');
+  if(b){b.click();return;}
+  if(typeof feedScope!=='undefined'){feedScope=(v==='all'||v==='zone')?v:'local';
+    if(typeof renderFeed==='function')renderFeed();}
+}
+
 /* 스텝 하나를 화면 동작으로 옮긴다. 여기서만 앵커를 부른다. */
-function nhAct(st){
+function nhAct(st,token){
   try{
     if(st.a==='tab'&&typeof switchTab==='function')switchTab(st.v);
     else if(st.a==='mode'&&typeof switchMode==='function'&&st.v!==currentMode)switchMode(st.v);
@@ -4836,6 +4958,24 @@ function nhAct(st){
     else if(st.a==='popclose'){if(typeof closeContentPop==='function')closeContentPop();}
     else if(st.a==='request'&&typeof openRequestComposer==='function')openRequestComposer();
     else if(st.a==='drawer'&&typeof openPhoneDrawer==='function')openPhoneDrawer();
+    // ── v1.71 실제로 무언가를 하는 액션들 ──
+    else if(st.a==='like'){var f=nhFeedPick(st.i);
+      if(f&&typeof toggleLike==='function'){toggleLike(f.id);
+        if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
+        if(typeof renderFeedMarkers==='function')renderFeedMarkers();}}
+    else if(st.a==='write'){if(typeof switchTab==='function')switchTab('map');
+      nhWriteSpot(st.v||st.say,token,st.ms);}
+    else if(st.a==='answer'){var rq=nhPick('req',st.i);
+      if(rq&&typeof answerRequest==='function'){answerRequest(rq.id,st.v||'지금 그렇게 안 붐벼요');
+        if(typeof renderDrawerDemo==='function')renderDrawerDemo();}}
+    else if(st.a==='chat')nhChat(st.v,st.say&&st.v==='send'?st.say:(st.i?st.say:''));
+    else if(st.a==='ai')nhAi(token,st.ms);
+    else if(st.a==='scope'){if(typeof switchTab==='function')switchTab('feed');nhScope(st.v);}
+    else if(st.a==='scroll'){
+      var el=document.querySelector('#phone-drawer.open .pd-body')||
+             document.querySelector('.tabpage.active .feed-col')||
+             document.querySelector('.tabpage.active');
+      if(el&&el.scrollBy)el.scrollBy({top:Math.max(120,(st.i||0)*80||220),behavior:'smooth'});}
   }catch(e){console.warn('[M16] step fail',st,e);}
 }
 
@@ -4844,9 +4984,67 @@ function nhStop(){nhRunToken++;}
 
 /* 재생 전 초기화 — 시연은 몇 번을 돌려도 같은 곳에서 시작해야 한다.
    앞 시나리오가 열어둔 팝업·드로어가 남으면 다음 회차가 그 뒤에서 조용히 흘러간다. */
+/* 이번 회차가 만든 것(시나리오 seed + 재생 중 쓴 글)을 전부 걷어낸다.
+   이게 없으면 두 번째 재생부터 "내가 쓴 글" 이 이미 있어서 시연이 매번 달라진다. */
+function nhSweepTemp(){
+  try{
+    if(nhTempIds.spot.length&&typeof demoSpots!=='undefined'){
+      demoSpots=demoSpots.filter(function(s){return nhTempIds.spot.indexOf(s.id)<0;});
+      if(typeof rebuildSpots==='function')rebuildSpots();
+    }
+    if(nhTempIds.feed.length&&typeof feedItems!=='undefined'){
+      feedItems=feedItems.filter(function(f){return nhTempIds.feed.indexOf(f.id)<0;});
+      if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+      if(typeof renderFeedColList==='function')renderFeedColList();
+    }
+    if(nhTempIds.req.length&&typeof fieldRequests!=='undefined'){
+      fieldRequests=fieldRequests.filter(function(r){return nhTempIds.req.indexOf(r.id)<0;});
+      if(typeof renderRequestMarkers==='function')renderRequestMarkers();
+    }
+    if(nhTempIds.chat.length&&typeof socMsgs!=='undefined')
+      nhTempIds.chat.forEach(function(k){delete socMsgs[k];});
+  }catch(e){console.warn('[M16] sweep',e);}
+  nhTempIds={spot:[],feed:[],req:[],chat:[]};
+}
+
+/* 시나리오가 선언한 seed 를 깐다 — "이 시나리오가 성립하려면 화면에 무엇이 있어야 하나".
+   전역 시드로는 못 만드는 상황(답변 대기 중인 내 Request 등)을 회차마다 새로 만든다. */
+function nhSeedScenario(sc,token){
+  if(!sc||!sc.seed)return;
+  var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
+  var jit=function(n){return (n-0.5)*0.006;};
+  (sc.seed.reqs||[]).slice(0,3).forEach(function(r,i){
+    if(typeof fieldRequests==='undefined')return;
+    var id='rqn_'+Date.now()+'_'+i;
+    var lat=c.lat+jit(Math.random()),lng=c.lng+jit(Math.random());
+    fieldRequests.push({id:id,q:String(r.q||'').slice(0,120),lat:lat,lng:lng,
+      place:(typeof dongAt==='function'?dongAt(lat,lng):'')||c.name,
+      answers:[],ts:Date.now(),by:(typeof myUid==='function'?myUid():'anon'),seed:false});
+    nhTempIds.req.push(id);
+    if(r.answerIn){ // 재생 도중에 답이 도착한다 — 이 시연의 핵심 장면
+      setTimeout(function(){
+        if(token!==nhRunToken)return;
+        if(typeof answerRequest==='function')answerRequest(id,String(r.answer||'지금은 여유 있어요'));
+        if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+      },Math.min(Math.max(r.answerIn|0,800),20000));
+    }
+  });
+  (sc.seed.spots||[]).slice(0,4).forEach(function(s,i){
+    if(typeof demoSpots==='undefined')return;
+    var id='spn_'+Date.now()+'_'+i;
+    demoSpots.push({id:id,lat:c.lat+jit(Math.random()),lng:c.lng+jit(Math.random()),
+      text:String(s.t||'').slice(0,80),emoji:s.emoji||'💬',live:true});
+    nhTempIds.spot.push(id);
+  });
+  if(typeof rebuildSpots==='function')rebuildSpots();
+  if(typeof renderRequestMarkers==='function')renderRequestMarkers();
+}
+
 function nhReset(){
   try{
+    nhSweepTemp();
     nhAreaKey=''; // 앞 회차가 방학동에 서 있었으면 다음 회차의 pop 이 조용히 빈손이 된다
+    if(typeof closeComposer==='function')closeComposer();
     if(typeof closeContentPop==='function')closeContentPop();
     if(typeof closeDrawer==='function')closeDrawer();
     if(typeof closeComposer==='function')closeComposer();
@@ -4857,7 +5055,8 @@ function nhReset(){
 
 /* 콘솔이 보내온 시나리오를 받아들인다 (v1.68) — 서베이에서 뽑은 시나리오는 여기 상수에
    없고 콘솔에 있다. 액션 어휘는 여전히 아래 화이트리스트뿐이라 임의 코드가 돌지 않는다. */
-var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area'];
+var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
+  'like','write','answer','chat','ai','scope','scroll']; // v1.71: 보기만 하지 않고 실제로 한다
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
@@ -4877,9 +5076,23 @@ function nhSanitize(raw){
       ms:Math.min(Math.max(s.ms|0,400),6000)});          // 시연이 멈춰 보이지 않게 상·하한
   }
   if(!steps.length)return null;
+  // 콘솔이 보낸 seed 도 받아들이되 모양과 양을 자른다 — 임의의 콘텐츠 주입이 되지 않게.
+  // 여기서 만든 것은 전부 nhTempIds 에 적히고 다음 재생 때 걷힌다.
+  var seed=null,rs=raw.seed;
+  if(rs&&typeof rs==='object'){
+    var reqs=(Array.isArray(rs.reqs)?rs.reqs:[]).slice(0,3).map(function(r){
+      r=r||{};
+      return {q:String(r.q||'').slice(0,120),answer:String(r.answer||'').slice(0,120),
+        answerIn:Math.min(Math.max(r.answerIn|0,0),20000)};
+    }).filter(function(r){return r.q;});
+    var sps=(Array.isArray(rs.spots)?rs.spots:[]).slice(0,4).map(function(s){
+      s=s||{};return {t:String(s.t||'').slice(0,80),emoji:String(s.emoji||'💬').slice(0,4)};
+    }).filter(function(s){return s.t;});
+    if(reqs.length||sps.length)seed={reqs:reqs,spots:sps};
+  }
   return {id:String(raw.id||'inline'),name:String(raw.name||'시나리오').slice(0,80),
     persona:String(raw.persona||'').slice(0,80),concern:!!raw.concern,
-    area:(SEED_AREAS[String(raw.area||'')]?String(raw.area):''),steps:steps};
+    area:(SEED_AREAS[String(raw.area||'')]?String(raw.area):''),seed:seed,steps:steps};
 }
 
 function nhRun(id,reply,inline){
@@ -4887,12 +5100,13 @@ function nhRun(id,reply,inline){
   if(!sc){nhPost(reply,{type:'nh:error',message:inline?'시나리오 형식이 올바르지 않습니다.':'없는 시나리오: '+id});return;}
   nhStop();nhReset();
   var token=++nhRunToken, i=0;
+  nhSeedScenario(sc,token); // 이 시나리오가 성립하려면 화면에 있어야 하는 것부터 깐다
   nhPost(reply,{type:'nh:begin',id:sc.id,name:sc.name,total:sc.steps.length,concern:!!sc.concern});
   (function next(){
     if(token!==nhRunToken)return;            // 새 재생/중지가 들어오면 이 회차는 조용히 끝난다
     if(i>=sc.steps.length){nhPost(reply,{type:'nh:done',id:sc.id});return;}
     var st=sc.steps[i];
-    nhAct(st);
+    nhAct(st,token);
     // v 도 같이 보낸다 — 콘솔이 "지역 이동 · 방학·쌍문" 처럼 적으려면 값이 필요하다.
     // 앱 표본 시나리오는 콘솔에 정의가 없어서 이 메시지가 유일한 정보원이다.
     nhPost(reply,{type:'nh:step',id:sc.id,i:i,total:sc.steps.length,
@@ -4928,6 +5142,8 @@ function nhVersion(){var el=document.getElementById('app-version');return el?el.
 /* 임베드 부팅 — 인증을 건너뛰고 지도를 띄운 뒤 시드를 무음으로 깐다. */
 function startEmbed(){
   document.body.classList.add('embed-mode','role-user'); // role-user: 관리자 UI 를 CSS 로 닫아둔다
+  currentRole='user'; // ⚠️교차 M12: 글쓰기 앵커(addSpotContent)가 역할을 본다. 로그인은 여전히 없다
+  nhEmbedIsolate();
   hideAuthOverlay();
   bootMap();
   var tries=0;

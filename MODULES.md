@@ -64,7 +64,7 @@
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
 | M15 | tokens 디자인 토큰 | 안정 | CSS 변수·프로스트/글래스 공통 문법 | `:root` `--acc` `--frost` `--glass-*` | style.css | v1.52 |
-| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인 부팅·무음 시드 / postMessage 시나리오 재생 / `area` 지역 이동 (Persona VC 콘솔이 iframe 으로 사용) | `IS_EMBED` `startEmbed` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.70 |
+| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / 시나리오별 seed 주입·회수 | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhTempIds` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.71 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
 
@@ -86,7 +86,7 @@
 
 | 방향 | 메시지 |
 |---|---|
-| 콘솔 → 앱 | `{source:'persona-vc', type:'nh:list'}` · `{type:'nh:run', id}` · `{type:'nh:run', scenario:{...}}` · `{type:'nh:stop'}` |
+| 콘솔 → 앱 | `{source:'persona-vc', type:'nh:list'}` · `{type:'nh:run', id}` · `{type:'nh:run', scenario:{...,seed}}` · `{type:'nh:stop'}` |
 | 앱 → 콘솔 | `nh:ready{version,scenarios[],actions[],areas[]}` · `nh:begin{id,name,total,concern}` · `nh:step{i,total,say,concern,key,action}` · `nh:done{id}` · `nh:error{message}` |
 
 **프레임 비율은 콘솔이 책임진다** (v1.70): 앱은 `?embed=1` 에서 받은 프레임을 그냥 꽉 채운다
@@ -111,13 +111,22 @@
 
 - 명령은 `EMBED_ORIGINS` 에 있는 오리진에서 온 것만 받는다. 새 콘솔 주소가 생기면 여기에 추가.
 - 시나리오 추가는 `NH_SCENARIOS` 에 항목을 넣는 것으로 끝난다. 스텝의 `a` 는
-  `tab·mode·pop·popclose·request·drawer·wait·area` 뿐이고, **새 액션을 만들 때도 기존 앵커만 부른다.**
+  `tab·mode·pop·popclose·request·drawer·wait·area·like·write·answer·chat·ai·scope·scroll`
+  뿐이고, **새 액션을 만들 때도 기존 앵커만 부른다.**
+- **임베드는 상태를 남기지도 물려받지도 않는다** (v1.71, `nhEmbedIsolate`): `nowhere_*`
+  localStorage 쓰기가 무음이고, 부팅 때 담겨 있던 콘텐츠를 비운 뒤 시드를 깐다.
+  임베드와 실제 앱이 **같은 오리진**이라 이게 없으면 남의 localStorage 가 시연에 섞인다.
+- **쓰기 액션이 만든 것은 회차마다 걷어낸다** (`nhTempIds` → `nhSweepTemp`). 안 걷으면
+  두 번째 재생부터 "내가 쓴 글" 이 이미 있어서 시연이 매번 달라진다.
+- **지도 중심에 기대지 않는다**: `getCenter()` 는 투영 전·지도 오류 시 없다. 글쓰기는
+  시나리오가 서 있는 지역 좌표를 직접 준다 — 안 그러면 "썼는데 아무 일도 없음" 이 된다.
 - **액션 어휘를 늘리면 세 곳이 같이 움직여야 한다**: 여기 `NH_ACTIONS`, 콘솔의 `PLAY_ACTIONS`,
   그리고 콘솔 프롬프트의 `ACTION_GUIDE`. 어긋나면 모델이 뽑은 액션을 앱이 **조용히** 버린다.
 - `nhRun` 은 항상 `nhReset()` 으로 시작한다 (앞 회차가 연 팝업·드로어가 남으면 다음 시연이 가려진다).
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-01 M16+M13 ⚠️교차 M04/M05/M06/M07/M10/M12(임베드 격리·역할): v1.71.0 — 액션 7종 추가(`like` `write` `answer` `chat` `ai` `scope` `scroll`)로 시나리오가 **보기만 하지 않고 실제로 쓴다**. 시나리오별 `seed` 블록(재생 직전 주입·리셋 시 회수, `answerIn` 으로 재생 도중 답변 도착). 시나리오 4종을 서로 다른 기능을 쓰도록 재작성. `nhEmbedIsolate` — 임베드는 localStorage 를 쓰지도 읽지도 않는다
 - 2026-08-01 M16+M13 ⚠️교차 M09(`cpopGoMap` optional 줌 + `goMapCam` 투영 폴백)·M15(CSS): v1.70.0 — `area` 지역 이동 액션(동결 앵커 `cpopGoMap` 호출), `nhPick` 이 지역 반경으로 콘텐츠를 거른다, `nh:ready` 에 `areas[]` 추가. 시드 4지역으로 확장(강남·잠실·성수 보강 + **방학·쌍문 신설, 일부러 희박하게**) — 우려 시나리오 `empty-neighborhood` 가 실제로 빈 화면을 보여주게 됐다. 임베드 여백 제거(프레임 비율은 콘솔이 책임진다). ⚠️ 시드 항목이 늘어 `gi`(문서 인덱스)가 밀렸다 — 클라우드 시드는 🧹 비우기 후 다시 채워야 한다
 - 2026-08-01 M16 + M15 ⚠️교차: v1.69.0 — 임베드는 폭과 무관하게 항상 폰 UI (`page-app` 무대 연출을 미디어쿼리 밖에서 다시 검). *(레지스트리 갱신이 v1.67 에서 멈춰 있던 것을 v1.70 에서 같이 바로잡음)*
 - 2026-08-01 M16: v1.68.0 — `nh:run` 이 콘솔이 보내온 시나리오 정의(`scenario`)를 받는다. 서베이에서 뽑은 시나리오는 앱 상수에 없고 콘솔에 있기 때문. `nhSanitize()` 로 액션 화이트리스트·길이 상한을 강제하고, `nh:ready` 가 `actions` 목록을 알려준다
