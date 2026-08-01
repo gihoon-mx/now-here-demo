@@ -35,6 +35,7 @@
 ## 🛡 안전 규칙 (전 모듈 공통)
 
 - **공용 앵커 시그니처 동결**: 다른 모듈이 호출하는 함수(`renderDrawerDemo` `switchTab` `switchMode` `renderFeed` `renderNews` `cloudSave` 등)는 시그니처를 바꾸지 않는다. 인자 추가는 **optional**로만.
+- **카메라는 `map` 을 움직인다** (v1.70): 카메라는 PC 지도 → 폰 지도 **단방향 미러**다(`map.center_changed`/`zoom_changed` → `phoneMap.setCenter/setZoom`). `phoneMap` 만 움직이면 `map` 의 다음 idle 이 되돌려 놓으므로, 위치를 옮길 때는 반드시 `map` 을 움직여 미러를 태워 보낸다. 또 **`panTo` 는 투영이 없으면 조용히 무시된다** — 지도가 숨겨져 있으면(임베드의 PC 지도) `getBounds()` 가 없다. 카메라 이동은 `goMapCam()` 을 거친다(투영 없으면 `setCenter` 폴백).
 - **M00 공용 헬퍼는 수정 금지, 추가만**: `escHtml` `hexToRgba` `haversineM` `compressNews` `timeAgo` `MapLabel` `emoji 픽커` 등 — 바꾸면 전 모듈에 파급.
 - **Firestore 스키마는 additive-only**: 문서에 필드 추가는 OK, 기존 필드 의미 변경·삭제는 금지 (다른 PC의 구버전 클라이언트가 라이브에 붙어 있을 수 있음). `firestore.rules` 변경은 콘솔 배포 필요 — WORKLOG에 ⚠️ 표기.
 - **CSS**: style.css의 `:root` 토큰(M15)은 값 변경 금지(추가만). 모듈별 컴포넌트 클래스(`.rq-*` `.tz-*` `.aip-*` `.fc-*` `.sp-*` 등)만 수정.
@@ -56,14 +57,14 @@
 | M06 | social 소셜 | 안정 | 소셜 탭·채팅방(동네/주제/프라이빗)·liveChat | `renderSocial` `socRoomList` `roomMsgs` `initSocialManager` | app.js | v1.45 |
 | M07 | request 현장 Request | 활성 | Request 등록(10분 타임아웃)·AI Agent 실시간 응답 팝업·내 Request 답변 보기·전용 핀(ReqPin)·삭제 | `openRequestComposer` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` `ReqPin` `deleteRequest`·핀 줌 스케일(스팟 동일) `reqRemainLabel` | app.js | v1.63 |
 | M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·모드별 톤(불꽃) | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE` `aiMapSummary` `aiChatAnswer` | app.js | v1.61 |
-| M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·드로어(탭)·헤더·페이지 모드 분기 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `PAGE_MODE` | app.js | v1.65 |
+| M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·드로어(탭)·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` | app.js | v1.70 |
 | M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기 | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` | app.js | v1.46 |
 | M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — PC=전부 펼침·폰 드로어=아코디언 | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openColorPopup` `makeColorControl` `initSettingsAccordion` | app.js | v1.66 |
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
-| M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 3지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.61 |
+| M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
 | M15 | tokens 디자인 토큰 | 안정 | CSS 변수·프로스트/글래스 공통 문법 | `:root` `--acc` `--frost` `--glass-*` | style.css | v1.52 |
-| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인 부팅·무음 시드 / postMessage 시나리오 재생 (Persona VC 콘솔이 iframe 으로 사용) | `IS_EMBED` `startEmbed` `NH_SCENARIOS` `nhRun` `nhAct` `nhReset` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.67 |
+| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인 부팅·무음 시드 / postMessage 시나리오 재생 / `area` 지역 이동 (Persona VC 콘솔이 iframe 으로 사용) | `IS_EMBED` `startEmbed` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.70 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
 
@@ -86,7 +87,21 @@
 | 방향 | 메시지 |
 |---|---|
 | 콘솔 → 앱 | `{source:'persona-vc', type:'nh:list'}` · `{type:'nh:run', id}` · `{type:'nh:run', scenario:{...}}` · `{type:'nh:stop'}` |
-| 앱 → 콘솔 | `nh:ready{version,scenarios[],actions[]}` · `nh:begin{id,name,total,concern}` · `nh:step{i,total,say,concern,key,action}` · `nh:done{id}` · `nh:error{message}` |
+| 앱 → 콘솔 | `nh:ready{version,scenarios[],actions[],areas[]}` · `nh:begin{id,name,total,concern}` · `nh:step{i,total,say,concern,key,action}` · `nh:done{id}` · `nh:error{message}` |
+
+**프레임 비율은 콘솔이 책임진다** (v1.70): 앱은 `?embed=1` 에서 받은 프레임을 그냥 꽉 채운다
+(`.phone-screen{width:100%;height:100%}`). v1.69 까지는 앱이 폰 폭을 높이에서 계산해서,
+프레임이 그보다 넓으면 남는 폭이 전부 무대 배경으로 보였다. **양쪽이 다 계산하면 반드시
+어긋나므로 계산하는 자리를 하나로 모았다** — 콘솔이 iframe 을 `aspect-ratio:9/19.5` 로 준다.
+라운드·그림자도 콘솔 래퍼가 들고 있어서 앱에서는 뺀다.
+
+**지역 이동** (v1.70): `{a:'area', v:'gangnam'|'jamsil'|'seongsu'|'dobong'}`. 갈 수 있는 곳은
+시드가 깔린 지역뿐이라 `nh:ready` 의 `areas[]` 로 알려준다 — 콘솔에 복사해 두지 않는다.
+`area` 는 자체 지도 조작을 만들지 않고 **동결 앵커 `cpopGoMap`** 을 부른다(팝업·서랍 닫기 →
+지도 탭 → 양쪽 지도 pan/zoom → 폰 인셋 보정). 지역이 정해지면 그 뒤의 `pop` 은 **그 지역
+반경 4km 안에서만** 고른다(`nhPick`) — 방학동으로 옮겨 놓고 강남 스팟을 열면 지도와 팝업이
+서로 다른 동네를 가리켜 시연이 거짓말을 한다. 그 지역에 아무것도 없으면 아무것도 열지 않는다.
+모르는 지역 키가 온 스텝은 `nhSanitize` 가 버린다(지도가 안 움직인 채 대사만 흐르는 것을 막는다).
 
 **콘솔이 보내온 시나리오** (v1.68): `nh:run` 에 `scenario` 를 실으면 `NH_SCENARIOS` 에 없는
 시나리오도 재생한다 — 서베이에서 뽑은 시나리오는 콘솔에 있기 때문이다. 받은 정의는
@@ -96,11 +111,15 @@
 
 - 명령은 `EMBED_ORIGINS` 에 있는 오리진에서 온 것만 받는다. 새 콘솔 주소가 생기면 여기에 추가.
 - 시나리오 추가는 `NH_SCENARIOS` 에 항목을 넣는 것으로 끝난다. 스텝의 `a` 는
-  `tab·mode·pop·popclose·request·drawer·wait` 뿐이고, **새 액션을 만들 때도 기존 앵커만 부른다.**
+  `tab·mode·pop·popclose·request·drawer·wait·area` 뿐이고, **새 액션을 만들 때도 기존 앵커만 부른다.**
+- **액션 어휘를 늘리면 세 곳이 같이 움직여야 한다**: 여기 `NH_ACTIONS`, 콘솔의 `PLAY_ACTIONS`,
+  그리고 콘솔 프롬프트의 `ACTION_GUIDE`. 어긋나면 모델이 뽑은 액션을 앱이 **조용히** 버린다.
 - `nhRun` 은 항상 `nhReset()` 으로 시작한다 (앞 회차가 연 팝업·드로어가 남으면 다음 시연이 가려진다).
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-01 M16+M13 ⚠️교차 M09(`cpopGoMap` optional 줌 + `goMapCam` 투영 폴백)·M15(CSS): v1.70.0 — `area` 지역 이동 액션(동결 앵커 `cpopGoMap` 호출), `nhPick` 이 지역 반경으로 콘텐츠를 거른다, `nh:ready` 에 `areas[]` 추가. 시드 4지역으로 확장(강남·잠실·성수 보강 + **방학·쌍문 신설, 일부러 희박하게**) — 우려 시나리오 `empty-neighborhood` 가 실제로 빈 화면을 보여주게 됐다. 임베드 여백 제거(프레임 비율은 콘솔이 책임진다). ⚠️ 시드 항목이 늘어 `gi`(문서 인덱스)가 밀렸다 — 클라우드 시드는 🧹 비우기 후 다시 채워야 한다
+- 2026-08-01 M16 + M15 ⚠️교차: v1.69.0 — 임베드는 폭과 무관하게 항상 폰 UI (`page-app` 무대 연출을 미디어쿼리 밖에서 다시 검). *(레지스트리 갱신이 v1.67 에서 멈춰 있던 것을 v1.70 에서 같이 바로잡음)*
 - 2026-08-01 M16: v1.68.0 — `nh:run` 이 콘솔이 보내온 시나리오 정의(`scenario`)를 받는다. 서베이에서 뽑은 시나리오는 앱 상수에 없고 콘솔에 있기 때문. `nhSanitize()` 로 액션 화이트리스트·길이 상한을 강제하고, `nh:ready` 가 `actions` 목록을 알려준다
 - 2026-08-01 M16 신설 + M13 ⚠️교차: v1.67.0 — `?embed=1` 임베드 모드(무로그인 부팅·무음 시드), postMessage 시나리오 브리지, Now Here 시나리오 4종(우려 상황 2종 포함). `seedDemoData(opts)` 에 optional `silent` 추가(IS_EMBED 일 때만 유효 — 아니면 클라우드에 쓰이므로 관리자 확인 유지)
 

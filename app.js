@@ -800,14 +800,25 @@ function addSpotComment(id,t){
   if(typeof refreshSpotStyles==='function')refreshSpotStyles(); // 로컬 폴백: 버블 뱃지 즉시 갱신
 }
 function closeContentPop(){var m=document.getElementById('content-pop');if(m)m.style.display='none';cpopRefresh=null;}
-function cpopGoMap(kind,data){ // 팝업 '📍 지도에서 보기' — 컨텐츠 탭=팝업 통일 규칙에서 위치 이동은 이 버튼으로
+function cpopGoMap(kind,data,zoom){ // 팝업 '📍 지도에서 보기' — 컨텐츠 탭=팝업 통일 규칙에서 위치 이동은 이 버튼으로
+  // zoom: optional. 안 주면 종전대로(줌<15 일 때만 16). 동네 전체를 보여줘야 하는
+  // 호출(M16 area)이 14 처럼 넓은 값을 준다 — 16 은 "이 항목 하나" 용이라 동네가 안 보인다.
   closeContentPop();if(typeof closeDrawer==='function')closeDrawer();
   setNavActive('map');switchTab('map');
   if(kind==='spot'){var sp=spotMessages.find(function(x){return x.id===data.id;})||data;focusSpot(sp);return;}
   var lat=data.lat,lng=data.lng;if(lat==null||lng==null)return;
-  if(map){map.panTo({lat:lat,lng:lng});if(map.getZoom()<15)map.setZoom(16);}
-  if(phoneMap){phoneMap.panTo({lat:lat,lng:lng});if(phoneMap.getZoom()<15)phoneMap.setZoom(16);
-    var ins=phoneMapInsets();phoneMap.panBy(0,-(ins.top-ins.bottom)/2);}
+  // panTo 는 투영(projection)이 있어야 움직인다 — 지도가 숨겨져 있으면 getBounds()가 없고
+  // panTo 가 **조용히 무시된다.** 임베드(M16)의 PC 지도가 그렇다(display:none). 카메라는
+  // PC → 폰 단방향 미러라 그러면 폰 지도까지 같이 멈춘다. 투영이 없으면 setCenter 로 간다
+  // (애니메이션은 없지만 안 움직이는 것보다 낫다). 보이는 지도에서는 종전과 동일하다.
+  goMapCam(map,lat,lng,zoom);
+  if(phoneMap){goMapCam(phoneMap,lat,lng,zoom);
+    if(phoneMap.getBounds()){var ins=phoneMapInsets();phoneMap.panBy(0,-(ins.top-ins.bottom)/2);}}
+}
+function goMapCam(m,lat,lng,z){ // 지도 하나를 (lat,lng)로 — 투영이 없으면 panTo 대신 setCenter
+  if(!m)return;
+  if(m.getBounds())m.panTo({lat:lat,lng:lng});else m.setCenter({lat:lat,lng:lng});
+  if(z)m.setZoom(z);else if(m.getZoom()<15)m.setZoom(16);
 }
 function cpopOpenEntry(it){ // 피드 리스트 항목 → 상세 팝업 (v1.62 통일: 컨텐츠 탭=팝업, 위치 이동=팝업 안 📍)
   if(it.type==='spot'){var sp=spotMessages.find(function(s){return s.id===it.id;});if(sp)openContentPop('spot',sp);return;}
@@ -4332,8 +4343,11 @@ var SEED_OWNER='shoomerion@gmail.com'; // 시드 콘텐츠 소유자 — 이 계
 var SEED_AREAS={
  gangnam:{name:'강남·역삼·논현',lat:37.5050,lng:127.0310},
  jamsil:{name:'잠실·석촌호수',lat:37.5110,lng:127.0975},
- seongsu:{name:'성수·서울숲',lat:37.5435,lng:127.0500}};
-var SEED_AREA_ORDER=['gangnam','jamsil','seongsu']; // 평탄화 순서 고정 = 문서 id(전체 인덱스) 안정
+ seongsu:{name:'성수·서울숲',lat:37.5435,lng:127.0500},
+ // 중심가 밖 — 일부러 희박하게 둔다. "우리 동네엔 아무것도 없다" 우려 시나리오(M16)가
+ // 실제로 빈 화면을 보여줘야 성립하므로, 여기 콘텐츠를 늘리면 그 시연이 죽는다.
+ dobong:{name:'방학·쌍문(한산)',lat:37.6650,lng:127.0345}};
+var SEED_AREA_ORDER=['gangnam','jamsil','seongsu','dobong']; // 평탄화 순서 고정 = 문서 id(전체 인덱스) 안정. 새 지역은 반드시 뒤에 붙인다(앞에 끼우면 기존 gi가 밀려 문서가 어긋난다)
 // 시드 좌표: 지역별 일대에 골고루 분산(같은 성격만 근접 허용 — 밀집 시 지도 클러스터가 묶어줌). 동 라벨은 채우기 시점에 dongAt로 재판정.
 var SEED_FEED={
  gangnam:[
@@ -4356,7 +4370,11 @@ var SEED_FEED={
  {theme:'food',img:'noodle',label:'칼국수 맛집',desc:'점심 칼국수 오픈런 성공. 육수가 예술',kind:'cam',region:'역삼1동',zone:null,lat:37.4959,lng:127.0345,likes:6,h:4,name:'점심원정대'},
  {theme:'cafe',img:'espresso',label:'에스프레소 바',desc:'서서 마시는 에바. 2잔이 국룰입니다',kind:'post',region:'역삼1동',zone:null,lat:37.5013,lng:127.0354,likes:10,h:12,name:'카페투어러'},
  {theme:'food',img:'kfood9',label:'전집 발견',desc:'비 오는 날 전+막걸리 조합 아시죠',kind:'cam',region:'논현1동',zone:null,lat:37.5088,lng:127.0263,likes:12,h:16,name:'막걸리동호회'},
- {theme:'park',img:'cherryStreet',label:'벚꽃 스팟',desc:'벚꽃 마지막 주라는데 오늘이 절정',kind:'cam',region:'논현1동',zone:null,lat:37.5133,lng:127.0310,likes:18,h:3,name:'꽃놀이객'}],
+ {theme:'park',img:'cherryStreet',label:'벚꽃 스팟',desc:'벚꽃 마지막 주라는데 오늘이 절정',kind:'cam',region:'논현1동',zone:null,lat:37.5133,lng:127.0310,likes:18,h:3,name:'꽃놀이객'},
+ {theme:'food',img:'foodAlley',label:'먹자골목 저녁',desc:'6시 넘으니 골목 전체가 꽉 찼어요',kind:'cam',region:'역삼1동',zone:null,lat:37.4977,lng:127.0327,likes:11,h:5,name:'퇴근길미식가'},
+ {theme:'cafe',img:'latteHeart',label:'조용한 2층 카페',desc:'혼자 오기 좋은 2층. 대화 소리 안 들려요',kind:'post',region:'역삼2동',zone:null,lat:37.4961,lng:127.0428,likes:8,h:13,name:'프리랜서J'},
+ {theme:'shop',img:'garosu',label:'가로수길 나들이',desc:'주말 가로수길, 사람 많지만 구경거리 많아요',kind:'cam',region:'논현2동',zone:null,lat:37.5205,lng:127.0230,likes:9,h:22,name:'트렌드헌터'},
+ {theme:'gym',img:'climb',label:'퇴근 후 클라이밍',desc:'역삼 클라이밍장 저녁 타임 자리 여유 있어요',kind:'post',region:'역삼1동',zone:null,lat:37.5036,lng:127.0371,likes:6,h:18,name:'갓생살기'}],
  jamsil:[
  {theme:'food',img:'foodAlley',label:'새내 먹자골목',desc:'잠실새내 전골목, 퇴근길 웨이팅 시작됐어요',kind:'cam',region:'잠실2동',zone:null,lat:37.5117,lng:127.0870,likes:13,h:2,name:'새내토박이'},
  {theme:'run',img:'seokchonLake',label:'석촌호수 러닝',desc:'호수 두 바퀴 5km, 야경이 진짜 미쳤어요',kind:'cam',region:'잠실3동',zone:null,lat:37.5081,lng:127.0989,likes:15,h:1,name:'호수러너'},
@@ -4367,7 +4385,12 @@ var SEED_FEED={
  {theme:'pet',img:'dogWalk',label:'한강 산책',desc:'잠실 한강공원 댕댕이 천국이에요',kind:'cam',region:'잠실3동',zone:null,lat:37.5170,lng:127.0917,likes:11,h:4,name:'산책하는댕댕이'},
  {theme:'shop',img:'lotteWorld',label:'놀이공원 대기',desc:'자이로드롭 대기 50분... 그래도 간다',kind:'cam',region:'잠실3동',zone:null,lat:37.5113,lng:127.0985,likes:17,h:5,name:'놀이공원러'},
  {theme:'food',img:'gukbap',label:'새내 심야식당',desc:'새벽까지 하는 국밥집, 해장 성지',kind:'post',region:'잠실본동',zone:null,lat:37.5098,lng:127.0846,likes:7,h:27,name:'야식원정대'},
- {theme:'book',img:'bookNight',label:'송리단길 책방',desc:'송리단길 독립서점, 큐레이션 좋아요',kind:'post',region:'송파1동',zone:null,lat:37.5077,lng:127.1063,likes:5,h:12,name:'책읽는밤'}],
+ {theme:'book',img:'bookNight',label:'송리단길 책방',desc:'송리단길 독립서점, 큐레이션 좋아요',kind:'post',region:'송파1동',zone:null,lat:37.5077,lng:127.1063,likes:5,h:12,name:'책읽는밤'},
+ {theme:'cafe',img:'espresso',label:'송리단길 에스프레소',desc:'송리단길 골목 에바 한 잔, 줄 짧을 때 가세요',kind:'cam',region:'송파1동',zone:null,lat:37.5063,lng:127.1071,likes:9,h:8,name:'카페투어러'},
+ {theme:'food',img:'noodle',label:'호수 앞 칼국수',desc:'석촌호수 산책 끝나고 칼국수. 국물이 진해요',kind:'post',region:'잠실2동',zone:null,lat:37.5094,lng:127.0942,likes:7,h:11,name:'점심원정대'},
+ {theme:'art',img:'mural',label:'지하보도 벽화',desc:'잠실역 지하보도 벽화 새로 칠했어요',kind:'cam',region:'잠실6동',zone:null,lat:37.5144,lng:127.1015,likes:5,h:19,name:'골목산책자'},
+ {theme:'park',img:'parkMay',label:'한강공원 돗자리',desc:'잠실 한강공원 저녁 바람 최고. 자리 넉넉',kind:'cam',region:'잠실3동',zone:null,lat:37.5183,lng:127.0899,likes:12,h:6,name:'숲세권주민'},
+ {theme:'night',img:'pojang',label:'새내 야장',desc:'새내 골목 야장 시즌. 12시 넘어도 북적',kind:'cam',region:'잠실본동',zone:null,lat:37.5106,lng:127.0855,likes:10,h:25,name:'야식원정대'}],
  seongsu:[
  {theme:'park',img:'parkMay',label:'서울숲 피크닉',desc:'서울숲 잔디밭 돗자리 자리 아직 있어요',kind:'cam',region:'성수1가1동',zone:null,lat:37.5442,lng:127.0392,likes:16,h:2,name:'숲세권주민'},
  {theme:'run',img:'parkPath',label:'숲길 러닝',desc:'아침 서울숲 러닝, 은행나무길 코스 추천',kind:'cam',region:'성수1가1동',zone:null,lat:37.5460,lng:127.0421,likes:12,h:1,name:'러닝크루장'},
@@ -4378,7 +4401,16 @@ var SEED_FEED={
  {theme:'park',img:'ttukPark',label:'뚝섬 한강뷰',desc:'뚝섬 유원지 자전거 타고 한 바퀴',kind:'cam',region:'성수1가1동',zone:null,lat:37.5385,lng:127.0475,likes:10,h:6,name:'자전거출근러'},
  {theme:'cafe',img:'bakery',label:'뚝섬역 베이커리',desc:'갓 나온 소금빵 시간 맞춰 가세요',kind:'post',region:'성수1가2동',zone:null,lat:37.5469,lng:127.0459,likes:13,h:6,name:'디저트지도'},
  {theme:'gym',img:'climb',label:'클라이밍장',desc:'성수 클라이밍 초보 강습 좋아요',kind:'post',region:'성수2가3동',zone:null,lat:37.5455,lng:127.0568,likes:6,h:10,name:'갓생살기'},
- {theme:'night',img:'garosu',label:'성수 야장',desc:'야장 시즌 시작, 골목 분위기 최고',kind:'cam',region:'성수2가1동',zone:null,lat:37.5412,lng:127.0530,likes:10,h:8,name:'야경수집가'}]};
+ {theme:'night',img:'garosu',label:'성수 야장',desc:'야장 시즌 시작, 골목 분위기 최고',kind:'cam',region:'성수2가1동',zone:null,lat:37.5412,lng:127.0530,likes:10,h:8,name:'야경수집가'},
+ {theme:'food',img:'gopchang',label:'성수 곱창 골목',desc:'성수에도 곱창 골목이 있다는 걸 오늘 알았어요',kind:'cam',region:'성수2가1동',zone:null,lat:37.5404,lng:127.0553,likes:11,h:9,name:'퇴근길미식가'},
+ {theme:'cafe',img:'roastery',label:'뚝섬 로스터리',desc:'평일 오전엔 거의 비어 있어요. 작업하기 좋음',kind:'post',region:'성수1가2동',zone:null,lat:37.5476,lng:127.0443,likes:7,h:14,name:'프리랜서J'},
+ {theme:'pet',img:'dogWalk',label:'서울숲 반려견 놀이터',desc:'서울숲 반려견 놀이터, 주말 오전이 한산해요',kind:'cam',region:'성수1가1동',zone:null,lat:37.5451,lng:127.0403,likes:13,h:5,name:'산책하는댕댕이'},
+ {theme:'shop',img:'flea7',label:'성수 플리마켓',desc:'연무장길 플리마켓 이번 주말까지래요',kind:'post',region:'성수2가3동',zone:null,lat:37.5438,lng:127.0561,likes:8,h:16,name:'동네소식통'},
+ {theme:'book',img:'book',label:'연무장길 책방',desc:'성수 독립서점 조용하고 좋아요',kind:'post',region:'성수2가3동',zone:null,lat:37.5430,lng:127.0574,likes:5,h:21,name:'책읽는밤'}],
+ // 한산한 동네 — 우려 시나리오용. 딱 2건만 둔다 (여기를 채우면 그 시연이 죽는다)
+ dobong:[
+ {theme:'park',img:'parkPath',label:'방학천 산책로',desc:'방학천 따라 걷기 좋아요. 사람은 별로 없네요',kind:'cam',region:'방학2동',zone:null,lat:37.6668,lng:127.0351,likes:2,h:31,name:'동네한바퀴'},
+ {theme:'food',img:'gukbap',label:'쌍문 국밥집',desc:'20년 된 국밥집. 여긴 아직 아무도 안 올리네요',kind:'post',region:'쌍문4동',zone:null,lat:37.6558,lng:127.0312,likes:1,h:52,name:'쌍문토박이'}]};
 var SEED_SPOTS={
  gangnam:[
  {t:'점심 웨이팅 30분 각오하세요',emoji:'🍜',lat:37.4990,lng:127.0302,color:'#ff5e7e'},
@@ -4404,7 +4436,11 @@ var SEED_SPOTS={
  {t:'벚꽃 포토스팟은 동호 쪽',emoji:'📸',lat:37.5109,lng:127.1053,color:'#f78fb3'},
  {t:'지하상가 세일 중',emoji:'🛍️',lat:37.5139,lng:127.0997,color:'#2f7bff'},
  {t:'석촌동 카페 발견',emoji:'☕',lat:37.5063,lng:127.1030,color:'#a9764f'},
- {t:'심야 국밥 자리 있어요',emoji:'🍲',lat:37.5101,lng:127.0838}],
+ {t:'심야 국밥 자리 있어요',emoji:'🍲',lat:37.5101,lng:127.0838},
+ {t:'놀이공원 대기 50분',emoji:'🎡',lat:37.5111,lng:127.0981,color:'#2f7bff'},
+ {t:'한강 돗자리 자리 넉넉',emoji:'🧺',lat:37.5179,lng:127.0905,color:'#2f9d6f'},
+ {t:'송리단길 웨이팅 없음',emoji:'☕',lat:37.5069,lng:127.1068,color:'#a9764f'},
+ {t:'야장 12시까지 합니다',emoji:'🍻',lat:37.5109,lng:127.0851}],
  seongsu:[
  {t:'서울숲 산책 최고',emoji:'🌳',lat:37.5439,lng:127.0387,color:'#56ab2f'},
  {t:'신상 카페 오픈했어요',emoji:'☕',lat:37.5426,lng:127.0552,color:'#a9764f'},
@@ -4412,15 +4448,27 @@ var SEED_SPOTS={
  {t:'수제화 장인 가게 여기',emoji:'👟',lat:37.5450,lng:127.0530},
  {t:'갓 나온 소금빵 냄새',emoji:'🥐',lat:37.5470,lng:127.0462,color:'#ff9f43'},
  {t:'소품샵 구경 오세요',emoji:'🛍️',lat:37.5482,lng:127.0547,color:'#2f7bff'},
- {t:'강변 자전거길 뷰 맛집',emoji:'🚲',lat:37.5391,lng:127.0468,color:'#2f9d6f'}]};
+ {t:'강변 자전거길 뷰 맛집',emoji:'🚲',lat:37.5391,lng:127.0468,color:'#2f9d6f'},
+ {t:'연무장길 플리마켓 주말까지',emoji:'🛍️',lat:37.5441,lng:127.0558,color:'#2f7bff'},
+ {t:'평일 오전은 거의 비어요',emoji:'☕',lat:37.5473,lng:127.0447,color:'#a9764f'},
+ {t:'반려견 놀이터 여기 있어요',emoji:'🐶',lat:37.5449,lng:127.0400,color:'#ff9f43'},
+ {t:'곱창 골목 저녁 웨이팅 시작',emoji:'🍢',lat:37.5406,lng:127.0550,color:'#ff5e7e'}],
+ // 한산한 동네 — 딱 1건 (우려 시나리오가 빈 화면을 보여줘야 성립한다)
+ dobong:[
+ {t:'여기 글 남기는 사람 저뿐인가요',emoji:'🫥',lat:37.6661,lng:127.0348}]};
 var SEED_REQS={
  gangnam:[
  {q:'파이브가이즈 지금 웨이팅 얼마나 되나요?',lat:37.5060,lng:127.0272,place:'논현1동',answers:[{t:'지금 한 20분 정도예요! 회전 빨라요'}]},
- {q:'학동공원 벚꽃 아직 볼만한가요?',lat:37.5147,lng:127.0301,place:'논현1동',answers:[]}],
+ {q:'학동공원 벚꽃 아직 볼만한가요?',lat:37.5147,lng:127.0301,place:'논현1동',answers:[]},
+ {q:'먹자골목 지금 자리 있는 집 있을까요?',lat:37.4981,lng:127.0322,place:'역삼1동',answers:[{t:'안쪽 골목은 아직 여유 있어요'}]}],
  jamsil:[
- {q:'롯데타워 전망대 지금 웨이팅 어때요?',lat:37.5126,lng:127.1023,place:'잠실6동',answers:[{t:'평일 낮이라 10분 컷이에요!'}]}],
+ {q:'롯데타워 전망대 지금 웨이팅 어때요?',lat:37.5126,lng:127.1023,place:'잠실6동',answers:[{t:'평일 낮이라 10분 컷이에요!'}]},
+ {q:'석촌호수 벚꽃 지금 사람 많나요?',lat:37.5085,lng:127.0985,place:'잠실3동',answers:[{t:'동호 쪽은 한산해요'},{t:'서호는 발 디딜 틈 없어요'}]}],
  seongsu:[
- {q:'대림창고 오늘 전시 입장 줄 긴가요?',lat:37.5418,lng:127.0566,place:'성수2가1동',answers:[]}]};
+ {q:'대림창고 오늘 전시 입장 줄 긴가요?',lat:37.5418,lng:127.0566,place:'성수2가1동',answers:[]},
+ {q:'연무장길 주차 자리 있나요?',lat:37.5437,lng:127.0559,place:'성수2가3동',answers:[{t:'골목 안쪽 공영주차장 비어 있어요'}]}],
+ // 한산한 동네 — Request 는 아예 없다. 물어볼 사람이 없는 게 이 동네의 사실이다
+ dobong:[]};
 var SEED_CHAT_LOCAL=[{who:'역삼동주민',t:'오늘 미세먼지 좋네요 ☀️'},{who:'퇴근길미식가',t:'역 근처 새로 생긴 쌀국수집 가보신 분?'},{who:'카페투어러',t:'가봤어요! 국물 진하고 좋던데요 👍'},{who:'동네소식통',t:'이번 주말 학동공원 플리마켓 열린대요'}];
 var SEED_CHAT_DOCS=[
  {room:'local:역삼1동',name:'역삼동주민',t:'역삼동 채팅방 개설 기념 인사 드려요 🙌',h:30},
@@ -4431,13 +4479,19 @@ var SEED_CHAT_DOCS=[
  {room:'local:잠실2동',name:'호수러너',t:'석촌호수 벚꽃 이번 주가 피크예요 🌸',h:5},
  {room:'local:잠실본동',name:'새내토박이',t:'새내 먹자골목에 국밥집 새로 열었어요',h:8},
  {room:'local:성수2가1동',name:'숲세권주민',t:'이번 주말 서울숲 플리마켓 다들 가시나요?',h:7},
- {room:'topic:🍜 맛집 탐방',name:'점심원정대',t:'성수 수제버거 vs 새내 국밥, 이번 주 미션',h:4}];
+ {room:'topic:🍜 맛집 탐방',name:'점심원정대',t:'성수 수제버거 vs 새내 국밥, 이번 주 미션',h:4},
+ {room:'local:성수2가3동',name:'트렌드헌터',t:'연무장길 플리마켓 오늘까지래요. 가실 분?',h:3},
+ {room:'topic:🏃 러닝 크루',name:'호수러너',t:'토요일 아침 석촌호수 한 바퀴 같이 뛰실 분',h:9},
+ // 한산한 동네: 방 자체는 있는데 답이 안 달린다 — 이것도 우려 시나리오의 근거다
+ {room:'local:방학2동',name:'동네한바퀴',t:'여기 쓰는 분 계신가요? 방학천 산책로 좋더라고요',h:34}];
 var SEED_NEWS=[
  {id:'ns_1',theme:'food',img:'gwangjang',label:'이번 주 동네 맛집',title:'강남 먹자골목 웨이팅 리포트',region:'역삼1동',tab:'map'},
  {id:'ns_2',theme:'park',img:'flea7',label:'주말 플리마켓',title:'학동공원 플리마켓 토·일 열려요',region:'논현1동',tab:'map'},
  {id:'ns_3',theme:'cafe',img:'latteHeart',label:'추천 카페 5',title:'역삼 카페로드 신상 5곳 모음',region:'역삼1동',tab:'feed'},
  {id:'ns_4',theme:'park',img:'cherryCampus',label:'석촌호수 벚꽃',title:'석촌호수 벚꽃길 주말 혼잡 예보',region:'잠실2동',tab:'map'},
- {id:'ns_5',theme:'cafe',img:'barista',label:'성수 신상 카페',title:'성수 붉은벽돌 카페 신상 6곳',region:'성수2가1동',tab:'feed'}];
+ {id:'ns_5',theme:'cafe',img:'barista',label:'성수 신상 카페',title:'성수 붉은벽돌 카페 신상 6곳',region:'성수2가1동',tab:'feed'},
+ {id:'ns_6',theme:'shop',img:'flea3',label:'연무장길 플리마켓',title:'성수 연무장길 플리마켓 이번 주말까지',region:'성수2가3동',tab:'map'},
+ {id:'ns_7',theme:'food',img:'foodAlley',label:'새내 골목 리포트',title:'잠실새내 먹자골목 저녁 웨이팅 현황',region:'잠실2동',tab:'map'}];
 // 수량 옵션: 지역별 배열에서 비율만큼 균등 샘플링(지리 분산 유지)
 function seedPick(arr,ratio){
   if(ratio>=1)return arr.slice();
@@ -4469,7 +4523,7 @@ function seedDemoData(opts){
   var amtEl=document.getElementById('seed-amount'),denEl=document.getElementById('seed-density');
   var ratio=amtEl?(parseFloat(amtEl.value)||1):1,dens=denEl?(parseFloat(denEl.value)||1):1;
   var feeds=seedFlat(SEED_FEED,ratio,dens),spots=seedFlat(SEED_SPOTS,ratio,dens),reqs=seedFlat(SEED_REQS,ratio,dens);
-  if(!silent&&!confirm('강남·잠실·성수 데모 데이터를 채울까요?\n(피드 '+feeds.length+' · 스팟 '+spots.length+' · Request '+reqs.length+' · 채팅 시드 — 공유 컬렉션에 기록되어 모든 계정에 보여요.\n수량 '+Math.round(ratio*100)+'% · 밀집도 '+(dens===1?'보통':(dens<1?'촘촘':'넓게'))+' — 수량을 줄여 다시 채울 땐 🧹 비우기 먼저.\n트렌드 존은 만들지 않아요. 컨텐츠 소유자: '+SEED_OWNER+')'))return;
+  if(!silent&&!confirm('강남·잠실·성수·방학(한산) 데모 데이터를 채울까요?\n(피드 '+feeds.length+' · 스팟 '+spots.length+' · Request '+reqs.length+' · 채팅 시드 — 공유 컬렉션에 기록되어 모든 계정에 보여요.\n수량 '+Math.round(ratio*100)+'% · 밀집도 '+(dens===1?'보통':(dens<1?'촘촘':'넓게'))+' — 수량을 줄여 다시 채울 땐 🧹 비우기 먼저.\n⚠️ v1.70 에서 시드가 늘어 문서 인덱스가 밀렸어요 — 기존 시드가 있으면 🧹 비우기 먼저 하세요.\n트렌드 존은 만들지 않아요. 컨텐츠 소유자: '+SEED_OWNER+')'))return;
   var now=Date.now();
   // ① 트렌드 존 시드는 만들지 않음(기존 tzs_* 존은 🧹 비우기로 삭제) — 존은 관리자가 직접 관리
   // ② 요약 지면 (관리자 수동 이미지와 동일 구조 — 수량·밀집도 무관 전체)
@@ -4686,9 +4740,10 @@ var EMBED_ORIGINS=[
 var NH_SCENARIOS=[
   {
     id:'first-visit', name:'처음 온 동네 둘러보기',
-    persona:'낯선 동네에 막 도착한 사람',
+    persona:'낯선 동네에 막 도착한 사람', area:'seongsu',
     steps:[
       {a:'wait',ms:900,say:'약속보다 30분 일찍 도착했다. 여기 뭐가 있는지 하나도 모르겠는데.'},
+      {a:'area',v:'seongsu',ms:1600,say:'성수에서 보기로 했는데, 와 본 적이 없다.'},
       {a:'tab',v:'map',ms:1400,say:'일단 지도부터. 내 주변이 밝게 떠오른다.'},
       {a:'pop',v:'spot',i:0,ms:2600,say:'누가 남긴 한마디가 보인다. 리뷰 앱보다 이게 더 지금 같다.'},
       {a:'popclose',ms:700},
@@ -4698,9 +4753,10 @@ var NH_SCENARIOS=[
   },
   {
     id:'field-request', name:'지금 거기 어떤지 물어보기',
-    persona:'가기 전에 확인하고 싶은 사람',
+    persona:'가기 전에 확인하고 싶은 사람', area:'jamsil',
     steps:[
       {a:'wait',ms:900,say:'지금 줄이 긴지 아닌지가 제일 궁금하다. 전화하기는 좀 그렇고.'},
+      {a:'area',v:'jamsil',ms:1500,say:'석촌호수 벚꽃 보러 가려는데 사람이 얼마나 많을까.'},
       {a:'tab',v:'map',ms:1200},
       {a:'request',ms:2600,say:'그 자리에 있는 사람한테 물어볼 수 있다니. 이건 검색으로는 안 되는 거다.',key:true},
       {a:'popclose',ms:600},
@@ -4709,10 +4765,11 @@ var NH_SCENARIOS=[
   },
   {
     id:'privacy-worry', name:'내 위치가 얼마나 드러나나',
-    persona:'위치 공개가 꺼려지는 사람',
+    persona:'위치 공개가 꺼려지는 사람', area:'gangnam',
     concern:true,
     steps:[
       {a:'wait',ms:900,say:'써보기 전에 이것부터 확인하고 싶다. 내가 어디 있는지 어디까지 남지?'},
+      {a:'area',v:'gangnam',ms:1500},
       {a:'tab',v:'map',ms:1300},
       {a:'pop',v:'spot',i:1,ms:3000,say:'남긴 글에 동 이름이 같이 찍힌다. 이게 내 이름이랑 붙으면 사는 곳이 그대로 드러나는 거 아닌가.',concern:true,key:true},
       {a:'popclose',ms:700},
@@ -4721,27 +4778,45 @@ var NH_SCENARIOS=[
   },
   {
     id:'empty-neighborhood', name:'우리 동네엔 아무것도 없다',
-    persona:'중심가 밖에 사는 사람',
+    persona:'중심가 밖에 사는 사람', area:'dobong',
     concern:true,
     steps:[
       {a:'wait',ms:900,say:'강남은 꽉 차 있던데, 우리 동네도 그런지 보자.'},
-      {a:'tab',v:'map',ms:1300},
-      {a:'mode',v:'local',ms:2800,say:'우리 쪽으로 오니 비어 있다. 결국 사람 많은 데만 굴러가는 서비스인가.',concern:true,key:true},
-      {a:'tab',v:'feed',ms:2800,say:'피드도 죄다 다른 동네다. 내가 첫 글을 써야 하는 건 부담스럽다.',concern:true}
+      {a:'area',v:'gangnam',ms:2200,say:'강남은 이렇게 빽빽하다. 볼 게 계속 나온다.'},
+      {a:'area',v:'dobong',ms:3000,say:'우리 동네로 오니 화면이 텅 비었다. 결국 사람 많은 데만 굴러가는 서비스인가.',concern:true,key:true},
+      {a:'pop',v:'spot',i:0,ms:2800,say:'하나 있는 글이 "여기 쓰는 사람 저뿐인가요" 다. 딱 내 얘기다.',concern:true},
+      {a:'popclose',ms:600},
+      {a:'tab',v:'feed',ms:2800,say:'피드에도 우리 동네 글은 손에 꼽는다. 내가 첫 글을 써야 하는 건 부담스럽다.',concern:true}
     ]
   }
 ];
 
 function nhScenario(id){for(var i=0;i<NH_SCENARIOS.length;i++)if(NH_SCENARIOS[i].id===id)return NH_SCENARIOS[i];return null;}
 function nhScenarioList(){return NH_SCENARIOS.map(function(s){
-  return {id:s.id,name:s.name,persona:s.persona,concern:!!s.concern,steps:s.steps.length};});}
+  return {id:s.id,name:s.name,persona:s.persona,concern:!!s.concern,steps:s.steps.length,
+    area:s.area||'',areaName:(s.area&&SEED_AREAS[s.area]?SEED_AREAS[s.area].name:'')};});}
 
-/* 시드된 콘텐츠에서 i 번째를 고른다 — 시나리오가 좌표를 직접 들지 않게 한다. */
+/* 지금 시나리오가 서 있는 지역 (area 스텝이 정한다). 빈 값이면 전 지역에서 고른다. */
+var nhAreaKey='';
+/* 지역 이동 줌 — "동네 전체" 가 보이는 값. 시연은 매번 같은 그림이어야 하므로 고정한다. */
+var NH_AREA_ZOOM=14;
+
+/* 시드된 콘텐츠에서 i 번째를 고른다 — 시나리오가 좌표를 직접 들지 않게 한다.
+   area 스텝으로 지역이 정해져 있으면 그 지역 반경 안의 것만 고른다: 방학동으로 옮겨 놓고
+   강남 스팟을 열면 지도는 방학동인데 팝업만 강남이라 시연이 거짓말을 한다.
+   그 지역에 아무것도 없으면 null 을 돌려준다 — 없는 게 사실이면 없는 채로 보여준다. */
 function nhPick(kind,i){
   var arr=(kind==='spot')?(typeof demoSpots!=='undefined'?demoSpots:[])
          :(kind==='feed')?(typeof feedItems!=='undefined'?feedItems:[])
          :(typeof fieldRequests!=='undefined'?fieldRequests:[]);
   if(!arr||!arr.length)return null;
+  var c=nhAreaKey&&SEED_AREAS[nhAreaKey];
+  if(c&&typeof haversineM==='function'){
+    arr=arr.filter(function(d){
+      return d&&d.lat!=null&&d.lng!=null&&haversineM(c.lat,c.lng,d.lat,d.lng)<=4000;
+    });
+    if(!arr.length)return null;
+  }
   return arr[Math.min(i||0,arr.length-1)];
 }
 
@@ -4750,6 +4825,13 @@ function nhAct(st){
   try{
     if(st.a==='tab'&&typeof switchTab==='function')switchTab(st.v);
     else if(st.a==='mode'&&typeof switchMode==='function'&&st.v!==currentMode)switchMode(st.v);
+    // 지역 이동 — 자체 지도 조작을 만들지 않고 동결 앵커 cpopGoMap 을 부른다.
+    // 그쪽이 팝업·서랍 닫기 → 지도 탭 → 양쪽 지도 이동까지 이미 한다. 줌 14 는 "동네 전체" —
+    // 기본값 16 은 항목 하나를 붙여 보는 값이라 동네가 비었는지 차 있는지가 안 보인다.
+    // **폰 지도만 움직이면 안 된다**: 카메라는 PC → 폰 단방향 미러라 map 의 다음 idle 이
+    // 폰을 원래 자리로 되돌린다. 반드시 map 을 움직여 미러를 태워 보낸다.
+    else if(st.a==='area'){var c=SEED_AREAS[st.v];
+      if(c){nhAreaKey=st.v;if(typeof cpopGoMap==='function')cpopGoMap('area',{lat:c.lat,lng:c.lng},NH_AREA_ZOOM);}}
     else if(st.a==='pop'){var d=nhPick(st.v,st.i);if(d&&typeof openContentPop==='function')openContentPop(st.v,d);}
     else if(st.a==='popclose'){if(typeof closeContentPop==='function')closeContentPop();}
     else if(st.a==='request'&&typeof openRequestComposer==='function')openRequestComposer();
@@ -4764,6 +4846,7 @@ function nhStop(){nhRunToken++;}
    앞 시나리오가 열어둔 팝업·드로어가 남으면 다음 회차가 그 뒤에서 조용히 흘러간다. */
 function nhReset(){
   try{
+    nhAreaKey=''; // 앞 회차가 방학동에 서 있었으면 다음 회차의 pop 이 조용히 빈손이 된다
     if(typeof closeContentPop==='function')closeContentPop();
     if(typeof closeDrawer==='function')closeDrawer();
     if(typeof closeComposer==='function')closeComposer();
@@ -4774,13 +4857,20 @@ function nhReset(){
 
 /* 콘솔이 보내온 시나리오를 받아들인다 (v1.68) — 서베이에서 뽑은 시나리오는 여기 상수에
    없고 콘솔에 있다. 액션 어휘는 여전히 아래 화이트리스트뿐이라 임의 코드가 돌지 않는다. */
-var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait'];
+var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area'];
+/* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
+   콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
+function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
+  return {key:k,name:SEED_AREAS[k].name};});}
 function nhSanitize(raw){
   if(!raw||!Array.isArray(raw.steps)||!raw.steps.length)return null;
   var steps=[];
   for(var i=0;i<raw.steps.length&&steps.length<20;i++){
     var s=raw.steps[i]||{};
     if(NH_ACTIONS.indexOf(s.a)<0)continue;              // 모르는 액션은 버린다
+    // 모르는 지역도 버린다. 남겨두면 지도가 안 움직인 채로 다음 스텝이 흘러가서
+    // "여기 비어 있다" 같은 대사가 엉뚱한 화면 위에 뜬다 (조용한 거짓말).
+    if(s.a==='area'&&!SEED_AREAS[String(s.v||'')])continue;
     steps.push({a:s.a,v:String(s.v||''),i:(s.i|0),
       say:String(s.say||'').slice(0,300),
       concern:!!s.concern,key:!!s.key,
@@ -4788,7 +4878,8 @@ function nhSanitize(raw){
   }
   if(!steps.length)return null;
   return {id:String(raw.id||'inline'),name:String(raw.name||'시나리오').slice(0,80),
-    persona:String(raw.persona||'').slice(0,80),concern:!!raw.concern,steps:steps};
+    persona:String(raw.persona||'').slice(0,80),concern:!!raw.concern,
+    area:(SEED_AREAS[String(raw.area||'')]?String(raw.area):''),steps:steps};
 }
 
 function nhRun(id,reply,inline){
@@ -4802,8 +4893,10 @@ function nhRun(id,reply,inline){
     if(i>=sc.steps.length){nhPost(reply,{type:'nh:done',id:sc.id});return;}
     var st=sc.steps[i];
     nhAct(st);
+    // v 도 같이 보낸다 — 콘솔이 "지역 이동 · 방학·쌍문" 처럼 적으려면 값이 필요하다.
+    // 앱 표본 시나리오는 콘솔에 정의가 없어서 이 메시지가 유일한 정보원이다.
     nhPost(reply,{type:'nh:step',id:sc.id,i:i,total:sc.steps.length,
-      say:st.say||'',concern:!!st.concern,key:!!st.key,action:st.a});
+      say:st.say||'',concern:!!st.concern,key:!!st.key,action:st.a,v:st.v||''});
     i++;
     setTimeout(next,st.ms||1500);
   })();
@@ -4820,14 +4913,14 @@ function initScenarioBridge(){
     if(EMBED_ORIGINS.indexOf(e.origin)<0)return;                 // 허용 오리진만
     var d=e.data;if(!d||typeof d!=='object'||d.source!=='persona-vc')return;
     var reply={win:e.source,origin:e.origin};
-    if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS});
+    if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList()});
     else if(d.type==='nh:run')nhRun(d.id,reply,d.scenario);
     else if(d.type==='nh:stop'){nhStop();nhPost(reply,{type:'nh:stopped'});}
   });
   // 부모가 언제 붙을지 모르므로 준비되면 알린다 (시나리오 목록은 비밀이 아니다)
   if(window.parent&&window.parent!==window){
     try{window.parent.postMessage({source:'now-here',type:'nh:ready',
-      version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS},'*');}catch(e){}
+      version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList()},'*');}catch(e){}
   }
 }
 function nhVersion(){var el=document.getElementById('app-version');return el?el.textContent:'';}
