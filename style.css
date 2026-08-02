@@ -717,18 +717,9 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 /* #pc-drawer-close 공통 규칙으로 통합 */
 #pc-drawer-close:hover{background:#f2f5f9;color:var(--ink);}
 
-/* 햄버거 드로어: 데모 리스트(트렌드 존/스팟) */
-/* 드로어 탭(관리자 전용): 🧭 둘러보기(데모 메뉴) ↔ 🛠 관리자 — 모바일 실기기 관리자도 데모 메뉴 접근 */
-#drawer-tabs{display:none;gap:6px;margin-bottom:12px;padding:4px;border:1px solid var(--line-soft);border-radius:12px;background:rgba(15,23,42,0.045);}
-body.role-admin #drawer-tabs{display:flex;}
-.dt-btn{flex:1;padding:8px 0;border:none;border-radius:9px;background:transparent;color:var(--ink3);font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .18s ease;}
-.dt-btn.active{background:#fff;color:var(--ink);box-shadow:var(--sh-s);}
-/* 관리자: 선택된 탭 뷰만 표시 (데모는 role-user 규칙으로 관리자 섹션 자체가 숨김) */
-body.role-admin #phone-drawer-body.dv-admin #drawer-demo{display:none;}
-body.role-admin #phone-drawer-body:not(.dv-admin) #content-toggle-row,
-body.role-admin #phone-drawer-body:not(.dv-admin) #content-section,
-body.role-admin #phone-drawer-body:not(.dv-admin) #settings-toggle-row,
-body.role-admin #phone-drawer-body:not(.dv-admin) #settings-section{display:none!important;}
+/* 햄버거 드로어: 데모 리스트(트렌드 존/스팟) — v1.77 부터 드로어는 이것뿐이다.
+   드로어 탭(🧭 둘러보기 ↔ 🛠 관리자)과 폰 안으로 옮겨오던 설정·컨텐츠 섹션은 없앴다:
+   서비스는 폰이 전부이고 콘솔은 메뉴에서 들어가는 별도 페이지(admin.html)다. */
 /* 드로어 섹션: 접이식 헤더 (메인 UI 톤) */
 #drawer-demo .drawer-sec{margin-bottom:12px;padding:10px 12px 4px;border:1px solid var(--line-soft);border-radius:13px;background:#fff;box-shadow:var(--sh-s);}
 #drawer-demo .drawer-sec:last-child{margin-bottom:0;}
@@ -846,16 +837,8 @@ body.mode-trend .req-pin .rp-ring{border-color:rgba(255,90,60,0.55);}
 #phone-drawer-body::-webkit-scrollbar{width:6px;}
 #phone-drawer-body::-webkit-scrollbar-thumb{background:rgba(15,23,42,0.15);border-radius:3px;}
 
-/* 데스크톱 관리자: 폰 미러 드로어는 항상 '데모 로그인' 기준 (관리자 설정은 PC 드로어에서) */
-@media (min-width:769px){
-  /* v1.65: 관리자 페이지(admin.html) 폰 미러만 데모 고정 — 서비스 페이지(page-app)는 데스크톱에서도 모바일과 동일(관리자 탭 사용 가능) */
-  body.role-admin:not(.page-app) #phone-drawer #drawer-demo{display:block!important;} /* dv-admin 뷰여도 폰 미러는 항상 데모 리스트 */
-  body.role-admin:not(.page-app) #phone-drawer #drawer-tabs{display:none;} /* 관리자 페이지 폰 미러=데모 미리보기 고정 (관리는 관리자 메뉴 팝업에서) */
-  body.role-admin:not(.page-app) #phone-drawer #content-toggle-row,
-  body.role-admin:not(.page-app) #phone-drawer #content-section,
-  body.role-admin:not(.page-app) #phone-drawer #settings-toggle-row,
-  body.role-admin:not(.page-app) #phone-drawer #settings-section{display:none!important;}
-}
+/* (v1.77 삭제) 데스크톱 관리자용 드로어 뷰 분기 — 드로어가 둘러보기 전용이 되어 분기할 것이
+   없어졌다. 폰 드로어는 두 페이지 모두 데모 리스트 하나만 들고 있다. */
 
 /* 웹앱 설치 유도 배너 (모바일 브라우저) */
 #a2hs-bar{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 86px);z-index:100020;

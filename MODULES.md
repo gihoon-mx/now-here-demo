@@ -57,9 +57,9 @@
 | M06 | social 소셜 | 안정 | 소셜 탭·채팅방(동네/주제/프라이빗)·liveChat | `renderSocial` `socRoomList` `roomMsgs` `initSocialManager` | app.js | v1.45 |
 | M07 | request 현장 Request | 활성 | Request 등록(10분 타임아웃)·AI Agent 실시간 응답 팝업·내 Request 답변 보기·전용 핀(ReqPin)·삭제 | `openRequestComposer` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` `ReqPin` `deleteRequest`·핀 줌 스케일(스팟 동일) `reqRemainLabel` | app.js | v1.63 |
 | M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·모드별 톤(불꽃)·**원격 에이전트(persona-vc)** | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE` `aiMapSummary` `aiChatAnswer` `aiAgentOn` `aiAskRemote` `aiContextSnapshot` `aiChatHistory` | app.js · config.js | v1.76 |
-| M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·드로어(탭)·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` | app.js | v1.70 |
+| M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·**드로어(둘러보기 전용)**·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` | app.js | v1.77 |
 | M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기 | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` | app.js | v1.46 |
-| M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — PC=전부 펼침·폰 드로어=아코디언 | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openColorPopup` `makeColorControl` `initSettingsAccordion` | app.js | v1.66 |
+| M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — **admin.html 에만 있다**(서비스 페이지에는 없음) | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openAdmPanelFromUrl` `jumpToSetting` `openColorPopup` `makeColorControl` `initSettingsAccordion` | app.js | v1.77 |
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
@@ -173,6 +173,8 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-02 M09+M11: v1.77.0 — **폰 안에 콘솔이 없다.** 서비스 페이지 드로어의 `🧭 둘러보기 / 🛠 관리자` 탭과, 폰 드로어로 옮겨오던 설정·컨텐츠 섹션을 없앴다. 콘솔은 프로필 메뉴 → `admin.html` 하나뿐이다. 🧩 기능 보기의 ⚙ 설정은 `admin.html?adm=<패널>` 로 넘어가 그 블록을 바로 연다
 
 - 2026-08-02 M08: v1.76.0 — Ask Map 의 답을 **persona-vc 콘솔의 격리 라우트에서 받아온다**(실제 모델·과금). 템플릿 매칭은 지우지 않고 폴백·롤백 경로로 남겼다. 계약은 바로 위 절 참고
 

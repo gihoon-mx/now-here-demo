@@ -1161,7 +1161,9 @@ function renderScale(mapObj,elId,cls,spaced){
 }
 function updateScaleLegend(){renderScale(map,'scale-legend','sl',true);}     // 관리자 메인 지도 범례
 function updatePhoneScale(){renderScale(phoneMap,'phone-scale','psc',false);} // 폰: 심플 축척(자+수치만)
-/* 드로어 뷰(관리자 전용 탭): demo=둘러보기(데모 메뉴) / admin=관리자 메뉴 */
+/* 드로어 뷰. v1.77 부터 실질적으로 'demo' 하나뿐이다 — 폰 안에 콘솔이 없어서 'admin' 뷰로
+   갈 길이 사라졌다. 함수는 지우지 않는다: M09 동결 앵커라 콘솔 시나리오가 부를 수 있고,
+   지난 방문에서 'admin' 이 남은 localStorage 를 초기화 때 'demo' 로 덮어 되돌린다. */
 var drawerView='demo';try{var _dv=localStorage.getItem('nowhere_drawerview');if(_dv==='admin'||_dv==='demo')drawerView=_dv;}catch(e){}
 function setDrawerView(v){
   drawerView=(v==='admin')?'admin':'demo';
@@ -1175,20 +1177,16 @@ function initPhoneMenu(){
   var drawer=document.getElementById('phone-drawer');
   var body=document.getElementById('phone-drawer-body');
   if(body){
-    // 관리자용 드로어 탭: 둘러보기(데모 메뉴) ↔ 관리자 메뉴 (모바일 실기기 관리자도 데모 메뉴 접근)
-    // v1.65: 관리자 페이지(admin.html)에서는 설정이 관리자 메뉴 팝업에 있으므로 드로어=둘러보기 전용(탭·이동 생략)
-    if(!IS_ADMIN_PAGE){
-      var tabs=document.createElement('div');tabs.id='drawer-tabs';
-      tabs.innerHTML='<button type="button" class="dt-btn" data-dt="demo">🧭 둘러보기</button><button type="button" class="dt-btn" data-dt="admin">🛠 관리자</button>';
-      body.appendChild(tabs);
-      tabs.querySelectorAll('.dt-btn').forEach(function(b){b.addEventListener('click',function(){setDrawerView(b.dataset.dt);});});
-    }
-    // 데모용 리스트(트렌드 존 · 현장 Request · 스팟) — 데모 모드에서 노출
+    /* v1.77: 폰 안에는 콘솔이 없다 — 드로어는 둘러보기 전용이다.
+       v1.65~v1.76 은 서비스 페이지에서 드로어에 '🧭 둘러보기 / 🛠 관리자' 탭을 만들고
+       content/settings 섹션을 통째로 폰 안으로 옮겼다. 그래서 콘솔이 두 군데 있었다 —
+       별도 페이지(admin.html)에도, 폰 햄버거 안에도. 서비스는 폰이 전부이고 콘솔은
+       메뉴에서 들어가는 별도 페이지라는 컨셉과 어긋난다.
+       설정 섹션은 옮기지 않아도 서비스 페이지에서 보이지 않는다 — #left-panel 이
+       데스크톱(page-app)·모바일(≤768px) 양쪽에서 이미 display:none 이다. */
     var demo=document.createElement('div');demo.id='drawer-demo'; // 내용은 renderDrawerDemo가 구성
     body.appendChild(demo);
-    // 관리자 설정/컨텐츠 메뉴를 햄버거 드로어로 이동(관리자만 노출; 데모는 role-user로 숨김)
-    if(!IS_ADMIN_PAGE)['content-toggle-row','content-section','settings-toggle-row','settings-section'].forEach(function(id){var el=document.getElementById(id);if(el)body.appendChild(el);});
-    setDrawerView(IS_ADMIN_PAGE?'demo':drawerView);
+    setDrawerView('demo');
   }
   // 🧩 기능 보기 — 드로어 헤더(닫기 옆), 폰/PC 공통
   document.querySelectorAll('.pdh-feature').forEach(function(b){b.addEventListener('click',openFeaturePage);});
@@ -2851,6 +2849,9 @@ function grantAccess(user,role){
   document.body.classList.remove('role-admin','role-user');
   document.body.classList.add(role==='admin'?'role-admin':'role-user');
   hideAuthOverlay();showUserChip(user,role);bootMap();
+  /* v1.77: 서비스 페이지에서 admin.html?adm=<패널> 로 넘어온 경우 그 블록을 바로 연다.
+     로그인이 끝난 뒤에 여는 것이 중요하다 — 초기화 시점에 열면 인증 오버레이 위에 뜬다. */
+  if(IS_ADMIN_PAGE&&role==='admin')openAdmPanelFromUrl();
   loadSharedContent(); // 관리자·데모 모두 공유 콘텐츠(존/스팟) 로드. 저장은 관리자만(cloudSave/markCloudDirty에서 가드)
   liveOn();              // 유저 생성 콘텐츠(피드/스팟/Request) 실시간 구독
 }
@@ -4723,25 +4724,15 @@ function openFeaturePage(){
   });
   pg.style.display='flex';
 }
+/* 🧩 기능 보기의 ⚙ 설정 버튼이 가는 곳 (관리자에게만 붙는다). */
+var SETTING_PANEL_OF={'spot':'s-spot','region':'s-region','lens':'s-lens','trendzone':'s-zone','spot-view':'c-spot'};
 function jumpToSetting(prevKey){
-  document.getElementById('feature-page').style.display='none';
-  if(IS_ADMIN_PAGE&&typeof openAdminMenu==='function'){ // 관리자 페이지: 드로어 대신 관리자 메뉴 팝업으로 점프(v1.65)
-    var PANEL_OF={'spot':'s-spot','region':'s-region','lens':'s-lens','trendzone':'s-zone','spot-view':'c-spot'};
-    openAdminMenu(PANEL_OF[prevKey]||'s-spot');return;
-  }
-  var d=document.getElementById('phone-drawer'),pc=document.getElementById('pc-drawer');
-  if(!(d&&d.classList.contains('open'))&&!(pc&&pc.classList.contains('open'))){
-    if(IS_APP_PAGE||window.matchMedia('(max-width:768px)').matches)openPhoneDrawer();else openPcDrawer();
-  }
-  var ss=document.getElementById('settings-section'),st=document.getElementById('settings-toggle');
-  if(ss&&ss.style.display==='none'){ss.style.display='';if(st)st.classList.add('open');}
-  var sec=document.querySelector('#settings-section .settings-section[data-prev="'+prevKey+'"]');
-  if(sec){
-    var group=sec.closest('#settings-section');
-    if(group)group.querySelectorAll('.acc-section').forEach(function(x){if(x!==sec)x.classList.add('collapsed');});
-    sec.classList.remove('collapsed');
-    setTimeout(function(){sec.scrollIntoView({block:'start'});sec.classList.add('flash');setTimeout(function(){sec.classList.remove('flash');},1200);},120);
-  }
+  var fp=document.getElementById('feature-page');if(fp)fp.style.display='none';
+  var panel=SETTING_PANEL_OF[prevKey]||'s-spot';
+  if(IS_ADMIN_PAGE&&typeof openAdminMenu==='function'){openAdminMenu(panel);return;} // 콘솔 안 — 그 자리에서 팝업
+  /* v1.77: 서비스 페이지에는 설정이 없다(콘솔은 별도 페이지). 콘솔을 열되 어느 블록을
+     보려던 건지 같이 넘긴다 — 안 넘기면 사용자가 목록에서 다시 찾아야 한다. */
+  window.open('admin.html?adm='+encodeURIComponent(panel),'_blank','noopener');
 }
 function initFeaturePage(){
   var cl=document.getElementById('feature-close');
@@ -4802,6 +4793,16 @@ function initAdminMenu(){
   menu.addEventListener('click',function(e){if(e.target===menu)menu.style.display='none';});
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&menu.style.display!=='none')menu.style.display='none';});
   var alb=document.getElementById('adm-allowlist');if(alb)alb.addEventListener('click',openAllowlistManager); // 시스템 › 계정·권한
+}
+/* v1.77: 서비스 페이지의 ⚙ 설정이 admin.html?adm=<패널> 로 넘겨준 블록을 연다.
+   값은 URL 에서 온다 — 셀렉터에 끼워 넣지 않고 실제 내비 버튼들과 대조해서 통과시킨다. */
+function openAdmPanelFromUrl(){
+  if(!IS_ADMIN_PAGE||typeof openAdminMenu!=='function')return;
+  var want='';try{want=new URLSearchParams(location.search).get('adm')||'';}catch(e){return;}
+  if(!want)return;
+  var ok=false;
+  document.querySelectorAll('#adm-nav [data-panel]').forEach(function(b){if(b.dataset.panel===want)ok=true;});
+  if(ok)openAdminMenu(want);
 }
 
 /* ========== [M16] scenario-bridge 임베드 · 시나리오 재생 ==========
