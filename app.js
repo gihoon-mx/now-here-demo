@@ -3419,7 +3419,8 @@ function aiMapSummary(){ // 🗺 현재 지도 요약: 보고 있는 지역의 �
   return '🗺 '+loc+' · '+modeName+' 렌즈 — '+parts.join(' · ')+'.'+tail;
 }
 var AI_STOPWORDS=['알려줘','추천해줘','추천','어때','있어','없어','좋은','어디야','어디','뭐가','뭐지','뭐하지','지금','오늘','우리','어떻게','해줘','가기','타기','하는','곳']; // 범용어는 매칭 제외
-function aiChatAnswer(q){ // 채팅 입력: 템플릿 풀에서 키워드 매칭(범용어 제외), 없으면 데모 안내
+function aiChatAnswer(q,opts){ // 채팅 입력: 템플릿 풀에서 키워드 매칭(범용어 제외), 없으면 데모 안내
+  // opts.offline=true — 원격 에이전트가 실패해 되돌아온 길. 미매칭 문구만 달라진다.
   var pool=aiPresetPool(),ql=q.toLowerCase(),best=null,score=0;
   pool.forEach(function(p){
     var s=0;
@@ -3429,14 +3430,76 @@ function aiChatAnswer(q){ // 채팅 입력: 템플릿 풀에서 키워드 매칭
     if(s>score){score=s;best=p;}
   });
   if(best&&score>0)return best.a;
+  if(opts&&opts.offline)return '"'+q+'" — 지금은 AI 연결이 잠시 끊겨 있어요. 지도 요약과 추천 질문은 그대로 쓸 수 있습니다 🤖';
   return '"'+q+'" — 좋은 질문이에요! 지금은 지도 요약과 추천 질문에 먼저 답하는 데모 버전이에요. 실제 AI 연결은 준비 중입니다 🤖';
+}
+
+/* ── 원격 에이전트 (persona-vc /api/app-agent) ─────────────────────────────
+   답을 만드는 곳이 두 군데다.
+   ① 원격 — persona-vc 콘솔의 격리 라우트. 실제 모델이고 과금된다. 콘솔의 평가
+      파이프라인(페르소나·세션·리뷰)과 프롬프트도 기억도 공유하지 않는다.
+   ② 로컬 — 위 aiChatAnswer 템플릿 매칭. v1.75 까지의 동작이고, 롤백 경로다.
+
+   ②를 지우지 않은 이유: 원격은 꺼질 수 있고(CONFIG.AI_AGENT.ENABLED·서버 스위치),
+   느릴 수 있고, 오프라인일 수 있다. 그때 앱이 아무 말도 못 하면 안 된다.
+   임베드(?embed=1)는 항상 ② — 시연은 매번 같은 답이어야 한다 (M16).
+
+   기억은 이 탭 안에서만 산다: aiChatHistory 는 저장하지 않고 최근 몇 턴만
+   요청에 실어 보낸다. 서버도 저장하지 않는다. */
+var aiChatHistory=[];   // {role:'user'|'agent', text}
+var aiAskSeq=0;         // 늦게 도착한 답이 새 질문의 답을 덮지 않게 하는 순번
+function aiAgentCfg(){return (typeof CONFIG!=='undefined'&&CONFIG.AI_AGENT)||{};}
+function aiAgentOn(){var c=aiAgentCfg();return !!(c.ENABLED&&c.ENDPOINT&&!IS_EMBED&&typeof fetch==='function');}
+function aiContextSnapshot(){ // 원격에 보내는 화면 상태 — aiMapSummary 와 같은 값을 본다
+  var best=null,bh=0;
+  (typeof trendZones!=='undefined'?trendZones:[]).forEach(function(z){var h=zoneTotalHearts(z);if(h>bh){bh=h;best=z;}});
+  return {
+    region:focusedRegionName()||currentCenterDong()||'',
+    lens:currentMode==='trend'?'trend':'basic',
+    tab:(typeof currentTab!=='undefined'?currentTab:'')||'',
+    hour:new Date().getHours(),
+    zones:(typeof trendZones!=='undefined'?trendZones.length:0),
+    topZone:best?{name:best.name,hearts:bh}:null,
+    feeds:(typeof feedItems!=='undefined'?feedItems.length:0),
+    spots:(typeof spotMessages!=='undefined'?spotMessages.length:0),
+    activeRequests:(typeof fieldRequests!=='undefined'?fieldRequests.filter(reqActive).length:0)
+  };
+}
+function aiAskRemote(q,onOk,onFail){
+  var c=aiAgentCfg(),turn=++aiAskSeq;
+  var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+  var timer=setTimeout(function(){if(ctl)ctl.abort();},c.TIMEOUT_MS||12000);
+  var turns=(c.HISTORY_TURNS||6)*2;
+  fetch(c.ENDPOINT,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({question:q,context:aiContextSnapshot(),history:aiChatHistory.slice(-turns)}),
+    signal:ctl?ctl.signal:undefined
+  }).then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(d){
+    clearTimeout(timer);
+    if(turn!==aiAskSeq)return;                       // 그 사이 새 질문이 들어왔다 — 버린다
+    var text=((d&&d.answer)||'').trim();
+    if(!text)throw new Error('빈 응답');
+    aiChatHistory.push({role:'user',text:q},{role:'agent',text:text});
+    if(aiChatHistory.length>24)aiChatHistory=aiChatHistory.slice(-24);
+    onOk(text);
+  })['catch'](function(e){
+    clearTimeout(timer);
+    if(turn!==aiAskSeq)return;
+    console.warn('[M08] 원격 에이전트 실패 — 템플릿으로 답합니다:',e&&e.message||e);
+    onFail(e);
+  });
 }
 function initAiAgent(mirror){
   var aiBtn=mirror.querySelector('.pn-ai'),aiBub=document.getElementById('ai-bubble');
   var panel=document.getElementById('ai-presets'),list=document.getElementById('aip-list');
   var sumBtn=document.getElementById('aip-summary'),input=document.getElementById('aip-input'),send=document.getElementById('aip-send');
   if(!aiBtn||!aiBub)return;
-  function hideAi(){aiBub.classList.remove('show');if(panel)panel.classList.remove('show');clearTimeout(aiBub._t);updateAiVisual(false);}
+  // 순번을 올려 **기다리던 원격 답을 버린다** — 닫고 나서 뒤늦게 말풍선이 튀어나오면 안 된다.
+  function hideAi(){aiAskSeq++;aiBub.classList.remove('show');if(panel)panel.classList.remove('show');clearTimeout(aiBub._t);updateAiVisual(false);}
   function answer(text,ms){ // 패널 닫고 말풍선으로 응답
     if(panel)panel.classList.remove('show');
     aiBub.textContent='🤖 '+text;
@@ -3449,7 +3512,13 @@ function initAiAgent(mirror){
       list.innerHTML='';
       aiRandomPresets(5).forEach(function(p){ // 풀 ~50개 중 5개만 노출
         var b=document.createElement('button');b.type='button';b.className='aip-item';b.textContent=p.q;
-        b.addEventListener('click',function(ev){ev.stopPropagation();answer(p.a);});
+        // 추천 질문도 같은 길로 간다 — 눌러서 나오는 답이 직접 물었을 때와 달라지면 안 된다.
+        // 원격이 없거나 실패하면 이 질문에 딸린 템플릿 답(p.a)이 그대로 폴백이다.
+        b.addEventListener('click',function(ev){ev.stopPropagation();
+          if(!aiAgentOn()){answer(p.a);return;}
+          answer('생각하는 중…',60000);
+          aiAskRemote(p.q,function(text){answer(text,12000);},function(){answer(p.a);});
+        });
         list.appendChild(b);
       });
       if(input)input.value='';
@@ -3459,7 +3528,15 @@ function initAiAgent(mirror){
     updateAiVisual(true);
   });
   if(sumBtn)sumBtn.addEventListener('click',function(e){e.stopPropagation();answer(aiMapSummary(),9000);});
-  function submitChat(){var v=input?input.value.trim():'';if(!v)return;input.value='';answer(aiChatAnswer(v));}
+  function submitChat(){
+    var v=input?input.value.trim():'';if(!v)return;input.value='';
+    if(!aiAgentOn()){answer(aiChatAnswer(v));return;}
+    // 원격은 몇 초 걸린다 — 말풍선을 먼저 띄워 두고 도착하면 갈아 끼운다.
+    answer('생각하는 중…',60000);
+    aiAskRemote(v,
+      function(text){answer(text,12000);},
+      function(){answer(aiChatAnswer(v,{offline:true}));});
+  }
   if(send)send.addEventListener('click',function(e){e.stopPropagation();submitChat();});
   if(input){
     input.addEventListener('click',function(e){e.stopPropagation();});

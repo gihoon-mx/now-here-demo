@@ -44,7 +44,7 @@ footer{max-width:1060px;margin:20px auto 0;font-size:.7rem;color:var(--ink3);tex
 footer code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(15,23,42,0.05);padding:1px 6px;border-radius:5px;}
 </style>
 </head>
-<body data-app-ver="v1.75.0">
+<body data-app-ver="v1.76.0">
 <header>
   <div><h1>🛠 <span>Now Here</span> 개발 관리</h1><p>모듈 레지스트리 · 세션별 모듈 단위 작업 — 소스: MODULES.md · <b id="doc-ver"></b></p></div>
   <div class="links"><a href="./">📱 라이브 데모</a><a href="deck.html">📽 소개 덱</a><a href="diagram.html">🧩 다이어그램</a></div>
@@ -74,7 +74,7 @@ var MODS=[
  {id:'M05',emoji:'🖼️',name:'feed 피드',st:'active',ver:'v1.63',files:'app.js',desc:'피드 탭 그리드·스코프/종류 필터·썸네일 핀+클러스터·좋아요·업로드(카메라/갤러리).',anchors:['renderFeed','feedEntriesScoped','FeedThumb','clusterFeedPins','toggleLike'],deps:['M01','M12']},
  {id:'M06',emoji:'👥',name:'social 소셜',st:'stable',ver:'v1.45',files:'app.js',desc:'동네 채팅방(포커스 구역)·주제방·프라이빗·liveChat 실시간 공유.',anchors:['renderSocial','socRoomList','roomMsgs'],deps:['M12']},
  {id:'M07',emoji:'📍',name:'request 현장 Request',st:'active',ver:'v1.63',files:'app.js',desc:'Request 등록(10분 타임아웃)·전용 펄스 핀·삭제 → 타겟 지역 사용자에게 AI Agent 실시간 응답 팝업(💬답하기·📷사진, 요청자 제외) → 요청자는 도착 알림+드로어 내 Request에서 답변 확인.',anchors:['openRequestComposer','showReqBubble','reqNearMe','reqActive','answerRequest'],deps:['M01','M08','M12']},
- {id:'M08',emoji:'🤖',name:'ai-agent AI 에이전트',st:'active',ver:'v1.61',files:'app.js',desc:'Ask Map 패널(지도 요약·프리셋 풀 50/노출 5·채팅 입력)·모드별 아이콘 톤(트렌드=불꽃)·알림 말풍선.',anchors:['initAiAgent','aiPresetPool','aiMapSummary','aiChatAnswer','updateAiVisual'],deps:['M07']},
+ {id:'M08',emoji:'🤖',name:'ai-agent AI 에이전트',st:'active',ver:'v1.76',files:'app.js · config.js',desc:'Ask Map 패널(지도 요약·프리셋 풀 50/노출 5·채팅 입력)·모드별 아이콘 톤(트렌드=불꽃)·알림 말풍선. <b>v1.76: 답을 persona-vc 콘솔의 격리 라우트(/api/app-agent)에서 받아온다</b> — 실제 모델·과금. 실패·타임아웃(12s)·오프라인·임베드는 예전 템플릿 매칭으로 자동 폴백. 롤백은 config.js의 AI_AGENT.ENABLED=false 하나. 🗺 지도 요약은 화면 실데이터라 계속 로컬(무료).',anchors:['initAiAgent','aiPresetPool','aiMapSummary','aiChatAnswer','aiAskRemote','aiContextSnapshot','aiAgentOn','updateAiVisual'],deps:['M07']},
  {id:'M09',emoji:'📱',name:'shell 폰 셸',st:'stable',ver:'v1.70',files:'app.js',desc:'폰 미러 레이아웃·탭 전환(네비 스와이프)·햄버거 드로어(둘러보기/관리자 탭)·헤더·카메라 이동. v1.65 PAGE_MODE 분기(index=서비스 폰 앱 / admin=PC 관리자). v1.70 goMapCam — 카메라는 PC→폰 단방향 미러라 항상 map 을 움직이고, 투영이 없으면 panTo 대신 setCenter 로 간다.',anchors:['initPhoneMirror','switchTab','initPhoneMenu','renderDrawerDemo','setDrawerView','openContentPop','cpopGoMap','goMapCam','PAGE_MODE'],deps:['M05','M06']},
  {id:'M10',emoji:'📰',name:'news 요약 지면',st:'stable',ver:'v1.46',files:'app.js',desc:'헤더 아래 캐러셀 지면(탭별)·카드 3버전·접기·연관 피드 자동 노출.',anchors:['renderNews','newsItems','initSummaryCollapse'],deps:['M05']},
  {id:'M11',emoji:'⚙️',name:'settings 관리자 설정',st:'active',ver:'v1.66',files:'app.js',desc:'설정 블록(드래프트→적용)·미니 프리뷰·기본값/취소·클라우드 저장. 관리자 메뉴 대형 팝업(initAdminMenu)·색상 팝업 공통 팔레트(온도4+#1428A0)+전 팝업 투명도. v1.66: PC=블록 전부 펼침(아코디언 없음)·폰 드로어=아코디언+터치 최적화, 내비 카테고리 강조.',anchors:['BLOCK_DEFS','MINI_RENDER','initDraft','initBlockBars','initAdminMenu','openColorPopup','initSettingsAccordion'],deps:['M12']},

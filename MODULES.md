@@ -56,7 +56,7 @@
 | M05 | feed 피드 | 활성 | 피드 탭·그리드·썸네일 핀(스팟과 동일 줌 스케일·온도 링/뱃지)·클러스터·좋아요·업로드 | `renderFeed` `feedEntriesScoped` `FeedThumb` `clusterFeedPins` `toggleLike` `feedAdd` `initFeedTools` `staticMapUrl` | app.js | v1.63 |
 | M06 | social 소셜 | 안정 | 소셜 탭·채팅방(동네/주제/프라이빗)·liveChat | `renderSocial` `socRoomList` `roomMsgs` `initSocialManager` | app.js | v1.45 |
 | M07 | request 현장 Request | 활성 | Request 등록(10분 타임아웃)·AI Agent 실시간 응답 팝업·내 Request 답변 보기·전용 핀(ReqPin)·삭제 | `openRequestComposer` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` `ReqPin` `deleteRequest`·핀 줌 스케일(스팟 동일) `reqRemainLabel` | app.js | v1.63 |
-| M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·모드별 톤(불꽃) | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE` `aiMapSummary` `aiChatAnswer` | app.js | v1.61 |
+| M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·모드별 톤(불꽃)·**원격 에이전트(persona-vc)** | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE` `aiMapSummary` `aiChatAnswer` `aiAgentOn` `aiAskRemote` `aiContextSnapshot` `aiChatHistory` | app.js · config.js | v1.76 |
 | M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·드로어(탭)·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` | app.js | v1.70 |
 | M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기 | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` | app.js | v1.46 |
 | M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — PC=전부 펼침·폰 드로어=아코디언 | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openColorPopup` `makeColorControl` `initSettingsAccordion` | app.js | v1.66 |
@@ -149,7 +149,32 @@
   그리고 콘솔 프롬프트의 `ACTION_GUIDE`. 어긋나면 모델이 뽑은 액션을 앱이 **조용히** 버린다.
 - `nhRun` 은 항상 `nhReset()` 으로 시작한다 (앞 회차가 연 팝업·드로어가 남으면 다음 시연이 가려진다).
 
+## 🤖 M08 앱 에이전트 계약 (Now Here → Persona VC `/api/app-agent`)
+
+두 저장소를 잇는 **두 번째** 계약이다 (첫 번째는 위 M16). 방향이 반대다 — M16 은 콘솔이
+앱을 조종하고, 이건 앱이 콘솔의 모델을 빌려 쓴다.
+
+- **부르는 곳**: `aiAskRemote()` — Ask Map 의 채팅 입력과 추천 질문 탭. 🗺 지도 요약은
+  화면 실데이터를 조립하는 것이라 **로컬로 남긴다**(모델을 부를 이유가 없고 공짜다).
+- **보내는 것**: `{question, context, history}`. `context` 는 `aiContextSnapshot()` —
+  지역·렌즈·탭·시각·존 수·최고 인기 존·피드/스팟/Request 수. **화면에 보이는 숫자뿐이다.**
+  사용자 식별자·좌표·글 내용은 보내지 않는다.
+- **기억은 이 탭 안에서만 산다**: `aiChatHistory` 는 저장하지 않고(새로고침하면 사라진다)
+  최근 6턴만 실어 보낸다. 콘솔도 저장하지 않는다 — 평가 파이프라인의 페르소나·세션과
+  섞이지 않게 프롬프트·기억·사용량 원장 세 층이 전부 갈라져 있다.
+- **끊기면 조용히 예전 동작으로 간다**: 실패·12초 초과·오프라인·서버 스위치 off(503) →
+  `aiChatAnswer(q,{offline:true})` 템플릿 매칭. **템플릿 코드를 지우지 않는 이유가 이것이다.**
+- **임베드(`?embed=1`)는 절대 원격을 부르지 않는다** — 시연은 매번 같은 답이어야 한다.
+  M16 의 `ai` 액션이 여는 것도 템플릿 답이다.
+- **롤백**: `config.js` 의 `AI_AGENT.ENABLED=false` 하나. 콘솔 쪽에서 급히 잠글 때는
+  App Hosting 의 `APP_AGENT_ENABLED=0`.
+- **오리진이 바뀌면 콘솔의 허용 목록도 바꾼다**: 콘솔 라우트가 `Origin` 을 검사한다
+  (기본 허용은 `https://gihoon-mx.github.io` · `localhost:8765`). 새 주소에서 열면
+  403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
+
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-02 M08: v1.76.0 — Ask Map 의 답을 **persona-vc 콘솔의 격리 라우트에서 받아온다**(실제 모델·과금). 템플릿 매칭은 지우지 않고 폴백·롤백 경로로 남겼다. 계약은 바로 위 절 참고
 
 - 2026-08-02 M16: v1.75.0 — 카메라 연출 액션 `zoom`·`focus` 추가. 시연에서 "어디를 보라" 를 화면이 말하게 하는 것. 자체 지도 조작을 만들지 않고 `goMapCam`(M09 앵커)만 부르고 양쪽 지도를 같이 움직인다. 액션 어휘는 콘솔 `PLAY_ACTIONS`·프롬프트 `ACTION_GUIDE` 와 **세 곳이 같이** 움직였다
 

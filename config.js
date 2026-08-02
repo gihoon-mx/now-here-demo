@@ -23,4 +23,17 @@ const CONFIG = {
     messagingSenderId: "377718237179",
     appId: "1:377718237179:web:3f2fe8db8ed214a73a8d5e"
   },
+
+  /* [M08] Ask Map 의 답을 어디서 받아오나.
+     ENABLED=true  → persona-vc 콘솔의 /api/app-agent (실제 모델 · 과금)
+     ENABLED=false → app.js 의 템플릿 매칭(aiChatAnswer). v1.75 까지의 동작이다.
+     롤백은 이 값 하나만 false 로 두면 된다 — 템플릿 코드는 지우지 않고 남겨 뒀다.
+     원격이 꺼져 있거나(503) 실패·시간초과여도 자동으로 템플릿으로 되돌아간다.
+     임베드(?embed=1)에서는 값과 무관하게 항상 템플릿이다 — 시연은 매번 같아야 한다. */
+  AI_AGENT: {
+    ENABLED: true,
+    ENDPOINT: 'https://persona-vc--persona-lab-503406.asia-east1.hosted.app/api/app-agent',
+    TIMEOUT_MS: 12000,
+    HISTORY_TURNS: 6
+  },
 };
