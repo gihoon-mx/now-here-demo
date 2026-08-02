@@ -63,7 +63,7 @@
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
-| M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 전환(legacy/new)** — ①셸 ②지도 오버레이 ③탭 페이지 적용, ④팝업/드로어 남음 | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin` `initSkinControl` `body[data-skin]` `--nk-*` | style.css · **skin-new.css** · app.js | v1.79 |
+| M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 전환(legacy/new)** — **①~④ 전 단계 적용**(셸·지도 오버레이·탭 페이지·오버레이) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin` `initSkinControl` `body[data-skin]` `--nk-*` | style.css · **skin-new.css** · app.js | v1.80 |
 | M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.75 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
@@ -173,6 +173,8 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-02 M15: v1.80.0 — 새 디자인 스킨 **④ 오버레이(마지막 단계)**. Ask Map 이 오른쪽 위로 뜨던 작은 카드에서 **화면 폭을 다 쓰는 바텀 시트**가 된다(손잡이·ASK MAP 캡션·요약 카드·갈매기 붙은 질문 목록·채워진 입력바). 드로어·프로필 메뉴·상세 팝업·AI/Request 버블도 카드 문법으로. 상세 팝업은 `.modal-card` 가 아니라 `#content-pop` 으로 좁혔다 — 관리자 모달까지 따라 바뀌면 안 된다
 
 - 2026-08-02 M15: v1.79.0 — 새 디자인 스킨 **②지도 오버레이 + ③탭 페이지**. 스팟 버블은 색이 **몸통에서 테두리로** 옮겨간다(흰 유리 + 온도/스팟색 링 — `--spot-bg` 를 링 색으로 재사용해 색 설정이 계속 의미를 갖는다). 피드 핀=라운드 사각 + 하단 중앙 온도 배지, Request 핀=액센트 원 + 흰 링. 탭 페이지는 지면 카드·피드 필터칩/카드·소셜 세그먼트/방 카드. **존 헥사와 동/존 라벨은 손대지 않았다** — 헥사는 Maps 폴리곤이고 라벨 색은 관리자 설정이 inline 으로 칠한다(설정을 이기는 스킨은 만들지 않는다)
 

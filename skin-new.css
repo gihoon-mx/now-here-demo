@@ -398,3 +398,144 @@ body[data-skin="new"] .soc-room.soc-new{
 /* 채팅 입력바 */
 body[data-skin="new"] #soc-inputbar input{border-radius:3.4cqw;border-color:var(--nk-line);}
 body[data-skin="new"] #soc-inputbar button{border-radius:3.4cqw;background:var(--nk-grad);color:#fff;}
+
+/* ══ ④ 오버레이 ═══════════════════════════════════════════════════════════ */
+
+@keyframes nkSheet{from{transform:translateY(102%);}to{transform:translateY(0);}}
+
+/* ── Ask Map ── legacy 는 AI 버튼 위에 뜨는 **작은 카드**(오른쪽 정렬, 74cqw)였다.
+   원본은 화면 폭을 다 쓰는 **바텀 시트**다 — 질문 목록과 대화가 들어가야 해서
+   카드로는 좁다. 위치·크기·등장 방향을 전부 바꾼다. */
+body[data-skin="new"] .ai-presets{
+  right:0;left:0;bottom:0;
+  width:auto;max-width:none;
+  /* `cqh` 는 못 쓴다 — 폰 화면이 `container-type:inline-size` 라 높이 축이 없다.
+     이 시트는 .phone-screen 기준으로 절대배치되니 %가 곧 화면 높이 비율이다. */
+  max-height:72%;
+  padding:0 4.6cqw calc(5.6cqw + env(safe-area-inset-bottom,0px));
+  border:none;
+  border-radius:7cqw 7cqw 0 0;
+  background:rgba(250,251,254,.94);
+  backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);
+  box-shadow:0 -4.6cqw 12cqw -5cqw rgba(24,36,60,.34);
+  transform-origin:center bottom;
+}
+body[data-skin="new"] .ai-presets.show{animation:nkSheet .34s cubic-bezier(.22,1,.36,1) both;}
+/* 시트 손잡이 — 아래에서 올라온 것이라고 알려주는 표식 */
+body[data-skin="new"] .ai-presets::before{
+  content:'';display:block;width:9.7cqw;height:1cqw;margin:2.4cqw auto 1cqw;
+  border-radius:999px;background:rgba(24,36,60,.16);
+}
+/* 제목: 그라디언트 글자 → 작은 대문자 캡션 (원본의 'ASK MAP') */
+body[data-skin="new"] .aip-head{
+  padding:1.6cqw .6cqw 2.6cqw;
+  background:none;-webkit-background-clip:initial;background-clip:initial;
+  -webkit-text-fill-color:initial;
+  color:var(--nk-blue);
+  font-size:2.5cqw;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+}
+body[data-skin="new"].mode-trend .aip-head{background:none;color:var(--nk-hot);}
+/* 🗺 지도 요약 — 버튼이 아니라 **연한 액센트 카드**로 읽히게 */
+body[data-skin="new"] .aip-special{
+  margin-bottom:3cqw;padding:3.6cqw 3.8cqw;
+  border-radius:4.6cqw;
+  background:rgba(47,123,255,.07);
+  color:var(--nk-ink2);
+  font-size:3.1cqw;font-weight:700;line-height:1.6;text-align:left;
+  box-shadow:none;
+}
+body[data-skin="new"].mode-trend .aip-special{background:rgba(255,61,107,.08);box-shadow:none;}
+/* 추천 질문 — 연회색 카드 + 오른쪽 갈매기 */
+/* 질문 텍스트는 textContent 로 들어와 익명 flex 아이템이라 `flex:1` 을 줄 수 없다 —
+   양끝 정렬로 갈매기를 오른쪽 끝에 붙인다. */
+body[data-skin="new"] .aip-item{
+  display:flex;align-items:center;justify-content:space-between;gap:2.3cqw;
+  margin-bottom:1.8cqw;padding:2.9cqw 3.4cqw;
+  border:none;border-radius:3.6cqw;
+  background:rgba(24,36,60,.045);
+  color:var(--nk-ink2);
+  font-size:3.1cqw;font-weight:600;letter-spacing:-.01em;
+}
+body[data-skin="new"] .aip-item::after{
+  content:'';flex-shrink:0;width:3.3cqw;height:3.3cqw;
+  background:var(--nk-ink5);
+  -webkit-mask:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l6 6-6 6'/%3E%3C/svg%3E");
+          mask:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l6 6-6 6'/%3E%3C/svg%3E");
+}
+body[data-skin="new"] .aip-item:hover{border-color:transparent;background:rgba(24,36,60,.075);}
+/* 입력바 — 알약 입력 → 채워진 라운드 사각 + 그라디언트 전송 버튼 */
+body[data-skin="new"] .aip-chat{gap:2cqw;margin-top:3cqw;padding-top:3cqw;border-top-color:rgba(24,36,60,.06);}
+body[data-skin="new"] .aip-chat input{
+  height:10.8cqw;padding:0 3.6cqw;
+  border:none;border-radius:3.6cqw;
+  background:rgba(24,36,60,.05);
+  color:var(--nk-ink);font-size:3.1cqw;font-weight:500;
+}
+body[data-skin="new"] .aip-chat button{
+  width:10.8cqw;height:10.8cqw;
+  border-radius:3.6cqw;
+  background:var(--nk-grad);
+  box-shadow:var(--nk-sh-blue);
+}
+
+/* ── AI 알림 말풍선 · Request 도착 버블 ── 카드 문법으로 통일 */
+body[data-skin="new"] .ai-bubble{
+  border-radius:4.6cqw;
+  background:rgba(255,255,255,.94);
+  color:var(--nk-ink2);
+  box-shadow:var(--nk-sh-card),0 4cqw 10cqw -5cqw rgba(14,20,32,.3);
+}
+body[data-skin="new"] .ai-bubble::after{border-top-color:rgba(255,255,255,.94);}
+body[data-skin="new"] .req-bubble{
+  border-radius:5.6cqw;
+  background:rgba(255,255,255,.96);
+  box-shadow:var(--nk-sh-card),0 5cqw 13cqw -6cqw rgba(14,20,32,.34);
+}
+body[data-skin="new"] .req-bubble .rq-ai{background:var(--nk-grad);}
+body[data-skin="new"].mode-trend .req-bubble .rq-ai{background:var(--nk-hot-grad);}
+body[data-skin="new"] .req-bubble .rq-text{color:var(--nk-ink);font-weight:800;letter-spacing:-.01em;}
+body[data-skin="new"] .req-bubble .rq-place{color:var(--nk-blue);}
+
+/* ── 상세 팝업 ── ID 로 좁힌다. `.modal-card` 를 통째로 건드리면 관리자 모달
+   (접근권한·스팟 편집 등)까지 따라 바뀐다 — 스킨의 범위는 폰 화면이다. */
+body[data-skin="new"] #content-pop .cpop-card{
+  border-radius:6cqw;
+  background:rgba(255,255,255,.94);
+  box-shadow:0 6cqw 18cqw -6cqw rgba(14,20,32,.4);
+}
+body[data-skin="new"] #content-pop .cpop-hbtn{font-weight:800;color:var(--nk-ink3);}
+body[data-skin="new"] #content-pop .cpop-hbtn.accent{color:var(--nk-blue);}
+
+/* ── 드로어 ── */
+body[data-skin="new"] #phone-drawer{
+  background:rgba(245,248,253,.96);
+  backdrop-filter:blur(34px) saturate(1.5);-webkit-backdrop-filter:blur(34px) saturate(1.5);
+}
+body[data-skin="new"] .phone-drawer-head{
+  border-bottom-color:rgba(14,20,32,.06);
+  color:var(--nk-ink);font-weight:800;
+}
+body[data-skin="new"] #phone-drawer-close{
+  border:none;border-radius:2.6cqw;
+  background:rgba(24,36,60,.06);
+  color:var(--nk-ink3);font-weight:700;
+}
+body[data-skin="new"] .pdh-feature{
+  border:none;border-radius:2.6cqw;
+  background:rgba(27,79,216,.09);
+  color:var(--nk-blue);font-weight:800;
+}
+body[data-skin="new"] #drawer-demo .drawer-sec{
+  border:none;border-radius:4.6cqw;
+  box-shadow:var(--nk-sh-card);
+}
+
+/* ── 프로필 메뉴 ── */
+body[data-skin="new"] #phone-profile-menu{
+  border:none;
+  border-radius:4.6cqw;
+  background:rgba(255,255,255,.96);
+  box-shadow:var(--nk-sh-card),0 4cqw 12cqw -5cqw rgba(14,20,32,.32);
+}
+body[data-skin="new"] #phone-profile-menu .ppm-email{color:var(--nk-ink);font-weight:700;}
+body[data-skin="new"] #phone-profile-menu .ppm-ver{color:var(--nk-ink5);}
