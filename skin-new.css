@@ -14,7 +14,13 @@
    치수는 `cqw`(폰 폭의 1%)로 쓴다. 폰 화면이 `container-type:inline-size` 라
    px 로 박으면 폭이 달라질 때 비율이 깨진다. 환산 기준은 390px 폰 → 1cqw ≈ 3.9px.
 
-   단계: ① 토큰·셸(이 파일 현재) → ② 지도 오버레이 → ③ 탭 페이지 → ④ 오버레이/팝업
+   단계: ① 토큰·셸 → ② 지도 오버레이 → ③ 탭 페이지 → ④ 오버레이/팝업 — **전부 적용됨**
+
+   v1.81 톤 재조정: 사용자가 준 여행앱 레퍼런스 이미지의 **시각 언어**로 다시 칠했다
+   (딥 로열블루 → 밝은 시안, 사진 위 글래스, 사진 하단 그라디언트 캡션, 시안 세그먼트).
+   **가져온 것은 팔레트·유리·사진 처리지 정보구조가 아니다** — 레퍼런스는 여행 예약
+   앱이라 별점·리뷰 수·레스토랑 목록 같은 것이 있는데, 이 앱에는 그 데이터가 없다.
+   화면만 만들고 채울 것이 없으면 그건 디자인이 아니라 껍데기다.
    ============================================================================ */
 
 /* Pretendard — **이름을 따로 준다.** 원본 family('Pretendard Variable')를 그대로 쓰면
@@ -30,10 +36,12 @@
 }
 
 body[data-skin="new"]{
-  /* ── 브랜드 ── 딥 블루. legacy 의 --acc(#2f7bff)보다 한 단계 깊다 */
-  --nk-blue:#1B4FD8;
-  --nk-blue-br:#2F7BFF;
-  --nk-grad:linear-gradient(145deg,#2F7BFF,#1B4FD8);
+  /* ── 브랜드 ── **밝은 시안.** v1.80 까지는 딥 로열블루(#1B4FD8)였는데, 참고 디자인의
+     톤이 훨씬 가볍고 물빛이다. 하이퍼로컬 앱의 성격에도 이쪽이 맞는다 —
+     "지금 이 동네"는 업무용 파랑보다 바깥 공기 쪽이다. */
+  --nk-blue:#1C9BD4;
+  --nk-blue-br:#5AC8F0;
+  --nk-grad:linear-gradient(145deg,#5AC8F0,#1E96D2);
   /* 트렌드 렌즈로 바꾸면 액센트가 통째로 이쪽으로 넘어간다 (버튼·토글·AI) */
   --nk-hot:#FF3D6B;
   --nk-hot-grad:linear-gradient(145deg,#FF7A45,#FF3D6B);
@@ -45,22 +53,23 @@ body[data-skin="new"]{
   --nk-ink4:#7A8494;
   --nk-ink5:#98A1B0;
 
-  /* ── 서피스 ── */
+  /* ── 서피스 ── 회색이 아니라 **물빛이 도는 흰색**이다 */
   --nk-surface:#FFFFFF;
-  --nk-bg:#F5F8FD;
-  --nk-bg-map:#E9EDF3;
-  --nk-fill:#F1F4FA;
+  --nk-bg:#EFF6FC;
+  --nk-bg-map:#E4EDF4;
+  --nk-fill:#EAF2F9;
   --nk-line:rgba(14,20,32,.08);
 
   /* ── 그림자 ── 두 단을 겹친다: 1px 윤곽 + 넓고 옅은 드롭 */
   --nk-sh-card:0 1px 2px rgba(14,20,32,.05),0 8px 20px -14px rgba(14,20,32,.3);
   --nk-sh-float:0 8px 22px -8px rgba(24,36,60,.22);
-  --nk-sh-blue:0 8px 20px -6px rgba(47,123,255,.7);
+  --nk-sh-blue:0 8px 20px -6px rgba(28,155,212,.62);
   --nk-sh-hot:0 8px 20px -6px rgba(255,61,107,.6);
 
-  /* ── 유리 ── legacy 보다 덜 투명하고 채도를 더 올린다 */
-  --nk-glass:rgba(255,255,255,.72);
-  --nk-glass-blur:blur(22px) saturate(180%);
+  /* ── 유리 ── **사진 위에 뜨는 것이 전제**다. 더 투명하고 블러를 더 준다 —
+     참고 디자인의 카드는 뒤 사진이 비쳐야 물 위에 뜬 것처럼 보인다. */
+  --nk-glass:rgba(255,255,255,.66);
+  --nk-glass-blur:blur(26px) saturate(180%);
   --nk-glass-hi:inset 0 1px 0 rgba(255,255,255,.9);
 }
 
@@ -124,7 +133,7 @@ body[data-skin="new"] .pa-loc::before{
   content:'';flex-shrink:0;
   width:6.4cqw;height:6.4cqw;border-radius:2.1cqw;
   background:var(--nk-grad);
-  box-shadow:0 1.5cqw 4cqw -1cqw rgba(47,123,255,.6);
+  box-shadow:0 1.5cqw 4cqw -1cqw rgba(28,155,212,.55);
   /* 핀 글리프 — 아이콘 파일을 새로 두지 않으려고 마스크로 그린다 */
   -webkit-mask:center/3.4cqw 3.4cqw no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z'/%3E%3Ccircle cx='12' cy='10' r='2.4'/%3E%3C/svg%3E");
           mask:center/3.4cqw 3.4cqw no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z'/%3E%3Ccircle cx='12' cy='10' r='2.4'/%3E%3C/svg%3E");
@@ -163,8 +172,8 @@ body[data-skin="new"] .pm-btn{
 body[data-skin="new"] .pm-btn::before{content:'○ ';font-weight:700;opacity:.65;}
 body[data-skin="new"] .pm-btn.active::before{content:'◉ ';opacity:1;}
 body[data-skin="new"] .pm-btn.active[data-mode="local"]{
-  background:linear-gradient(140deg,#2F7BFF,#1B4FD8);color:#fff;
-  box-shadow:0 1.6cqw 4.4cqw -1cqw rgba(47,123,255,.6);
+  background:linear-gradient(140deg,#5AC8F0,#1E96D2);color:#fff;
+  box-shadow:0 1.6cqw 4.4cqw -1cqw rgba(28,155,212,.5);
 }
 body[data-skin="new"] .pm-btn.active[data-mode="trend"]{
   background:linear-gradient(140deg,#FF7A45,#FF3D6B);color:#fff;
@@ -211,7 +220,7 @@ body[data-skin="new"] .pn-ai{
 }
 /* 캐릭터는 그대로 두되 배경이 그라디언트라 얼굴을 흰 계열로 올린다 */
 body[data-skin="new"] .pn-ai svg g[fill]{fill:rgba(255,255,255,.92);}
-body[data-skin="new"] .pn-ai.ai-on{box-shadow:var(--nk-sh-blue),0 0 0 1.4cqw rgba(47,123,255,.16);}
+body[data-skin="new"] .pn-ai.ai-on{box-shadow:var(--nk-sh-blue),0 0 0 1.4cqw rgba(90,200,240,.22);}
 body[data-skin="new"] .pn-ai.ai-flame{
   background:var(--nk-hot-grad);
   border:none;
@@ -279,14 +288,14 @@ body[data-skin="new"] .req-pin .rp-drop{
   border-radius:50%;
   border:none;                /* 흰 테두리는 아래 box-shadow 의 3px 링이 대신한다 (겹치면 5px 이 된다) */
   background:var(--nk-grad);
-  box-shadow:0 8px 20px -6px rgba(27,79,216,.75),0 0 0 3px rgba(255,255,255,.95);
+  box-shadow:0 8px 20px -6px rgba(28,155,212,.7),0 0 0 3px rgba(255,255,255,.95);
 }
 body[data-skin="new"].mode-trend .req-pin .rp-drop{
   background:var(--nk-hot-grad);
   box-shadow:0 8px 20px -6px rgba(255,61,107,.7),0 0 0 3px rgba(255,255,255,.95);
 }
 body[data-skin="new"] .req-pin .rp-drop i{color:#fff;}
-body[data-skin="new"] .req-pin .rp-ring{border-color:rgba(47,123,255,.5);}
+body[data-skin="new"] .req-pin .rp-ring{border-color:rgba(90,200,240,.6);}
 body[data-skin="new"].mode-trend .req-pin .rp-ring{border-color:rgba(255,61,107,.5);}
 
 /* ══ ③ 탭 페이지 ══════════════════════════════════════════════════════════
@@ -335,25 +344,56 @@ body[data-skin="new"] .feed-card{
   background:var(--nk-surface);
   box-shadow:var(--nk-sh-card);
 }
-body[data-skin="new"] .feed-card .fc-zonechip,
-body[data-skin="new"] .feed-card .fc-region{
+/* 사진 카드 하단 **그라디언트 스크림** — 참고 디자인의 문법이다. 칩을 흩어 놓는 대신
+   아래를 어둡게 깔고 그 위에 흰 글씨를 얹으면 사진과 글이 한 덩어리로 읽힌다.
+   ::after 는 마지막 자식이라 그냥 두면 칩들을 **덮는다** — 스크림에 z-index:0,
+   칩들에 1 을 줘서 쌓임 순서를 명시한다. */
+body[data-skin="new"] .feed-card:not(.txt)::after{
+  content:'';position:absolute;left:0;right:0;bottom:0;height:42%;z-index:0;
+  pointer-events:none;
+  background:linear-gradient(180deg,rgba(10,16,26,0) 0%,rgba(10,16,26,.34) 52%,rgba(10,16,26,.68) 100%);
+}
+body[data-skin="new"] .feed-card .fc-top,
+body[data-skin="new"] .feed-card .fc-tr,
+body[data-skin="new"] .feed-card .fc-region,
+body[data-skin="new"] .feed-card .fc-like{z-index:1;}
+/* 위치 = 칩이 아니라 **스크림 위의 흰 글씨** */
+body[data-skin="new"] .feed-card:not(.txt) .fc-region{
+  padding:0;border-radius:0;
+  background:none;backdrop-filter:none;-webkit-backdrop-filter:none;
+  color:#fff;font-weight:800;letter-spacing:-.01em;
+  text-shadow:0 .3cqw 1cqw rgba(10,16,26,.5);
+}
+body[data-skin="new"] .feed-card.txt .fc-region{
+  border-radius:2.4cqw;background:var(--nk-fill);color:var(--nk-ink3);font-weight:800;
+}
+body[data-skin="new"] .feed-card .fc-zonechip{
   border-radius:2.4cqw;
-  background:rgba(255,255,255,.86);
+  background:rgba(255,255,255,.88);
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   color:var(--nk-ink2);
   font-weight:800;
   box-shadow:0 .6cqw 2cqw -.6cqw rgba(14,20,32,.35);
 }
 body[data-skin="new"] .feed-card .fc-time,
-body[data-skin="new"] .feed-card .fc-act,
-body[data-skin="new"] .feed-card .fc-like{
+body[data-skin="new"] .feed-card .fc-act{
   border-radius:2.4cqw;
   background:rgba(255,255,255,.86);
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   color:var(--nk-ink3);
   font-weight:800;
 }
-body[data-skin="new"] .feed-card .fc-like.on{color:var(--nk-hot);background:rgba(255,61,107,.12);}
+/* 좋아요 = 우하단 **흰 원형 버튼** (참고 디자인의 북마크 자리) */
+body[data-skin="new"] .feed-card:not(.txt) .fc-like{
+  display:flex;align-items:center;justify-content:center;gap:.8cqw;
+  min-width:7.4cqw;height:7.4cqw;padding:0 2cqw;
+  border-radius:999px;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  color:var(--nk-ink2);font-weight:800;
+  box-shadow:0 .8cqw 2.4cqw -.8cqw rgba(14,20,32,.45);
+}
+body[data-skin="new"] .feed-card .fc-like.on{color:var(--nk-hot);background:rgba(255,255,255,.94);}
 body[data-skin="new"] .feed-card .fc-live{background:var(--nk-hot);border-radius:1.8cqw;}
 body[data-skin="new"] .feed-card.txt{background:var(--nk-surface);}
 body[data-skin="new"] .feed-card .fc-text{color:var(--nk-ink);font-weight:700;letter-spacing:-.02em;}
@@ -361,23 +401,26 @@ body[data-skin="new"] .feed-card .fc-text{color:var(--nk-ink);font-weight:700;le
 /* ── 소셜 ── 세그먼트 탭 + 방 카드.
    원본은 회색 트랙(홈) 위에 흰 알약이 얹힌 세그먼트다 — 컨테이너에 배경을 주고
    버튼은 투명하게 두면 선택된 것만 떠 보인다. */
+/* 참고 디자인의 가장 특징적인 컨트롤 — **시안 트랙 위 흰 알약**.
+   회색 트랙보다 강하지만, 이 앱에서 세그먼트는 여기 하나뿐이라 과하지 않다. */
 body[data-skin="new"] .soc-tabs{
   gap:0;
-  margin:3cqw 3.4cqw 2cqw;padding:.8cqw;
-  border-radius:3.6cqw;
-  background:var(--nk-fill);
+  margin:3cqw 3.4cqw 2cqw;padding:1cqw;
+  border-radius:4.4cqw;
+  background:var(--nk-grad);
+  box-shadow:var(--nk-sh-blue);
 }
 body[data-skin="new"] .soc-tab{
   flex:1;
-  border:none;border-radius:3cqw;
+  border:none;border-radius:3.6cqw;
   background:transparent;
-  color:var(--nk-ink4);font-weight:800;
+  color:rgba(255,255,255,.86);font-weight:800;
   padding:1.8cqw 2cqw;
 }
 body[data-skin="new"] .soc-tab.active{
   background:var(--nk-surface);
   color:var(--nk-ink);
-  box-shadow:var(--nk-sh-card);
+  box-shadow:0 .8cqw 2.4cqw -.8cqw rgba(14,20,32,.35);
 }
 body[data-skin="new"] .soc-roomlist{gap:2.4cqw;padding:1.6cqw 3.4cqw;}
 body[data-skin="new"] .soc-room{
@@ -415,8 +458,9 @@ body[data-skin="new"] .ai-presets{
   padding:0 4.6cqw calc(5.6cqw + env(safe-area-inset-bottom,0px));
   border:none;
   border-radius:7cqw 7cqw 0 0;
-  background:rgba(250,251,254,.94);
-  backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);
+  /* 위쪽에 옅은 시안이 깔리고 아래로 흰색이 된다 — 참고 디자인의 상세 카드 문법 */
+  background:linear-gradient(180deg,rgba(214,240,252,.96) 0%,rgba(250,252,254,.95) 34%);
+  backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%);
   box-shadow:0 -4.6cqw 12cqw -5cqw rgba(24,36,60,.34);
   transform-origin:center bottom;
 }
@@ -439,7 +483,7 @@ body[data-skin="new"].mode-trend .aip-head{background:none;color:var(--nk-hot);}
 body[data-skin="new"] .aip-special{
   margin-bottom:3cqw;padding:3.6cqw 3.8cqw;
   border-radius:4.6cqw;
-  background:rgba(47,123,255,.07);
+  background:linear-gradient(150deg,rgba(90,200,240,.16),rgba(90,200,240,.05));
   color:var(--nk-ink2);
   font-size:3.1cqw;font-weight:700;line-height:1.6;text-align:left;
   box-shadow:none;
@@ -522,7 +566,7 @@ body[data-skin="new"] #phone-drawer-close{
 }
 body[data-skin="new"] .pdh-feature{
   border:none;border-radius:2.6cqw;
-  background:rgba(27,79,216,.09);
+  background:rgba(28,155,212,.12);
   color:var(--nk-blue);font-weight:800;
 }
 body[data-skin="new"] #drawer-demo .drawer-sec{
