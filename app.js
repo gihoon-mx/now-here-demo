@@ -20,7 +20,13 @@ var IS_APP_PAGE=PAGE_MODE==='app', IS_ADMIN_PAGE=PAGE_MODE==='admin';
    초기화까지 기다리면 legacy 화면이 한 번 번쩍인다. */
 var appSkin='new';
 try{var _sk0=localStorage.getItem('nowhere_skin');if(_sk0==='legacy'||_sk0==='new')appSkin=_sk0;}catch(e){}
-function applySkin(){if(document.body)document.body.setAttribute('data-skin',appSkin);}
+function applySkin(){
+  if(!document.body)return;
+  document.body.setAttribute('data-skin',appSkin);
+  /* 첫 화면은 지도다(`var currentTab='map'`). switchTab 이 돌기 전에도 스킨이 탭을
+     알아야 지면 높이 규칙이 걸린다 — 없으면 legacy 기본 높이로 한 번 그려진다. */
+  if(!document.body.hasAttribute('data-tab'))document.body.setAttribute('data-tab','map');
+}
 function setAppSkin(v){
   appSkin=(v==='legacy')?'legacy':'new';
   try{localStorage.setItem('nowhere_skin',appSkin);}catch(e){}
@@ -2046,8 +2052,8 @@ function initPhoneControls(){
     document.removeEventListener('touchmove',move);document.removeEventListener('touchend',up);}
   if(handle){handle.addEventListener('mousedown',down);handle.addEventListener('touchstart',down,{passive:false});}
   // 하단 네비 활성 전환
+  // v1.83: 클래스 토글을 인라인으로 또 하지 않는다 — switchTab 이 setNavActive 를 부른다
   mirror.querySelectorAll('.pn-item').forEach(function(b){b.addEventListener('click',function(){
-    mirror.querySelectorAll('.pn-item').forEach(function(x){x.classList.remove('active');});b.classList.add('active');
     switchTab(b.dataset.nav);
   });});
   // 네비바 좌우 스와이프 = 탭 전환 (지도↔피드↔소셜)
@@ -3307,6 +3313,19 @@ function layoutTabPages(){ // 헤더/네비 사이에 페이지 배치 (+ 헤더
 function switchTab(tab){
   if(tab!=='map'&&tab!=='feed'&&tab!=='social')return;
   currentTab=tab;
+  /* v1.83: 네비 표시도 **여기서** 옮긴다.
+     v1.82 까지는 `setNavActive(x); switchTab(x);` 를 호출부마다 짝지어 불렀고
+     여섯 곳이 그렇게 하고 있었다. 그런데 M16 임베드 브리지의 `tab` 액션만 짝을
+     빠뜨려서, 콘솔이 시나리오를 재생하면 화면은 넘어가는데 하단 네비는 이전 탭이
+     활성으로 남았다 — 하필 그 한 곳이 시연 경로다.
+     짝짓기를 외워야 하는 구조가 원인이므로 문을 하나로 합친다. 호출부의
+     setNavActive 는 이제 중복이지만(무해) 그대로 둔다 — 지우면 이 파일 밖에서
+     switchTab 없이 표시만 바꾸던 경로가 있을 때 조용히 깨진다. */
+  setNavActive(tab);
+  /* v1.83: 스킨이 탭별로 갈라질 수 있게 훅 하나. 지면 히어로가 지도 탭에서만 커야 한다
+     — 피드/소셜에서 같은 높이면 그리드가 화면 밖으로 밀린다. CSS 전용 훅이라
+     legacy 는 이 속성을 읽지 않는다(있어도 매칭되는 규칙이 없다). */
+  if(document.body)document.body.setAttribute('data-tab',tab);
   newsIndex=0;renderNews(); // 요약 공간: 탭 속성이 맞는 지면 이미지 표시 (3탭 동일 규격)
   var sc=document.getElementById('phone-scale');if(sc)sc.style.display=(tab==='map')?'':'none';
   var pm=document.querySelector('.pa-mode');if(pm)pm.style.display=(tab==='map')?'':'none';

@@ -57,13 +57,13 @@
 | M06 | social 소셜 | 안정 | 소셜 탭·채팅방(동네/주제/프라이빗)·liveChat | `renderSocial` `socRoomList` `roomMsgs` `initSocialManager` | app.js | v1.45 |
 | M07 | request 현장 Request | 활성 | Request 등록(10분 타임아웃)·AI Agent 실시간 응답 팝업·내 Request 답변 보기·전용 핀(ReqPin)·삭제 | `openRequestComposer` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` `ReqPin` `deleteRequest`·핀 줌 스케일(스팟 동일) `reqRemainLabel` | app.js | v1.63 |
 | M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·모드별 톤(불꽃)·**원격 에이전트(persona-vc)** | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE` `aiMapSummary` `aiChatAnswer` `aiAgentOn` `aiAskRemote` `aiContextSnapshot` `aiChatHistory` | app.js · config.js | v1.76 |
-| M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·**드로어(둘러보기 전용)**·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` | app.js | v1.77 |
+| M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·**드로어(둘러보기 전용)**·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` `setNavActive`(switchTab 내부) | app.js | v1.83 |
 | M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기 | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` | app.js | v1.46 |
 | M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — **admin.html 에만 있다**(서비스 페이지에는 없음) | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openAdmPanelFromUrl` `jumpToSetting` `openColorPopup` `makeColorControl` `initSettingsAccordion` | app.js | v1.77 |
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
-| M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 전환(legacy/new)** — **①~④ 전 단계 적용**(셸·지도 오버레이·탭 페이지·오버레이) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin` `initSkinControl` `body[data-skin]` `--nk-*` | style.css · **skin-new.css** · app.js | v1.82 |
+| M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 전환(legacy/new)** — **①~④ 전 단계 적용**(셸·지도 오버레이·탭 페이지·오버레이) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin` `initSkinControl` `body[data-skin]` `--nk-*` | style.css · **skin-new.css** · app.js | v1.83 |
 | M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.75 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
@@ -173,6 +173,10 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-02 M09: v1.83.0 — **(버그) 코드로 탭을 바꾸면 하단 네비가 안 따라가던 문제.** `.active` 는 네비 클릭 핸들러와 `setNavActive` 가 따로 관리했고, 호출부 여섯 곳이 `setNavActive(x); switchTab(x);` 를 짝지어 부르고 있었다. **M16 임베드 브리지의 `tab` 액션만 짝을 빠뜨려** 시연 중 화면과 네비가 어긋났다 — 하필 그 한 곳이 시연 경로다. 짝짓기를 외워야 하는 구조가 원인이라 `switchTab` 안으로 합쳐 **문을 하나로** 했다. 겸사겸사 `body[data-tab]` 훅도 심는다(스킨이 탭별로 갈라질 수 있게)
+
+- 2026-08-02 M15: v1.83.0 — 지면 **풀블리드 히어로** (⚠️교차: M10 지면 CSS·M09 switchTab 훅). 사진이 화면 가장자리·최상단까지 차고 앱바가 그 위에 뜬다. 앱바를 **흐름에서 빼서**(absolute) 음수 마진 계산을 없앴다 — 끌어올릴 값이 앱바 실측 높이와 정확히 같아야 하는데 그 높이는 내용에 따라 변한다. 높이는 `body[data-tab]` 으로 갈린다(지도 78cqw / 피드·소셜 50cqw — 같은 높이면 그리드가 밀린다). 접으면 다시 카드로 내려온다
 
 - 2026-08-02 M15: v1.82.0 — **(버그) 팝업 모서리가 내용을 잘라 먹던 문제.** `#content-pop` 은 `position:fixed` 오버레이라 폰 컨테이너 밖인데 `cqw` 를 썼다 — 컨테이너가 없으면 `cqw` 는 **조용히 뷰포트 폭으로 풀린다**(878px 창에서 6cqw=52.7px, 카드 폭 326px). px 로 되돌리고, 같은 이유로 부풀던 `.pdh-feature`(PC 드로어에도 있는 클래스)와 드로어 안쪽 반지름도 px 로 통일. 파일 머리말에 **"컨테이너 밖은 px"** 규칙과 해당 요소 목록을 명시
 
