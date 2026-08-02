@@ -218,3 +218,183 @@ body[data-skin="new"] .pn-ai.ai-flame{
   box-shadow:var(--nk-sh-hot);
 }
 body[data-skin="new"] .pn-ai.ai-flame.ai-on{box-shadow:var(--nk-sh-hot),0 0 0 1.4cqw rgba(255,61,107,.18);}
+
+/* ══ ② 지도 오버레이 ═══════════════════════════════════════════════════════
+   여기부터는 `cqw` 를 쓰지 않는다. 스팟 버블·핀은 **PC 지도(admin.html #map)에도
+   그려지는데** 그쪽은 컨테이너 밖이라 cqw 가 다른 기준으로 풀린다. 원래 코드도
+   이 요소들만 px 로 되어 있고 크기를 JS 가 줌에 따라 px 로 준다 — 같은 단위로 간다.
+
+   **존 헥사·동/존 라벨은 건드리지 않는다.** 헥사는 CSS 가 아니라 Maps 폴리곤이고,
+   라벨 색은 관리자 설정(localLabelConfig·zoneLabelConfig)이 inline 으로 칠한다.
+   스킨이 덮으면 그 설정이 통째로 무의미해진다 — 설정을 이기는 스킨은 만들지 않는다. */
+
+/* ── 스팟 버블 ── 색이 배경에서 **테두리로 옮겨간다.**
+   legacy 트렌드는 버블 몸통이 온도색이고 글자가 흰색이었다. 새 디자인은 몸통이 항상
+   흰 유리고, 온도는 얇은 링으로만 말한다. (베이직은 원래도 흰 계열이라 거의 그대로다.)
+   `--spot-bg` 를 지우지 않고 **링 색으로 재사용**한다 — 스팟 개별 색 설정이 계속 의미를
+   갖게 하려는 것. 글자색은 JS 가 inline 으로 박아서 !important 가 아니면 못 이긴다. */
+body[data-skin="new"] .spot-bubble{
+  padding:7px 11px;
+  border-radius:14px;
+  background:rgba(255,255,255,.93)!important;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  color:var(--nk-ink)!important;
+  font-weight:700;letter-spacing:-.02em;
+  box-shadow:0 8px 22px -8px rgba(24,36,60,.34);
+}
+body[data-skin="new"].mode-trend .spot-bubble{
+  box-shadow:0 0 0 1.5px var(--spot-bg,rgba(255,61,107,.35)),0 8px 22px -8px rgba(24,36,60,.34);
+}
+/* 꼬리도 흰색으로. legacy 는 삼각형(border trick)이라 색이 4방향에 각각 박혀 있다 */
+body[data-skin="new"] .spot-bubble.tl-b::after{border-top-color:rgba(255,255,255,.93);}
+body[data-skin="new"] .spot-bubble.tl-t::after{border-bottom-color:rgba(255,255,255,.93);}
+body[data-skin="new"] .spot-bubble.tl-r::after{border-left-color:rgba(255,255,255,.93);}
+body[data-skin="new"] .spot-bubble.tl-l::after{border-right-color:rgba(255,255,255,.93);}
+
+/* ── 피드 핀 ── 원형 → 라운드 사각 카드. 흰 테두리가 곧 카드의 여백이다 */
+body[data-skin="new"] .feed-pin .fp-im{
+  border-radius:32%;
+  border:3px solid #fff;
+  box-shadow:0 8px 20px -8px rgba(24,36,60,.36);
+}
+body[data-skin="new"] .feed-pin img{border-radius:22%;}
+/* 겹친 핀(클러스터)의 뒷장도 같은 모서리로 */
+body[data-skin="new"] .feed-pin.cluster .fp-im{
+  box-shadow:0 8px 20px -8px rgba(24,36,60,.36),3.5px 3.5px 0 -1.5px #fff,4px 4.5px 6px rgba(15,23,42,.22);
+}
+/* 개수 배지: 우상단 회색 원 → 하단 중앙 온도색 칩. 온도(--heat)가 없으면 잉크색으로 */
+body[data-skin="new"] .feed-pin .fp-n{
+  right:auto;top:auto;
+  left:50%;bottom:-7px;
+  transform:translateX(-50%);
+  height:17px;min-width:0;padding:0 6px;
+  border-radius:6px;border:none;
+  background:var(--heat,var(--nk-ink3));
+  box-shadow:0 3px 8px rgba(14,20,32,.3);
+  font-size:9px;
+}
+
+/* ── Request 핀 ── 물방울 → 액센트 원 + 흰 링. 펄스는 legacy 애니메이션을 그대로 쓴다 */
+body[data-skin="new"] .req-pin .rp-drop{
+  border-radius:50%;
+  border:none;                /* 흰 테두리는 아래 box-shadow 의 3px 링이 대신한다 (겹치면 5px 이 된다) */
+  background:var(--nk-grad);
+  box-shadow:0 8px 20px -6px rgba(27,79,216,.75),0 0 0 3px rgba(255,255,255,.95);
+}
+body[data-skin="new"].mode-trend .req-pin .rp-drop{
+  background:var(--nk-hot-grad);
+  box-shadow:0 8px 20px -6px rgba(255,61,107,.7),0 0 0 3px rgba(255,255,255,.95);
+}
+body[data-skin="new"] .req-pin .rp-drop i{color:#fff;}
+body[data-skin="new"] .req-pin .rp-ring{border-color:rgba(47,123,255,.5);}
+body[data-skin="new"].mode-trend .req-pin .rp-ring{border-color:rgba(255,61,107,.5);}
+
+/* ══ ③ 탭 페이지 ══════════════════════════════════════════════════════════
+   지면 카드 · 피드 그리드 · 소셜 방 목록. 다시 `cqw` 로 돌아온다 — 폰 안이다. */
+
+body[data-skin="new"] .tab-page{background:var(--nk-bg);}
+
+/* ── 지역 콘텐츠 지면 ── 카드가 화면 폭에서 살짝 떠 있게(라운드 크게 + 드롭 그림자) */
+body[data-skin="new"] #cp-frame{
+  border-radius:5cqw;
+  box-shadow:var(--nk-sh-card);
+}
+body[data-skin="new"] #cp-frame.cv1 .cp-slide,
+body[data-skin="new"] #cp-frame.cv2 .cp-slide{background:var(--nk-surface);}
+body[data-skin="new"] #cp-frame.cv1 .cp-slide img{border-radius:3.6cqw;}
+body[data-skin="new"] .cps-title{letter-spacing:-.02em;font-weight:800;}
+body[data-skin="new"] #cp-frame.cv1 .cps-title,
+body[data-skin="new"] #cp-frame.cv2 .cps-title{color:var(--nk-ink);}
+body[data-skin="new"] #cp-frame.cv1 .cps-place{color:var(--nk-ink4);}
+
+/* ── 피드 도구줄 ── 필터 칩: 흰 알약 → 선택된 것만 잉크색 알약(원본 문법) */
+body[data-skin="new"] #feed-tools{padding:3cqw 3.4cqw 0;}
+body[data-skin="new"] #feed-tools .fsc{
+  border:none;
+  border-radius:2.8cqw;
+  padding:1.5cqw 3cqw;
+  background:var(--nk-surface);
+  color:var(--nk-ink4);
+  font-weight:800;
+  box-shadow:var(--nk-sh-card);
+}
+body[data-skin="new"] #feed-tools .fsc.active{
+  background:var(--nk-ink);
+  color:#fff;
+  box-shadow:0 1cqw 3cqw -1cqw rgba(14,20,32,.5);
+}
+
+/* ── 피드 카드 ── 사진 위에 글자를 얹던 것에서, **사진 아래 흰 본문**으로 바뀐다.
+   여기서 마크업을 새로 만들지는 않는다 — 기존 오버레이 칩(.fc-*)을 원본의 문법
+   (좌상단 태그 · 우상단 하트 · 좌하단 위치)에 맞춰 다시 칠하는 데까지다.
+   본문 분리는 렌더 함수(renderFeed)를 고쳐야 해서 스킨의 일이 아니다. */
+body[data-skin="new"] #feed-grid{gap:2.4cqw;padding:3.4cqw;}
+body[data-skin="new"] .feed-card{
+  border:none;
+  border-radius:4.6cqw;
+  background:var(--nk-surface);
+  box-shadow:var(--nk-sh-card);
+}
+body[data-skin="new"] .feed-card .fc-zonechip,
+body[data-skin="new"] .feed-card .fc-region{
+  border-radius:2.4cqw;
+  background:rgba(255,255,255,.86);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  color:var(--nk-ink2);
+  font-weight:800;
+  box-shadow:0 .6cqw 2cqw -.6cqw rgba(14,20,32,.35);
+}
+body[data-skin="new"] .feed-card .fc-time,
+body[data-skin="new"] .feed-card .fc-act,
+body[data-skin="new"] .feed-card .fc-like{
+  border-radius:2.4cqw;
+  background:rgba(255,255,255,.86);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  color:var(--nk-ink3);
+  font-weight:800;
+}
+body[data-skin="new"] .feed-card .fc-like.on{color:var(--nk-hot);background:rgba(255,61,107,.12);}
+body[data-skin="new"] .feed-card .fc-live{background:var(--nk-hot);border-radius:1.8cqw;}
+body[data-skin="new"] .feed-card.txt{background:var(--nk-surface);}
+body[data-skin="new"] .feed-card .fc-text{color:var(--nk-ink);font-weight:700;letter-spacing:-.02em;}
+
+/* ── 소셜 ── 세그먼트 탭 + 방 카드.
+   원본은 회색 트랙(홈) 위에 흰 알약이 얹힌 세그먼트다 — 컨테이너에 배경을 주고
+   버튼은 투명하게 두면 선택된 것만 떠 보인다. */
+body[data-skin="new"] .soc-tabs{
+  gap:0;
+  margin:3cqw 3.4cqw 2cqw;padding:.8cqw;
+  border-radius:3.6cqw;
+  background:var(--nk-fill);
+}
+body[data-skin="new"] .soc-tab{
+  flex:1;
+  border:none;border-radius:3cqw;
+  background:transparent;
+  color:var(--nk-ink4);font-weight:800;
+  padding:1.8cqw 2cqw;
+}
+body[data-skin="new"] .soc-tab.active{
+  background:var(--nk-surface);
+  color:var(--nk-ink);
+  box-shadow:var(--nk-sh-card);
+}
+body[data-skin="new"] .soc-roomlist{gap:2.4cqw;padding:1.6cqw 3.4cqw;}
+body[data-skin="new"] .soc-room{
+  border:none;
+  border-radius:4.6cqw;
+  padding:3.6cqw 3.8cqw;
+  background:var(--nk-surface);
+  box-shadow:var(--nk-sh-card);
+}
+body[data-skin="new"] .soc-room .sr-name{font-weight:800;color:var(--nk-ink);letter-spacing:-.01em;}
+body[data-skin="new"] .soc-room .sr-cnt{color:var(--nk-ink4);font-weight:700;}
+body[data-skin="new"] .soc-room.soc-new{
+  border:1px dashed rgba(14,20,32,.16);
+  background:transparent;
+  color:var(--nk-blue);
+  box-shadow:none;
+}
+/* 채팅 입력바 */
+body[data-skin="new"] #soc-inputbar input{border-radius:3.4cqw;border-color:var(--nk-line);}
+body[data-skin="new"] #soc-inputbar button{border-radius:3.4cqw;background:var(--nk-grad);color:#fff;}
