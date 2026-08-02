@@ -14,6 +14,13 @@
    치수는 `cqw`(폰 폭의 1%)로 쓴다. 폰 화면이 `container-type:inline-size` 라
    px 로 박으면 폭이 달라질 때 비율이 깨진다. 환산 기준은 390px 폰 → 1cqw ≈ 3.9px.
 
+   ⚠️ **단, 폰 컨테이너 밖 요소는 반드시 px.** `cqw` 는 컨테이너가 없으면 조용히
+   **뷰포트 폭**으로 풀린다 — 에러가 아니라 그냥 값이 커진다. 해당 요소:
+   지도 오버레이(스팟 버블·핀 — PC 지도에도 그려진다) · `.modal-overlay` 계열
+   (`#content-pop` 등 `position:fixed`) · `#pc-drawer` 안의 `.pdh-feature`.
+   v1.81 에서 `#content-pop .cpop-card` 가 이걸 어겨 878px 창에서 반지름이 52.7px 이
+   됐고(카드 폭 326px), 모서리가 내용을 잘라 먹었다. v1.82 에서 px 로 되돌렸다.
+
    단계: ① 토큰·셸 → ② 지도 오버레이 → ③ 탭 페이지 → ④ 오버레이/팝업 — **전부 적용됨**
 
    v1.81 톤 재조정: 사용자가 준 여행앱 레퍼런스 이미지의 **시각 언어**로 다시 칠했다
@@ -543,9 +550,13 @@ body[data-skin="new"] .req-bubble .rq-place{color:var(--nk-blue);}
 /* ── 상세 팝업 ── ID 로 좁힌다. `.modal-card` 를 통째로 건드리면 관리자 모달
    (접근권한·스팟 편집 등)까지 따라 바뀐다 — 스킨의 범위는 폰 화면이다. */
 body[data-skin="new"] #content-pop .cpop-card{
-  border-radius:6cqw;
+  /* **px 다.** 이 카드는 `position:fixed` 오버레이라 폰 컨테이너 밖에 있고, 그러면
+     `cqw` 가 폰 폭이 아니라 **뷰포트 폭**으로 풀린다 — 878px 창에서 6cqw = 52.7px 라
+     폭 326px 짜리 카드의 모서리가 뭉텅 잘려 내용이 가려졌다.
+     ②지도 오버레이에서 세운 규칙과 같다: 컨테이너 밖은 px. */
+  border-radius:22px;
   background:rgba(255,255,255,.94);
-  box-shadow:0 6cqw 18cqw -6cqw rgba(14,20,32,.4);
+  box-shadow:0 24px 64px -20px rgba(14,20,32,.4);
 }
 body[data-skin="new"] #content-pop .cpop-hbtn{font-weight:800;color:var(--nk-ink3);}
 body[data-skin="new"] #content-pop .cpop-hbtn.accent{color:var(--nk-blue);}
@@ -559,18 +570,21 @@ body[data-skin="new"] .phone-drawer-head{
   border-bottom-color:rgba(14,20,32,.06);
   color:var(--nk-ink);font-weight:800;
 }
+/* 드로어 안쪽은 legacy 부터 px 로 짜여 있다(헤드 padding:11px 13px · .drawer-sec 13px).
+   여기만 cqw 를 쓰면 같은 줄에서 단위가 섞인다. 게다가 `.pdh-feature` 는 **PC 드로어에도
+   같은 클래스로 있어서**(컨테이너 밖) cqw 면 뷰포트 기준으로 부풀었다. px 로 맞춘다. */
 body[data-skin="new"] #phone-drawer-close{
-  border:none;border-radius:2.6cqw;
+  border:none;border-radius:10px;
   background:rgba(24,36,60,.06);
   color:var(--nk-ink3);font-weight:700;
 }
 body[data-skin="new"] .pdh-feature{
-  border:none;border-radius:2.6cqw;
+  border:none;border-radius:10px;
   background:rgba(28,155,212,.12);
   color:var(--nk-blue);font-weight:800;
 }
 body[data-skin="new"] #drawer-demo .drawer-sec{
-  border:none;border-radius:4.6cqw;
+  border:none;border-radius:16px;
   box-shadow:var(--nk-sh-card);
 }
 
