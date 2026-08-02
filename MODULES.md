@@ -63,7 +63,7 @@
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
-| M15 | tokens 디자인 토큰 | 안정 | CSS 변수·프로스트/글래스 공통 문법 | `:root` `--acc` `--frost` `--glass-*` | style.css | v1.52 |
+| M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 전환(legacy/new)** | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin` `initSkinControl` `body[data-skin]` `--nk-*` | style.css · **skin-new.css** · app.js | v1.78 |
 | M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.75 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
@@ -173,6 +173,8 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-02 M15: v1.78.0 — **폰 셸 새 디자인(v2.0) 스킨 1단계.** `body[data-skin]` 하나로 갈리고 새 규칙은 전부 `skin-new.css` 안에만 있다(`style.css` 무수정 = 되돌리기가 속성 하나). 이번 단계는 **토큰·셸**까지 — 배경·타이포·헤더 컨트롤·모드 토글·하단 네비·AI 버튼. 렌즈가 트렌드면 변수 두 개를 갈아 액센트 계열이 통째로 넘어간다. 남은 단계: ②지도 오버레이 ③탭 페이지 ④팝업/드로어
 
 - 2026-08-02 M09+M11: v1.77.0 — **폰 안에 콘솔이 없다.** 서비스 페이지 드로어의 `🧭 둘러보기 / 🛠 관리자` 탭과, 폰 드로어로 옮겨오던 설정·컨텐츠 섹션을 없앴다. 콘솔은 프로필 메뉴 → `admin.html` 하나뿐이다. 🧩 기능 보기의 ⚙ 설정은 `admin.html?adm=<패널>` 로 넘어가 그 블록을 바로 연다
 

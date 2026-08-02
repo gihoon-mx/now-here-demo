@@ -10,7 +10,9 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=1.77.0" />
+  <link rel="stylesheet" href="style.css?v=1.78.0" />
+  <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
+  <link rel="stylesheet" href="skin-new.css?v=1.78.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -32,7 +34,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v1.77.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v1.78.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -215,6 +217,7 @@
           <button type="button" data-panel="c-news">📰 요약 지면</button>
           <button type="button" data-panel="c-seed">🌱 데모 데이터</button>
           <div class="adm-nav-cap">🎨 스타일 설정</div>
+          <button type="button" data-panel="s-skin">🎛 디자인</button>
           <button type="button" data-panel="s-spot">💬 스팟 말풍선</button>
           <button type="button" data-panel="s-region">🗺 동 구역·라벨</button>
           <button type="button" data-panel="s-zone">⬡ 트렌드 존·라벨</button>
@@ -316,6 +319,18 @@
 
           <!-- ── 🎨 스타일 설정 (드래프트 → 적용) ── -->
           <div id="settings-section" style="display:none;">
+            <!-- [M15] 디자인 스킨 — 드래프트를 안 탄다(고르는 즉시 반영). 적용 바 위에 둔다 -->
+            <div class="settings-section" data-adm="s-skin">
+              <h4>디자인</h4>
+              <div class="setting-row">
+                <label>폰 화면 디자인</label>
+                <select id="app-skin" class="mini-select">
+                  <option value="new">새 디자인 (v2.0)</option>
+                  <option value="legacy">기존 (Legacy)</option>
+                </select>
+              </div>
+              <p class="section-hint">서비스 폰 화면에 적용됩니다. 고르는 즉시 바뀌고, 저장하면 모든 사용자에게 반영돼요. 문제가 생기면 <b>기존(Legacy)</b>으로 되돌리면 v1.77 화면 그대로입니다.</p>
+            </div>
             <div id="settings-apply-bar" class="sab">
               <span class="sab-dot" aria-hidden="true"></span>
               <span id="sab-msg" class="sab-msg">모든 변경 적용됨</span>
@@ -474,7 +489,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=1.77.0"></script>
-  <script src="app.js?v=1.77.0"></script>
+  <script src="config.js?v=1.78.0"></script>
+  <script src="app.js?v=1.78.0"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@ var fail = [];
 var idx = read('index.html');
 var av = (idx.match(/id="app-version">v([\d.]+)</) || [])[1];
 if (!av) fail.push('index.html: #app-version 스팬 없음');
-['style.css', 'app.js', 'config.js'].forEach(function (f) {
+['style.css', 'skin-new.css', 'app.js', 'config.js'].forEach(function (f) {
   var m = idx.match(new RegExp(f.replace('.', '\\.') + '\\?v=([\\d.]+)'));
   if (!m) fail.push('index.html: ' + f + ' 캐시버스트(?v=) 없음');
   else if (m[1] !== av) fail.push('index.html: ' + f + '?v=' + m[1] + ' ≠ 앱 v' + av);
@@ -22,7 +22,7 @@ var adm = read('admin.html');
 var admV = (adm.match(/id="app-version">v([\d.]+)</) || [])[1];
 if (!admV) fail.push('admin.html: #app-version 스팬 없음');
 else if (admV !== av) fail.push('admin.html: #app-version v' + admV + ' ≠ 앱 v' + av);
-['style.css', 'app.js', 'config.js'].forEach(function (f) {
+['style.css', 'skin-new.css', 'app.js', 'config.js'].forEach(function (f) {
   var m = adm.match(new RegExp(f.replace('.', '\\.') + '\\?v=([\\d.]+)'));
   if (!m) fail.push('admin.html: ' + f + ' 캐시버스트(?v=) 없음');
   else if (m[1] !== av) fail.push('admin.html: ' + f + '?v=' + m[1] + ' ≠ 앱 v' + av);

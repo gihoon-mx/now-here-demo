@@ -11,6 +11,23 @@ var PALETTE = ['#DE2F2A','#F2862E','#F2C53D','#9DC64C','#1428A0']; // 기본 색
 var PAGE_MODE=(typeof window!=='undefined'&&window.PAGE_MODE)||'app';
 var IS_APP_PAGE=PAGE_MODE==='app', IS_ADMIN_PAGE=PAGE_MODE==='admin';
 
+/* [M15] 폰 셸 디자인 스킨 — 'new'(v2.0 리빌딩) / 'legacy'(v1.77 까지의 화면).
+   갈리는 지점은 `body[data-skin]` 하나뿐이고, 새 스킨의 규칙은 전부 skin-new.css 안에
+   `body[data-skin="new"]` 스코프로 들어 있다. style.css 는 건드리지 않았다 —
+   되돌리기가 속성 하나여야 새 디자인을 단계적으로 넣을 수 있다.
+   값은 콘솔(admin.html › 🎨 스타일 › 디자인)에서 정하고 클라우드로 동기된다.
+   app.js 가 </body> 앞에서 로드되므로 document.body 는 이 시점에 이미 있다 —
+   초기화까지 기다리면 legacy 화면이 한 번 번쩍인다. */
+var appSkin='new';
+try{var _sk0=localStorage.getItem('nowhere_skin');if(_sk0==='legacy'||_sk0==='new')appSkin=_sk0;}catch(e){}
+function applySkin(){if(document.body)document.body.setAttribute('data-skin',appSkin);}
+function setAppSkin(v){
+  appSkin=(v==='legacy')?'legacy':'new';
+  try{localStorage.setItem('nowhere_skin',appSkin);}catch(e){}
+  applySkin();
+}
+applySkin();
+
 /* ========== [M11] 로컬 모드 ========== */
 var selectedFeature = null;
 var smoothEnabled = false;
@@ -2965,6 +2982,7 @@ function applyCloudData(d){
   if(d.social){if(Array.isArray(d.social.rooms))socRoomList=d.social.rooms.slice();if(Array.isArray(d.social.seedLocal))socSeedLocal=d.social.seedLocal.slice();saveChat();renderRoomManager();}
   if(d.zoneCardStyle==='glass'||d.zoneCardStyle==='list'){zoneCardStyle=d.zoneCardStyle;var _zcs=document.getElementById('zone-card-style');if(_zcs)_zcs.value=zoneCardStyle;}
   if(d.feedTimeMode==='ago'||d.feedTimeMode==='clock'||d.feedTimeMode==='off'){feedTimeMode=d.feedTimeMode;var _ftm=document.getElementById('feed-time');if(_ftm)_ftm.value=feedTimeMode;if(currentTab==='feed')renderFeed();}
+  if(d.appSkin==='legacy'||d.appSkin==='new'){setAppSkin(d.appSkin);var _sks=document.getElementById('app-skin');if(_sks)_sks.value=appSkin;} // [M15] 디자인 스킨(관리자가 정하면 모두에게)
   if(d.spotMapBg&&typeof d.spotMapBg==='object'){spotMapBg.op=Number(d.spotMapBg.op)||0;spotMapBg.scaleM=Number(d.spotMapBg.scaleM)||100;saveSpotMapBg();
     var _mo=document.getElementById('spotmap-op');if(_mo)_mo.value=String(spotMapBg.op);
     var _ms=document.getElementById('spotmap-scale');if(_ms)_ms.value=String(spotMapBg.scaleM);
@@ -3219,7 +3237,7 @@ function cloudSave(){
     spots:adminSpots.map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null,alpha:(s.alpha!=null?Number(s.alpha):null)};}),
     spotConfig:snap.spotConfig,
     social:{rooms:socRoomList,seedLocal:socSeedLocal},
-    zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM}};
+    zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM}};
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
 }
 
@@ -4794,6 +4812,14 @@ function initAdminMenu(){
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&menu.style.display!=='none')menu.style.display='none';});
   var alb=document.getElementById('adm-allowlist');if(alb)alb.addEventListener('click',openAllowlistManager); // 시스템 › 계정·권한
 }
+/* [M15] 디자인 스킨 셀렉트. 드래프트(적용 버튼)를 태우지 않고 **고르는 즉시 바뀐다** —
+   보면서 고르는 설정이라 미리보기와 적용을 나눌 이유가 없다. 저장만 markCloudDirty 로
+   다른 설정과 같은 흐름을 탄다. */
+function initSkinControl(){
+  var sel=document.getElementById('app-skin');if(!sel)return;
+  sel.value=appSkin;
+  sel.addEventListener('change',function(){setAppSkin(this.value);markCloudDirty();});
+}
 /* v1.77: 서비스 페이지의 ⚙ 설정이 admin.html?adm=<패널> 로 넘겨준 블록을 연다.
    값은 URL 에서 온다 — 셀렉터에 끼워 넣지 않고 실제 내비 버튼들과 대조해서 통과시킨다. */
 function openAdmPanelFromUrl(){
@@ -5371,6 +5397,7 @@ function startEmbed(){
   var avEl=document.getElementById('auth-ver'),apv=document.getElementById('app-version'); // 스플래시에 버전 노출 (#app-version 단일 소스)
   if(avEl&&apv)avEl.textContent=apv.textContent;
   initAdminMenu(); // 관리자 페이지 대형 메뉴 팝업(admin.html 전용 · 서비스 페이지는 no-op)
+  initSkinControl(); // [M15] 디자인 스킨 셀렉트(콘솔 전용 — 서비스 페이지엔 컨트롤이 없다)
   initPanelCollapse();
   initPhoneControls();
   initSidebarResize();
