@@ -1317,3 +1317,25 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
   background:rgba(255,255,255,0.72);color:#2a2a2a;font-family:inherit;font-size:3.6cqw;font-weight:700;cursor:pointer;}
 
 /* ── [M03] v1.90 스토리 서클 — Trend 지면 자리의 지역 서클 (v3 스킨에서만 원형) ── */
+
+/* ── [M06] v1.91 Our/My Talk — 방 목록 카드 (시안: 아바타·태그·마지막·시각·안읽음) ── */
+.soc-hint{padding:0 3cqw 1.6cqw;font-size:2.7cqw;color:var(--ink3);}
+.soc-roomlist .soc-room{display:flex;align-items:center;gap:3cqw;width:100%;padding:3.3cqw;
+  border:1px solid var(--line-soft);border-radius:4cqw;background:#fff;text-align:left;cursor:pointer;font-family:inherit;}
+.soc-roomlist .soc-room+.soc-room{margin-top:2cqw;}
+.soc-room .sr-av{display:flex;align-items:center;justify-content:center;width:11.7cqw;height:11.7cqw;flex:none;
+  border-radius:4.1cqw;background:var(--bg);font-size:5.6cqw;}
+.soc-room .sr-mid{flex:1;min-width:0;display:block;}
+.soc-room .sr-top{display:flex;align-items:center;gap:1.5cqw;min-width:0;}
+.soc-room .sr-name{font-size:3.8cqw;font-weight:700;letter-spacing:-0.02em;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.soc-room .sr-tag{flex:none;padding:0.5cqw 2cqw;border-radius:9999px;font-style:normal;font-size:2.5cqw;font-weight:800;
+  background:rgba(15,23,42,0.06);color:var(--ink3);white-space:nowrap;}
+.soc-room .sr-tag.our{background:#eef6e2;color:#5f8f3e;}
+.soc-room .sr-tag.my{background:#fdf0e3;color:#c9762a;}
+.soc-room .sr-last{display:block;margin-top:1cqw;font-size:3.3cqw;color:var(--ink3);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.soc-room .sr-right{display:flex;flex-direction:column;align-items:flex-end;gap:1.3cqw;flex:none;}
+.soc-room .sr-ago{font-size:2.8cqw;color:var(--ink3);}
+.soc-room .sr-un{min-width:5.1cqw;padding:0.5cqw 1.8cqw;border-radius:9999px;background:#e8574a;color:#fff;
+  font-size:2.8cqw;font-weight:800;text-align:center;}

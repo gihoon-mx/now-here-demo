@@ -4676,7 +4676,11 @@ function initTimeDeals(){
 }
 
 /* ========== [M06] 소셜 탭: 동네 채팅 · 주제방 · 프라이빗(크레딧) ========== */
-var socTab='local', socRoom=null, socMsgs={}, socSeedLocal=[], socLiveMsgs={};
+/* v1.91: 탭이 3개(동네/주제/프라이빗)에서 **2개(Our/My)** 로 재편됐다.
+   ⚠️ 방의 저장 키(`local:` `topic:` `private:`)는 **그대로 둔다** — 키를 바꾸면
+   이미 쌓인 대화가 통째로 고아가 된다. Our/My 는 목록을 고르는 **뷰**일 뿐이고,
+   방 자신의 type 은 예전 그대로다. */
+var socTab='our', socRoom=null, socMsgs={}, socSeedLocal=[], socLiveMsgs={};
 var socRoomList=[{name:'🍜 맛집 탐방',type:'topic'},{name:'🏃 러닝 크루',type:'topic'},{name:'🐶 댕댕이 산책',type:'topic'},{name:'👶 육아 정보',type:'topic'}];
 var SOC_KEY='nowhere_chat';
 function loadChat(){try{var o=JSON.parse(localStorage.getItem(SOC_KEY)||'{}');if(o.msgs)socMsgs=o.msgs;if(Array.isArray(o.rooms))socRoomList=o.rooms;if(Array.isArray(o.seedLocal))socSeedLocal=o.seedLocal;}catch(e){}}
@@ -4693,41 +4697,82 @@ function roomMsgs(room){ // 렌더용: 라이브=시드(연출)+공유 메시지
 }
 function chatName(){return currentUser?(currentUser.displayName||String(currentUser.email||'').split('@')[0]||'이웃'):'이웃';}
 function renderSocial(){
-  var nmLoc=focusedRegionName();
-  var lt=document.querySelector('.soc-tab[data-soc="local"]');
-  if(lt)lt.textContent=(nmLoc?nmLoc+' 채팅방':'동네 채팅방'); // 서브탭 = 현 위치명 + 채팅방 (아이콘 없음)
   document.querySelectorAll('.soc-tab').forEach(function(t){t.classList.toggle('active',t.dataset.soc===socTab);});
+  var hint=document.getElementById('soc-hint');
+  if(hint)hint.textContent=(socTab==='our')?'지금 이 지역에서 열려 있는 오픈 채팅':'나만 보이는 1:1 · Request 스레드';
   var body=document.getElementById('soc-body'),bar=document.getElementById('soc-inputbar');
   if(!body)return;
-  if(socTab==='local')socRoom={key:'local:'+(nmLoc||'동네'),name:(nmLoc?nmLoc+' 채팅방':'동네 채팅방')};
-  if(socRoom&&socRoom.key.indexOf(socTab+':')===0){renderChatRoom(body,socRoom);bar.style.display='flex';}
+  /* v1.91: **목록 → 대화 2단**. 예전에는 '동네' 탭이 목록 없이 바로 방으로 들어갔는데,
+     시안은 Our Talk 도 목록에서 고른다(동네 채팅방이 그 목록의 첫 줄이다). */
+  if(socRoom){renderChatRoom(body,socRoom);bar.style.display='flex';}
   else{renderRoomList(body);bar.style.display='none';}
+}
+/* Our = 동네 채팅방 + 주제방 / My = 프라이빗 + 내 Request 스레드.
+   각 줄은 시안의 방 카드다: 아바타 · 이름 · 태그 · 마지막 메시지 · 시각 · 안읽음. */
+function socRoomsFor(tab){
+  var out=[];
+  if(tab==='our'){
+    var nm=focusedRegionName();
+    out.push({key:'local:'+(nm||'동네'),name:(nm?nm+' 채팅방':'동네 채팅방'),e:'🏘️',tag:'오픈',type:'local'});
+    socRoomList.filter(function(r){return r.type==='topic';}).forEach(function(r){
+      out.push({key:'topic:'+r.name,name:r.name,e:'💬',tag:'모임',type:'topic'});
+    });
+  }else{
+    socRoomList.filter(function(r){return r.type==='private';}).forEach(function(r){
+      out.push({key:'private:'+r.name,name:r.name,e:'🔒',tag:null,type:'private'});
+    });
+    // 내 Request 는 방이 아니라 **스레드**다 — 탭하면 기존 상세 팝업(질문+답변)이 열린다
+    fieldRequests.filter(isMyReq).forEach(function(rq){
+      var n=(rq.answers||[]).length;
+      out.push({req:rq,name:rq.q||'내 Request',e:'🙋',tag:(n?'답변 '+n:'대기 중'),type:'req',unread:n&&!reqAnsSeen[rq.id]?n:0});
+    });
+  }
+  return out;
+}
+function socRoomLast(r){
+  if(r.type==='req'){var a=(r.req.answers||[]);return a.length?(a[a.length-1].text||'사진 답변이 도착했어요'):'아직 답변이 없어요';}
+  var arr=hasLive()?(socLiveMsgs[r.key]||[]):(socMsgs[r.key]||[]);
+  if(!arr.length)return '새 방 — 첫 메시지를 남겨보세요';
+  var m=arr[arr.length-1];return m.text||'';
 }
 function renderRoomList(body){
   body.innerHTML='';
   var wrap=document.createElement('div');wrap.className='soc-roomlist';
-  var type=(socTab==='topic')?'topic':'private';
-  var list=socRoomList.filter(function(r){return r.type===type;});
+  var list=socRoomsFor(socTab);
   list.forEach(function(r){
     var b=document.createElement('button');b.type='button';b.className='soc-room';
-    var cnt=hasLive()?((socLiveMsgs[type+':'+r.name]||[]).length):((socMsgs[type+':'+r.name]||[]).length);
-    b.innerHTML='<span class="sr-name"></span><span class="sr-cnt"></span>';
-    b.querySelector('.sr-name').textContent=(type==='private'?'🔒 ':'')+r.name;
-    b.querySelector('.sr-cnt').textContent=cnt?cnt+'개 대화':'새 방';
-    b.addEventListener('click',function(){socRoom={key:type+':'+r.name,name:r.name};renderSocial();});
+    b.innerHTML='<span class="sr-av"></span>'+
+      '<span class="sr-mid"><span class="sr-top"><b class="sr-name"></b><i class="sr-tag"></i></span><span class="sr-last"></span></span>'+
+      '<span class="sr-right"><span class="sr-ago"></span><span class="sr-un"></span></span>';
+    b.querySelector('.sr-av').textContent=r.e;
+    b.querySelector('.sr-name').textContent=r.name;
+    var tg=b.querySelector('.sr-tag');
+    if(r.tag){tg.textContent=r.tag;tg.classList.add(socTab==='our'?'our':'my');}else tg.style.display='none';
+    b.querySelector('.sr-last').textContent=socRoomLast(r);
+    var ago=b.querySelector('.sr-ago');
+    ago.textContent=(r.type==='req'&&r.req.ts)?timeAgo(r.req.ts):'';
+    var un=b.querySelector('.sr-un');
+    if(r.unread)un.textContent=r.unread;else un.style.display='none';
+    b.addEventListener('click',function(){
+      if(r.type==='req'){openContentPop('req',r.req);reqAnsSeen[r.req.id]=1;renderSocial();return;} // Request 는 스레드=상세 팝업
+      socRoom={key:r.key,name:r.name};renderSocial();
+    });
     wrap.appendChild(b);
   });
-  if(!list.length){var e=document.createElement('div');e.className='soc-empty';e.textContent=(type==='topic'?'주제방이 없어요.':'프라이빗 방이 없어요.')+' (관리자가 설정에서 개설)';wrap.appendChild(e);}
+  if(!list.length){
+    var e=document.createElement('div');e.className='soc-empty';
+    e.textContent=(socTab==='our')?'열려 있는 오픈 채팅이 없어요.':'아직 1:1 대화도, 내 Request 도 없어요.';
+    wrap.appendChild(e);
+  }
   body.appendChild(wrap);
 }
 function renderChatRoom(body,room){
   body.innerHTML='';
   var head=document.createElement('div');head.className='soc-chathead';
-  if(socTab!=='local'){
-    var back=document.createElement('button');back.type='button';back.className='soc-back';back.textContent='‹';
-    back.addEventListener('click',function(){socRoom=null;renderSocial();});
-    head.appendChild(back);
-  }
+  // v1.91: 동네 방도 목록에서 들어오므로 **항상** 뒤로가기가 있다
+  var back=document.createElement('button');back.type='button';back.className='soc-back';back.textContent='‹';
+  back.addEventListener('click',function(){socRoom=null;renderSocial();});
+  head.appendChild(back);
   var ttl=document.createElement('span');ttl.className='soc-title';ttl.textContent=room.name;head.appendChild(ttl);
   body.appendChild(head);
   var listEl=document.createElement('div');listEl.className='soc-msgs';
@@ -4744,7 +4789,7 @@ function renderChatRoom(body,room){
 function initSocial(){
   loadChat();
   document.querySelectorAll('.soc-tab').forEach(function(t){
-    t.addEventListener('click',function(){socTab=this.dataset.soc;if(socTab!=='local')socRoom=null;renderSocial();});
+    t.addEventListener('click',function(){socTab=this.dataset.soc;socRoom=null;renderSocial();}); // v1.91: 탭을 바꾸면 항상 목록으로
   });
   function send(){
     var inp=document.getElementById('soc-input');var t=(inp.value||'').trim();

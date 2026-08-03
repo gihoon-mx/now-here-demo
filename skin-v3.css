@@ -686,3 +686,26 @@ body[data-skin="v3"] #cp-zones:not(.list) .tz-card[data-temp]::after{
 }
 body[data-skin="v3"] #cp-zones:not(.list) .tz-card.focus{box-shadow:0 0 0 .8cqw rgba(232,87,74,.28);}
 body[data-skin="v3"] #cp-zones:not(.list) .tz-card .tzf-check{top:-.5cqw;right:-.5cqw;}
+
+/* ── Our/My Talk (v1.91) ── 세그먼트는 회색 트랙 위 검정 알약, 방 카드는 흰 카드 */
+body[data-skin="v3"] .soc-tabs{
+  margin:0 4.1cqw;padding:1cqw;gap:1cqw;
+  border-radius:9999px;background:var(--v3-canvas);
+}
+body[data-skin="v3"] .soc-tab{
+  flex:1;height:9.2cqw;padding:0;
+  border:none;border-radius:9999px;background:transparent;
+  color:var(--v3-ink4);font-size:3.6cqw;font-weight:800;
+}
+body[data-skin="v3"] .soc-tab.active{background:var(--v3-ink);color:#fff;}
+body[data-skin="v3"] .soc-hint{padding:2.6cqw 4.1cqw 1.5cqw;font-size:3.1cqw;color:var(--v3-ink5);}
+body[data-skin="v3"] .soc-roomlist .soc-room{
+  gap:3.1cqw;padding:3.3cqw;
+  border:none;border-radius:4.1cqw;
+  background:var(--v3-surface);box-shadow:var(--v3-sh-soft);
+}
+body[data-skin="v3"] .soc-room .sr-av{border-radius:4.1cqw;background:var(--v3-canvas);}
+body[data-skin="v3"] .soc-room .sr-name{font-size:3.8cqw;color:var(--v3-ink);}
+body[data-skin="v3"] .soc-room .sr-last{font-size:3.3cqw;color:var(--v3-ink4);}
+body[data-skin="v3"] .soc-room .sr-ago{color:var(--v3-ink5);}
+body[data-skin="v3"] .soc-room .sr-un{background:var(--v3-red);}

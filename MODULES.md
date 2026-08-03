@@ -54,7 +54,7 @@
 | M03 | zones 트렌드 존 | 활성 | 헥사 그리드·존 CRUD·존 카드/리스트·병합 아웃라인·라벨 표시 토글·채움 투명도 | `generateHexagons` `trendZones` `zoneOutlineLoops` `makeZoneCard` `buildZoneScroll` `remapZoneToGrid` `sortedZonesForList` `visibleZoneCount` `zoneLabelsShown` `zoneFillA` `--zone-c`/`data-temp`(v1.90 스토리 서클) | app.js | v1.90 |
 | M04 | spots 스팟 메시지 | 안정 | 스팟 버블(자유 방향·겹침 방지)·컴포저·편집/드래그·워드클라우드 (모드 컬러: 베이직 무채색/트렌드 온도)·개별 색 투명도 | `SpotBubble` `SpotComposer` `renderSpots` `spotsInFocusedRegion` `canEditSpot` `declutterMarkers` `openSpotEditor` `spotComments(뱃지)` | app.js | v1.65 |
 | M05 | feed 피드 | 활성 | 피드 탭·그리드·썸네일 핀(스팟과 동일 줌 스케일·온도 링/뱃지)·클러스터·좋아요·업로드 | `renderFeed` `feedEntriesScoped` `FeedThumb` `clusterFeedPins` `toggleLike` `feedAdd` `initFeedTools` `staticMapUrl` `fc-body`(새 스킨 본문) `hidden`(v1.88 숨김 필드) | app.js | v1.88 |
-| M06 | social 소셜 | 안정 | 소셜 탭·채팅방(동네/주제/프라이빗)·liveChat | `renderSocial` `socRoomList` `roomMsgs` `initSocialManager` | app.js | v1.45 |
+| M06 | social 소셜 | 활성 | 소셜 탭 **Our/My Talk 2세그먼트**(목록→대화 2단)·방 카드·liveChat — 방 저장 키(`local:`/`topic:`/`private:`)는 불변 | `renderSocial` `socRoomsFor` `socRoomLast` `renderRoomList` `socRoomList` `roomMsgs` `initSocialManager` | app.js | v1.91 |
 | M07 | request 현장 Request | 활성 | Request 등록(10분 타임아웃)·AI Agent 실시간 응답 팝업·내 Request 답변 보기·전용 핀(ReqPin)·삭제 | `openRequestComposer` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` `ReqPin` `deleteRequest`·핀 줌 스케일(스팟 동일) `reqRemainLabel` | app.js | v1.63 |
 | M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·모드별 톤(불꽃)·**원격 에이전트(persona-vc)** | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE` `aiMapSummary` `aiChatAnswer` `aiAgentOn` `aiAskRemote` `aiContextSnapshot` `aiChatHistory` | app.js · config.js | v1.76 |
 | M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·**드로어(둘러보기 전용)**·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` `setNavActive`(switchTab 내부) | app.js | v1.83 |
@@ -174,6 +174,8 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-04 M06 (⚠️교차 M07 Request 스레드): v1.91.0 — **Our Talk / My Talk(v3 7단계).** 3탭(동네·주제·프라이빗)에서 **2세그먼트**로 재편. Our=동네 채팅방+주제방, My=프라이빗+**내 Request 스레드**. ⚠️ **방의 저장 키는 그대로 둔다**(`local:` `topic:` `private:`) — 키를 바꾸면 이미 쌓인 대화가 통째로 고아가 된다. Our/My 는 목록을 고르는 **뷰**일 뿐이고 방 자신의 type 은 예전 그대로다. 예전엔 '동네' 탭이 목록 없이 바로 방으로 들어갔는데 시안은 **목록 → 대화 2단**이라 동네 방도 목록의 첫 줄이 됐다(그래서 뒤로가기가 항상 있다). 내 Request 는 방이 아니라 스레드라 탭하면 기존 상세 팝업(질문+답변)이 열린다
 
 - 2026-08-04 M10+M03: v1.90.0 — **지역 Overview 패널 + 스토리 서클(v3 6단계).** 지면 카드를 탭하면 그 지역의 '지금'이 유리판 한 장에 뜬다(칩 줄·AI 한 줄 요약·사진 서클·소식 카드·둘러보기). ⚠️ **v1.62 규칙을 하나 바꿨다** — '지면 캐러셀=클릭 액션 없음'이었는데 시안이 지면 카드를 Overview 로 가는 문으로 쓴다. 스와이프는 그대로 두고 **탭에만** 액션을 붙였다(`newsDragging` 이면 무시). 칩은 **세어지는 것만** 올린다 — 시안의 `💬 40k`·`👥 현장 682명` 은 이 앱에 없는 숫자다(v1.81 교훈). 스토리 서클은 `#cp-zones` 존 카드를 **원형으로 다시 짠 것**이고, 링 색·온도는 `makeZoneCard` 가 `--zone-c`·`data-temp` 로 실어 보낸다(마크업 무수정). 배지는 `Hot Rising` 같은 등급이 아니라 **실제로 있는 값(°C)** 을 쓴다
 
