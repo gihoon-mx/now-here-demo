@@ -1346,3 +1346,25 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
   font-size:3.4cqw;font-weight:600;color:var(--ink2);cursor:pointer;}
 .dv-row input[type="checkbox"]{width:4.4cqw;height:4.4cqw;flex:none;cursor:pointer;}
 .ppm-coins{margin-right:auto;font-size:.72rem;font-weight:800;color:#c9762a;}
+
+/* ── [M13] v1.93 지역 시드 생성기 · 그룹 목록 (콘솔 전용 — px) ──────────────── */
+.sg-region{font-size:.82rem;font-weight:800;color:var(--ink);}
+.sg-num{width:78px;text-align:right;margin-left:0!important;} /* .mini-select 의 margin-left:auto 를 끈다 — 라벨 옆에 붙어야 한다 */
+.sg-kinds label:first-child,.settings-section[data-adm="c-gen"] .setting-row>label:first-child{min-width:82px;flex:none;}
+.settings-section[data-adm="c-gen"] .setting-row{flex-wrap:wrap;}
+.settings-section[data-adm="c-gen"] .setting-row>label:not(:first-child){min-width:0;margin-left:10px;}
+.sg-kinds{flex-wrap:wrap;}
+.sg-ck{display:inline-flex;align-items:center;gap:5px;min-width:0!important;
+  font-size:.74rem;font-weight:600;color:var(--ink2);cursor:pointer;}
+.sg-ck input{width:15px;height:15px;cursor:pointer;}
+.sg-status{font-size:.72rem;color:var(--ink3);}
+.sg-h2{margin-top:16px;}
+.sg-groups{display:flex;flex-direction:column;gap:6px;}
+.sg-row{display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border:1px solid var(--line-soft);border-radius:12px;background:#fff;}
+.sg-row.off{opacity:.55;}
+.sg-mid{flex:1;min-width:0;display:block;}
+.sg-mid b{display:block;font-size:.8rem;font-weight:700;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sg-mid i{display:block;margin-top:2px;font-style:normal;font-size:.68rem;color:var(--ink3);}
+.sg-acts{display:flex;gap:5px;flex:none;}

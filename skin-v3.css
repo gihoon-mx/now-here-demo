@@ -727,3 +727,22 @@ body[data-skin="v3"] .tz-card.tzl[data-temp]::after{
   font-size:2.6cqw;font-weight:800;
 }
 body[data-skin="v3"] .tz-card.tzl{position:relative;}
+
+/* ── 지역 시드 생성기 (v1.93) ── 콘솔 문법 그대로: 흰 카드 · 알약 컨트롤 */
+body[data-skin="v3"] .sg-region{font-size:14px;font-weight:800;color:var(--v3-ink);}
+body[data-skin="v3"] .sg-num{width:86px;text-align:right;margin-left:0;}
+body[data-skin="v3"] .settings-section[data-adm="c-gen"] .setting-row>label:first-child{min-width:82px;}
+body[data-skin="v3"] .sg-ck{font-size:13px;font-weight:600;color:var(--v3-ink2);}
+body[data-skin="v3"] .sg-ck input{accent-color:var(--v3-ink);}
+body[data-skin="v3"] .sg-status{font-size:13px;color:var(--v3-ink4);}
+body[data-skin="v3"] #adm-panels .settings-section h4.sg-h2{margin-top:18px;font-size:14px;color:var(--v3-ink3);}
+body[data-skin="v3"] .sg-row{
+  gap:12px;padding:12px 14px;
+  border:none;border-radius:14px;
+  background:var(--v3-soft);
+}
+body[data-skin="v3"] .sg-mid b{font-size:14px;font-weight:700;color:var(--v3-ink);}
+body[data-skin="v3"] .sg-mid i{font-size:12px;color:var(--v3-ink4);}
+body[data-skin="v3"] .sg-row .action-btn{background:var(--v3-surface);}
+body[data-skin="v3"] .sg-row .action-btn:hover{background:#E9E7E3;}
+body[data-skin="v3"] .sg-row .action-btn.danger{background:#FDEEEA;}

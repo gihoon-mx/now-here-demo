@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=1.92.0" />
+  <link rel="stylesheet" href="style.css?v=1.93.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=1.92.0" />
+  <link rel="stylesheet" href="skin-new.css?v=1.93.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=1.92.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=1.93.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -36,7 +36,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v1.92.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v1.93.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -259,6 +259,7 @@
           <button type="button" data-panel="c-social">👥 소셜 채팅방</button>
           <button type="button" data-panel="c-news">📰 요약 지면</button>
           <button type="button" data-panel="c-seed">🌱 데모 데이터</button>
+          <button type="button" data-panel="c-gen">📍 지역 시드 생성</button>
           <div class="adm-nav-cap">🎨 스타일 설정</div>
           <button type="button" data-panel="s-skin">🎛 디자인</button>
           <button type="button" data-panel="s-spot">💬 스팟 말풍선</button>
@@ -377,6 +378,35 @@
               <div class="setting-row" style="margin-top:8px;"><label>카드 스타일</label><select id="news-cardver" class="mini-select"><option value="1">버전 1 · 풀 이미지</option><option value="2">버전 2 · 분할 카드</option><option value="3">버전 3 · 글라스 캡션</option></select></div>
               <div id="news-list"></div>
               <p class="section-hint">상단 요약 공간에 노출할 UI 목업 이미지. 각 이미지의 탭(지도/피드/소셜)을 지정하면 해당 탭에서만 보여요. 피드 컨텐츠와는 별개.</p>
+            </div>
+            <!-- [M13] v1.93 지역 시드 생성기 — 포커스 지역 기준 Places 검색 + AI 문구 -->
+            <div class="settings-section" data-adm="c-gen">
+              <h4>지역 시드 생성</h4>
+              <p class="section-hint">지금 보고 있는 지역 반경 안의 <b>실제 장소</b>를 찾아(Places) 그 상호로 컨텐츠를 만듭니다. 문구는 AI 에이전트가 쓰고, 응답을 못 받으면 장소 종류별 기본 템플릿으로 채워요. 한 번의 생성이 <b>그룹 하나</b>가 되고, 아래 목록에서 그룹째 숨기거나 지울 수 있습니다. (기존 🌱 채우기/🧹 비우기와는 별개 — 서로 건드리지 않아요.)</p>
+              <div class="setting-row">
+                <label>대상 지역</label>
+                <b id="sg-region" class="sg-region">···</b>
+                <button id="sg-refresh" class="action-btn small" type="button">새로고침</button>
+              </div>
+              <div class="setting-row">
+                <label>장소 수</label>
+                <input id="sg-count" class="mini-select sg-num" type="number" min="1" max="40" value="12" />
+                <label>반경(m)</label>
+                <input id="sg-radius" class="mini-select sg-num" type="number" min="50" max="3000" step="50" value="400" />
+              </div>
+              <div class="setting-row sg-kinds">
+                <label>만들 컨텐츠</label>
+                <label class="sg-ck"><input id="sg-k-spot" type="checkbox" checked /> 스팟</label>
+                <label class="sg-ck"><input id="sg-k-feed" type="checkbox" checked /> 사진</label>
+                <label class="sg-ck"><input id="sg-k-req" type="checkbox" /> Request</label>
+                <label class="sg-ck"><input id="sg-k-deal" type="checkbox" /> 타임딜</label>
+              </div>
+              <div class="setting-row">
+                <button id="sg-gen" class="action-btn accent" type="button">🌱 이 지역에 생성</button>
+                <span id="sg-status" class="sg-status"></span>
+              </div>
+              <h4 class="sg-h2">생성 그룹</h4>
+              <div id="sg-groups" class="sg-groups"></div>
             </div>
             <div class="settings-section" data-adm="c-seed">
               <h4>데모 데이터 (강남·잠실·성수)</h4>
@@ -560,7 +590,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=1.92.0"></script>
-  <script src="app.js?v=1.92.0"></script>
+  <script src="config.js?v=1.93.0"></script>
+  <script src="app.js?v=1.93.0"></script>
 </body>
 </html>

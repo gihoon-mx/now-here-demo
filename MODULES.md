@@ -61,7 +61,7 @@
 | M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기·메타 줄(거리·시간) | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` `feedSummaryItems` `cps-meta` · **지역 Overview**(`openOverview` `ovChipData` `initOverview`) | app.js | v1.90 |
 | M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — **admin.html 에만 있다**(서비스 페이지에는 없음) | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openAdmPanelFromUrl` `jumpToSetting` `openColorPopup` `makeColorControl` `initSettingsAccordion` · **전체 컨텐츠 표**(`ctEntries` `renderContentTable` `initContentTable` `ctSetHidden` `ctMoveZone` `ctDelete` `ctKind` `ctSel`) | app.js | v1.88 |
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
-| M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
+| M13 | seed 데모 시드 | 활성 | 고정 4지역 시드(채우기/비우기) + **지역 시드 생성기**(포커스 지역 Places 검색 → AI 문구 → 종류 선택·수량·반경) + **그룹 관리**(지도 이동·숨김·삭제) | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `seedFlat` `initDemoSeed` `clearDemoData` · **생성기**(`seedGroups` `sgSearchPlaces` `sgAskAgent` `sgFallbackPlaces` `sgGenerate` `sgCommit` `sgGroupDelete` `sgGroupSetHidden` `renderSeedGroups` `SG_TPL` `SG_THEME`) | app.js | v1.93 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 — **콘솔 크롬은 v3 스킨을 함께 탄다**(v1.87) | `initAdminMenu`(M11 공유) `body[data-skin="v3"].page-admin` | admin.html deck.html diagram.html dev.html | v1.87 |
 | M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 3종(legacy / new=v2.0 / v3=v3.0, 기본)** — v3 는 석촌동 에셋 기준 재설계(웜 오프화이트+코랄·°C 지표) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin`(v1.84: 마크업까지 가르므로 재렌더) `initSkinControl` `body[data-skin]` `APP_SKINS` `--nk-*` `--v3-*` | style.css · skin-new.css · **skin-v3.css** · app.js | v1.87 |
 | M17 | deals 타임딜 | 활성 | 지도 ⏰ 핀(+%할인 라벨)·바텀시트(할인율·가격·재고·`mm:ss` 티커·쿠폰/공유)·시드(무대 추종)·콘솔 표 편입 | `timeDeals` `SEED_DEALS` `ensureDealSeed` `DealPin` `renderDealMarkers` `openDealSheet` `syncDealSheet` `dealRemain` `dealActive` `DEAL_NEAR_M` | app.js | v1.89 |
@@ -174,6 +174,8 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-04 M13 (⚠️교차 M01 Maps 로더 `libraries=places` · M04/M05/M07/M17 항목 생성): v1.93.0 — **지역 시드 생성기 · 그룹 관리.** 기존 `seedDemoData` 는 고정 4지역에 미리 써 둔 문구를 깐다 — 시연 지역이 늘 때마다 상수를 고쳐야 하고 **처음 가 보는 동네에서는 아무것도 못 깐다.** 생성기는 **지금 보고 있는 지역**에 만든다: ①Places 근접 검색이 반경 안의 **실제 상호**를 주고 ②그 상호를 AI 에이전트에 넘겨 문구를 받고 ③**AI 가 없거나 실패해도 멈추지 않는다**(종류별 템플릿). 한 번의 생성 = **그룹 하나**, 항목은 `sgroup` 을 달고 그룹째 지도 이동·숨김·삭제. ⚠️ **기존 시드와 id 공간을 분리했다**(`sg_` vs `fs_`/`sps_`/`rqs_`) — 같은 플래그로 묶으면 🧹 비우기가 그룹을, 그룹 삭제가 기존 시드를 같이 날린다. ⚠️ **Places API 는 GCP 에서 따로 켜야 한다** — 현재 키는 `REQUEST_DENIED`. 그 경우 원인과 할 일을 그대로 알리고, 동 이름 기반 기본 장소로 만들지 물어본다(메뉴가 죽지는 않게)
 
 - 2026-08-04 M09+M07+M03 (v3 8단계·마지막): v1.92.0 — **동 경계 토글 · 코인 적립 · °C 지표.** 드로어에 '보기' 섹션 신설(동 경계 City View · 현장 Request 도착 카드). 둘 다 **관리자 설정이 아니라 이 기기의 취향**이라 설정 블록(드래프트→적용)을 타지 않고 localStorage 에만 남는다 — 클라우드로 보내면 한 사람의 보기 취향이 모두에게 적용된다. 경계는 `phoneDataVisibility` 에 `boundaryShown` 을 AND 로 물렸다(모드 규칙은 그대로). 남의 Request 에 답하면 `🪙 500` 적립(내 것에 답하는 건 적립 대상이 아니다). 존 리스트 카드에 °C 배지 — 시안은 좋아요가 아니라 **온도로 지역을 말한다**
 

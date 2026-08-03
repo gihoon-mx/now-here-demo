@@ -2952,7 +2952,9 @@ var cloudData=null, mapReady=false, cloudSaveTimer=null, mapBootStarted=false;
 function bootMap(){
   if(mapBootStarted)return; mapBootStarted=true;
   var s=document.createElement('script');
-  s.src='https://maps.googleapis.com/maps/api/js?key='+CONFIG.GOOGLE_MAPS_API_KEY+'&callback=initMap';
+  // v1.93: `places` 추가 — 콘솔의 지역 시드 생성기가 주변 실제 장소를 찾는다.
+  // 라이브러리가 없으면 생성기만 안내 후 멈춘다(지도 자체는 영향 없음).
+  s.src='https://maps.googleapis.com/maps/api/js?key='+CONFIG.GOOGLE_MAPS_API_KEY+'&libraries=places&callback=initMap';
   s.async=true;s.defer=true;document.head.appendChild(s);
 }
 function adminEmail(){return (CONFIG.ADMIN_EMAIL||'gihoon.mx@gmail.com').toLowerCase();}
@@ -5242,6 +5244,292 @@ function initDemoSeed(){
   var c=document.getElementById('seed-clear');if(c)c.addEventListener('click',clearDemoData);
 }
 
+/* ========== [M13] v1.93 지역 시드 생성기 · 그룹 관리 (콘솔 전용) ==========
+   기존 `seedDemoData` 는 **고정 4지역**에 미리 써 둔 문구를 깐다. 시연 지역이 늘 때마다
+   상수를 고쳐야 하고, 처음 가 보는 동네에서는 아무것도 못 깐다.
+   이 생성기는 **지금 보고 있는 지역**에 컨텐츠를 만든다.
+
+   ── 어디서 '연관있는' 것을 가져오나 ─────────────────────────────────────
+   ① **Places 근접 검색**이 그 반경 안의 **실제 상호**를 준다(카페·식당·공원·상점…).
+   ② 그 상호를 **AI 에이전트**(M08 과 같은 엔드포인트)에 넘겨 동네 앱 말투의 문구를 받는다.
+   ③ **AI 가 없거나 실패해도 멈추지 않는다** — 장소 종류별 템플릿으로 문구를 채운다.
+      생성기가 외부 서비스 상태에 인질로 잡히면 시연 직전에 못 쓴다.
+
+   ── 그룹 ───────────────────────────────────────────────────────────────
+   한 번의 생성 = **그룹 하나**. 만들어진 항목은 전부 `sgroup:<id>` 를 달고,
+   그룹 단위로 지도 이동·숨김·삭제한다. 기존 시드(`seed:true` · `fs_`/`sps_`/`rqs_`)와는
+   **id 공간이 다르다**(`sg_`) — 🧹 비우기가 그룹을 건드리지 않고, 그룹 삭제가 기존 시드를
+   건드리지 않는다. 둘을 같은 플래그로 묶으면 한쪽을 지울 때 다른 쪽이 같이 날아간다. */
+var seedGroups=[], SG_KEY='nowhere_seedgroups', sgBusy=false;
+function loadSeedGroups(){try{var a=JSON.parse(localStorage.getItem(SG_KEY)||'[]');if(Array.isArray(a))seedGroups=a;}catch(e){}}
+function saveSeedGroups(){try{localStorage.setItem(SG_KEY,JSON.stringify(seedGroups.slice(0,40)));}catch(e){}}
+
+/* Places 종류 → 이 앱의 테마(사진 팔레트·문구 세트). 목록에 없으면 'shop' 으로 떨어진다 */
+var SG_THEME={cafe:'cafe',bakery:'cafe',restaurant:'food',meal_takeaway:'food',bar:'food',
+  park:'park',gym:'gym',book_store:'book',library:'book',
+  store:'shop',clothing_store:'shop',convenience_store:'shop',supermarket:'shop',
+  tourist_attraction:'park',art_gallery:'book',museum:'book'};
+/* 템플릿 — AI 없이도 성립하는 최소 세트. `{n}` 은 실제 상호로 치환된다 */
+var SG_TPL={
+  cafe:{e:'☕',spot:'{n} 창가 자리 비어 있어요',feed:'{n} 라떼 맛있다. 조용해서 작업하기 좋음',req:'{n} 지금 웨이팅 있나요?',deal:'{n} 오후 음료 20% 타임딜',img:'latte'},
+  food:{e:'🍜',spot:'{n} 지금 웨이팅 없어요',feed:'{n} 점심 특선 가성비 좋다',req:'{n} 오늘 브레이크타임 언제예요?',deal:'{n} 마감 임박 30% 타임딜',img:'noodle'},
+  park:{e:'🌳',spot:'{n} 산책로 한산해요',feed:'{n} 오늘 공기 좋다. 러닝 완주',req:'{n} 주차 자리 있나요?',deal:'',img:'parkPath'},
+  gym:{e:'💪',spot:'{n} 지금 사람 없어요',feed:'{n} 새벽 타임이 제일 한산',req:'{n} 일일권 얼마예요?',deal:'{n} 오늘 등록 30% 할인',img:'gym'},
+  book:{e:'📚',spot:'{n} 신간 들어왔어요',feed:'{n} 여기 이런 곳이 있었다니',req:'{n} 오늘 몇 시까지 해요?',deal:'',img:'book'},
+  shop:{e:'🛍',spot:'{n} 오늘 신상 들어왔어요',feed:'{n} 구경만 해도 재밌음',req:'{n} 재고 있나요?',deal:'{n} 마감 할인 25%',img:'gangnam'}
+};
+function sgTheme(types){
+  for(var i=0;i<(types||[]).length;i++)if(SG_THEME[types[i]])return SG_THEME[types[i]];
+  return 'shop';
+}
+/* Places 근접 검색. 라이브러리가 없으면 **조용히 실패하지 않고** 이유를 돌려준다 —
+   Places API 는 GCP 에서 따로 켜야 해서, 안 켜져 있으면 그 사실이 보여야 한다. */
+function sgSearchPlaces(lat,lng,radius,cb){
+  if(typeof google==='undefined'||!google.maps||!google.maps.places||!google.maps.places.PlacesService){
+    cb(null,'Places 라이브러리를 못 불러왔어요. GCP 콘솔에서 Places API 를 켜 주세요.');return;
+  }
+  var host=document.getElementById('map')||document.getElementById('phone-map');
+  if(!host){cb(null,'지도가 아직 준비되지 않았어요.');return;}
+  var svc=new google.maps.places.PlacesService(host);
+  svc.nearbySearch({location:new google.maps.LatLng(lat,lng),radius:Math.max(50,Math.min(3000,radius))},
+    function(res,status){
+      var S=google.maps.places.PlacesServiceStatus;
+      if(status===S.ZERO_RESULTS){cb([],null);return;}
+      /* REQUEST_DENIED = **키가 아니라 API 가 안 켜진 것**이다(Maps 는 되는데 Places 만 막힘).
+         메시지에 그 사실과 할 일을 그대로 적는다 — '실패'만 띄우면 키를 의심하게 된다. */
+      if(status===S.REQUEST_DENIED){cb(null,'DENIED');return;}
+      if(status!==S.OK||!res){cb(null,'Places 검색 실패 ('+status+')');return;}
+      cb(res.filter(function(r){return r.geometry&&r.geometry.location;}).map(function(r){
+        return {name:r.name,lat:r.geometry.location.lat(),lng:r.geometry.location.lng(),
+                types:r.types||[],theme:sgTheme(r.types)};
+      }),null);
+    });
+}
+/* AI 문구 — M08 과 같은 엔드포인트지만 **Ask Map 대화 이력은 안 건드린다**.
+   섞이면 사용자의 다음 질문에 시드 생성 프롬프트가 문맥으로 딸려 들어간다. */
+function sgAskAgent(prompt,onOk,onFail){
+  var c=(typeof aiAgentCfg==='function')?aiAgentCfg():null;
+  if(!c||!c.ENABLED||!c.ENDPOINT){onFail('agent-off');return;}
+  var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+  var timer=setTimeout(function(){if(ctl)ctl.abort();},c.TIMEOUT_MS||12000);
+  fetch(c.ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({question:prompt,context:{mode:'seed-gen'},history:[]}),
+    signal:ctl?ctl.signal:undefined})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(d){clearTimeout(timer);var t=((d&&d.answer)||'').trim();if(!t)throw new Error('빈 응답');onOk(t);})
+    ['catch'](function(e){clearTimeout(timer);onFail(String(e&&e.message||e));});
+}
+/* 에이전트 응답에서 JSON 배열만 건져낸다. 모델이 앞뒤에 말을 붙이는 건 흔한 일이라
+   **파싱 실패를 정상 경로로 취급**한다 — 실패하면 템플릿으로 간다. */
+function sgParseLines(text){
+  try{
+    var m=text.match(/\[[\s\S]*\]/);if(!m)return null;
+    var arr=JSON.parse(m[0]);
+    return Array.isArray(arr)?arr:null;
+  }catch(e){return null;}
+}
+function sgFill(tpl,name){return (tpl||'').replace(/\{n\}/g,name);}
+
+function sgUI(){
+  function v(id,d){var e=document.getElementById(id);if(!e)return d;var n=parseFloat(e.value);return isNaN(n)?d:n;}
+  function ck(id){var e=document.getElementById(id);return !!(e&&e.checked);}
+  return {count:Math.max(1,Math.min(40,v('sg-count',12))),radius:Math.max(50,Math.min(3000,v('sg-radius',400))),
+          spot:ck('sg-k-spot'),feed:ck('sg-k-feed'),req:ck('sg-k-req'),deal:ck('sg-k-deal')};
+}
+function sgFocusPoint(){
+  var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());
+  if(!c)return null;
+  return {lat:c.lat(),lng:c.lng(),name:focusedRegionName()||currentCenterDong()||'이 지역'};
+}
+function sgSyncFocus(){
+  var el=document.getElementById('sg-region');if(!el)return;
+  var f=sgFocusPoint();
+  el.textContent=f?f.name:'지도를 먼저 불러오세요';
+}
+function sgStatus(msg){var el=document.getElementById('sg-status');if(el)el.textContent=msg||'';}
+
+function sgGenerate(){
+  if(currentRole!=='admin'){alert('관리자만 실행할 수 있어요.');return;}
+  if(sgBusy)return;
+  var f=sgFocusPoint();if(!f){alert('지도가 아직 준비되지 않았어요.');return;}
+  var o=sgUI();
+  if(!o.spot&&!o.feed&&!o.req&&!o.deal){alert('만들 컨텐츠 종류를 하나 이상 골라 주세요.');return;}
+  sgBusy=true;sgStatus('주변 장소를 찾는 중…');
+  sgSearchPlaces(f.lat,f.lng,o.radius,function(places,err){
+    if(err==='DENIED'){
+      /* Places API 가 꺼져 있어도 **메뉴가 죽지는 않게** 한다. 실제 상호 대신 동 이름으로
+         자리를 만들어 반경 안에 뿌린다 — 켜는 즉시 같은 버튼이 진짜 상호를 가져온다. */
+      sgStatus('');
+      if(!confirm('Places API 가 꺼져 있어요(REQUEST_DENIED).\n\nGCP 콘솔 → API 및 서비스에서 '+
+                  '"Places API"를 켜면 주변 실제 상호로 만들 수 있어요.\n\n'+
+                  '지금은 ‘'+f.name+'’ 이름 기반 기본 장소로 대신 만들까요?')){sgBusy=false;return;}
+      var fb=sgFallbackPlaces(f,o);
+      sgStatus('문구를 만드는 중…');
+      sgAfterPlaces(f,o,fb);
+      return;
+    }
+    if(err){sgBusy=false;sgStatus('');alert(err);return;}
+    if(!places||!places.length){sgBusy=false;sgStatus('');alert('반경 '+o.radius+'m 안에서 장소를 못 찾았어요. 반경을 넓혀 보세요.');return;}
+    sgAfterPlaces(f,o,places.slice(0,o.count));
+  });
+}
+/* Places 없이 쓸 자리 — 동 이름 + 종류로 만든 **가짜 상호**를 반경 안에 결정적으로 흩는다.
+   진짜 검색 결과인 척하지 않는다: 이름이 '역삼1동 카페 2' 처럼 보이므로 구분이 된다. */
+function sgFallbackPlaces(f,o){
+  var themes=['cafe','food','park','gym','book','shop'],out=[];
+  var LABEL={cafe:'카페',food:'식당',park:'공원',gym:'짐',book:'책방',shop:'상점'};
+  for(var i=0;i<o.count;i++){
+    var th=themes[i%themes.length];
+    var ang=(i*137.5)*Math.PI/180, rad=o.radius*(0.35+0.6*((i%5)/5)); // 황금각 분산(결정적)
+    out.push({
+      name:f.name+' '+LABEL[th]+(i<themes.length?'':' '+(Math.floor(i/themes.length)+1)),
+      lat:f.lat+(rad*Math.cos(ang))/111000,
+      lng:f.lng+(rad*Math.sin(ang))/(111000*Math.cos(f.lat*Math.PI/180)),
+      types:[th],theme:th
+    });
+  }
+  return out;
+}
+function sgAfterPlaces(f,o,picked){
+  sgStatus('장소 '+picked.length+'곳 · 문구를 만드는 중…');
+  var prompt='다음은 서울 '+f.name+' 주변 실제 장소 목록입니다.\n'+
+    picked.map(function(p,i){return (i+1)+'. '+p.name+' ('+p.theme+')';}).join('\n')+
+      '\n\n각 장소마다 동네 실시간 앱에 올라올 법한 짧은 한국어 문구를 만들어 주세요.'+
+      ' 설명 없이 JSON 배열만 출력하세요. 형식:'+
+      ' [{"spot":"지도 위 한 줄(20자 내외)","feed":"사진 설명(25자 내외)","req":"주변에 물어볼 질문(20자 내외)","deal":"타임딜 제목(20자 내외)"}]'+
+      ' 배열 길이는 '+picked.length+'개여야 합니다.';
+  sgAskAgent(prompt,function(text){
+    sgCommit(f,o,picked,sgParseLines(text));
+  },function(){
+    sgCommit(f,o,picked,null); // 에이전트가 없어도 템플릿으로 만든다
+  });
+}
+function sgCommit(focus,o,places,ai){
+  var gid='g'+Date.now().toString(36);
+  var now=Date.now(), counts={spot:0,feed:0,req:0,deal:0};
+  places.forEach(function(p,i){
+    var T=SG_TPL[p.theme]||SG_TPL.shop;
+    var a=(ai&&ai[i])||{};
+    var jit=function(k){return (((i*37+k*13)%11)-5)/20000;}; // 같은 좌표 겹침 방지(결정적 — Math.random 금지)
+    if(o.spot){
+      var st=(a.spot||sgFill(T.spot,p.name)).slice(0,60);
+      var sd={id:'sg_'+gid+'_s'+i,lat:p.lat+jit(1),lng:p.lng+jit(2),text:st,emoji:T.e,
+              by:'sg_'+gid,byEmail:SEED_OWNER,ts:now-i*600e3,sgroup:gid};
+      if(hasLive())fbDb.collection('liveSpots').doc(sd.id).set(sd).catch(liveWriteErr);
+      else{sd.live=true;demoSpots.push(sd);}
+      counts.spot++;
+    }
+    if(o.feed){
+      var ft=(a.feed||sgFill(T.feed,p.name)).slice(0,80);
+      var fd={id:'sg_'+gid+'_f'+i,src:(SEED_IMG[T.img]||seedImg(p.theme,p.name)),
+              region:dongAt(p.lat,p.lng)||focus.name,zone:null,lat:p.lat+jit(3),lng:p.lng+jit(4),
+              kind:'post',desc:ft,name:p.name,by:'sg_'+gid,byEmail:SEED_OWNER,
+              ts:now-i*900e3,likes:{},sgroup:gid};
+      if(hasLive())fbDb.collection('liveFeed').doc(fd.id).set(fd).catch(liveWriteErr);
+      else{fd.type='photo';feedItems.push(fd);}
+      counts.feed++;
+    }
+    if(o.req&&i%3===0){ // Request 는 드물어야 '현장 질문'으로 읽힌다 — 3곳마다 하나
+      var qt=(a.req||sgFill(T.req,p.name)).slice(0,60);
+      var rd={id:'sg_'+gid+'_r'+i,lat:p.lat+jit(5),lng:p.lng+jit(6),q:qt,
+              place:dongAt(p.lat,p.lng)||focus.name,answers:[],by:'sg_'+gid,ts:now,seed:true,sgroup:gid};
+      if(hasLive())fbDb.collection('liveRequests').doc(rd.id).set(rd).catch(liveWriteErr);
+      else fieldRequests.unshift(rd);
+      counts.req++;
+    }
+    if(o.deal&&T.deal&&i%4===0){ // 타임딜은 더 드물게 — 흔하면 특가가 아니다
+      var dt=(a.deal||sgFill(T.deal,p.name)).slice(0,40);
+      var pct=[20,25,30,33][i%4];
+      timeDeals.push({id:'sg_'+gid+'_d'+i,lat:p.lat+jit(7),lng:p.lng+jit(8),e:T.e,title:dt,
+        shop:p.name,pct:pct,price:'현장가',was:'정가',stock:(6+i%9)+'개',secs:1800,ts:now,seed:true,sgroup:gid});
+      counts.deal++;
+    }
+  });
+  if(!hasLive()){saveFeed();saveLocalSpots();saveRequests();}
+  saveDeals();
+  seedGroups.unshift({id:gid,name:focus.name,lat:focus.lat,lng:focus.lng,radius:o.radius,
+    places:places.length,counts:counts,ts:now,hidden:false,ai:!!ai});
+  saveSeedGroups();
+  rebuildSpots();renderFeedMarkers();renderRequestMarkers();renderDrawerDemo();
+  if(typeof renderContentTable==='function')renderContentTable();
+  if(currentTab==='feed')renderFeed();
+  sgBusy=false;sgStatus('');
+  renderSeedGroups();
+  alert('🌱 ‘'+focus.name+'’에 '+places.length+'곳 기준으로 만들었어요.\n'+
+        '스팟 '+counts.spot+' · 사진 '+counts.feed+' · Request '+counts.req+' · 타임딜 '+counts.deal+
+        (ai?'\n(문구: AI 생성)':'\n(문구: 기본 템플릿 — AI 에이전트 응답을 못 받았어요)'));
+}
+function sgGroupSetHidden(gid,v){
+  var g=seedGroups.filter(function(x){return x.id===gid;})[0];if(!g)return;
+  g.hidden=!!v;saveSeedGroups();
+  feedItems.forEach(function(f){if(f.sgroup===gid){f.hidden=!!v;if(hasLive())feedUpdate(f,{hidden:!!v});}});
+  demoSpots.forEach(function(s){if(s.sgroup===gid)s.hidden=!!v;});
+  adminSpots.forEach(function(s){if(s.sgroup===gid)s.hidden=!!v;});
+  if(!hasLive())saveFeed();
+  rebuildSpots();renderFeedMarkers();if(currentTab==='feed')renderFeed();
+  if(typeof renderContentTable==='function')renderContentTable();
+  renderSeedGroups();
+}
+function sgGroupDelete(gid){
+  var g=seedGroups.filter(function(x){return x.id===gid;})[0];if(!g)return;
+  if(!confirm('‘'+g.name+'’ 그룹(스팟 '+g.counts.spot+' · 사진 '+g.counts.feed+
+              ' · Request '+g.counts.req+' · 타임딜 '+g.counts.deal+')을 지울까요? 되돌릴 수 없어요.'))return;
+  var pre='sg_'+gid+'_';
+  if(hasLive()){
+    ['liveFeed','liveSpots','liveRequests'].forEach(function(col){
+      fbDb.collection(col).where('sgroup','==',gid).get()
+        .then(function(sn){sn.forEach(function(d){d.ref.delete();});})
+        .catch(function(e){console.warn('sg delete',col,e);});
+    });
+  }
+  feedItems=feedItems.filter(function(f){return f.sgroup!==gid&&f.id.indexOf(pre)!==0;});
+  demoSpots=demoSpots.filter(function(s){return s.sgroup!==gid&&s.id.indexOf(pre)!==0;});
+  adminSpots=adminSpots.filter(function(s){return s.sgroup!==gid&&s.id.indexOf(pre)!==0;});
+  fieldRequests=fieldRequests.filter(function(r){return r.sgroup!==gid&&r.id.indexOf(pre)!==0;});
+  timeDeals=timeDeals.filter(function(d){return d.sgroup!==gid&&d.id.indexOf(pre)!==0;});
+  seedGroups=seedGroups.filter(function(x){return x.id!==gid;});
+  saveFeed();saveLocalSpots();saveRequests();saveDeals();saveSeedGroups();
+  rebuildSpots();renderFeedMarkers();renderRequestMarkers();renderDealMarkers();renderDrawerDemo();
+  if(typeof renderContentTable==='function')renderContentTable();
+  if(currentTab==='feed')renderFeed();
+  renderSeedGroups();
+}
+function renderSeedGroups(){
+  var box=document.getElementById('sg-groups');if(!box)return;
+  box.innerHTML='';
+  if(!seedGroups.length){
+    var e=document.createElement('p');e.className='section-hint';
+    e.textContent='아직 만든 그룹이 없어요. 위에서 지역을 확인하고 생성해 보세요.';
+    box.appendChild(e);return;
+  }
+  seedGroups.forEach(function(g){
+    var row=document.createElement('div');row.className='sg-row'+(g.hidden?' off':'');
+    var c=g.counts||{};
+    row.innerHTML='<span class="sg-mid"><b></b><i></i></span><span class="sg-acts"></span>';
+    row.querySelector('b').textContent=g.name+' · '+g.places+'곳';
+    row.querySelector('i').textContent=
+      '스팟 '+(c.spot||0)+' · 사진 '+(c.feed||0)+' · Req '+(c.req||0)+' · 딜 '+(c.deal||0)+
+      ' · 반경 '+g.radius+'m · '+timeAgo(g.ts)+(g.ai?' · AI':' · 템플릿');
+    var acts=row.querySelector('.sg-acts');
+    function btn(label,cls,fn){var b=document.createElement('button');b.type='button';
+      b.className='action-btn small'+(cls?' '+cls:'');b.textContent=label;b.addEventListener('click',fn);acts.appendChild(b);return b;}
+    btn('지도로','',function(){
+      if(typeof goMapCam==='function')goMapCam(g.lat,g.lng,16);
+      else if(map)map.setCenter({lat:g.lat,lng:g.lng});
+    });
+    btn(g.hidden?'표시':'숨김','',function(){sgGroupSetHidden(g.id,!g.hidden);});
+    btn('삭제','danger',function(){sgGroupDelete(g.id);});
+    box.appendChild(row);
+  });
+}
+function initSeedGen(){
+  loadSeedGroups();
+  var gen=document.getElementById('sg-gen');if(!gen)return;
+  gen.addEventListener('click',sgGenerate);
+  var rf=document.getElementById('sg-refresh');if(rf)rf.addEventListener('click',sgSyncFocus);
+  sgSyncFocus();renderSeedGroups();
+}
+
 /* ========== [M09] 기능 맵 (기능 관리 페이지) ========== */
 var FEATURES=[
  {id:'mode',icon:'🗺️',name:'베이직/트렌드 모드',st:'live',grp:'코어',desc:'같은 지도·같은 컨텐츠를 "구획 단위"만 바꿔 보는 두 렌즈 — 베이직=행정동, 트렌드=관리자 선정 존. 위치명·렌즈·피드 필터·동네 채팅방이 모드에 따라 동↔존으로 함께 전환되고, 존 밖에서는 동 이름으로 폴백(모드 간 연결). 트렌드 전환 시 근접 존 N개 자동 뷰.',rel:['lens','zone','feed','social','sum']},
@@ -5957,7 +6245,7 @@ function startEmbed(){
   loadFileDefaults(); // repo 백스톱 설정(settings-default.json) — 공장값 캡처 후 비동기 적용, 클라우드가 오면 그쪽 우선
   initSettingsExport();
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initOverview();syncCoinUI();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initOverview();syncCoinUI();initSeedGen();
   window.addEventListener('resize',layoutTabPages);
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)
   setInterval(function(){try{tickReqRemain();}catch(e){}},1000); // Request 남은 시간(분/초) 1초 갱신 — 텍스트만(경량)
