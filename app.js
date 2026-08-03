@@ -1328,7 +1328,9 @@ function renderNews(){
        **있는 데이터만 쓴다.** 거리·시간은 연관 피드 카드에만 있고 관리자가 올린 지면
        이미지에는 없다 — 없으면 줄 자체를 만들지 않는다(빈 줄이 남으면 껍데기다).
        좋아요는 이미 우측 칩(.cpc-like)으로 나가므로 여기서 되풀이하지 않는다. */
-    if(appSkin==='new'&&it.feed){
+    /* v1.86: 조건이 `==='new'` 였다 — 스킨이 둘일 때만 맞는 식이다. v3 도 메타 줄을
+       쓰므로 **legacy 가 아니면** 으로 뒤집는다. 새 스킨이 또 생겨도 자동으로 포함된다. */
+    if(appSkin!=='legacy'&&it.feed){
       var mp=[];
       if(it.dist!=null)mp.push(it.dist>=1000?(it.dist/1000).toFixed(1)+'km':(Math.round(it.dist/10)*10)+'m');
       if(it.ts)mp.push(timeAgo(it.ts));
@@ -3820,7 +3822,7 @@ function renderFeed(){
        만든다(스킨을 바꾸면 setAppSkin 이 다시 그린다). 글 카드(.txt)는 본문이 곧 카드라
        제외 — 사진 카드만 받는다. */
     var fmeta=null;
-    if(appSkin==='new'&&it.src){
+    if(appSkin!=='legacy'&&it.src){ // v1.86: v3 도 본문을 쓴다 — legacy 만 오버레이 칩 그대로
       c.classList.add('has-body');
       var bd=document.createElement('div');bd.className='fc-body';
       var ds=document.createElement('span');ds.className='fc-desc';ds.textContent=(it.desc||'').trim();

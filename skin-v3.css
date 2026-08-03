@@ -107,16 +107,27 @@ body[data-skin="v3"] .tab-page{background:var(--v3-canvas);}
    v3 는 **불투명한 흰 바**다 — 시안에서 헤더는 지도와 겹치지 않고 자기 자리를
    갖는다. 상태바(9:41 · 5G)는 실제 폰이 그려주므로 재현하지 않는다. */
 
+/* **흰색은 헤더가 아니라 앱바가 갖는다.** 처음엔 `.phone-header` 를 통째로 흰색으로
+   칠했는데, 이 헤더는 앱바만 들고 있는 게 아니라 **지면 카드와 존 칩 줄까지** 품고
+   있다 — 트렌드 모드에서 존이 하나도 없으면 그 자리가 통째로 빈 흰 판이 된다
+   (실측 490px). 시안에서 흰 바는 앱바 한 줄뿐이고 그 아래는 캔버스다.
+   그래서 헤더는 투명하게 두고 앱바에만 흰 배경을 준다. 지면 카드는 원래도 자기
+   배경을 가진 카드라 지도 위에 그대로 떠 있으면 된다. */
 body[data-skin="v3"] .phone-header{
-  background:var(--v3-surface);
+  background:transparent;
   backdrop-filter:none;-webkit-backdrop-filter:none;
   border-bottom:none;
   box-shadow:none;
-  padding:3.6cqw 4.6cqw 3.1cqw;
+  padding:0 0 3.1cqw;
 }
 body[data-skin="v3"] .phone-appbar{
   grid-template-columns:auto 1fr auto;gap:3.1cqw;min-height:8.7cqw;
+  background:var(--v3-surface);
+  padding:3.6cqw 4.6cqw 3.1cqw;
 }
+/* 헤더에서 뺀 좌우 여백을 아래 것들이 각자 받는다 */
+body[data-skin="v3"] #phone-content-page{margin-top:3.1cqw;padding:0 4.1cqw;}
+body[data-skin="v3"] #cp-zones{padding:0 4.1cqw;}
 
 /* 햄버거 — 칩이 아니라 **맨 아이콘**. 시안은 굵기가 다른 3줄(가장 아래가 짧다) */
 body[data-skin="v3"] .pa-btn{
@@ -229,3 +240,185 @@ body[data-skin="v3"] .pn-ai.ai-flame{
   box-shadow:none;
 }
 body[data-skin="v3"] .pn-ai.ai-flame.ai-on{background:var(--v3-red);}
+
+/* ══ ② 지도 오버레이 ═══════════════════════════════════════════════════════
+   **여기부터 `cqw` 를 쓰지 않는다.** 스팟 버블·핀은 PC 지도(admin.html `#map`)에도
+   그려지는데 그쪽은 폰 컨테이너 밖이라 cqw 가 뷰포트 기준으로 풀린다(v1.82 사고).
+   원래 코드도 이 요소들만 px 이고 크기를 JS 가 줌에 따라 px 로 준다 — 같은 단위로 간다.
+
+   **색은 스킨이 정하지 않는다.** 스팟 색·존 라벨 색은 관리자 설정이 inline 으로 칠하고,
+   베이직=무채색/트렌드=온도색 규칙(v1.58)도 JS 가 갖고 있다. 스킨이 덮으면 그 설정이
+   통째로 무의미해진다 — 여기서 바꾸는 것은 **모양·테두리·그림자**까지다. */
+
+/* ── 스팟 버블 ── 시안의 말풍선은 **컬러 몸통 + 흰 글씨 + 꼬리**다.
+   v2 는 몸통을 흰 유리로 바꿨지만 v3 는 에셋 그대로 컬러를 살린다 —
+   그래서 `--spot-bg` 를 건드리지 않고 모서리·그림자만 손본다. */
+body[data-skin="v3"] .spot-bubble{
+  padding:6px 11px;
+  border-radius:14px;
+  font-weight:700;letter-spacing:-.02em;
+  box-shadow:0 3px 10px rgba(0,0,0,.18);
+}
+
+/* ── 사진 핀 ── 시안의 핵심 마커. **원형 + 두꺼운 컬러 링**이고,
+   Basic 에서는 사진이 흑백으로 가라앉고 링이 흰색이 된다(색은 Trend 의 언어다). */
+body[data-skin="v3"] .feed-pin .fp-im{
+  border-radius:50%;
+  border:3.5px solid var(--heat,#F4A15C);
+  box-shadow:0 3px 10px rgba(0,0,0,.18);
+}
+body[data-skin="v3"] .feed-pin img{border-radius:50%;}
+body[data-skin="v3"]:not(.mode-trend) .feed-pin .fp-im{
+  border-color:#fff;
+  filter:grayscale(1);opacity:.96;
+  box-shadow:0 3px 10px rgba(0,0,0,.1);
+}
+body[data-skin="v3"] .feed-pin.cluster .fp-im{
+  box-shadow:0 3px 10px rgba(0,0,0,.18),3.5px 3.5px 0 -1.5px #fff,4px 4.5px 6px rgba(0,0,0,.16);
+}
+/* 개수 배지 = 시안의 참여수 pill. Basic 은 흰 알약 + 회색 글씨, Trend 는 온도색 + 흰 글씨 */
+body[data-skin="v3"] .feed-pin .fp-n{
+  right:auto;top:auto;left:50%;bottom:-8px;transform:translateX(-50%);
+  height:18px;min-width:0;padding:0 7px;
+  border-radius:9999px;border:none;
+  background:var(--heat,#F4A15C);color:#fff;
+  box-shadow:0 3px 10px rgba(0,0,0,.16);
+  font-size:10px;font-weight:800;
+}
+body[data-skin="v3"]:not(.mode-trend) .feed-pin .fp-n{
+  background:#fff;color:#4A4A4A;box-shadow:0 3px 10px rgba(0,0,0,.1);
+}
+
+/* ── Request 핀 ── 시안은 **검정 원 + 흰 링**이다(Trend 에서 링이 오렌지).
+   물음표 말풍선 글리프는 legacy 마크업이 이미 갖고 있어 그대로 쓴다. */
+body[data-skin="v3"] .req-pin .rp-drop{
+  border-radius:50%;
+  border:none;
+  background:var(--v3-ink,#1A1A1A);
+  box-shadow:0 3px 10px rgba(0,0,0,.24),0 0 0 3.5px #fff;
+}
+body[data-skin="v3"].mode-trend .req-pin .rp-drop{
+  box-shadow:0 3px 10px rgba(0,0,0,.24),0 0 0 3.5px #F2994A;
+}
+body[data-skin="v3"] .req-pin .rp-drop i{color:#fff;}
+body[data-skin="v3"] .req-pin .rp-ring{border-color:rgba(255,255,255,.8);}
+body[data-skin="v3"].mode-trend .req-pin .rp-ring{border-color:rgba(242,153,74,.6);}
+
+/* ══ ③ 탭 페이지 ══════════════════════════════════════════════════════════
+   지면 카드 · 피드 그리드 · 소셜. 폰 안이므로 `cqw` 로 돌아온다.
+   환산 기준은 시안의 392px 폰 — 1cqw ≈ 3.92px. */
+
+/* ── 지면(동네 소식) ── 시안은 **흰 카드 + 얇은 테두리**다. 유리도 스크림도 없다.
+   v2 의 풀블리드 히어로는 v2 의 것이고, v3 는 다시 '카드'로 돌아온다 —
+   헤더가 불투명해졌으니 사진을 최상단까지 끌어올릴 이유가 없어졌다. */
+body[data-skin="v3"] #cp-frame{
+  border-radius:4.1cqw;
+  border:1px solid var(--v3-line);
+  background:var(--v3-surface);
+  box-shadow:none;
+}
+body[data-skin="v3"] #cp-frame.cv1 .cp-slide,
+body[data-skin="v3"] #cp-frame.cv2 .cp-slide{background:var(--v3-surface);}
+body[data-skin="v3"] .cps-title{
+  font-weight:800;letter-spacing:-.03em;line-height:1.28;
+}
+body[data-skin="v3"] #cp-frame.cv1 .cps-title,
+body[data-skin="v3"] #cp-frame.cv2 .cps-title{color:var(--v3-ink);font-size:4.3cqw;}
+body[data-skin="v3"] #cp-frame.cv1 .cps-place,
+body[data-skin="v3"] #cp-frame.cv2 .cps-place{color:var(--v3-ink5);font-size:2.8cqw;font-weight:600;}
+body[data-skin="v3"] .cps-meta{
+  order:2;font-size:2.8cqw;font-weight:600;letter-spacing:-.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+body[data-skin="v3"] #cp-frame.cv1 .cps-meta,
+body[data-skin="v3"] #cp-frame.cv2 .cps-meta{color:var(--v3-ink5);padding-right:24cqw;}
+body[data-skin="v3"] #cp-frame.cv3 .cps-meta{color:rgba(255,255,255,.82);text-shadow:0 1px 6px rgba(0,0,0,.32);}
+body[data-skin="v3"] #cp-frame.folded .cps-meta{display:none;}
+/* 점 — 시안은 회색 점 6px, 활성만 진하다(액센트가 아니다. 코랄은 더 중요한 자리에 쓴다) */
+body[data-skin="v3"] #cp-frame.cv1 #cp-dots,
+body[data-skin="v3"] #cp-frame.cv2 #cp-dots{justify-content:flex-end;padding-right:4cqw;bottom:3cqw;}
+body[data-skin="v3"] .cp-dot{background:#DCDAD6;box-shadow:none;}
+body[data-skin="v3"] .cp-dot.active{background:#8D8D8D;box-shadow:none;}
+
+/* ── 피드 도구줄 ── 시안의 필터칩: 회색 알약 → 선택된 것만 **검정 알약** */
+body[data-skin="v3"] #feed-tools{padding:3.1cqw 4.1cqw 0;}
+body[data-skin="v3"] #feed-tools .fsc{
+  border:none;border-radius:9999px;
+  padding:1.5cqw 3.8cqw;
+  background:#EFEEEB;color:var(--v3-ink3);
+  font-size:3.3cqw;font-weight:700;
+  box-shadow:none;
+}
+body[data-skin="v3"] #feed-tools .fsc.active{background:var(--v3-ink);color:#fff;box-shadow:none;}
+
+/* ── 피드 카드 ── 사진 타일 + 흰 본문. v1.84 에서 만든 `.fc-body` 구조를 그대로 쓴다
+   (시안의 카드도 정확히 같은 구조다 — 사진 / 제목 / `존 · 시간`).
+   다른 점 하나: **좋아요가 사진 좌상단의 흰 알약**이다. `.fc-like` 는 메타 줄 안에
+   있지만 `position:absolute` 면 흐름을 벗어나 카드(=사진) 기준으로 앉는다 —
+   마크업을 건드리지 않고 CSS 만으로 자리를 옮긴다. */
+body[data-skin="v3"] #feed-grid{gap:2.6cqw;padding:4.1cqw;}
+body[data-skin="v3"] .feed-card{
+  border:none;
+  border-radius:3.6cqw;
+  background:var(--v3-surface);
+  box-shadow:var(--v3-sh-soft);
+}
+body[data-skin="v3"] .feed-card.has-body{display:flex;flex-direction:column;background:var(--v3-surface);}
+body[data-skin="v3"] .feed-card.has-body img{flex:none;}
+body[data-skin="v3"] .feed-card.has-body::after{display:none;}
+body[data-skin="v3"] .feed-card.has-body .fc-region,
+body[data-skin="v3"] .feed-card.has-body .fc-time{display:none;}
+body[data-skin="v3"] .fc-body{
+  flex:1;min-height:0;
+  display:flex;flex-direction:column;justify-content:flex-end;gap:1.3cqw;
+  padding:2.6cqw 2.8cqw 3.1cqw;
+}
+body[data-skin="v3"] .fc-desc{
+  font-size:3.3cqw;font-weight:700;line-height:1.38;letter-spacing:-.02em;color:var(--v3-ink);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+body[data-skin="v3"] .fc-desc:empty{display:none;}
+body[data-skin="v3"] .fc-meta{
+  display:flex;align-items:center;min-width:0;
+  font-size:2.8cqw;font-weight:600;color:var(--v3-ink5);
+}
+body[data-skin="v3"] .fc-mplace{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+body[data-skin="v3"] .fc-mtime{flex:none;}
+body[data-skin="v3"] .fc-mtime::before{content:'·';margin:0 1.1cqw;}
+/* 좋아요를 사진 좌상단으로 — 흐름에서 빼면 부모(카드)의 좌상단, 곧 사진 좌상단이다 */
+body[data-skin="v3"] .feed-card.has-body .fc-like{
+  position:absolute;left:2cqw;top:2cqw;margin:0;
+  display:flex;align-items:center;
+  min-width:0;height:auto;padding:.8cqw 2cqw;
+  border-radius:9999px;
+  background:rgba(255,255,255,.9);
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  box-shadow:none;
+  font-size:2.8cqw;font-weight:700;color:var(--v3-ink2);
+  z-index:1;
+}
+body[data-skin="v3"] .feed-card.has-body .fc-like.on{color:var(--v3-red);background:rgba(255,255,255,.94);}
+/* 좌상단 LIVE·존 칩은 좋아요와 자리가 겹친다 — 우상단으로 보낸다 */
+body[data-skin="v3"] .feed-card.has-body .fc-top{left:auto;right:2cqw;}
+body[data-skin="v3"] .feed-card .fc-live{background:var(--v3-red);border-radius:9999px;font-weight:800;}
+body[data-skin="v3"] .feed-card .fc-zonechip{
+  border-radius:9999px;background:rgba(255,255,255,.9);color:var(--v3-ink2);
+  backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;font-weight:800;
+}
+body[data-skin="v3"] .feed-card.txt{background:var(--v3-surface);}
+body[data-skin="v3"] .feed-card .fc-text{color:var(--v3-ink);font-weight:700;letter-spacing:-.02em;}
+body[data-skin="v3"] .feed-card.txt .fc-region{
+  border-radius:9999px;background:var(--v3-fill);color:var(--v3-ink4);font-weight:700;
+}
+
+/* ── 소셜 ── 시안의 방 목록은 **흰 카드 + 라운드 사각 아바타**다.
+   (Our Talk / My Talk 2단 세그먼트는 구조 변경이라 7단계에서 한다 —
+   지금은 기존 3탭을 같은 칩 문법으로 칠하는 데까지.) */
+body[data-skin="v3"] .soc-tabs{padding:3.1cqw 4.1cqw 1.5cqw;gap:1.5cqw;}
+body[data-skin="v3"] .soc-tab{
+  border:none;border-radius:9999px;
+  padding:1.8cqw 3.8cqw;
+  background:#EFEEEB;color:var(--v3-ink3);
+  font-size:3.3cqw;font-weight:700;
+}
+body[data-skin="v3"] .soc-tab.active{background:var(--v3-ink);color:#fff;}
