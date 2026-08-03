@@ -63,7 +63,7 @@
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
-| M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 전환(legacy/new)** — **①~④ 전 단계 적용**(셸·지도 오버레이·탭 페이지·오버레이) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin`(v1.84: 마크업까지 가르므로 재렌더) `initSkinControl` `body[data-skin]` `--nk-*` | style.css · **skin-new.css** · app.js | v1.84 |
+| M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 3종(legacy / new=v2.0 / v3=v3.0, 기본)** — v3 는 석촌동 에셋 기준 재설계(웜 오프화이트+코랄·°C 지표) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin`(v1.84: 마크업까지 가르므로 재렌더) `initSkinControl` `body[data-skin]` `APP_SKINS` `--nk-*` `--v3-*` | style.css · skin-new.css · **skin-v3.css** · app.js | v1.85 |
 | M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.75 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
@@ -173,6 +173,8 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-04 M15: v1.85.0 — **새 디자인 v3.0 1단계(토큰·셸).** Claude Design 핸드오프(석촌동 에셋 기준 전면 재설계)를 **세 번째 스킨**으로 들인다. `APP_SKINS` 목록 하나로 모았다 — 전에는 `legacy 아니면 new` 라는 **둘을 전제로 한 분기**가 세 곳에 흩어져 있어서, 셋이 되는 순간 전부 틀렸다. v3 는 웜 오프화이트(#F4F3F1) + 코랄(#E8574A) + 온도 램프(36.5~99.9°C)이고, 하단 네비가 **회색 유리 위 아이콘만**(글자 없음)으로 바뀐다. `.pn-lb` 는 숨기기만 한다 — 마크업에서 지우면 legacy·new 가 같이 깨진다. 규칙은 전부 `skin-v3.css` 안에만 있고 style.css·skin-new.css 는 무수정 (스킨끼리 서로를 모른다)
 
 - 2026-08-04 M05+M10 (⚠️교차: M15 `setAppSkin` 재렌더): v1.84.0 — **카드 부제·메타 줄.** v1.81 에서 "마크업 변경이라 스킨 밖의 일"로 미뤄 둔 마지막 조각이다. 피드 카드는 **사진 아래 흰 본문**(설명글 2줄 + `동 · 시간 … ♥n`)을 얻는다 — **설명글은 지금까지 상세 팝업에서만 보였다.** 카드를 세로 flex 로 만들고 본문에 `flex:1` 을 줘서, 한 줄짜리와 두 줄짜리가 나란히 서도 **메타 줄이 같은 높이에 선다**. 좋아요는 사진 위 흰 원형에서 메타 줄 오른쪽 숫자로 내려왔다. 지면 카드에는 `거리 · 시간` — 정렬용 제곱 좌표차 대신 `haversineM` 실측을 따로 뽑았고, **데이터가 없는 관리자 지면에는 줄 자체를 만들지 않는다.** 캐러셀 점이 그 줄과 자리를 다퉈 흰 본문에서는 오른쪽 끝 잉크색 점으로, 사진 위 캡션(cv3)에서는 본문을 점 위로 들어올렸다. **legacy 는 마크업까지 그대로** — 새 요소를 CSS 로 숨기는 게 아니라 새 스킨일 때만 만든다(그래서 스킨 전환이 재렌더를 부른다)
 

@@ -18,8 +18,11 @@ var IS_APP_PAGE=PAGE_MODE==='app', IS_ADMIN_PAGE=PAGE_MODE==='admin';
    값은 콘솔(admin.html › 🎨 스타일 › 디자인)에서 정하고 클라우드로 동기된다.
    app.js 가 </body> 앞에서 로드되므로 document.body 는 이 시점에 이미 있다 —
    초기화까지 기다리면 legacy 화면이 한 번 번쩍인다. */
-var appSkin='new';
-try{var _sk0=localStorage.getItem('nowhere_skin');if(_sk0==='legacy'||_sk0==='new')appSkin=_sk0;}catch(e){}
+/* v1.85: 스킨이 셋이다 — legacy(v1.77 화면) / new(v2.0) / v3(v3.0, 기본).
+   목록을 한 곳에 둬서 저장값 검증·클라우드 동기·셀렉트가 같은 기준을 본다. */
+var APP_SKINS=['legacy','new','v3'];
+var appSkin='v3';
+try{var _sk0=localStorage.getItem('nowhere_skin');if(APP_SKINS.indexOf(_sk0)>=0)appSkin=_sk0;}catch(e){}
 function applySkin(){
   if(!document.body)return;
   document.body.setAttribute('data-skin',appSkin);
@@ -28,7 +31,7 @@ function applySkin(){
   if(!document.body.hasAttribute('data-tab'))document.body.setAttribute('data-tab','map');
 }
 function setAppSkin(v){
-  appSkin=(v==='legacy')?'legacy':'new';
+  appSkin=(APP_SKINS.indexOf(v)>=0)?v:'v3';
   try{localStorage.setItem('nowhere_skin',appSkin);}catch(e){}
   applySkin();
   /* v1.84 부터 스킨이 **마크업까지** 가른다(피드 카드 본문·지면 메타 줄) — 속성만 바꾸면
@@ -3005,7 +3008,7 @@ function applyCloudData(d){
   if(d.social){if(Array.isArray(d.social.rooms))socRoomList=d.social.rooms.slice();if(Array.isArray(d.social.seedLocal))socSeedLocal=d.social.seedLocal.slice();saveChat();renderRoomManager();}
   if(d.zoneCardStyle==='glass'||d.zoneCardStyle==='list'){zoneCardStyle=d.zoneCardStyle;var _zcs=document.getElementById('zone-card-style');if(_zcs)_zcs.value=zoneCardStyle;}
   if(d.feedTimeMode==='ago'||d.feedTimeMode==='clock'||d.feedTimeMode==='off'){feedTimeMode=d.feedTimeMode;var _ftm=document.getElementById('feed-time');if(_ftm)_ftm.value=feedTimeMode;if(currentTab==='feed')renderFeed();}
-  if(d.appSkin==='legacy'||d.appSkin==='new'){setAppSkin(d.appSkin);var _sks=document.getElementById('app-skin');if(_sks)_sks.value=appSkin;} // [M15] 디자인 스킨(관리자가 정하면 모두에게)
+  if(APP_SKINS.indexOf(d.appSkin)>=0){setAppSkin(d.appSkin);var _sks=document.getElementById('app-skin');if(_sks)_sks.value=appSkin;} // [M15] 디자인 스킨(관리자가 정하면 모두에게)
   if(d.spotMapBg&&typeof d.spotMapBg==='object'){spotMapBg.op=Number(d.spotMapBg.op)||0;spotMapBg.scaleM=Number(d.spotMapBg.scaleM)||100;saveSpotMapBg();
     var _mo=document.getElementById('spotmap-op');if(_mo)_mo.value=String(spotMapBg.op);
     var _ms=document.getElementById('spotmap-scale');if(_ms)_ms.value=String(spotMapBg.scaleM);
