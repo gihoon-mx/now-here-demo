@@ -1360,6 +1360,88 @@ function renderNews(){
   updateFoldBtnTone();
   renderSummaryZones();
 }
+/* ── [M10] v1.90 지역 Overview 글래스 패널 ───────────────────────────────────
+   지면 카드를 탭하면 그 지역의 '지금'이 한 판에 뜬다. 시안의 아트보드 17.
+
+   ⚠️ **v1.62 규칙을 하나 바꾼다.** 그때 "지면 캐러셀=스와이프 열람 전용(클릭 액션 없음)"
+   으로 정했는데, 시안은 지면 카드 자체를 Overview 로 들어가는 문으로 쓴다.
+   스와이프는 그대로 두고 **탭에만** 액션을 붙인다(드래그 중이면 열지 않는다).
+
+   **칩은 있는 데이터만 만든다**(v1.81 교훈 — 채울 것이 없으면 껍데기다).
+   시안의 `💬 40k`·`👥 현장 682명` 같은 숫자는 이 앱에 없어서 쓰지 않고,
+   실제로 세어지는 것만 올린다: 온도 · 스팟 · 사진 · Request · 타임딜. */
+function ovChipData(){
+  var out=[];
+  var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());
+  if(c&&typeof heatTOf==='function'){
+    var t=zoneHeatT(c.lat(),c.lng()); // 0~1 열기 → 시안의 °C 눈금(36.5~99.9)
+    if(t!=null)out.push({t:'🔥 '+(36.5+t*63.4).toFixed(1)+'°C',hot:true});
+  }
+  var region=focusedRegionName()||currentCenterDong();
+  if(region)out.push({t:'📍 '+region});
+  var nSpot=spotMessages.filter(function(s){return !s.hidden;}).length;
+  if(nSpot)out.push({t:'💬 스팟 '+nSpot});
+  var nPhoto=feedItems.filter(function(f){return f.src&&!f.hidden;}).length;
+  if(nPhoto)out.push({t:'📸 사진 '+nPhoto});
+  var nReq=fieldRequests.filter(reqActive).length;
+  if(nReq)out.push({t:'🙋 Request '+nReq});
+  var nDeal=timeDeals.filter(dealActive).length;
+  if(nDeal)out.push({t:'⏰ 타임딜 '+nDeal});
+  var nZone=trendZones.length;
+  if(nZone)out.push({t:'⬡ 트렌드 존 '+nZone});
+  return out;
+}
+function openOverview(){
+  var p=document.getElementById('ov-panel');if(!p)return;
+  var chips=document.getElementById('ov-chips');
+  chips.innerHTML='';
+  ovChipData().forEach(function(c){
+    var s=document.createElement('span');s.className='ov-chip'+(c.hot?' hot':'');s.textContent=c.t;chips.appendChild(s);
+  });
+  // AI 한 줄 요약 — M08 이 이미 실데이터로 만든다. 없으면 문단 자체를 비운다
+  var q=document.getElementById('ov-quote');
+  q.textContent=(typeof aiMapSummary==='function')?('“'+aiMapSummary()+'”'):'';
+  q.style.display=q.textContent?'':'none';
+  // 사진 서클 — 실제 피드 썸네일 5장
+  var ph=document.getElementById('ov-photos');ph.innerHTML='';
+  feedItems.filter(function(f){return f.src&&!f.hidden;}).slice(0,5).forEach(function(f){
+    var s=document.createElement('span');s.className='ov-ph';
+    var im=document.createElement('img');im.src=f.src;im.alt='';s.appendChild(im);ph.appendChild(s);
+  });
+  ph.style.display=ph.children.length?'':'none';
+  // 소식 카드 — 지금 보고 있는 지면 슬라이드 그대로
+  var nb=document.getElementById('ov-news');nb.innerHTML='';
+  var it=newsView[Math.min(newsIndex,Math.max(0,newsView.length-1))];
+  if(it){
+    nb.innerHTML='<span class="ovn-place"></span><b class="ovn-title"></b><span class="ovn-body"></span>';
+    nb.querySelector('.ovn-place').textContent=it.region||'';
+    nb.querySelector('.ovn-title').textContent=it.title||'';
+    nb.querySelector('.ovn-body').textContent=it.feed?('가까운 곳에서 올라온 소식이에요.'):'';
+    nb.style.display='';
+  }else nb.style.display='none';
+  var tour=document.getElementById('ov-tour');
+  if(tour)tour.textContent=(focusedRegionName()||currentCenterDong()||'이 지역')+' 둘러보기';
+  p.style.display='';
+}
+function closeOverview(){var p=document.getElementById('ov-panel');if(p)p.style.display='none';}
+function initOverview(){
+  var p=document.getElementById('ov-panel');if(!p)return;
+  var x=document.getElementById('ov-close'),sc=document.getElementById('ov-scrim');
+  if(x)x.addEventListener('click',closeOverview);
+  if(sc)sc.addEventListener('click',closeOverview);
+  var tour=document.getElementById('ov-tour');
+  if(tour)tour.addEventListener('click',function(){
+    closeOverview();
+    if(typeof switchMode==='function'&&currentMode!=='trend')switchMode('trend'); // 둘러보기=트렌드 지도로
+  });
+  var frame=document.getElementById('cp-frame');
+  if(frame)frame.addEventListener('click',function(){
+    if(newsDragging)return;          // 스와이프 중이면 탭이 아니다
+    if(frame.classList.contains('folded'))return; // 접힌 카드는 펼치기 버튼이 따로 있다
+    if(!newsView.length)return;
+    openOverview();
+  });
+}
 function renderNewsList(){
   var list=document.getElementById('news-list');if(!list)return;
   list.innerHTML='';
@@ -1501,6 +1583,14 @@ function makeZoneCard(zone,focused){ // 존 카드 (글래스 캡션 / 리스트
     var im2=c.querySelector('img');if(im2)im2.src=pho;
     var ph2=c.querySelector('.tz-ph');if(ph2){ph2.style.background=hexToRgba(zone.color,0.16);ph2.style.color=zone.color;ph2.textContent='⬡';}
   }
+  /* v1.90: 스토리 서클(v3)이 쓸 값을 **카드에 실어 둔다.** 존 색과 온도는 JS 만 알고
+     CSS 는 모른다 — 변수·속성으로 넘겨 두면 스킨이 마크업을 안 건드리고 원형 링과
+     온도 배지를 그릴 수 있다. legacy·v2 는 이 값을 안 쓰므로 영향이 없다. */
+  c.style.setProperty('--zone-c',zone.color||'#F4A15C');
+  try{
+    var _ce=zoneCentroid(zone),_t=(typeof zoneHeatT==='function')?zoneHeatT(_ce.lat,_ce.lng):null;
+    if(_t!=null)c.dataset.temp=(36.5+Math.max(0,Math.min(1,_t))*63.4).toFixed(1)+'°C'; // 시안의 °C 눈금
+  }catch(e){}
   if(focused){ // 포커스 존: 액센트 테두리 + 체크 뱃지
     c.classList.add('focus');
     var ck=document.createElement('span');ck.className='tzf-check';ck.textContent='✓';c.appendChild(ck);
@@ -5774,7 +5864,7 @@ function startEmbed(){
   loadFileDefaults(); // repo 백스톱 설정(settings-default.json) — 공장값 캡처 후 비동기 적용, 클라우드가 오면 그쪽 우선
   initSettingsExport();
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initOverview();
   window.addEventListener('resize',layoutTabPages);
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)
   setInterval(function(){try{tickReqRemain();}catch(e){}},1000); // Request 남은 시간(분/초) 1초 갱신 — 텍스트만(경량)

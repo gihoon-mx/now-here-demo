@@ -18,11 +18,11 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here</title>
-  <link rel="stylesheet" href="style.css?v=1.89.0" />
+  <link rel="stylesheet" href="style.css?v=1.90.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=1.89.0" />
+  <link rel="stylesheet" href="skin-new.css?v=1.90.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=1.89.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=1.90.0" />
   <script>window.PAGE_MODE='app';</script><!-- v1.65 서비스 페이지(폰 앱). 관리자 지도·설정은 admin.html -->
 </head>
 <body class="page-app">
@@ -66,7 +66,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v1.89.0</span>
+        <span id="app-version">v1.90.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -386,6 +386,18 @@
           <div class="phone-drawer-head"><span>메뉴</span><div class="pdh-actions"><button class="pdh-feature" type="button">🧩 기능 보기</button><button id="phone-drawer-close" type="button">닫기</button></div></div>
           <div id="phone-drawer-body"></div>
         </div>
+        <!-- [M10] v1.90 지역 Overview 글래스 패널 — 지면 카드를 탭하면 열린다 -->
+        <div id="ov-panel" class="ov-panel" style="display:none;">
+          <div class="ov-scrim" id="ov-scrim"></div>
+          <div class="ov-card">
+            <button class="ov-x" id="ov-close" type="button" aria-label="닫기">✕</button>
+            <div class="ov-chips" id="ov-chips"></div>
+            <p class="ov-quote" id="ov-quote"></p>
+            <div class="ov-photos" id="ov-photos"></div>
+            <div class="ov-news" id="ov-news"></div>
+            <button class="ov-tour" id="ov-tour" type="button">지역 둘러보기</button>
+          </div>
+        </div>
         <!-- [M17] v1.89 타임딜 바텀시트 — 지도 ⏰ 핀 탭 시 아래에서 올라온다 -->
         <div id="deal-sheet" class="deal-sheet" style="display:none;">
           <div class="ds-scrim" id="ds-scrim"></div>
@@ -470,7 +482,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=1.89.0"></script>
-  <script src="app.js?v=1.89.0"></script>
+  <script src="config.js?v=1.90.0"></script>
+  <script src="app.js?v=1.90.0"></script>
 </body>
 </html>

@@ -51,14 +51,14 @@
 | M00 | utils 공용 헬퍼 | 동결 | 전 모듈 공용 — **수정 금지·추가만** | `escHtml` `hexToRgba` `haversineM` `compressNews` `timeAgo` `MapLabel` `buildEmojiPicker` `initTwemoji` `heatColor` `heatTOf` `declutterBoxes` `MapLabel(줌 스케일·위치보정)` | app.js | v1.64 |
 | M01 | core-map 지도 코어 | 안정 | 지도 초기화·GeoJSON 경계·모드 전환·메인 지도 이벤트 | `initMap` `applyGeoJsonToMap` `switchMode` `refreshMapStyles` `chaikinSmooth` | app.js | v1.28 |
 | M02 | lens 포커스 렌즈 | 안정 | 베이직/트렌드 마스크 렌즈·포그·전환 애니 | `updatePhoneLens` `lensBuild` `lensApply` `holeRing` `phoneLens` `autoReleaseFocus` | app.js | v1.62 |
-| M03 | zones 트렌드 존 | 활성 | 헥사 그리드·존 CRUD·존 카드/리스트·병합 아웃라인·라벨 표시 토글·채움 투명도 | `generateHexagons` `trendZones` `zoneOutlineLoops` `makeZoneCard` `buildZoneScroll` `remapZoneToGrid` `sortedZonesForList` `visibleZoneCount` `zoneLabelsShown` `zoneFillA` | app.js | v1.65 |
+| M03 | zones 트렌드 존 | 활성 | 헥사 그리드·존 CRUD·존 카드/리스트·병합 아웃라인·라벨 표시 토글·채움 투명도 | `generateHexagons` `trendZones` `zoneOutlineLoops` `makeZoneCard` `buildZoneScroll` `remapZoneToGrid` `sortedZonesForList` `visibleZoneCount` `zoneLabelsShown` `zoneFillA` `--zone-c`/`data-temp`(v1.90 스토리 서클) | app.js | v1.90 |
 | M04 | spots 스팟 메시지 | 안정 | 스팟 버블(자유 방향·겹침 방지)·컴포저·편집/드래그·워드클라우드 (모드 컬러: 베이직 무채색/트렌드 온도)·개별 색 투명도 | `SpotBubble` `SpotComposer` `renderSpots` `spotsInFocusedRegion` `canEditSpot` `declutterMarkers` `openSpotEditor` `spotComments(뱃지)` | app.js | v1.65 |
 | M05 | feed 피드 | 활성 | 피드 탭·그리드·썸네일 핀(스팟과 동일 줌 스케일·온도 링/뱃지)·클러스터·좋아요·업로드 | `renderFeed` `feedEntriesScoped` `FeedThumb` `clusterFeedPins` `toggleLike` `feedAdd` `initFeedTools` `staticMapUrl` `fc-body`(새 스킨 본문) `hidden`(v1.88 숨김 필드) | app.js | v1.88 |
 | M06 | social 소셜 | 안정 | 소셜 탭·채팅방(동네/주제/프라이빗)·liveChat | `renderSocial` `socRoomList` `roomMsgs` `initSocialManager` | app.js | v1.45 |
 | M07 | request 현장 Request | 활성 | Request 등록(10분 타임아웃)·AI Agent 실시간 응답 팝업·내 Request 답변 보기·전용 핀(ReqPin)·삭제 | `openRequestComposer` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` `ReqPin` `deleteRequest`·핀 줌 스케일(스팟 동일) `reqRemainLabel` | app.js | v1.63 |
 | M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·모드별 톤(불꽃)·**원격 에이전트(persona-vc)** | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE` `aiMapSummary` `aiChatAnswer` `aiAgentOn` `aiAskRemote` `aiContextSnapshot` `aiChatHistory` | app.js · config.js | v1.76 |
 | M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·**드로어(둘러보기 전용)**·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` `setNavActive`(switchTab 내부) | app.js | v1.83 |
-| M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기·메타 줄(거리·시간) | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` `feedSummaryItems` `cps-meta` | app.js | v1.84 |
+| M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기·메타 줄(거리·시간) | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` `feedSummaryItems` `cps-meta` · **지역 Overview**(`openOverview` `ovChipData` `initOverview`) | app.js | v1.90 |
 | M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — **admin.html 에만 있다**(서비스 페이지에는 없음) | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openAdmPanelFromUrl` `jumpToSetting` `openColorPopup` `makeColorControl` `initSettingsAccordion` · **전체 컨텐츠 표**(`ctEntries` `renderContentTable` `initContentTable` `ctSetHidden` `ctMoveZone` `ctDelete` `ctKind` `ctSel`) | app.js | v1.88 |
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
@@ -174,6 +174,8 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-04 M10+M03: v1.90.0 — **지역 Overview 패널 + 스토리 서클(v3 6단계).** 지면 카드를 탭하면 그 지역의 '지금'이 유리판 한 장에 뜬다(칩 줄·AI 한 줄 요약·사진 서클·소식 카드·둘러보기). ⚠️ **v1.62 규칙을 하나 바꿨다** — '지면 캐러셀=클릭 액션 없음'이었는데 시안이 지면 카드를 Overview 로 가는 문으로 쓴다. 스와이프는 그대로 두고 **탭에만** 액션을 붙였다(`newsDragging` 이면 무시). 칩은 **세어지는 것만** 올린다 — 시안의 `💬 40k`·`👥 현장 682명` 은 이 앱에 없는 숫자다(v1.81 교훈). 스토리 서클은 `#cp-zones` 존 카드를 **원형으로 다시 짠 것**이고, 링 색·온도는 `makeZoneCard` 가 `--zone-c`·`data-temp` 로 실어 보낸다(마크업 무수정). 배지는 `Hot Rising` 같은 등급이 아니라 **실제로 있는 값(°C)** 을 쓴다
 
 - 2026-08-04 M17 신설 (⚠️교차 M07 렌더 시점·M11 표): v1.89.0 — **타임딜(v3 5단계).** 지도 ⏰ 핀 + 바텀시트. **왜 새 모듈인가**: 스팟·피드·Request 와 달리 딜은 **시간이 핵심**이라(남은 시간이 줄고 0 이면 사라진다) 기존 컨텐츠 배열에 얹으면 그 시간 규칙이 피드·지면 전체로 새어 나간다. 시드 딜은 만료되지 않고 (`seed:true` — `reqActive` 와 같은 장치) 남은 시간만 벽시계를 주기로 접어 계속 흐르게 한다. ⚠️ **딜은 무대를 따라와야 한다** — 처음엔 `feedItems` **배열 순서**로 자리를 골랐는데 시드가 5개 지역에 흩어져 있어 **13.8km 밖**에 세워졌다(실측). 센터에서 **가까운 순**으로 고르고, 이미 있어도 3km 를 넘으면 다시 세운다(임베드 시나리오가 지역을 옮겨 다닌다 — M16)
 

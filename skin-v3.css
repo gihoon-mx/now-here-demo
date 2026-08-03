@@ -637,3 +637,52 @@ body[data-skin="v3"] .deal-sheet .ds-was{color:var(--v3-ink5);}
 body[data-skin="v3"] .deal-sheet .ds-bar{background:var(--v3-fill);}
 body[data-skin="v3"] .deal-sheet .ds-claim{background:var(--v3-ink);}
 body[data-skin="v3"] .deal-sheet .ds-share{background:var(--v3-canvas);color:var(--v3-ink3);}
+
+/* ── 지역 Overview 패널 (v1.90) ── 기본형이 이미 시안 값이라 v3 는 타이포만 맞춘다 */
+body[data-skin="v3"] .ov-panel .ov-chip{font-weight:700;color:var(--v3-ink2);}
+body[data-skin="v3"] .ov-panel .ovn-title{color:var(--v3-ink);letter-spacing:-.03em;}
+body[data-skin="v3"] .ov-panel .ovn-place{color:var(--v3-ink4);}
+body[data-skin="v3"] .ov-panel .ovn-body{color:var(--v3-ink3);}
+body[data-skin="v3"] .ov-panel .ov-tour{color:var(--v3-ink2);font-weight:700;}
+
+/* ── 스토리 서클 (v1.90) ── Trend 모드에서 지면 자리에 서는 지역 서클.
+   `#cp-zones` 의 존 카드를 **원형으로 다시 짠다** — 마크업은 그대로다.
+   링 색과 온도는 `makeZoneCard` 가 `--zone-c`·`data-temp` 로 실어 보낸다.
+   시안의 `Hot Rising`/`Mission` 배지 자리에는 **실제로 있는 값(°C)** 을 넣는다 —
+   등급 라벨은 이 앱에 데이터가 없다(v1.81 교훈). */
+body[data-skin="v3"] #cp-zones:not(.list) .tz-scroll{gap:3.1cqw;align-items:flex-start;}
+body[data-skin="v3"] #cp-zones:not(.list) .tz-card{
+  width:26.5cqw;height:26.5cqw;flex:none;
+  border-radius:50%;overflow:visible;
+  border:.9cqw solid var(--zone-c,#F4A15C);
+  background:transparent;box-shadow:none;padding:0;
+  position:relative;
+}
+body[data-skin="v3"] #cp-zones:not(.list) .tz-card .tz-photo{
+  position:absolute;inset:0;width:100%;height:100%;
+  border-radius:50%;object-fit:cover;
+  filter:brightness(.82);
+}
+/* 이름은 사진 위 흰 글씨 한가운데 — 시안의 서클은 캡션이 아니라 **이름이 곧 얼굴**이다 */
+body[data-skin="v3"] #cp-zones:not(.list) .tz-card .tz-bubble{
+  position:absolute;inset:0;z-index:1;
+  display:flex;align-items:center;justify-content:center;
+  background:none;backdrop-filter:none;-webkit-backdrop-filter:none;
+  border:none;box-shadow:none;padding:0;
+}
+body[data-skin="v3"] #cp-zones:not(.list) .tz-card .tz-bubble b{
+  font-size:5.1cqw;font-weight:800;letter-spacing:-.03em;
+  color:rgba(255,255,255,.96);text-shadow:0 1px 6px rgba(0,0,0,.45);
+}
+body[data-skin="v3"] #cp-zones:not(.list) .tz-card .tz-bubble i{display:none;}
+/* 온도 배지 — 서클 하단 중앙, 링과 같은 색 */
+body[data-skin="v3"] #cp-zones:not(.list) .tz-card[data-temp]::after{
+  content:attr(data-temp);
+  position:absolute;left:50%;bottom:-1.5cqw;transform:translateX(-50%);
+  padding:.8cqw 2.6cqw;border-radius:9999px;
+  background:var(--zone-c,#F4A15C);color:#fff;
+  font-size:2.6cqw;font-weight:800;white-space:nowrap;
+  box-shadow:0 .5cqw 2cqw rgba(0,0,0,.18);
+}
+body[data-skin="v3"] #cp-zones:not(.list) .tz-card.focus{box-shadow:0 0 0 .8cqw rgba(232,87,74,.28);}
+body[data-skin="v3"] #cp-zones:not(.list) .tz-card .tzf-check{top:-.5cqw;right:-.5cqw;}
