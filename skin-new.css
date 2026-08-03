@@ -370,6 +370,31 @@ body[data-skin="new"] .cps-title{letter-spacing:-.02em;font-weight:800;}
 body[data-skin="new"] #cp-frame.cv1 .cps-title,
 body[data-skin="new"] #cp-frame.cv2 .cps-title{color:var(--nk-ink);}
 body[data-skin="new"] #cp-frame.cv1 .cps-place{color:var(--nk-ink4);}
+/* 메타 줄(거리 · 시간) — 연관 피드 카드에만 붙는다(renderNews 가 데이터 있을 때만 만든다).
+   .cps-body 는 flex 열이고 title/place 가 order 0·1 이라 메타는 3번째 줄이다.
+   접힌 카드는 15cqw 한 줄짜리라 메타까지 넣으면 넘친다 — 접히면 숨긴다. */
+body[data-skin="new"] .cps-meta{order:2;font-size:2.4cqw;font-weight:700;letter-spacing:-.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+body[data-skin="new"] #cp-frame.cv1 .cps-meta,
+body[data-skin="new"] #cp-frame.cv2 .cps-meta{color:var(--nk-ink5);}
+body[data-skin="new"] #cp-frame.cv3 .cps-meta{color:rgba(255,255,255,.8);text-shadow:0 1px 6px rgba(0,0,0,.32);}
+body[data-skin="new"] #cp-frame.folded .cps-meta{display:none;}
+/* 캐러셀 점은 본문 마지막 줄과 **같은 높이 띠**에 있다 — 지금까지는 그 자리가 짧은 동 이름
+   뿐이라 비어 있었지만, 메타 줄이 생기면서 자리를 다툰다.
+   흰 본문(cv1·cv2)에서는 점을 메타 줄 **오른쪽 끝**으로 보내고 잉크색으로 칠한다
+   (흰 점은 원래 사진 위(cv3)를 위한 색이라 흰 본문 위에서는 테두리 선으로만 보였다).
+   메타 쪽에는 점이 차지할 만큼 오른쪽 여백을 줘서 긴 문자열이 점까지 닿지 않게 한다.
+   사진 위 캡션(cv3)은 점을 가운데 그대로 두고 **본문을 점 위로 들어올린다** —
+   본문이 바닥 기준 절대배치라 줄 수가 몇이든 정확히 비켜난다. */
+body[data-skin="new"] #cp-frame.cv1 #cp-dots,
+body[data-skin="new"] #cp-frame.cv2 #cp-dots{justify-content:flex-end;padding-right:4cqw;bottom:3cqw;}
+body[data-skin="new"] #cp-frame.cv1 .cp-dot,
+body[data-skin="new"] #cp-frame.cv2 .cp-dot{background:rgba(14,20,32,.16);box-shadow:none;}
+body[data-skin="new"] #cp-frame.cv1 .cp-dot.active,
+body[data-skin="new"] #cp-frame.cv2 .cp-dot.active{background:var(--nk-blue);box-shadow:none;}
+body[data-skin="new"] #cp-frame.cv1 .cps-meta,
+body[data-skin="new"] #cp-frame.cv2 .cps-meta{padding-right:24cqw;}
+body[data-skin="new"] #cp-frame.cv3 .cps-body{bottom:6.5cqw;}
 
 /* ── 피드 도구줄 ── 필터 칩: 흰 알약 → 선택된 것만 잉크색 알약(원본 문법) */
 body[data-skin="new"] #feed-tools{padding:3cqw 3.4cqw 0;}
@@ -452,6 +477,49 @@ body[data-skin="new"] .feed-card .fc-like.on{color:var(--nk-hot);background:rgba
 body[data-skin="new"] .feed-card .fc-live{background:var(--nk-hot);border-radius:1.8cqw;}
 body[data-skin="new"] .feed-card.txt{background:var(--nk-surface);}
 body[data-skin="new"] .feed-card .fc-text{color:var(--nk-ink);font-weight:700;letter-spacing:-.02em;}
+
+/* ── 피드 카드 본문(v1.84) ── 위 블록에서 "본문 분리는 렌더 함수의 일"이라며 미뤄 둔 것.
+   renderFeed 가 새 스킨일 때만 `.has-body` + `.fc-body` 를 만든다(legacy 는 마크업까지 그대로).
+   카드를 **세로 flex** 로 만들면 사진은 자기 비율(aspect-ratio:1)대로 서고 본문이 아래에 쌓인다.
+   그리드 한 줄의 카드들은 stretch 로 키가 같아지는데, 본문에 `flex:1` 을 주면 그 여분을
+   본문이 먹고 메타 줄이 바닥에 정렬된다 — 설명글이 한 줄인 카드와 두 줄인 카드가 나란히
+   서도 아래 줄이 어긋나지 않는다. */
+body[data-skin="new"] .feed-card.has-body{display:flex;flex-direction:column;background:var(--nk-surface);}
+body[data-skin="new"] .feed-card.has-body img{flex:none;} /* 카드가 늘어나도 사진은 안 늘어난다 */
+/* 사진 위에 있던 것들이 본문으로 내려왔다 — 스크림도 위치칩도 시간칩도 이제 할 일이 없다.
+   남는 것은 좌상단 LIVE·존 칩과 우상단 ✏️🗑 뿐이고, 그것들은 자기 배경을 갖고 있다. */
+body[data-skin="new"] .feed-card.has-body::after{display:none;}
+body[data-skin="new"] .feed-card.has-body .fc-region,
+body[data-skin="new"] .feed-card.has-body .fc-time{display:none;}
+body[data-skin="new"] .fc-body{
+  flex:1;min-height:0;
+  display:flex;flex-direction:column;justify-content:flex-end;gap:.9cqw;
+  padding:2.4cqw 2.8cqw 2.6cqw;
+}
+/* 부제 = 올린 사람이 쓴 설명글. 두 줄까지만 — 세 줄부터는 사진보다 글이 커진다 */
+body[data-skin="new"] .fc-desc{
+  font-size:2.9cqw;font-weight:800;line-height:1.34;letter-spacing:-.02em;color:var(--nk-ink);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+body[data-skin="new"] .fc-desc:empty{display:none;} /* 설명글 없는 사진(동네소식 등)은 메타 줄만 */
+body[data-skin="new"] .fc-meta{
+  display:flex;align-items:center;min-width:0;
+  font-size:2.4cqw;font-weight:700;letter-spacing:-.01em;color:var(--nk-ink4);
+}
+body[data-skin="new"] .fc-mplace{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+body[data-skin="new"] .fc-mtime{flex:none;color:var(--nk-ink5);}
+body[data-skin="new"] .fc-mtime::before{content:'·';margin:0 1.1cqw;color:var(--nk-ink5);}
+/* 좋아요는 사진 위 흰 원형(v1.81)에서 **메타 줄 오른쪽 끝의 숫자**로 내려온다 —
+   사진이 카드 전부였을 때는 떠 있는 버튼이 맞았지만, 이제 같은 성격의 정보(동·시간)가
+   한 줄에 모여 있다. 원형 버튼 규칙을 여기서 되돌린다. */
+body[data-skin="new"] .feed-card.has-body .fc-like{
+  position:static;margin-left:auto;flex:none;
+  min-width:0;height:auto;padding:0 0 0 1.6cqw;
+  border-radius:0;background:none;box-shadow:none;
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  font-size:2.4cqw;font-weight:800;color:var(--nk-ink4);
+}
+body[data-skin="new"] .feed-card.has-body .fc-like.on{color:var(--nk-hot);background:none;}
 
 /* ── 소셜 ── 세그먼트 탭 + 방 카드.
    원본은 회색 트랙(홈) 위에 흰 알약이 얹힌 세그먼트다 — 컨테이너에 배경을 주고

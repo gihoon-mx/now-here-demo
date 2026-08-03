@@ -31,6 +31,10 @@ function setAppSkin(v){
   appSkin=(v==='legacy')?'legacy':'new';
   try{localStorage.setItem('nowhere_skin',appSkin);}catch(e){}
   applySkin();
+  /* v1.84 부터 스킨이 **마크업까지** 가른다(피드 카드 본문·지면 메타 줄) — 속성만 바꾸면
+     다음 렌더까지 옛 구조가 남는다. 초기 로드에서도 이 함수가 불릴 수 있어 존재 확인 후 호출. */
+  if(typeof renderNews==='function')renderNews();
+  if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
 }
 applySkin();
 
@@ -1294,11 +1298,13 @@ function feedSummaryItems(){ // 지역 컨텐츠 지면용: 현 위치 연관성
   var arr=feedItems.filter(function(f){return !!f.src;}).map(function(f){
     var pc=feedItemLatLng(f);
     var d=(pc&&clat!=null)?((pc.lat-clat)*(pc.lat-clat)+(pc.lng-clng)*(pc.lng-clng)):9e9;
-    return {f:f,d:d};
+    return {f:f,d:d,pc:pc};
   });
   arr.sort(function(a,b){return a.d===b.d?((b.f.ts||0)-(a.f.ts||0)):(a.d-b.d);}); // 가까운 순 + 최신순
   return arr.slice(0,4).map(function(o){var f=o.f;
-    return {feed:true,id:f.id,src:f.src,region:f.region||'',zone:f.zone||null,title:f.desc||'',kind:f.kind||'post',ts:f.ts||0,lat:f.lat,lng:f.lng};});
+    // 정렬용 `d` 는 제곱 좌표차라 화면에 못 쓴다 — 메타 줄에 쓸 실측 거리(m)를 따로 뽑는다
+    var dm=(o.pc&&clat!=null)?haversineM(clat,clng,o.pc.lat,o.pc.lng):null;
+    return {feed:true,id:f.id,src:f.src,region:f.region||'',zone:f.zone||null,title:f.desc||'',kind:f.kind||'post',ts:f.ts||0,lat:f.lat,lng:f.lng,dist:dm};});
 }
 function renderNews(){
   var frame=document.getElementById('cp-frame'),track=document.getElementById('cp-track'),dots=document.getElementById('cp-dots');
@@ -1314,7 +1320,18 @@ function renderNews(){
     var body=document.createElement('div');body.className='cps-body';
     var place=document.createElement('span');place.className='cps-place';place.textContent=it.region||'';
     var ttl=document.createElement('span');ttl.className='cps-title';ttl.textContent=it.title||'';
-    body.appendChild(place);body.appendChild(ttl);sl.appendChild(body);
+    body.appendChild(place);body.appendChild(ttl);
+    /* [M10] 새 스킨 메타 줄 (v1.84) — v1.81 에서 "마크업 변경이라 스킨 밖의 일"로 미뤄 둔 것.
+       **있는 데이터만 쓴다.** 거리·시간은 연관 피드 카드에만 있고 관리자가 올린 지면
+       이미지에는 없다 — 없으면 줄 자체를 만들지 않는다(빈 줄이 남으면 껍데기다).
+       좋아요는 이미 우측 칩(.cpc-like)으로 나가므로 여기서 되풀이하지 않는다. */
+    if(appSkin==='new'&&it.feed){
+      var mp=[];
+      if(it.dist!=null)mp.push(it.dist>=1000?(it.dist/1000).toFixed(1)+'km':(Math.round(it.dist/10)*10)+'m');
+      if(it.ts)mp.push(timeAgo(it.ts));
+      if(mp.length){var mtl=document.createElement('span');mtl.className='cps-meta';mtl.textContent=mp.join(' · ');body.appendChild(mtl);}
+    }
+    sl.appendChild(body);
     if(it.feed){ // 피드 카드: 존 칩 · LIVE · ♥ 좋아요 표시
       var chips=document.createElement('div');chips.className='cps-chips';
       if(it.kind==='cam'){var lv=document.createElement('span');lv.className='cpc cpc-live';lv.textContent='LIVE';chips.appendChild(lv);}
@@ -3792,6 +3809,23 @@ function renderFeed(){
         c.insertBefore(mb,c.firstChild);
       }
     }
+    /* [M05] 새 스킨: **사진 아래 흰 본문** (v1.84) — 설명글(부제) + 메타 줄(동 · 시간 · ♥).
+       v1.79 스킨 주석에 "본문 분리는 renderFeed 를 고쳐야 해서 스킨의 일이 아니다" 로
+       미뤄 뒀던 그것이다. 설명글은 지금까지 상세 팝업에서만 보였다 — 시드 사진마다
+       다 들고 있는데 그리드에서는 한 글자도 안 보였다.
+       legacy 는 사진 위 오버레이 칩 그대로여야 하므로 **마크업 자체를 새 스킨일 때만**
+       만든다(스킨을 바꾸면 setAppSkin 이 다시 그린다). 글 카드(.txt)는 본문이 곧 카드라
+       제외 — 사진 카드만 받는다. */
+    var fmeta=null;
+    if(appSkin==='new'&&it.src){
+      c.classList.add('has-body');
+      var bd=document.createElement('div');bd.className='fc-body';
+      var ds=document.createElement('span');ds.className='fc-desc';ds.textContent=(it.desc||'').trim();
+      fmeta=document.createElement('span');fmeta.className='fc-meta';
+      var mpl=document.createElement('span');mpl.className='fc-mplace';mpl.textContent=it.region||'우리 동네';
+      fmeta.appendChild(mpl);
+      bd.appendChild(ds);bd.appendChild(fmeta);c.appendChild(bd);
+    }
     var tag=document.createElement('span');tag.className='fc-region';tag.textContent=it.region||'우리 동네';c.appendChild(tag);
     var top=document.createElement('span');top.className='fc-top';c.appendChild(top); // 좌상단 칩 줄: LIVE + 존
     if(it.kind==='cam'){var lv=document.createElement('span');lv.className='fc-live';lv.textContent='LIVE';top.appendChild(lv);} // 라이브 카메라로 올린 컨텐츠
@@ -3819,11 +3853,15 @@ function renderFeed(){
       tr.appendChild(ed);tr.appendChild(dl);
     }
     var tl=feedTimeLabel(it.ts); // 올린 시간 (상대/시각 옵션)
-    if(tl){var tm=document.createElement('span');tm.className='fc-time';tm.textContent=tl;tr.appendChild(tm);}
+    if(tl){
+      // 본문이 있으면 시간·좋아요는 사진 위 칩이 아니라 **메타 줄**로 간다 (한 줄에 모아 읽는다)
+      if(fmeta){var mtm=document.createElement('span');mtm.className='fc-mtime';mtm.textContent=tl;fmeta.appendChild(mtm);}
+      else{var tm=document.createElement('span');tm.className='fc-time';tm.textContent=tl;tr.appendChild(tm);}
+    }
     var L=likeInfo(it.id);
     var lk=document.createElement('span');lk.className='fc-like'+(L.me?' on':'');lk.textContent='♥ '+L.n;
     if(!L.n&&!L.me)lk.style.display='none';
-    c.appendChild(lk);
+    (fmeta||c).appendChild(lk);
     var lastTap=0,tapTimer=null;
     c.addEventListener('click',function(){ // 더블탭=좋아요 / 싱글탭=지도 탭에서 해당 위치 보기
       var now=Date.now();
