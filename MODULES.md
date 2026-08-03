@@ -53,13 +53,13 @@
 | M02 | lens 포커스 렌즈 | 안정 | 베이직/트렌드 마스크 렌즈·포그·전환 애니 | `updatePhoneLens` `lensBuild` `lensApply` `holeRing` `phoneLens` `autoReleaseFocus` | app.js | v1.62 |
 | M03 | zones 트렌드 존 | 활성 | 헥사 그리드·존 CRUD·존 카드/리스트·병합 아웃라인·라벨 표시 토글·채움 투명도 | `generateHexagons` `trendZones` `zoneOutlineLoops` `makeZoneCard` `buildZoneScroll` `remapZoneToGrid` `sortedZonesForList` `visibleZoneCount` `zoneLabelsShown` `zoneFillA` | app.js | v1.65 |
 | M04 | spots 스팟 메시지 | 안정 | 스팟 버블(자유 방향·겹침 방지)·컴포저·편집/드래그·워드클라우드 (모드 컬러: 베이직 무채색/트렌드 온도)·개별 색 투명도 | `SpotBubble` `SpotComposer` `renderSpots` `spotsInFocusedRegion` `canEditSpot` `declutterMarkers` `openSpotEditor` `spotComments(뱃지)` | app.js | v1.65 |
-| M05 | feed 피드 | 활성 | 피드 탭·그리드·썸네일 핀(스팟과 동일 줌 스케일·온도 링/뱃지)·클러스터·좋아요·업로드 | `renderFeed` `feedEntriesScoped` `FeedThumb` `clusterFeedPins` `toggleLike` `feedAdd` `initFeedTools` `staticMapUrl` `fc-body`(새 스킨 본문) | app.js | v1.84 |
+| M05 | feed 피드 | 활성 | 피드 탭·그리드·썸네일 핀(스팟과 동일 줌 스케일·온도 링/뱃지)·클러스터·좋아요·업로드 | `renderFeed` `feedEntriesScoped` `FeedThumb` `clusterFeedPins` `toggleLike` `feedAdd` `initFeedTools` `staticMapUrl` `fc-body`(새 스킨 본문) `hidden`(v1.88 숨김 필드) | app.js | v1.88 |
 | M06 | social 소셜 | 안정 | 소셜 탭·채팅방(동네/주제/프라이빗)·liveChat | `renderSocial` `socRoomList` `roomMsgs` `initSocialManager` | app.js | v1.45 |
 | M07 | request 현장 Request | 활성 | Request 등록(10분 타임아웃)·AI Agent 실시간 응답 팝업·내 Request 답변 보기·전용 핀(ReqPin)·삭제 | `openRequestComposer` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` `ReqPin` `deleteRequest`·핀 줌 스케일(스팟 동일) `reqRemainLabel` | app.js | v1.63 |
 | M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·모드별 톤(불꽃)·**원격 에이전트(persona-vc)** | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE` `aiMapSummary` `aiChatAnswer` `aiAgentOn` `aiAskRemote` `aiContextSnapshot` `aiChatHistory` | app.js · config.js | v1.76 |
 | M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·**드로어(둘러보기 전용)**·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` `setNavActive`(switchTab 내부) | app.js | v1.83 |
 | M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기·메타 줄(거리·시간) | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` `feedSummaryItems` `cps-meta` | app.js | v1.84 |
-| M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — **admin.html 에만 있다**(서비스 페이지에는 없음) | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openAdmPanelFromUrl` `jumpToSetting` `openColorPopup` `makeColorControl` `initSettingsAccordion` | app.js | v1.77 |
+| M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — **admin.html 에만 있다**(서비스 페이지에는 없음) | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openAdmPanelFromUrl` `jumpToSetting` `openColorPopup` `makeColorControl` `initSettingsAccordion` · **전체 컨텐츠 표**(`ctEntries` `renderContentTable` `initContentTable` `ctSetHidden` `ctMoveZone` `ctDelete` `ctKind` `ctSel`) | app.js | v1.88 |
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 — **콘솔 크롬은 v3 스킨을 함께 탄다**(v1.87) | `initAdminMenu`(M11 공유) `body[data-skin="v3"].page-admin` | admin.html deck.html diagram.html dev.html | v1.87 |
@@ -173,6 +173,9 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-04 M11 (⚠️교차 M04/M05/M07 숨김 필터·`allFeedEntries` 필드): v1.88.0 — **전체 컨텐츠 표 신설(v3 4단계).** 지금까지 콘솔의 컨텐츠 관리는 **종류별로 흩어져 있었다** — 스팟은 스팟 패널, 피드는 피드 패널, Request 는 어디에도 없었다. 한 표에 모으면 '지금 이 서비스에 뭐가 올라와 있나'를 한 번에 본다. 행은 만들지 않고 **기존 데이터를 읽어 조립한다**(`allFeedEntries` 재사용 + `fieldRequests`) — 표는 소유자가 아니라 **뷰**이고, 쓰기는 각 모듈의 함수를 부른다. `hidden` 은 **additive 필드**(없으면 공개).
+  ⚠️ 두 가지가 조용히 틀릴 뻔했다: ①`allFeedEntries` 매핑이 `hidden` 을 안 실어 보내 소비 쪽 필터가 늘 통과하고 표 상태가 늘 '공개'였다 — **매핑이 필드를 빠뜨리면 에러가 아니라 무음 실패다.** ②숨김을 `rebuildSpots` 에서 걸렀더니 `spotMessages` 에서 사라져 **표에서도 안 보였다** — 숨긴 것을 되돌릴 방법이 없어진다. 목록은 원본을 갖고 화면(`renderSpots`)만 숨긴다
 
 - 2026-08-04 M15+M14 (M11 화면): v1.87.0 — **v3.0 3단계(콘솔 재도색).** v3 는 폰 스킨이 아니라 **제품 전체의 재설계**다 — 핸드오프가 웹앱과 콘솔을 같이 그렸으므로 스킨 스위치가 콘솔까지 함께 움직인다(`body[data-skin="v3"].page-admin` 스코프, 되돌리기는 여전히 속성 하나). 시안의 콘솔 문법 셋을 가져왔다: ①종이 캔버스 위에 **흰 카드**(패널이 아니라 카드다) ②컨트롤은 전부 알약이고 **확정 동작만 검정 알약** ③좌측 내비는 회색 레일 위에서 **선택된 행만 흰 카드로 떠오른다** — legacy 는 색(옅은 파랑)으로 표시했는데 시안은 **높이**로 말한다. 콘솔은 폰 컨테이너 밖이라 전부 px
 

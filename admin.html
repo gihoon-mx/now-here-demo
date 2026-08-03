@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=1.87.0" />
+  <link rel="stylesheet" href="style.css?v=1.88.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=1.87.0" />
+  <link rel="stylesheet" href="skin-new.css?v=1.88.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=1.87.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=1.88.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -36,7 +36,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v1.87.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v1.88.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -212,6 +212,7 @@
       <div class="adm-body">
         <nav id="adm-nav">
           <div class="adm-nav-cap">🗂 컨텐츠 관리</div>
+          <button type="button" data-panel="c-table">📋 전체 컨텐츠</button>
           <button type="button" data-panel="c-spot">💬 스팟 메시지</button>
           <button type="button" data-panel="c-zone">⬡ 트렌드 존</button>
           <button type="button" data-panel="c-feed">🖼 피드</button>
@@ -238,6 +239,33 @@
 
           <!-- ── 🗂 컨텐츠 관리 ── -->
           <div id="content-section" style="display:none;">
+            <!-- [M11] v1.88 전체 컨텐츠 표 — 사진·스팟·Request·지면을 한 표에서 검토·정리 -->
+            <div class="settings-section" data-adm="c-table">
+              <h4>전체 컨텐츠</h4>
+              <p class="section-hint">사진 · 스팟 · Request · 지면을 한 표에서 봅니다. 여러 개를 골라 <b>존 이동 · 숨김 · 삭제</b>를 한 번에 할 수 있어요. 숨긴 컨텐츠는 서비스 화면(지도·피드)에서 빠지고 이 표에는 남습니다.</p>
+              <div id="ct-tabs" class="ct-tabs"></div>
+              <div id="ct-bulk" class="ct-bulk" style="display:none;">
+                <span id="ct-selcount" class="ct-selcount"></span>
+                <select id="ct-movezone" class="mini-select"></select>
+                <button id="ct-move" class="action-btn small" type="button">존 이동</button>
+                <button id="ct-hide" class="action-btn small" type="button">숨김</button>
+                <button id="ct-show" class="action-btn small" type="button">숨김 해제</button>
+                <button id="ct-del" class="action-btn small danger" type="button">삭제</button>
+              </div>
+              <div class="ct-table">
+                <div class="ct-head">
+                  <span class="ct-c-chk"><input id="ct-all" type="checkbox" aria-label="전체 선택" /></span>
+                  <span class="ct-c-main">컨텐츠</span>
+                  <span class="ct-c-zone">존</span>
+                  <span class="ct-c-who">작성자</span>
+                  <span class="ct-c-like">♥</span>
+                  <span class="ct-c-st">상태</span>
+                  <span class="ct-c-ago">시간</span>
+                </div>
+                <div id="ct-rows" class="ct-rows"></div>
+                <div class="ct-foot"><span id="ct-count"></span></div>
+              </div>
+            </div>
             <div class="settings-section" data-adm="c-spot" data-prev="spot-view">
               <h4>스팟 메시지</h4>
               <div id="spot-add-row" class="spot-add-row">
@@ -492,7 +520,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=1.87.0"></script>
-  <script src="app.js?v=1.87.0"></script>
+  <script src="config.js?v=1.88.0"></script>
+  <script src="app.js?v=1.88.0"></script>
 </body>
 </html>

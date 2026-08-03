@@ -577,3 +577,44 @@ body[data-skin="v3"].page-admin .action-btn.accent{background:var(--v3-ink);colo
 body[data-skin="v3"].page-admin .action-btn.accent:hover{background:#000;color:#fff;}
 body[data-skin="v3"].page-admin .action-btn.danger{background:#FDEEEA;color:var(--v3-red);}
 body[data-skin="v3"].page-admin .action-btn.danger:hover{background:#FBE0DA;color:var(--v3-red-dark);}
+
+/* ── 전체 컨텐츠 표 (v1.88) ── 시안의 '컨텐츠 관리' 화면.
+   종류 탭은 검정 알약, 헤더 줄은 회색 캡션, 상태는 색 알약이다. */
+body[data-skin="v3"] .ct-tab{
+  height:32px;padding:0 15px;
+  border:none;border-radius:9999px;
+  background:#EFEEEB;color:var(--v3-ink3);
+  font-size:13px;font-weight:700;
+  display:inline-flex;align-items:center;
+}
+body[data-skin="v3"] .ct-tab.active{background:var(--v3-ink);color:#fff;}
+body[data-skin="v3"] .ct-selcount{font-size:13px;font-weight:600;color:var(--v3-ink4);}
+body[data-skin="v3"] .ct-table{
+  border:none;border-radius:16px;
+  background:var(--v3-surface);
+  box-shadow:var(--v3-sh-card);
+}
+body[data-skin="v3"] .ct-head{
+  padding:10px 18px;
+  background:var(--v3-soft);
+  font-size:11px;font-weight:800;letter-spacing:.4px;color:var(--v3-ink5);
+}
+body[data-skin="v3"] .ct-row{
+  padding:11px 18px;
+  border-top:1px solid var(--v3-canvas);
+  font-size:13px;color:var(--v3-ink2);
+}
+body[data-skin="v3"] .ct-row.on{background:#FAF7F3;}
+body[data-skin="v3"] .ct-c-chk{accent-color:var(--v3-ink);}
+body[data-skin="v3"] .ct-thumb{border-radius:10px;background:var(--v3-fill);}
+body[data-skin="v3"] .ct-tw b{font-size:14px;font-weight:700;letter-spacing:-.2px;color:var(--v3-ink);}
+body[data-skin="v3"] .ct-tw i{font-size:11px;color:var(--v3-ink5);}
+body[data-skin="v3"] .ct-c-who{color:var(--v3-ink4);}
+body[data-skin="v3"] .ct-c-ago{font-size:12px;color:var(--v3-ink5);}
+body[data-skin="v3"] .ct-badge{background:var(--v3-fill);color:var(--v3-ink3);font-size:11px;font-weight:800;padding:4px 10px;}
+body[data-skin="v3"] .ct-badge.run{background:#FDF0E3;color:#C9762A;}
+body[data-skin="v3"] .ct-badge.off{background:var(--v3-canvas);color:var(--v3-ink5);}
+body[data-skin="v3"] .ct-foot{
+  padding:11px 18px;border-top:1px solid var(--v3-fill);
+  font-size:13px;color:var(--v3-ink4);
+}

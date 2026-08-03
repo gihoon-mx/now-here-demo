@@ -1210,3 +1210,38 @@ body.page-app #phone-drawer-body .action-btn{padding:10px 15px;font-size:.8rem;}
 body.page-app #phone-drawer-body .action-btn.small{padding:9px 13px;font-size:.76rem;}
 body.page-app #phone-drawer-body .ct-swatch{width:38px;height:26px;border-radius:7px;}
 body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
+
+/* ── [M11] v1.88 전체 컨텐츠 표 (콘솔 전용) ──────────────────────────────────
+   legacy·v2 기준 기본형. v3 스킨의 재도색은 skin-v3.css 에 있다.
+   폰 컨테이너 밖(콘솔)이라 단위는 전부 px. */
+.ct-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 8px;}
+.ct-tab{border:1px solid var(--line-soft);border-radius:9999px;background:#fff;color:var(--ink3);
+  font-family:inherit;font-size:.72rem;font-weight:700;padding:5px 12px;cursor:pointer;}
+.ct-tab.active{background:var(--acc);border-color:transparent;color:#fff;}
+.ct-bulk{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+.ct-selcount{font-size:.72rem;font-weight:700;color:var(--ink3);margin-right:2px;}
+.ct-table{border:1px solid var(--line-soft);border-radius:12px;overflow:hidden;background:#fff;}
+.ct-head,.ct-row{display:flex;align-items:center;gap:12px;padding:9px 14px;}
+.ct-head{background:rgba(15,23,42,0.03);font-size:.62rem;font-weight:800;letter-spacing:.06em;color:var(--ink3);}
+.ct-rows{max-height:420px;overflow-y:auto;}
+.ct-row{border-top:1px solid var(--line-soft);font-size:.74rem;color:var(--ink2);}
+.ct-row.on{background:rgba(47,123,255,0.06);}
+.ct-c-chk{width:16px;height:16px;flex:none;margin:0;cursor:pointer;}
+.ct-c-main{flex:1;min-width:180px;display:flex;align-items:center;gap:10px;min-width:0;}
+.ct-thumb{width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;
+  border-radius:10px;background:rgba(15,23,42,0.05);font-size:15px;overflow:hidden;}
+.ct-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.ct-tw{min-width:0;display:block;}
+.ct-tw b{display:block;font-size:.78rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ct-tw i{display:block;margin-top:1px;font-style:normal;font-size:.64rem;color:var(--ink3);}
+.ct-c-zone{width:100px;flex:none;}
+.ct-c-who{width:140px;flex:none;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ct-c-like{width:46px;flex:none;text-align:right;}
+.ct-c-st{width:76px;flex:none;}
+.ct-c-ago{width:74px;flex:none;text-align:right;font-size:.68rem;color:var(--ink3);}
+.ct-badge{display:inline-block;padding:3px 9px;border-radius:9999px;font-size:.62rem;font-weight:800;
+  background:rgba(15,23,42,0.06);color:var(--ink2);}
+.ct-badge.run{background:rgba(255,157,46,0.16);color:#b06a12;}
+.ct-badge.off{background:rgba(15,23,42,0.05);color:var(--ink3);}
+.ct-foot{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;
+  border-top:1px solid var(--line-soft);font-size:.7rem;color:var(--ink3);}

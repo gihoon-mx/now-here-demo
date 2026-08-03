@@ -616,7 +616,7 @@ function clearFeedMarkers(){
   phoneFeedThumbOverlays.forEach(function(o){o.setMap(null);});phoneFeedThumbOverlays=[];
 }
 function clusterFeedPins(m){ // 현재 줌의 월드픽셀 기준 근접(56px) 그룹핑 — 줌인하면 자연히 낱개로 펼쳐짐
-  var z=m.getZoom();if(z==null)z=15;
+  var z=m.getZoom();if(z==null)z=15; // v1.88: 숨김 컨텐츠는 아래 루프에서 제외된다
   var s=256*Math.pow(2,z),TH=56;
   function px(p){
     var sin=Math.max(-0.9999,Math.min(0.9999,Math.sin(p.lat*Math.PI/180)));
@@ -624,7 +624,7 @@ function clusterFeedPins(m){ // 현재 줌의 월드픽셀 기준 근접(56px) �
   }
   var cl=[];
   feedItems.slice(0,30).forEach(function(f){
-    if(!f.src)return;var pos=feedItemLatLng(f);if(!pos)return;
+    if(!f.src||f.hidden)return;var pos=feedItemLatLng(f);if(!pos)return; // v1.88 숨김 제외
     var p=px(pos);
     for(var i=0;i<cl.length;i++){
       var dx=p.x-cl[i].x,dy=p.y-cl[i].y;
@@ -996,7 +996,11 @@ function persistSpotEdit(sp){ // 개별 스팟 편집 저장 (관리자=클라�
 function renderSpots(){
   clearSpots();
   // 스팟 메시지는 모드(베이직/트렌드) 무관하게 항상 표시 — 모드는 지도 구획 방식일 뿐
+  /* v1.88: 숨김은 **여기서** 거른다. `rebuildSpots` 에서 걸러 버리면 `spotMessages` 에서
+     사라져 콘솔 표에도 안 보이고 — 숨긴 것을 다시 공개할 방법이 없어진다.
+     목록은 원본을 갖고, 화면만 숨긴다. */
   spotMessages.forEach(function(s){
+    if(s.hidden)return;
     spotOverlays.push(new SpotBubble(s,spotConfig,map));
     if(phoneMap)phoneSpotOverlays.push(new SpotBubble(s,spotConfig,phoneMap));
   });
@@ -1298,7 +1302,7 @@ var newsView=[]; // 현재 탭에 보이는 지면 카드 (관리자 지면 이�
 function feedSummaryItems(){ // 지역 컨텐츠 지면용: 현 위치 연관성 높은 피드 (스팟 메시지 제외 — 사진 컨텐츠만)
   var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());
   var clat=c?c.lat():null,clng=c?c.lng():null;
-  var arr=feedItems.filter(function(f){return !!f.src;}).map(function(f){
+  var arr=feedItems.filter(function(f){return !!f.src&&!f.hidden;}).map(function(f){
     var pc=feedItemLatLng(f);
     var d=(pc&&clat!=null)?((pc.lat-clat)*(pc.lat-clat)+(pc.lng-clng)*(pc.lng-clng)):9e9;
     return {f:f,d:d,pc:pc};
@@ -3715,9 +3719,11 @@ function regionCenterByName(name){ // 동 이름 → 중심 좌표 (숫자 무�
 }
 function allFeedEntries(){ // 라이브 사진 + 스팟 + 동네소식 → 포커스 구역 우선 정렬
   var arr=[];
-  feedItems.forEach(function(f){var pc=feedItemLatLng(f);arr.push({id:f.id,type:'photo',src:f.src,region:f.region||'',zone:f.zone||null,kind:f.kind||'post',desc:f.desc||'',name:f.name||'',by:f.by||'',byEmail:f.byEmail||'',ts:f.ts||0,lat:pc?pc.lat:null,lng:pc?pc.lng:null});});
+  /* v1.88: `hidden` 을 **여기서 실어 보낸다.** 매핑이 필드를 빠뜨리면 소비하는 쪽에서
+     `it.hidden` 이 늘 undefined 라 필터가 조용히 통과한다 — 콘솔 표의 상태도 늘 '공개'가 된다. */
+  feedItems.forEach(function(f){var pc=feedItemLatLng(f);arr.push({id:f.id,type:'photo',src:f.src,region:f.region||'',zone:f.zone||null,kind:f.kind||'post',desc:f.desc||'',name:f.name||'',by:f.by||'',byEmail:f.byEmail||'',hidden:!!f.hidden,ts:f.ts||0,lat:pc?pc.lat:null,lng:pc?pc.lng:null});});
   newsItems.forEach(function(n){var rc=regionCenterByName(n.region);arr.push({id:n.id,type:'news',src:n.src,region:n.region||'',ts:0,lat:rc?rc.lat:null,lng:rc?rc.lng:null});});
-  spotMessages.forEach(function(sp){var d=regionAt(sp.lat,sp.lng);arr.push({id:sp.id,type:'spot',text:sp.text,emoji:sp.emoji,color:sp.color,region:d?d.name:'',ts:0,lat:sp.lat,lng:sp.lng});});
+  spotMessages.forEach(function(sp){var d=regionAt(sp.lat,sp.lng);arr.push({id:sp.id,type:'spot',text:sp.text,emoji:sp.emoji,color:sp.color,region:d?d.name:'',by:sp.by||'',byEmail:sp.byEmail||'',hidden:!!sp.hidden,ts:sp.ts||0,lat:sp.lat,lng:sp.lng});});
   var foc=focusedRegionName(),nf=normRegion(foc);
   arr.forEach(function(it,i){
     var match=foc&&it.region&&(it.region===foc||normRegion(it.region)===nf);
@@ -3761,7 +3767,8 @@ function fmtTime(ts){ // 올린 시각 (M/D HH:mm)
 }
 function feedTimeLabel(ts){return feedTimeMode==='off'?'':(feedTimeMode==='clock'?fmtTime(ts):timeAgo(ts));}
 function feedEntriesScoped(){
-  var arr=allFeedEntries().filter(function(it){return feedTypes[feedTypeOf(it)]!==false;}); // 종류 필터(view 옵션)
+  // v1.88: 콘솔에서 숨긴 컨텐츠는 서비스 화면에서 빠진다(표에는 남는다 — 표는 원본을 본다)
+  var arr=allFeedEntries().filter(function(it){return !it.hidden&&feedTypes[feedTypeOf(it)]!==false;}); // 종류 필터(view 옵션)
   var c=phoneMap?phoneVisibleCenter():null,clat=c?c.lat():null,clng=c?c.lng():null;
   function d2(it){if(it.lat==null||clat==null)return 9e9;var dy=it.lat-clat,dx=it.lng-clng;return dy*dy+dx*dx;}
   if(feedScope==='local'){
@@ -4079,6 +4086,157 @@ function zoneRegionName(zoneId){ // 트렌드존이 속한 동 (존 중심 기�
   if(!z||!z.hexCenters.length)return '';
   var ce=zoneCentroid(z);
   return dongAt(ce.lat,ce.lng)||'';
+}
+/* ========== [M11] v1.88 전체 컨텐츠 표 (콘솔 전용) ==========
+   시안(핸드오프)의 '컨텐츠 관리' 화면. 지금까지 콘솔의 컨텐츠 관리는 **종류별로 흩어져
+   있었다** — 스팟은 스팟 패널, 피드는 피드 패널, Request 는 어디에도 없었다.
+   한 표에 모으면 "지금 이 서비스에 뭐가 올라와 있나"를 한 번에 본다.
+
+   행은 만들지 않고 **기존 데이터를 읽어서 조립한다**(`allFeedEntries` M05 앵커 재사용 +
+   `fieldRequests` M07). 표는 소유자가 아니라 **뷰**다 — 쓰기는 각 모듈의 함수를 부른다.
+
+   `hidden` 은 **additive 필드**다(Firestore 스키마 규칙). 없으면 공개로 읽힌다. */
+var ctKind='all', ctSel={};
+function ctEntries(){ // 표에 뿌릴 행 — 사진·스팟·지면(M05 통합 목록) + Request(M07)
+  var rows=allFeedEntries().map(function(it){
+    var z=feedZoneOf(it);
+    return {
+      id:it.id, src:it.src||'', emoji:it.emoji||'',
+      kind:(it.type==='photo'?(it.kind==='cam'?'LIVE':'사진'):(it.type==='spot'?'스팟':'지면')),
+      title:(it.type==='spot'?(it.text||''):(it.desc||''))||'(설명 없음)',
+      zone:z?z.name:'', who:it.by||it.byEmail||it.name||'',
+      likes:likeInfo(it.id).n, hidden:!!it.hidden,
+      status:(it.hidden?'숨김':'공개'), ago:(it.ts?timeAgo(it.ts):''), type:it.type
+    };
+  });
+  fieldRequests.forEach(function(rq){
+    var act=reqActive(rq), rem=reqRemainLabel(rq);
+    rows.push({
+      id:rq.id, src:'', emoji:'🙋', kind:'Request',
+      title:rq.q||'(질문 없음)', zone:'', who:rq.by||'',
+      likes:(rq.answers||[]).length, hidden:false,
+      status:(act?'진행 중':'종료'), ago:(rem||(rq.ts?timeAgo(rq.ts):'')), type:'req'
+    });
+  });
+  return rows;
+}
+function ctFiltered(){return ctEntries().filter(function(r){return ctKind==='all'||r.kind===ctKind;});}
+function ctStatusClass(s){return {'공개':'ok','진행 중':'run','숨김':'off','종료':'off'}[s]||'ok';}
+function renderContentTable(){
+  var box=document.getElementById('ct-rows');if(!box)return;
+  var rows=ctFiltered();
+  box.innerHTML='';
+  if(!rows.length){var e=document.createElement('p');e.className='section-hint';e.style.padding='14px 18px';e.textContent='이 종류의 컨텐츠가 아직 없어요.';box.appendChild(e);}
+  rows.forEach(function(r){
+    var el=document.createElement('div');el.className='ct-row'+(ctSel[r.id]?' on':'');
+    var chk=document.createElement('input');chk.type='checkbox';chk.className='ct-c-chk';chk.checked=!!ctSel[r.id];
+    chk.addEventListener('change',function(){if(this.checked)ctSel[r.id]=r;else delete ctSel[r.id];renderContentTable();});
+    var main=document.createElement('span');main.className='ct-c-main';
+    var th=document.createElement('span');th.className='ct-thumb';
+    if(r.src){var im=document.createElement('img');im.src=r.src;im.alt='';th.appendChild(im);}else th.textContent=r.emoji||'📄';
+    var tw=document.createElement('span');tw.className='ct-tw';
+    tw.innerHTML='<b>'+escHtml(r.title)+'</b><i>'+escHtml(r.kind)+'</i>';
+    main.appendChild(th);main.appendChild(tw);
+    function cell(cls,txt){var s=document.createElement('span');s.className=cls;s.textContent=txt;return s;}
+    var st=document.createElement('span');st.className='ct-c-st';
+    var sb=document.createElement('span');sb.className='ct-badge '+ctStatusClass(r.status);sb.textContent=r.status;st.appendChild(sb);
+    el.appendChild(chk);el.appendChild(main);
+    el.appendChild(cell('ct-c-zone',r.zone||'—'));
+    el.appendChild(cell('ct-c-who',r.who||'—'));
+    el.appendChild(cell('ct-c-like',r.likes?String(r.likes):'—'));
+    el.appendChild(st);
+    el.appendChild(cell('ct-c-ago',r.ago||'—'));
+    box.appendChild(el);
+  });
+  var cnt=document.getElementById('ct-count');
+  if(cnt)cnt.textContent=rows.length+'건'+(ctKind==='all'?' · 전체':' · '+ctKind);
+  ctSyncBulk();
+  var all=document.getElementById('ct-all');
+  if(all)all.checked=rows.length>0&&rows.every(function(r){return ctSel[r.id];});
+}
+function ctSelected(){return Object.keys(ctSel).map(function(k){return ctSel[k];});}
+function ctSyncBulk(){
+  var bar=document.getElementById('ct-bulk'),n=ctSelected().length;
+  if(!bar)return;
+  bar.style.display=n?'':'none';
+  var c=document.getElementById('ct-selcount');if(c)c.textContent=n+'개 선택';
+}
+/* 숨김/존 이동/삭제 — 표는 뷰라서 **쓰기는 각 모듈의 함수**를 부른다.
+   Request 와 지면은 존·숨김 개념이 없어서 조용히 건너뛴다(경고로 알린다). */
+function ctSetHidden(v){
+  var sel=ctSelected(),done=0,skip=0;
+  sel.forEach(function(r){
+    if(r.type==='photo'){var f=feedItems.filter(function(x){return x.id===r.id;})[0];if(f){feedUpdate(f,{hidden:v});done++;}return;}
+    if(r.type==='spot'){var sp=spotMessages.filter(function(x){return x.id===r.id;})[0];if(sp){sp.hidden=v;rebuildSpots();markCloudDirty();done++;}return;}
+    skip++;
+  });
+  ctAfterWrite(done,skip,v?'숨겼어요':'다시 공개했어요');
+}
+function ctMoveZone(){
+  var sel=document.getElementById('ct-movezone');if(!sel)return;
+  var zid=sel.value,z=trendZones.filter(function(x){return x.id===zid;})[0];
+  if(!z){alert('옮길 트렌드 존을 먼저 고르세요.');return;}
+  var done=0,skip=0;
+  ctSelected().forEach(function(r){
+    if(r.type==='photo'){var f=feedItems.filter(function(x){return x.id===r.id;})[0];if(f){feedUpdate(f,{zone:zid});done++;}return;}
+    skip++; // 스팟·Request·지면은 좌표로 존이 정해진다 — 태그로 옮기지 않는다
+  });
+  ctAfterWrite(done,skip,'‘'+z.name+'’ 존으로 옮겼어요');
+}
+function ctDelete(){
+  var sel=ctSelected();if(!sel.length)return;
+  if(!confirm('선택한 컨텐츠 '+sel.length+'건을 삭제할까요? 되돌릴 수 없어요.'))return;
+  var done=0,skip=0;
+  sel.forEach(function(r){
+    if(r.type==='photo'){feedDelete(r.id);done++;return;}
+    if(r.type==='spot'){removeSpot(r.id);done++;return;}
+    if(r.type==='req'){ // deleteRequest 는 자체 confirm 이 있다 — 일괄에서는 직접 지운다
+      if(hasLive())fbDb.collection('liveRequests').doc(r.id).delete().catch(liveWriteErr);
+      else{fieldRequests=fieldRequests.filter(function(x){return x.id!==r.id;});saveRequests();renderRequestMarkers();}
+      done++;return;
+    }
+    if(r.type==='news'){newsItems=newsItems.filter(function(n){return n.id!==r.id;});saveNews();renderNews();done++;return;}
+    skip++;
+  });
+  ctAfterWrite(done,skip,'삭제했어요');
+}
+function ctAfterWrite(done,skip,what){
+  ctSel={};
+  rebuildSpots();renderFeedMarkers();renderNews();if(currentTab==='feed')renderFeed();
+  renderContentTable();
+  if(skip)alert(done+'건을 '+what+'. '+skip+'건은 이 동작을 지원하지 않는 종류라 건너뛰었어요.');
+}
+function initContentTable(){
+  var tabs=document.getElementById('ct-tabs');if(!tabs)return;
+  ['all','사진','LIVE','스팟','Request','지면'].forEach(function(k){
+    var b=document.createElement('button');b.type='button';b.className='ct-tab'+(ctKind===k?' active':'');
+    b.textContent=(k==='all'?'전체':k);
+    b.addEventListener('click',function(){
+      ctKind=k;ctSel={};
+      tabs.querySelectorAll('.ct-tab').forEach(function(x){x.classList.remove('active');});
+      b.classList.add('active');renderContentTable();
+    });
+    tabs.appendChild(b);
+  });
+  var all=document.getElementById('ct-all');
+  if(all)all.addEventListener('change',function(){
+    var on=this.checked;ctSel={};
+    if(on)ctFiltered().forEach(function(r){ctSel[r.id]=r;});
+    renderContentTable();
+  });
+  var mv=document.getElementById('ct-move');if(mv)mv.addEventListener('click',ctMoveZone);
+  var hd=document.getElementById('ct-hide');if(hd)hd.addEventListener('click',function(){ctSetHidden(true);});
+  var sh=document.getElementById('ct-show');if(sh)sh.addEventListener('click',function(){ctSetHidden(false);});
+  var dl=document.getElementById('ct-del');if(dl)dl.addEventListener('click',ctDelete);
+  ctSyncZoneSelect();
+  renderContentTable();
+}
+function ctSyncZoneSelect(){ // 존 목록은 바뀐다 — 표를 열 때마다 다시 채운다
+  var sel=document.getElementById('ct-movezone');if(!sel)return;
+  var keep=sel.value;sel.innerHTML='';
+  var o0=document.createElement('option');o0.value='';o0.textContent='존 선택…';sel.appendChild(o0);
+  trendZones.forEach(function(z){var o=document.createElement('option');o.value=z.id;o.textContent=z.name;sel.appendChild(o);});
+  if(keep)sel.value=keep;
 }
 function renderFeedColList(){ // 설정-컨텐츠: 피드 컨텐츠 관리
   var list=document.getElementById('feedcol-list');if(!list)return;
@@ -5468,7 +5626,7 @@ function startEmbed(){
   loadFileDefaults(); // repo 백스톱 설정(settings-default.json) — 공장값 캡처 후 비동기 적용, 클라우드가 오면 그쪽 우선
   initSettingsExport();
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();
   window.addEventListener('resize',layoutTabPages);
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)
   setInterval(function(){try{tickReqRemain();}catch(e){}},1000); // Request 남은 시간(분/초) 1초 갱신 — 텍스트만(경량)
