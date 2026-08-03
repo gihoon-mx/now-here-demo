@@ -2407,7 +2407,7 @@ function switchMode(mode,opts){
 /* ========== [M01] 초기화 ========== */
 function initMap(){
   initMapLabelClass();
-  initReqPinClass();
+  initReqPinClass();initDealPinClass();
   initSpotBubbleClass();
   initFeedThumbClass();
   initSpotComposerClass();
@@ -4109,6 +4109,14 @@ function ctEntries(){ // 표에 뿌릴 행 — 사진·스팟·지면(M05 통합
       status:(it.hidden?'숨김':'공개'), ago:(it.ts?timeAgo(it.ts):''), type:it.type
     };
   });
+  timeDeals.forEach(function(d){
+    rows.push({
+      id:d.id, src:'', emoji:d.e||'⏰', kind:'타임딜',
+      title:d.title||'(제목 없음)', zone:'', who:d.shop||'',
+      likes:0, hidden:false,
+      status:(dealActive(d)?'진행 중':'종료'), ago:(dealActive(d)?dealClock(dealRemain(d))+' 남음':''), type:'deal'
+    });
+  });
   fieldRequests.forEach(function(rq){
     var act=reqActive(rq), rem=reqRemainLabel(rq);
     rows.push({
@@ -4195,6 +4203,7 @@ function ctDelete(){
       else{fieldRequests=fieldRequests.filter(function(x){return x.id!==r.id;});saveRequests();renderRequestMarkers();}
       done++;return;
     }
+    if(r.type==='deal'){timeDeals=timeDeals.filter(function(x){return x.id!==r.id;});saveDeals();renderDealMarkers();done++;return;}
     if(r.type==='news'){newsItems=newsItems.filter(function(n){return n.id!==r.id;});saveNews();renderNews();done++;return;}
     skip++;
   });
@@ -4208,7 +4217,7 @@ function ctAfterWrite(done,skip,what){
 }
 function initContentTable(){
   var tabs=document.getElementById('ct-tabs');if(!tabs)return;
-  ['all','사진','LIVE','스팟','Request','지면'].forEach(function(k){
+  ['all','사진','LIVE','스팟','Request','타임딜','지면'].forEach(function(k){
     var b=document.createElement('button');b.type='button';b.className='ct-tab'+(ctKind===k?' active':'');
     b.textContent=(k==='all'?'전체':k);
     b.addEventListener('click',function(){
@@ -4434,7 +4443,146 @@ function renderRequestMarkers(){
   fieldRequests.filter(reqActive).forEach(function(rq){ // 활성(10분 내·시드)만 표시, 전용 핀(답변 내용 노출 안 함)
     reqMarkers.push(new ReqPin(rq,phoneMap));
   });
+  if(typeof renderDealMarkers==='function')renderDealMarkers(); // v1.89 타임딜 핀도 같은 시점에
   declutterMarkers(); // Request 핀도 겹침 방지 대상(장애물)
+}
+
+/* ========== [M17] 타임딜 (v1.89 신설) ==========
+   지도 위 ⏰ 핀 + 아래에서 올라오는 바텀시트. 핸드오프 시안의 `DEALS` 를 옮긴 것.
+
+   **왜 새 모듈인가**: 스팟(의견)·피드(사진)·Request(질문)와 달리 딜은 **시간이 핵심**이다 —
+   남은 시간이 줄고, 0 이 되면 사라진다. 기존 컨텐츠 배열에 얹으면 그 시간 규칙이
+   피드·지면 전체로 새어 나간다. 배열도 렌더도 따로 둔다.
+
+   **시드 딜은 만료되지 않는다**(`seed:true`). Request 의 `reqActive` 가 쓰는 것과 같은
+   장치다 — 시연 중에 콘텐츠가 사라지면 안 된다. 대신 남은 시간은 **계속 흐르는 것처럼**
+   보여야 하므로 벽시계를 주기로 접어서 쓴다(`secs - (now % secs)`). 30분짜리 딜이면
+   30분마다 처음으로 돌아가며 계속 카운트다운한다. */
+var timeDeals=[], dealMarkers=[], dealSheetId=null, dealTicker=null;
+var DEAL_KEY='nowhere_deals';
+var SEED_DEALS=[
+  {e:'🧢',title:'여름 필수템 30% 타임딜',shop:'팝업스토어',pct:30,price:'13,900원',was:'19,900원',stock:'12개',secs:2130},
+  {e:'🍞',title:'소금빵 2+1 마감딜',shop:'송심당 베이커리',pct:33,price:'2개 값',was:'3개 값',stock:'8개',secs:900}
+];
+function loadDeals(){try{var a=JSON.parse(localStorage.getItem(DEAL_KEY)||'[]');if(Array.isArray(a))timeDeals=a;}catch(e){}}
+function saveDeals(){try{localStorage.setItem(DEAL_KEY,JSON.stringify(timeDeals.slice(0,20)));}catch(e){}}
+/* 딜을 **컨텐츠가 있는 자리**에 세운다. 좌표를 상수로 박으면 시드 지역을 옮길 때마다
+   딜만 엉뚱한 곳에 남는다 — 이미 올라온 사진의 좌표를 빌리고, 없으면 지도 센터에서
+   결정적 오프셋으로 놓는다(Math.random 금지 — v1.72 에서 배치가 매번 달라지던 문제). */
+var DEAL_NEAR_M=3000; // 이 거리를 넘으면 '내 주변 딜'이 아니다 — 무대를 따라 다시 세운다
+function ensureDealSeed(){
+  var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());
+  if(!c)return;
+  var clat=c.lat(),clng=c.lng();
+  /* 이미 있어도 **멀면 다시 세운다.** 딜은 '지금 여기'의 컨텐츠라 지역을 옮기면
+     따라와야 한다 — 처음 만든 자리에 그대로 두면 시연에서 화면에 아무것도 안 뜬다.
+     (임베드 시나리오가 지역을 옮겨 다니는 것을 전제로 한다 — M16.) */
+  if(timeDeals.length){
+    var near=Math.min.apply(null,timeDeals.map(function(d){return haversineM(clat,clng,d.lat,d.lng);}));
+    if(near<=DEAL_NEAR_M)return;
+  }
+  /* 딜을 **컨텐츠가 있는 자리**에 세운다. 좌표를 상수로 박으면 시드 지역을 옮길 때마다
+     딜만 엉뚱한 곳에 남는다. 그리고 배열 순서가 아니라 **센터에서 가까운 순**으로 고른다 —
+     시드가 5개 지역에 흩어져 있어서 순서대로 집으면 13km 밖에 세워진다(실측). */
+  var spots=[],seen={};
+  feedItems.map(function(f){
+    var pc=feedItemLatLng(f);
+    return pc?{p:pc,d:haversineM(clat,clng,pc.lat,pc.lng)}:null;
+  }).filter(Boolean).sort(function(a,b){return a.d-b.d;}).forEach(function(o){
+    if(spots.length>=SEED_DEALS.length)return;
+    var k=o.p.lat.toFixed(3)+','+o.p.lng.toFixed(3);if(seen[k])return;seen[k]=1;
+    spots.push(o.p);
+  });
+  timeDeals=[];
+  SEED_DEALS.forEach(function(d,i){
+    var p=spots[i];
+    if(!p)p={lat:clat+[0.0016,-0.0013][i%2],lng:clng+[-0.0019,0.0021][i%2]}; // 결정적 오프셋(Math.random 금지 — v1.72)
+    timeDeals.push({id:'dl_'+i,lat:p.lat,lng:p.lng,e:d.e,title:d.title,shop:d.shop,pct:d.pct,
+      price:d.price,was:d.was,stock:d.stock,secs:d.secs,ts:Date.now(),seed:true});
+  });
+  saveDeals();
+}
+function dealRemain(d){ // 남은 초
+  if(!d)return 0;
+  if(d.seed)return d.secs-Math.floor((Date.now()/1000)%d.secs); // 시드=주기적으로 되감김(시연용 상시 활성)
+  return Math.max(0,d.secs-Math.floor((Date.now()-(d.ts||0))/1000));
+}
+function dealActive(d){return !!d&&(d.seed||dealRemain(d)>0);}
+function dealClock(sec){var m=Math.floor(sec/60),s=sec%60;return m+':'+String(s).padStart(2,'0');}
+function dealById(id){return timeDeals.filter(function(d){return d.id===id;})[0]||null;}
+
+function DealPin(d,m){this.d=d;this.position=new google.maps.LatLng(d.lat,d.lng);this.div=null;this.setMap(m);}
+function initDealPinClass(){
+  DealPin.prototype=new google.maps.OverlayView();
+  DealPin.prototype.onAdd=function(){
+    var self=this;
+    var el=document.createElement('div');el.className='deal-pin';
+    el.innerHTML='<span class="dp-circle">⏰</span><span class="dp-pct">'+escHtml(String(this.d.pct))+'%</span>';
+    el.title=this.d.title;
+    el.addEventListener('click',function(e){e.stopPropagation();openDealSheet(self.d.id);});
+    this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
+  };
+  DealPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
+    this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';this._ax=pos.x;this._ay=pos.y; // declutter 규약(v1.59)
+    var m=this.getMap(),z=m?m.getZoom():15,sc=Math.max(0.34,Math.min(1.3,spotScale(z)));
+    this.div.style.transformOrigin='50% 100%';this.div.style.transform='translate(-50%,-100%) scale('+sc+')';
+  }};
+  DealPin.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
+}
+function renderDealMarkers(){
+  dealMarkers.forEach(function(o){o.setMap(null);});dealMarkers=[];
+  if(!phoneMap||typeof google==='undefined'||!google.maps)return;
+  ensureDealSeed();
+  timeDeals.filter(dealActive).forEach(function(d){dealMarkers.push(new DealPin(d,phoneMap));});
+  if(typeof declutterMarkers==='function')declutterMarkers();
+}
+function openDealSheet(id){
+  var sheet=document.getElementById('deal-sheet'),d=dealById(id);
+  if(!sheet||!d)return;
+  dealSheetId=id;
+  sheet.style.display='';
+  syncDealSheet();
+  if(!dealTicker)dealTicker=setInterval(syncDealSheet,1000); // 1초 티커 — 열려 있을 때만 돈다
+}
+function closeDealSheet(){
+  var sheet=document.getElementById('deal-sheet');if(sheet)sheet.style.display='none';
+  dealSheetId=null;
+  if(dealTicker){clearInterval(dealTicker);dealTicker=null;}
+}
+function syncDealSheet(){
+  var d=dealById(dealSheetId);if(!d)return closeDealSheet();
+  var rem=dealRemain(d);
+  function set(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
+  set('ds-left',dealClock(rem)+' 남음');
+  set('ds-emoji',d.e);set('ds-title',d.title);
+  set('ds-sub',d.shop+' · 내 위치에서 '+dealDistLabel(d));
+  set('ds-pct',d.pct+'%');set('ds-now',d.price);set('ds-was',d.was);
+  set('ds-stock','남은 수량 '+d.stock);
+  var bar=document.getElementById('ds-bar');
+  if(bar)bar.style.width=Math.max(4,Math.round(rem/d.secs*100))+'%';
+}
+function dealDistLabel(d){ // 시안은 '180m' 고정이지만 이 앱은 실제 좌표가 있다 — 실측을 쓴다
+  var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());if(!c)return '근처';
+  var m=haversineM(c.lat(),c.lng(),d.lat,d.lng);
+  return m>=1000?(m/1000).toFixed(1)+'km':(Math.round(m/10)*10)+'m';
+}
+function initTimeDeals(){
+  loadDeals();
+  var sheet=document.getElementById('deal-sheet');if(!sheet)return;
+  var cl=document.getElementById('ds-close'),sc=document.getElementById('ds-scrim');
+  if(cl)cl.addEventListener('click',closeDealSheet);
+  if(sc)sc.addEventListener('click',closeDealSheet);
+  var claim=document.getElementById('ds-claim');
+  if(claim)claim.addEventListener('click',function(){
+    var d=dealById(dealSheetId);closeDealSheet();
+    alert((d?d.title:'딜')+' 쿠폰을 받았어요. 매장에서 제시하세요.');
+  });
+  var share=document.getElementById('ds-share');
+  if(share)share.addEventListener('click',function(){
+    var d=dealById(dealSheetId);closeDealSheet();
+    if(typeof liveChat==='function'){/* 채팅 공유는 M06 경유 — 없으면 알림만 */}
+    alert((d?d.title:'딜')+'을 동네 채팅방에 공유했어요.');
+  });
 }
 
 /* ========== [M06] 소셜 탭: 동네 채팅 · 주제방 · 프라이빗(크레딧) ========== */
@@ -5626,7 +5774,7 @@ function startEmbed(){
   loadFileDefaults(); // repo 백스톱 설정(settings-default.json) — 공장값 캡처 후 비동기 적용, 클라우드가 오면 그쪽 우선
   initSettingsExport();
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();
   window.addEventListener('resize',layoutTabPages);
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)
   setInterval(function(){try{tickReqRemain();}catch(e){}},1000); // Request 남은 시간(분/초) 1초 갱신 — 텍스트만(경량)

@@ -64,6 +64,7 @@
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 — **콘솔 크롬은 v3 스킨을 함께 탄다**(v1.87) | `initAdminMenu`(M11 공유) `body[data-skin="v3"].page-admin` | admin.html deck.html diagram.html dev.html | v1.87 |
 | M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 3종(legacy / new=v2.0 / v3=v3.0, 기본)** — v3 는 석촌동 에셋 기준 재설계(웜 오프화이트+코랄·°C 지표) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin`(v1.84: 마크업까지 가르므로 재렌더) `initSkinControl` `body[data-skin]` `APP_SKINS` `--nk-*` `--v3-*` | style.css · skin-new.css · **skin-v3.css** · app.js | v1.87 |
+| M17 | deals 타임딜 | 활성 | 지도 ⏰ 핀(+%할인 라벨)·바텀시트(할인율·가격·재고·`mm:ss` 티커·쿠폰/공유)·시드(무대 추종)·콘솔 표 편입 | `timeDeals` `SEED_DEALS` `ensureDealSeed` `DealPin` `renderDealMarkers` `openDealSheet` `syncDealSheet` `dealRemain` `dealActive` `DEAL_NEAR_M` | app.js | v1.89 |
 | M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.75 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
@@ -173,6 +174,8 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-04 M17 신설 (⚠️교차 M07 렌더 시점·M11 표): v1.89.0 — **타임딜(v3 5단계).** 지도 ⏰ 핀 + 바텀시트. **왜 새 모듈인가**: 스팟·피드·Request 와 달리 딜은 **시간이 핵심**이라(남은 시간이 줄고 0 이면 사라진다) 기존 컨텐츠 배열에 얹으면 그 시간 규칙이 피드·지면 전체로 새어 나간다. 시드 딜은 만료되지 않고 (`seed:true` — `reqActive` 와 같은 장치) 남은 시간만 벽시계를 주기로 접어 계속 흐르게 한다. ⚠️ **딜은 무대를 따라와야 한다** — 처음엔 `feedItems` **배열 순서**로 자리를 골랐는데 시드가 5개 지역에 흩어져 있어 **13.8km 밖**에 세워졌다(실측). 센터에서 **가까운 순**으로 고르고, 이미 있어도 3km 를 넘으면 다시 세운다(임베드 시나리오가 지역을 옮겨 다닌다 — M16)
 
 - 2026-08-04 M11 (⚠️교차 M04/M05/M07 숨김 필터·`allFeedEntries` 필드): v1.88.0 — **전체 컨텐츠 표 신설(v3 4단계).** 지금까지 콘솔의 컨텐츠 관리는 **종류별로 흩어져 있었다** — 스팟은 스팟 패널, 피드는 피드 패널, Request 는 어디에도 없었다. 한 표에 모으면 '지금 이 서비스에 뭐가 올라와 있나'를 한 번에 본다. 행은 만들지 않고 **기존 데이터를 읽어 조립한다**(`allFeedEntries` 재사용 + `fieldRequests`) — 표는 소유자가 아니라 **뷰**이고, 쓰기는 각 모듈의 함수를 부른다. `hidden` 은 **additive 필드**(없으면 공개).
   ⚠️ 두 가지가 조용히 틀릴 뻔했다: ①`allFeedEntries` 매핑이 `hidden` 을 안 실어 보내 소비 쪽 필터가 늘 통과하고 표 상태가 늘 '공개'였다 — **매핑이 필드를 빠뜨리면 에러가 아니라 무음 실패다.** ②숨김을 `rebuildSpots` 에서 걸렀더니 `spotMessages` 에서 사라져 **표에서도 안 보였다** — 숨긴 것을 되돌릴 방법이 없어진다. 목록은 원본을 갖고 화면(`renderSpots`)만 숨긴다

@@ -1245,3 +1245,44 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
 .ct-badge.off{background:rgba(15,23,42,0.05);color:var(--ink3);}
 .ct-foot{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;
   border-top:1px solid var(--line-soft);font-size:.7rem;color:var(--ink3);}
+
+/* ── [M17] v1.89 타임딜 — 지도 ⏰ 핀 + 바텀시트 ────────────────────────────
+   핀은 **폰 컨테이너 밖**(PC 지도에도 그려진다)이라 px. 시트는 폰 안이라 cqw. */
+.deal-pin{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:4px;
+  pointer-events:auto;cursor:pointer;z-index:5;-webkit-user-select:none;user-select:none;}
+.deal-pin .dp-circle{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;
+  background:#fff;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(15,23,42,0.28);font-size:16px;}
+.deal-pin .dp-pct{padding:2px 8px;border-radius:9999px;background:#fff;color:#4a4a4a;
+  font-size:10px;font-weight:800;line-height:1.3;box-shadow:0 1px 5px rgba(15,23,42,0.24);white-space:nowrap;}
+body.mode-trend .deal-pin .dp-circle{background:#f2c33c;border-color:#e8a92b;}
+body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
+
+.deal-sheet{position:absolute;inset:0;z-index:30;}
+.deal-sheet .ds-scrim{position:absolute;inset:0;background:rgba(26,26,26,0.3);}
+.deal-sheet .ds-card{position:absolute;left:0;right:0;bottom:0;padding:5cqw 4.6cqw 7.6cqw;
+  background:#fff;border-radius:6cqw 6cqw 0 0;box-shadow:0 -2cqw 8cqw rgba(0,0,0,0.2);
+  animation:dsUp .26s cubic-bezier(.22,1,.36,1);}
+@keyframes dsUp{from{opacity:0;transform:translateY(6cqw);}to{opacity:1;transform:none;}}
+.deal-sheet .ds-grip{display:block;width:9.7cqw;height:1cqw;margin:0 auto 4.1cqw;border-radius:9999px;background:#e6e5e1;}
+.deal-sheet .ds-top{display:flex;align-items:center;gap:2cqw;}
+.deal-sheet .ds-tag{padding:1.3cqw 2.8cqw;border-radius:9999px;background:#f2c33c;color:#4a3b00;font-size:2.8cqw;font-weight:800;}
+.deal-sheet .ds-left{font-size:3.1cqw;font-weight:700;color:#e8574a;}
+.deal-sheet .ds-x{margin-left:auto;border:none;background:transparent;color:#9c9c9c;font-size:3.8cqw;cursor:pointer;padding:0 1cqw;}
+.deal-sheet .ds-main{display:flex;align-items:center;gap:3.6cqw;margin-top:3.6cqw;}
+.deal-sheet .ds-emoji{display:flex;align-items:center;justify-content:center;width:18.4cqw;height:18.4cqw;flex:none;
+  border-radius:4.6cqw;background:linear-gradient(150deg,#fdf0c8,#f5d78a);font-size:8.2cqw;}
+.deal-sheet .ds-tt{flex:1;min-width:0;display:block;}
+.deal-sheet .ds-tt b{display:block;font-size:5.1cqw;font-weight:800;letter-spacing:-0.03em;line-height:1.3;color:#1a1a1a;}
+.deal-sheet .ds-tt i{display:block;margin-top:1.3cqw;font-style:normal;font-size:3.3cqw;color:#6b6b6b;}
+.deal-sheet .ds-price{display:flex;align-items:baseline;gap:2cqw;margin-top:4.1cqw;}
+.deal-sheet .ds-pct{font-size:6.6cqw;font-weight:800;letter-spacing:-0.05em;color:#e8574a;}
+.deal-sheet .ds-now{font-size:3.8cqw;font-weight:700;color:#1a1a1a;}
+.deal-sheet .ds-was{font-size:3.3cqw;color:#9c9c9c;text-decoration:line-through;}
+.deal-sheet .ds-stock{margin-left:auto;font-size:3.1cqw;color:#6b6b6b;}
+.deal-sheet .ds-bar{display:block;height:1.5cqw;margin-top:2.6cqw;border-radius:9999px;background:#f0efec;overflow:hidden;}
+.deal-sheet .ds-bar-fill{display:block;height:100%;border-radius:9999px;background:linear-gradient(90deg,#f2c33c,#e8574a);transition:width .9s linear;}
+.deal-sheet .ds-acts{display:flex;gap:2cqw;margin-top:4.6cqw;}
+.deal-sheet .ds-claim{flex:1;height:12.2cqw;border:none;border-radius:9999px;background:#1a1a1a;color:#fff;
+  font-family:inherit;font-size:3.8cqw;font-weight:700;cursor:pointer;}
+.deal-sheet .ds-share{height:12.2cqw;padding:0 4.6cqw;border:none;border-radius:9999px;background:#f4f3f1;color:#4a4a4a;
+  font-family:inherit;font-size:3.8cqw;font-weight:700;cursor:pointer;}
