@@ -422,3 +422,158 @@ body[data-skin="v3"] .soc-tab{
   font-size:3.3cqw;font-weight:700;
 }
 body[data-skin="v3"] .soc-tab.active{background:var(--v3-ink);color:#fff;}
+
+/* ══ ④ 콘솔 (admin.html) ═══════════════════════════════════════════════════
+   v3.0 은 폰 스킨이 아니라 **제품 전체의 재설계**다 — 핸드오프도 웹앱과 콘솔을
+   같이 그렸다. 그래서 스킨 스위치가 콘솔까지 함께 움직인다(`.page-admin` 스코프).
+   되돌리기는 여전히 속성 하나다: 스킨을 v2/legacy 로 두면 콘솔도 예전 그대로다.
+
+   **폰 컨테이너 밖이므로 전부 px.** cqw 를 쓰면 뷰포트 폭으로 풀린다.
+
+   시안의 콘솔 문법 세 가지를 가져온다:
+   ① 종이 캔버스(#F4F3F1) 위에 **흰 카드**가 놓인다 — 패널이 아니라 카드다.
+   ② 컨트롤은 전부 **알약**이고, 확정 동작(전체 적용·초대)만 **검정 알약**이다.
+   ③ 좌측 내비는 회색 레일 위에서 **선택된 행만 흰 카드로 떠오른다**. */
+
+body[data-skin="v3"].page-admin{background:var(--v3-canvas);}
+
+/* ── 탑바 ── 유리 바에서 **불투명 흰 바 + 헤어라인** 하나로 */
+body[data-skin="v3"] #admin-topbar{
+  height:56px;padding:0 18px;
+  background:var(--v3-surface);
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  border-bottom:1px solid var(--v3-line);
+  box-shadow:none;
+}
+body[data-skin="v3"] #admin-topbar .atb-brand{font-weight:800;letter-spacing:-.4px;color:var(--v3-ink);}
+body[data-skin="v3"] #admin-topbar .atb-brand img{border-radius:8px;}
+/* '관리자' 배지 — 그라디언트에서 **조용한 회색 알약**으로. 배지가 브랜드를 이기면 안 된다 */
+body[data-skin="v3"] #admin-topbar .atb-badge{
+  background:var(--v3-canvas);color:var(--v3-ink4);
+  border-radius:9999px;padding:4px 10px;font-size:11px;font-weight:800;
+}
+body[data-skin="v3"] #admin-topbar #app-version{color:var(--v3-ink5);font-weight:700;}
+body[data-skin="v3"] #admin-topbar .atb-menus button,
+body[data-skin="v3"] #admin-topbar .atb-link{
+  height:32px;padding:0 15px;
+  border:none;border-radius:9999px;
+  background:var(--v3-canvas);color:var(--v3-ink2);
+  font-size:13px;font-weight:700;
+  display:inline-flex;align-items:center;
+}
+body[data-skin="v3"] #admin-topbar .atb-menus button:hover,
+body[data-skin="v3"] #admin-topbar .atb-link:hover{background:#E9E7E3;}
+
+/* ── 사이드바(폰 미리보기) ── 캔버스보다 한 톤 밝게 두고 경계는 헤어라인만 */
+body[data-skin="v3"] #sidebar{background:var(--v3-soft);border-left:1px solid var(--v3-line);}
+
+/* ── 관리자 메뉴 팝업 = 시안의 '서비스 설정' 모달 ─────────────────────────── */
+body[data-skin="v3"] .modal-overlay{background:rgba(26,26,26,.34);}
+body[data-skin="v3"] #admin-menu .adm-card{
+  border-radius:20px;
+  background:var(--v3-surface);
+  border:none;
+  box-shadow:0 24px 60px rgba(0,0,0,.24);
+}
+body[data-skin="v3"] #admin-menu .modal-head{
+  padding:18px 22px;
+  border-bottom:none;
+  font-size:20px;font-weight:800;letter-spacing:-.5px;color:var(--v3-ink);
+}
+
+/* 좌측 카테고리 레일 — 회색 바탕 위에서 **선택된 행만 흰 카드로 떠오른다**.
+   legacy 는 선택 표시가 옅은 파란 배경이었다. 시안은 색이 아니라 **높이**로 말한다. */
+body[data-skin="v3"] #adm-nav{
+  width:216px;padding:14px 10px;
+  background:var(--v3-soft);
+  border-right:none;
+}
+body[data-skin="v3"] #adm-nav .adm-nav-cap{
+  margin:16px 8px 6px;padding:0;
+  border-top:none;
+  font-size:11px;font-weight:800;letter-spacing:.4px;color:var(--v3-ink5);
+}
+body[data-skin="v3"] #adm-nav .adm-nav-cap:first-child{margin-top:0;}
+body[data-skin="v3"] #adm-nav [data-panel]{
+  display:flex;align-items:center;
+  height:38px;padding:0 12px;margin-bottom:2px;
+  border-radius:12px;
+  background:transparent;color:var(--v3-ink3);
+  font-size:14px;font-weight:500;
+}
+body[data-skin="v3"] #adm-nav [data-panel]:hover{background:rgba(0,0,0,.04);color:var(--v3-ink);}
+body[data-skin="v3"] #adm-nav [data-panel].active{
+  background:var(--v3-surface);color:var(--v3-ink);
+  font-weight:700;
+  box-shadow:var(--v3-sh-soft);
+}
+
+/* 패널 영역 — **캔버스 위에 흰 블록 카드**. legacy 는 구분선으로 나뉜 한 장이었다 */
+body[data-skin="v3"] #adm-panels{padding:18px;background:var(--v3-canvas);}
+body[data-skin="v3"] #adm-panels .settings-section{
+  margin-bottom:14px;padding:18px;
+  border-bottom:none;
+  border-radius:16px;
+  background:var(--v3-surface);
+  box-shadow:var(--v3-sh-card);
+}
+body[data-skin="v3"] #adm-panels .settings-section:last-child{margin-bottom:0;padding:18px;}
+body[data-skin="v3"] #adm-panels .settings-section h4{
+  margin-bottom:4px;
+  font-size:18px;font-weight:800;letter-spacing:-.4px;color:var(--v3-ink);
+  text-transform:none;letter-spacing:-.4px;
+}
+body[data-skin="v3"] .section-hint{font-size:13px;line-height:1.55;color:var(--v3-ink4);}
+body[data-skin="v3"] #adm-panels .adm-sys h4{font-size:18px;font-weight:800;color:var(--v3-ink);}
+body[data-skin="v3"] #adm-panels .adm-docs a{
+  border:none;border-radius:9999px;
+  background:var(--v3-canvas);color:var(--v3-ink2);
+  font-size:13px;font-weight:700;padding:8px 14px;
+}
+
+/* 설정 행 — 라벨 132px 고정(시안), 컨트롤은 알약 */
+body[data-skin="v3"] #adm-panels .setting-row{gap:12px;margin-bottom:12px;min-height:32px;}
+body[data-skin="v3"] #adm-panels .setting-row label{
+  min-width:132px;font-size:13px;font-weight:600;color:var(--v3-ink2);
+}
+body[data-skin="v3"] .mini-select{
+  height:32px;padding:0 12px;
+  border:none;border-radius:9999px;
+  background:var(--v3-canvas);color:var(--v3-ink);
+  font-size:13px;font-weight:600;
+}
+body[data-skin="v3"] #adm-panels .setting-row input[type="range"]{
+  height:3px;background:#E6E5E2;border-radius:9999px;
+}
+body[data-skin="v3"] #adm-panels .setting-row input[type="range"]::-webkit-slider-thumb{
+  width:14px;height:14px;background:#fff;border:1px solid #D8D6D2;
+  box-shadow:0 1px 3px rgba(0,0,0,.16);
+}
+
+/* ── 적용 바 ── 시안의 모달 하단 바. 확정 동작만 검정이다 */
+body[data-skin="v3"] .sab{
+  gap:12px;padding:12px 16px;margin-bottom:14px;
+  border-radius:16px;
+  background:var(--v3-surface);
+  border:1px solid var(--v3-line);
+  box-shadow:none;
+}
+body[data-skin="v3"] .sab .sab-dot{background:var(--v3-green);box-shadow:none;}
+body[data-skin="v3"] .sab.dirty .sab-dot{background:#F2994A;box-shadow:none;}
+body[data-skin="v3"] .sab .sab-msg{font-size:13px;font-weight:600;color:var(--v3-ink2);}
+body[data-skin="v3"] .sab.dirty .sab-msg{color:var(--v3-ink2);}
+
+/* 버튼 — 회색 알약이 기본, `.accent`(전체 적용·초대) 만 검정 알약 */
+body[data-skin="v3"].page-admin .action-btn{
+  height:34px;padding:0 14px;
+  border:none;border-radius:9999px;
+  background:var(--v3-canvas);color:var(--v3-ink2);
+  font-size:13px;font-weight:700;
+  display:inline-flex;align-items:center;
+}
+body[data-skin="v3"].page-admin .action-btn:hover{background:#E9E7E3;color:var(--v3-ink);}
+body[data-skin="v3"].page-admin .action-btn.small{height:30px;padding:0 12px;font-size:12px;}
+body[data-skin="v3"].page-admin .action-btn.accent{background:var(--v3-ink);color:#fff;}
+body[data-skin="v3"].page-admin .action-btn.accent:hover{background:#000;color:#fff;}
+body[data-skin="v3"].page-admin .action-btn.danger{background:#FDEEEA;color:var(--v3-red);}
+body[data-skin="v3"].page-admin .action-btn.danger:hover{background:#FBE0DA;color:var(--v3-red-dark);}

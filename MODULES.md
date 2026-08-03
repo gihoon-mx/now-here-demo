@@ -62,8 +62,8 @@
 | M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — **admin.html 에만 있다**(서비스 페이지에는 없음) | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openAdmPanelFromUrl` `jumpToSetting` `openColorPopup` `makeColorControl` `initSettingsAccordion` | app.js | v1.77 |
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
 | M13 | seed 데모 시드 | 활성 | 강남·잠실·성수 + **방학·쌍문(한산)** 4지역 시드(피드/스팟/Request/채팅)·채우기(수량·밀집도 옵션)/비우기 | `SEED_FEED` `SEED_IMG` `SEED_AREAS` `SEED_AREA_ORDER` `seedFlat` `initDemoSeed` `clearDemoData` | app.js | v1.70 |
-| M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 | `initAdminMenu`(M11 공유) | admin.html deck.html diagram.html dev.html | v1.65 |
-| M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 3종(legacy / new=v2.0 / v3=v3.0, 기본)** — v3 는 석촌동 에셋 기준 재설계(웜 오프화이트+코랄·°C 지표) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin`(v1.84: 마크업까지 가르므로 재렌더) `initSkinControl` `body[data-skin]` `APP_SKINS` `--nk-*` `--v3-*` | style.css · skin-new.css · **skin-v3.css** · app.js | v1.86 |
+| M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 — **콘솔 크롬은 v3 스킨을 함께 탄다**(v1.87) | `initAdminMenu`(M11 공유) `body[data-skin="v3"].page-admin` | admin.html deck.html diagram.html dev.html | v1.87 |
+| M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 3종(legacy / new=v2.0 / v3=v3.0, 기본)** — v3 는 석촌동 에셋 기준 재설계(웜 오프화이트+코랄·°C 지표) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin`(v1.84: 마크업까지 가르므로 재렌더) `initSkinControl` `body[data-skin]` `APP_SKINS` `--nk-*` `--v3-*` | style.css · skin-new.css · **skin-v3.css** · app.js | v1.87 |
 | M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.75 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
@@ -173,6 +173,8 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-04 M15+M14 (M11 화면): v1.87.0 — **v3.0 3단계(콘솔 재도색).** v3 는 폰 스킨이 아니라 **제품 전체의 재설계**다 — 핸드오프가 웹앱과 콘솔을 같이 그렸으므로 스킨 스위치가 콘솔까지 함께 움직인다(`body[data-skin="v3"].page-admin` 스코프, 되돌리기는 여전히 속성 하나). 시안의 콘솔 문법 셋을 가져왔다: ①종이 캔버스 위에 **흰 카드**(패널이 아니라 카드다) ②컨트롤은 전부 알약이고 **확정 동작만 검정 알약** ③좌측 내비는 회색 레일 위에서 **선택된 행만 흰 카드로 떠오른다** — legacy 는 색(옅은 파랑)으로 표시했는데 시안은 **높이**로 말한다. 콘솔은 폰 컨테이너 밖이라 전부 px
 
 - 2026-08-04 M15 (⚠️교차 M05/M10 스킨 조건): v1.86.0 — **v3.0 2단계(지도 오버레이·탭 페이지).** 사진 핀이 **원형 + 두꺼운 컬러 링**이 되고 Basic 에서는 흑백으로 가라앉는다(색은 Trend 의 언어다). Request 핀은 검정 원 + 흰 링, 스팟 버블은 **컬러 몸통을 그대로 살린다**(v2 는 흰 유리로 바꿨지만 v3 는 에셋 그대로다 — `--spot-bg` 를 안 건드린다). 피드 카드는 v1.84 의 `.fc-body` 구조를 그대로 쓰되 **좋아요를 사진 좌상단 흰 알약**으로 — `position:absolute` 로 흐름에서 빼면 부모(카드) 좌상단이 곧 사진 좌상단이라 마크업을 안 건드리고 옮겨진다. ⚠️ **흰색은 헤더가 아니라 앱바가 갖는다** — 헤더를 통째로 칠했더니 트렌드에서 존이 없을 때 그 자리가 빈 흰 판(490px)이 됐다. 헤더는 지면 카드·존 칩 줄까지 품고 있다.
 
