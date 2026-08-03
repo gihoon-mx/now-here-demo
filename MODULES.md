@@ -55,9 +55,9 @@
 | M04 | spots 스팟 메시지 | 안정 | 스팟 버블(자유 방향·겹침 방지)·컴포저·편집/드래그·워드클라우드 (모드 컬러: 베이직 무채색/트렌드 온도)·개별 색 투명도 | `SpotBubble` `SpotComposer` `renderSpots` `spotsInFocusedRegion` `canEditSpot` `declutterMarkers` `openSpotEditor` `spotComments(뱃지)` | app.js | v1.65 |
 | M05 | feed 피드 | 활성 | 피드 탭·그리드·썸네일 핀(스팟과 동일 줌 스케일·온도 링/뱃지)·클러스터·좋아요·업로드 | `renderFeed` `feedEntriesScoped` `FeedThumb` `clusterFeedPins` `toggleLike` `feedAdd` `initFeedTools` `staticMapUrl` `fc-body`(새 스킨 본문) `hidden`(v1.88 숨김 필드) | app.js | v1.88 |
 | M06 | social 소셜 | 활성 | 소셜 탭 **Our/My Talk 2세그먼트**(목록→대화 2단)·방 카드·liveChat — 방 저장 키(`local:`/`topic:`/`private:`)는 불변 | `renderSocial` `socRoomsFor` `socRoomLast` `renderRoomList` `socRoomList` `roomMsgs` `initSocialManager` | app.js | v1.91 |
-| M07 | request 현장 Request | 활성 | Request 등록(10분 타임아웃)·AI Agent 실시간 응답 팝업·내 Request 답변 보기·전용 핀(ReqPin)·삭제 | `openRequestComposer` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` `ReqPin` `deleteRequest`·핀 줌 스케일(스팟 동일) `reqRemainLabel` | app.js | v1.63 |
+| M07 | request 현장 Request | 활성 | Request 등록(10분 타임아웃)·AI Agent 실시간 응답 팝업·내 Request 답변 보기·전용 핀(ReqPin)·삭제 | `openRequestComposer` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` `ReqPin` `deleteRequest`·핀 줌 스케일(스팟 동일) `reqRemainLabel` · **코인**(`REQ_COIN` `myCoins` `addCoins` `syncCoinUI`) | app.js | v1.92 |
 | M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·모드별 톤(불꽃)·**원격 에이전트(persona-vc)** | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE` `aiMapSummary` `aiChatAnswer` `aiAgentOn` `aiAskRemote` `aiContextSnapshot` `aiChatHistory` | app.js · config.js | v1.76 |
-| M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·**드로어(둘러보기 전용)**·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` `setNavActive`(switchTab 내부) | app.js | v1.83 |
+| M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·**드로어(둘러보기 전용)**·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` `setNavActive`(switchTab 내부) · **보기 토글**(`boundaryShown` `reqCardShown` `setBoundaryShown` `setReqCardShown`) | app.js | v1.92 |
 | M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기·메타 줄(거리·시간) | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` `feedSummaryItems` `cps-meta` · **지역 Overview**(`openOverview` `ovChipData` `initOverview`) | app.js | v1.90 |
 | M11 | settings 관리자 설정 | 활성 | 설정 블록·드래프트/적용·미니 프리뷰·관리자 메뉴 대형 팝업·색상 팝업(팔레트+투명도) — **admin.html 에만 있다**(서비스 페이지에는 없음) | `BLOCK_DEFS` `MINI_RENDER` `initDraft` `initBlockBars` `syncSettingsUI` `initAdminMenu` `openAdmPanelFromUrl` `jumpToSetting` `openColorPopup` `makeColorControl` `initSettingsAccordion` · **전체 컨텐츠 표**(`ctEntries` `renderContentTable` `initContentTable` `ctSetHidden` `ctMoveZone` `ctDelete` `ctKind` `ctSel`) | app.js | v1.88 |
 | M12 | auth-sync 인증·동기화 | 안정 | Google 로그인·역할·스플래시·클라우드 실시간 동기·관리자 페이지 게이팅 | `initAuth` `showAuthOverlay` `liveOn` `loadSharedContent` `cloudSave` `grantAccess` + `firestore.rules` | app.js | v1.65 |
@@ -174,6 +174,8 @@
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-04 M09+M07+M03 (v3 8단계·마지막): v1.92.0 — **동 경계 토글 · 코인 적립 · °C 지표.** 드로어에 '보기' 섹션 신설(동 경계 City View · 현장 Request 도착 카드). 둘 다 **관리자 설정이 아니라 이 기기의 취향**이라 설정 블록(드래프트→적용)을 타지 않고 localStorage 에만 남는다 — 클라우드로 보내면 한 사람의 보기 취향이 모두에게 적용된다. 경계는 `phoneDataVisibility` 에 `boundaryShown` 을 AND 로 물렸다(모드 규칙은 그대로). 남의 Request 에 답하면 `🪙 500` 적립(내 것에 답하는 건 적립 대상이 아니다). 존 리스트 카드에 °C 배지 — 시안은 좋아요가 아니라 **온도로 지역을 말한다**
 
 - 2026-08-04 M06 (⚠️교차 M07 Request 스레드): v1.91.0 — **Our Talk / My Talk(v3 7단계).** 3탭(동네·주제·프라이빗)에서 **2세그먼트**로 재편. Our=동네 채팅방+주제방, My=프라이빗+**내 Request 스레드**. ⚠️ **방의 저장 키는 그대로 둔다**(`local:` `topic:` `private:`) — 키를 바꾸면 이미 쌓인 대화가 통째로 고아가 된다. Our/My 는 목록을 고르는 **뷰**일 뿐이고 방 자신의 type 은 예전 그대로다. 예전엔 '동네' 탭이 목록 없이 바로 방으로 들어갔는데 시안은 **목록 → 대화 2단**이라 동네 방도 목록의 첫 줄이 됐다(그래서 뒤로가기가 항상 있다). 내 Request 는 방이 아니라 스레드라 탭하면 기존 상세 팝업(질문+답변)이 열린다
 

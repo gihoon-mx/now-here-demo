@@ -1525,6 +1525,38 @@ function loadNewsFromCloud(){ // 실시간: 요약 지면 이미지 변경 즉�
 // 공유 메뉴 바디를 여는 드로어로 옮겨 렌더 (한 번에 하나만 열림 → 동일 DOM = 싱크)
 function openPhoneDrawer(){var d=document.getElementById('phone-drawer'),b=document.getElementById('phone-drawer-body'),pc=document.getElementById('pc-drawer');if(!d)return;if(pc)pc.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
 function openPcDrawer(){var d=document.getElementById('pc-drawer'),b=document.getElementById('phone-drawer-body'),ph=document.getElementById('phone-drawer');if(!d)return;if(ph)ph.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
+/* [M09] v1.92 '보기' 토글 — 시안 드로어의 마지막 섹션.
+   `boundaryShown`=동 경계(City View) · `reqCardShown`=현장 Request 도착 카드.
+   둘 다 **보기 설정**이라 관리자 설정(styleConfig)이 아니라 이 기기의 취향이다 —
+   localStorage 에만 남기고 클라우드로 보내지 않는다. */
+var boundaryShown=true, reqCardShown=true;
+try{
+  var _bs=localStorage.getItem('nowhere_boundary');if(_bs==='0')boundaryShown=false;
+  var _rc=localStorage.getItem('nowhere_reqcard');if(_rc==='0')reqCardShown=false;
+}catch(e){}
+function setBoundaryShown(v){
+  boundaryShown=!!v;
+  try{localStorage.setItem('nowhere_boundary',boundaryShown?'1':'0');}catch(e){}
+  if(typeof phoneDataVisibility==='function')phoneDataVisibility();
+}
+function setReqCardShown(v){
+  reqCardShown=!!v;
+  try{localStorage.setItem('nowhere_reqcard',reqCardShown?'1':'0');}catch(e){}
+  if(!reqCardShown&&typeof hideReqBubble==='function')hideReqBubble();
+}
+/* [M07] v1.92 코인 — 현장 Request 에 답하면 적립된다(시안의 🪙 500).
+   잔액은 이 기기에 남긴다. 실제 정산이 있는 것처럼 보이면 안 되므로 표기는 '적립'까지다. */
+var REQ_COIN=500, myCoins=0;
+try{var _c=parseInt(localStorage.getItem('nowhere_coins'),10);if(!isNaN(_c))myCoins=_c;}catch(e){}
+function addCoins(n){
+  myCoins+=n;
+  try{localStorage.setItem('nowhere_coins',String(myCoins));}catch(e){}
+  syncCoinUI();
+}
+function syncCoinUI(){
+  var el=document.getElementById('ppm-coins');
+  if(el)el.textContent='🪙 '+myCoins.toLocaleString();
+}
 function closeDrawer(){var p=document.getElementById('phone-drawer');if(p)p.classList.remove('open');var c=document.getElementById('pc-drawer');if(c)c.classList.remove('open');}
 // 드로어 데모 리스트(트렌드 존/스팟) 렌더 — 데모·관리자 모두 데이터로 채움
 var drawerFold={};try{drawerFold=JSON.parse(localStorage.getItem('nowhere_drawerfold')||'{}')||{};}catch(e){}
@@ -1717,6 +1749,20 @@ function renderDrawerDemo(){ // 순서: 트렌드존 → 현장 Request → 스�
     sp.body.appendChild(cloud);
   }
   root.appendChild(sp.sec);
+  /* ④ 보기 — v1.92. 시안 드로어의 마지막 섹션이다. 관리자 설정이 아니라 **이 기기의 취향**이라
+     설정 블록(드래프트→적용)을 타지 않고 즉시 반영된다. */
+  var vw=dsSection('view','보기');
+  var box=document.createElement('div');box.className='dv-box';
+  [['동 경계 (City View)',boundaryShown,setBoundaryShown],
+   ['현장 Request 도착 카드',reqCardShown,setReqCardShown]].forEach(function(row){
+    var lb=document.createElement('label');lb.className='dv-row';
+    var tx=document.createElement('span');tx.textContent=row[0];
+    var ck=document.createElement('input');ck.type='checkbox';ck.checked=!!row[1];
+    ck.addEventListener('change',function(){row[2](this.checked);});
+    lb.appendChild(tx);lb.appendChild(ck);box.appendChild(lb);
+  });
+  vw.body.appendChild(box);
+  root.appendChild(vw.sec);
   renderSummaryZones();
 }
 
@@ -1782,7 +1828,7 @@ function refreshPhoneMapStyles(){
     return featKey(f)===selectedFeatureId?getHighlightStyle():getDefaultStyle();
   });
 }
-function phoneDataVisibility(){if(phoneMap)phoneMap.data.setMap(currentMode==='local'?phoneMap:null);}
+function phoneDataVisibility(){if(phoneMap)phoneMap.data.setMap((currentMode==='local'&&boundaryShown)?phoneMap:null);} // v1.92 보기 토글(동 경계)
 function syncPhoneZones(){
   if(!phoneMap)return;
   phoneSelectedZoneId=null; // 오버레이 재생성 → 선택/렌즈 리셋
@@ -4474,6 +4520,7 @@ function openRequestComposer(){
   if(ab){ab.textContent='📍 Request 전송! 근처 현장 유저에게 알림이 갑니다. (10분간 답변 수신)';ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},2600);}
 }
 function showReqBubble(rq){ // AI Agent 수신 팝업: 질문 + 위치 + 응답 버튼 2개 (네비바와 같은 프로스트 톤)
+  if(!reqCardShown)return; // v1.92 드로어 '보기'에서 끌 수 있다
   var b=document.getElementById('req-bubble');if(!b)return;
   document.getElementById('rq-place').textContent=rq.place;
   document.getElementById('rq-text').textContent='"'+rq.q+'"';
@@ -4500,8 +4547,9 @@ function answerRequest(id,text,img){ // img: 사진 답변(dataURL, 선택)
   if(hasLive()){fbDb.collection('liveRequests').doc(id).update({answers:firebase.firestore.FieldValue.arrayUnion(ans)}).catch(liveWriteErr);}
   else{rq.answers.push(ans);saveRequests();renderRequestMarkers();}
   hideReqBubble();
+  if(!isMyReq(rq))addCoins(REQ_COIN); // v1.92 남의 Request 에 답하면 적립 (내 것에 답하는 건 적립 대상이 아니다)
   var ab=document.getElementById('ai-bubble'); // 라이브=전송 확인(도착 알림은 요청자 기기에 실시간) / 폴백=도착 시뮬레이션
-  if(ab){ab.textContent=hasLive()?'📍 답변 전송! 요청자에게 실시간으로 전달했어요.':'📍 '+rq.place+' 현장 답변 도착: '+(img?'📷 ':'')+text;ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},5000);}
+  if(ab){ab.textContent=(hasLive()?'📍 답변 전송! 요청자에게 실시간으로 전달했어요.':'📍 '+rq.place+' 현장 답변 도착: '+(img?'📷 ':'')+text)+(isMyReq(rq)?'':'  🪙 '+REQ_COIN+' 적립');ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},5000);}
 }
 function deleteRequest(id){ // 본인·관리자만 (드로어 카드 🗑)
   if(!confirm('이 Request를 삭제할까요?'))return;
@@ -5909,7 +5957,7 @@ function startEmbed(){
   loadFileDefaults(); // repo 백스톱 설정(settings-default.json) — 공장값 캡처 후 비동기 적용, 클라우드가 오면 그쪽 우선
   initSettingsExport();
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initOverview();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initOverview();syncCoinUI();
   window.addEventListener('resize',layoutTabPages);
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)
   setInterval(function(){try{tickReqRemain();}catch(e){}},1000); // Request 남은 시간(분/초) 1초 갱신 — 텍스트만(경량)

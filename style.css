@@ -1339,3 +1339,10 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
 .soc-room .sr-ago{font-size:2.8cqw;color:var(--ink3);}
 .soc-room .sr-un{min-width:5.1cqw;padding:0.5cqw 1.8cqw;border-radius:9999px;background:#e8574a;color:#fff;
   font-size:2.8cqw;font-weight:800;text-align:center;}
+
+/* ── [M09] v1.92 드로어 '보기' 토글 · [M07] 코인 ─────────────────────────── */
+.dv-box{display:flex;flex-direction:column;gap:2.6cqw;padding:3.3cqw;border-radius:3.6cqw;background:var(--bg);}
+.dv-row{display:flex;align-items:center;justify-content:space-between;gap:2cqw;
+  font-size:3.4cqw;font-weight:600;color:var(--ink2);cursor:pointer;}
+.dv-row input[type="checkbox"]{width:4.4cqw;height:4.4cqw;flex:none;cursor:pointer;}
+.ppm-coins{margin-right:auto;font-size:.72rem;font-weight:800;color:#c9762a;}

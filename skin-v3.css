@@ -709,3 +709,21 @@ body[data-skin="v3"] .soc-room .sr-name{font-size:3.8cqw;color:var(--v3-ink);}
 body[data-skin="v3"] .soc-room .sr-last{font-size:3.3cqw;color:var(--v3-ink4);}
 body[data-skin="v3"] .soc-room .sr-ago{color:var(--v3-ink5);}
 body[data-skin="v3"] .soc-room .sr-un{background:var(--v3-red);}
+
+/* ── 보기 토글 · 코인 · °C 지표 (v1.92) ── */
+body[data-skin="v3"] .dv-box{background:var(--v3-canvas);border-radius:3.6cqw;}
+body[data-skin="v3"] .dv-row{font-size:3.6cqw;font-weight:600;color:var(--v3-ink2);}
+body[data-skin="v3"] .dv-row input[type="checkbox"]{accent-color:var(--v3-ink);}
+body[data-skin="v3"] .ppm-coins{color:#C9762A;}
+/* 존 리스트 카드에도 °C — 시안은 좋아요가 아니라 온도로 지역을 말한다.
+   값은 `makeZoneCard` 가 `data-temp` 로 실어 보낸다(마크업 무수정). */
+body[data-skin="v3"] #cp-zones.list .tz-card[data-temp] .tzl-dist::after,
+body[data-skin="v3"] .tz-card.tzl[data-temp] .tzl-dist::after{content:'';}
+body[data-skin="v3"] .tz-card.tzl[data-temp]::after{
+  content:attr(data-temp);
+  position:absolute;right:2.6cqw;top:2.6cqw;
+  padding:.8cqw 2.4cqw;border-radius:9999px;
+  background:var(--zone-c,#F4A15C);color:#fff;
+  font-size:2.6cqw;font-weight:800;
+}
+body[data-skin="v3"] .tz-card.tzl{position:relative;}
