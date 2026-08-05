@@ -1157,6 +1157,21 @@ body.embed-mode #phone-mirror{position:static;width:100%;height:100%;padding:0;b
 body.embed-mode .phone-bar{display:none;}
 body.embed-mode .phone-screen{width:100%;height:100%;aspect-ratio:auto;border-radius:0;border:none;box-shadow:none;}
 
+/* ── M16 재생 연출 (v1.94, 콘솔 D72) — 화면 위 레이어라 계약과 무관하다 ── */
+/* 손가락 자국: 재생이 "누르는" 자리에 잠깐 떴다 사라진다. 상태가 스스로 바뀌면
+   유령 조작으로 보인다 — 사람 손가락이 있었다는 흔적 하나가 그 인상을 바꾼다. */
+.nh-touch{position:absolute;z-index:9000;width:34px;height:34px;margin:-17px 0 0 -17px;
+  border-radius:50%;pointer-events:none;background:rgba(25,28,34,.16);
+  border:2px solid rgba(25,28,34,.34);animation:nhTouch .55s ease forwards;}
+@keyframes nhTouch{0%{transform:scale(.45);opacity:.95}
+  60%{transform:scale(1.1);opacity:.45}100%{transform:scale(1.35);opacity:0}}
+/* concern 한 박자: 막힌 스텝에서 화면 가장자리가 잠깐 어두워진다. 타임라인의 빨간
+   글씨는 무대 밖이라, 정작 화면에서는 막힌 순간이 아무 일도 아닌 듯 지나갔다. */
+.phone-screen.nh-concern::after{content:'';position:absolute;inset:0;z-index:8999;
+  pointer-events:none;box-shadow:inset 0 0 64px rgba(196,70,56,.30);
+  animation:nhConcern .95s ease forwards;}
+@keyframes nhConcern{0%{opacity:0}25%{opacity:1}100%{opacity:0}}
+
 /* ── 관리자 페이지: 탑바 + 지도 전면 + 폰 미리보기(우측) ── */
 body.page-admin #app-shell{height:calc(100% - 52px);}
 #admin-topbar{position:relative;z-index:5000;display:flex;align-items:center;gap:14px;height:52px;padding:0 14px;

@@ -5811,8 +5811,10 @@ function nhEmbedIsolate(){
 
 /* 지금 시나리오가 서 있는 지역 (area 스텝이 정한다). 빈 값이면 전 지역에서 고른다. */
 var nhAreaKey='';
-/* 이번 회차가 만든 것들 — 시나리오 seed 와 재생 중 쓴 글. nhReset 이 전부 걷어낸다. */
-var nhTempIds={spot:[],feed:[],req:[],chat:[]};
+/* 이번 회차가 만든 것들 — 시나리오 seed 와 재생 중 쓴 글, 그리고 전역 카드에 남긴
+   좋아요(v1.94 — 회차를 넘어 살아남으면 두 번째 재생에서 하트가 이미 차 있다).
+   nhReset 이 전부 걷어낸다. */
+var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[]};
 /* 지역 이동 줌 — "동네 전체" 가 보이는 값. 시연은 매번 같은 그림이어야 하므로 고정한다. */
 var NH_AREA_ZOOM=14;
 /* 임베드가 처음 서는 곳 — 시나리오가 area 로 옮기기 전까지 시연 세계의 기본값이다.
@@ -5888,62 +5890,91 @@ function nhCenter(){
   var a=nhAreaKey&&SEED_AREAS[nhAreaKey];
   return a?{lat:a.lat,lng:a.lng}:null;
 }
-/* 줌만 바꾼다 — 중심은 그대로. 'in'/'out' 은 한 단계, 숫자면 그 값으로. */
+/* 줌만 바꾼다 — 중심은 그대로. 'in'/'out' 은 한 단계, 숫자면 그 값으로.
+   v1.94: 실행 여부를 돌려준다 — nh:step 의 ok 재료 (콘솔 D72). */
 function nhZoom(v){
-  var m=map||phoneMap;if(!m||!m.getZoom)return;
+  var m=map||phoneMap;if(!m||!m.getZoom)return false;
   var now=m.getZoom()||NH_AREA_ZOOM,z;
   if(v==='in')z=now+2;else if(v==='out')z=now-2;else z=parseInt(v,10);
-  if(!isFinite(z))return;
+  if(!isFinite(z))return false;
   // 너무 멀면 동네가 안 보이고 너무 가까우면 핀만 남는다.
   z=Math.min(18,Math.max(11,z));
-  var c=nhCenter();if(!c)return;
+  var c=nhCenter();if(!c)return false;
   goMapCam(map,c.lat,c.lng,z);
   if(phoneMap)goMapCam(phoneMap,c.lat,c.lng,z);
+  return true;
 }
 /* i 번째 콘텐츠로 카메라를 옮겨 확대한다. **팝업은 열지 않는다** — 여는 것은 pop 의 일이고,
-   focus 는 "저기를 보라" 는 연출이다. 둘을 합치면 시나리오가 둘을 따로 쓸 수 없다. */
-function nhFocus(kind,i){
+   focus 는 "저기를 보라" 는 연출이다. 둘을 합치면 시나리오가 둘을 따로 쓸 수 없다.
+   v1.94: 두 박자다 — 먼저 지금 줌으로 거기까지 가고(팬), 잠깐 뒤 들여다본다(줌 17).
+   사람의 시선 이동이 그렇다: 한 프레임에 이동과 확대가 같이 튀면 순간이동으로 보인다.
+   nhAi 가 이미 같은 패턴(버튼 → ms*0.4 뒤 프리셋)을 쓴다. */
+function nhFocus(kind,i,token,ms){
   var d=nhPick(kind||'spot',i);
-  if(!d||d.lat==null||d.lng==null)return;
+  if(!d||d.lat==null||d.lng==null)return false;
   if(typeof switchTab==='function')switchTab('map');
-  goMapCam(map,d.lat,d.lng,17);
-  if(phoneMap)goMapCam(phoneMap,d.lat,d.lng,17);
+  var m=map||phoneMap;
+  var now=(m&&m.getZoom&&m.getZoom())||NH_AREA_ZOOM;
+  goMapCam(map,d.lat,d.lng,now);
+  if(phoneMap)goMapCam(phoneMap,d.lat,d.lng,now);
+  setTimeout(function(){
+    if(token!==nhRunToken)return;
+    goMapCam(map,d.lat,d.lng,17);
+    if(phoneMap)goMapCam(phoneMap,d.lat,d.lng,17);
+  },Math.max(400,Math.round((ms||2500)*0.4)));
+  return true;
 }
 
 /* 글쓰기: 진짜 컴포저를 열어 보여주고(addSpotContent) 잠시 뒤 커밋한다.
    바로 넣지 않는 이유 — 시연에서 "이 사람이 쓰는 중" 이 보여야 한다. */
 function nhWriteSpot(text,token,ms){
-  if(typeof addSpotContent!=='function')return;
+  if(typeof addSpotContent!=='function')return false;
   // **지도 중심에 기대지 않는다.** addSpotContent 는 중심이 없으면(투영 전·지도 오류)
   // 조용히 아무것도 안 한다 — 시연에서는 "글을 썼는데 아무 일도 없음" 으로 보인다.
   // 시나리오가 서 있는 지역 좌표를 직접 준다: 회차마다 같은 자리에 남는 이점도 있다.
   var c=SEED_AREAS[nhAreaKey]||null;
   var ctr=(typeof phoneMap!=='undefined'&&phoneMap&&phoneMap.getCenter)?phoneMap.getCenter():null;
   var ll=c?new google.maps.LatLng(c.lat+0.0012,c.lng+0.0012):ctr;
-  if(!ll)return;
+  if(!ll)return false;
   addTargetMap=(typeof phoneMap!=='undefined')?phoneMap:null;
   addAtLatLng=ll;
   addSpotContent();
   addAtLatLng=null; // 다음 사용자 조작이 이 좌표를 물려받지 않게 바로 비운다
   var ov=(typeof composerOverlay!=='undefined')?composerOverlay:null;
-  if(!ov)return;
+  if(!ov)return false;
   var typed=String(text||'').slice(0,80);
-  setTimeout(function(){ // 글자가 들어차는 것을 보여준다
+  var commitAt=Math.max(900,Math.round((ms||2600)*0.55));
+  // 글자별 타이핑 (v1.94). 220ms 뒤 통째로 박히는 것이 화면에서 가장 큰 로봇 티였다.
+  // 커밋 150ms 전까지를 타이핑 창으로 쓰고, 틱 간격은 글자 수에서 역산한다 (30~90ms).
+  // 매 틱 토큰을 본다 — 새 재생이 시작되면 잘린 글자가 남지 않게 그 자리에서 멈춘다.
+  var t0=220,win=Math.max(300,commitAt-t0-150);
+  var per=Math.min(90,Math.max(30,Math.round(win/Math.max(1,typed.length))));
+  var pos=0;
+  setTimeout(function(){
     if(token!==nhRunToken||!ov.textEl)return;
-    ov.textEl.value=typed;
-  },220);
+    var iv=setInterval(function(){
+      if(token!==nhRunToken||!ov.textEl){clearInterval(iv);return;}
+      // 한 틱에 1~2자 — 등속 타자기가 아니라 사람의 몰아치는 손이다.
+      pos+=(pos%3===2)?2:1;
+      if(pos>=typed.length){pos=typed.length;clearInterval(iv);}
+      ov.textEl.value=typed.slice(0,pos);
+    },per);
+  },t0);
   setTimeout(function(){
     if(token!==nhRunToken)return;
+    // 중단 없이 왔으면 전체 문자열로 보정하고 커밋한다 — 잘린 글이 등록되지 않게.
+    if(ov.textEl)ov.textEl.value=typed;
     var before=(typeof demoSpots!=='undefined')?demoSpots.length:0;
     try{ov.commit();}catch(e){}
     if(typeof demoSpots!=='undefined')
       for(var i=before;i<demoSpots.length;i++)nhTempIds.spot.push(demoSpots[i].id);
-  },Math.max(900,Math.round((ms||2600)*0.55)));
+  },commitAt);
+  return true;
 }
 
 /* 채팅: 동네방 또는 주제방을 열고, 말이 있으면 보낸다. */
 function nhChat(kind,say){
-  if(typeof socTab==='undefined')return;
+  if(typeof socTab==='undefined')return false;
   socTab=(kind==='topic')?'topic':'local';
   if(kind==='topic'&&typeof socRoomList!=='undefined'&&socRoomList.length){
     var r=socRoomList.filter(function(x){return x.type==='topic';})[0];
@@ -5956,68 +5987,154 @@ function nhChat(kind,say){
     nhTempIds.chat.push(k);
     if(typeof renderSocial==='function')renderSocial();
   }
+  return true;
 }
 
 /* AI 에이전트: 실제 버튼을 눌러 패널을 열고, 프리셋 하나를 고른다. */
 function nhAi(token,ms){
   var btn=document.querySelector('#phone-mirror .pn-ai')||document.querySelector('.pn-ai');
-  if(!btn)return;
+  if(!btn)return false;
   btn.click();
   setTimeout(function(){
     if(token!==nhRunToken)return;
     var item=document.querySelector('#aip-list .aip-item');
     if(item)item.click();
   },Math.max(700,Math.round((ms||2600)*0.4)));
+  return true;
 }
 
 /* 피드 보기 범위 칩 (전체보기 / 현재 동네 / Trend Zone) — 실제 칩을 누른다 */
 function nhScope(v){
   var b=document.querySelector('.fsc[data-s="'+(v||'local')+'"]');
-  if(b){b.click();return;}
+  if(b){b.click();return true;}
   if(typeof feedScope!=='undefined'){feedScope=(v==='all'||v==='zone')?v:'local';
-    if(typeof renderFeed==='function')renderFeed();}
+    if(typeof renderFeed==='function')renderFeed();return true;}
+  return false;
 }
 
-/* 스텝 하나를 화면 동작으로 옮긴다. 여기서만 앵커를 부른다. */
-function nhAct(st,token){
+/* ── v1.94 사람 손맛 연출 (콘솔 D72) ─────────────────────
+   전부 화면 연출이다 — 계약(NH_ACTIONS·메시지 스키마)과 무관하고, 실패해도 재생을
+   막지 않는다. 새 액션을 만들지 않으므로 콘솔·프롬프트와의 3중 동기화도 없다. */
+
+/* 손가락 자국 — 상태가 "스스로" 바뀌면 유령이 조작하는 것처럼 보인다.
+   .phone-screen 좌표계에 점 하나를 확장-소멸로 띄운다. */
+function nhTouch(el){
   try{
-    if(st.a==='tab'&&typeof switchTab==='function')switchTab(st.v);
-    else if(st.a==='mode'&&typeof switchMode==='function'&&st.v!==currentMode)switchMode(st.v);
-    // 지역 이동 — 자체 지도 조작을 만들지 않고 동결 앵커 cpopGoMap 을 부른다.
-    // 그쪽이 팝업·서랍 닫기 → 지도 탭 → 양쪽 지도 이동까지 이미 한다. 줌 14 는 "동네 전체" —
-    // 기본값 16 은 항목 하나를 붙여 보는 값이라 동네가 비었는지 차 있는지가 안 보인다.
-    // **폰 지도만 움직이면 안 된다**: 카메라는 PC → 폰 단방향 미러라 map 의 다음 idle 이
-    // 폰을 원래 자리로 되돌린다. 반드시 map 을 움직여 미러를 태워 보낸다.
-    else if(st.a==='area'){var c=SEED_AREAS[st.v];
-      if(c){nhAreaKey=st.v;if(typeof cpopGoMap==='function')cpopGoMap('area',{lat:c.lat,lng:c.lng},NH_AREA_ZOOM);}}
-    else if(st.a==='pop'){var d=nhPick(st.v,st.i);if(d&&typeof openContentPop==='function')openContentPop(st.v,d);}
-    else if(st.a==='popclose'){if(typeof closeContentPop==='function')closeContentPop();}
-    else if(st.a==='request'&&typeof openRequestComposer==='function')openRequestComposer();
-    else if(st.a==='drawer'&&typeof openPhoneDrawer==='function')openPhoneDrawer();
-    // ── v1.71 실제로 무언가를 하는 액션들 ──
-    else if(st.a==='like'){var f=nhFeedPick(st.i);
-      if(f&&typeof toggleLike==='function'){toggleLike(f.id);
+    var scr=document.querySelector('.phone-screen');if(!scr||!el)return;
+    var r=el.getBoundingClientRect(),s=scr.getBoundingClientRect();
+    if(!r.width&&!r.height)return;
+    var d=document.createElement('div');d.className='nh-touch';
+    d.style.left=(r.left+r.width/2-s.left)+'px';
+    d.style.top=(r.top+r.height/2-s.top)+'px';
+    scr.appendChild(d);
+    setTimeout(function(){try{d.remove();}catch(e){}},600);
+  }catch(e){}
+}
+/* 액션이 "누르는" 요소 — 표식이 뜰 자리. 못 찾으면 null (표식만 생략, 실행은 그대로). */
+function nhTouchTarget(st){
+  try{
+    if(st.a==='tab')return document.querySelector('.pn-item[data-nav="'+st.v+'"]');
+    if(st.a==='ai')return document.querySelector('#phone-mirror .pn-ai')||document.querySelector('.pn-ai');
+    if(st.a==='scope')return document.querySelector('.fsc[data-s="'+(st.v||'local')+'"]');
+    if(st.a==='popclose')return document.getElementById('cpop-close');
+  }catch(e){}
+  return null;
+}
+/* concern 스텝의 한 박자 — 화면 가장자리가 잠깐 어두워진다. 타임라인의 빨간 글씨는
+   무대 밖에 있어서, 막힌 순간이 정작 화면에서는 아무 일도 아닌 것처럼 지나갔다. */
+function nhConcernBeat(){
+  try{
+    var scr=document.querySelector('.phone-screen');if(!scr)return;
+    scr.classList.add('nh-concern');
+    setTimeout(function(){try{scr.classList.remove('nh-concern');}catch(e){}},950);
+  }catch(e){}
+}
+/* 훑는 스크롤 — 한 번에 미끄러지는 단발 이동은 기계 티가 난다. 60% 내리고,
+   잠깐 뒤 나머지 40%, 길게 내렸으면 끝에서 15% 되올린다 (사람이 지나친 것을 다시 보는 손). */
+function nhScrollHuman(el,dist,ms,token){
+  el.scrollBy({top:Math.round(dist*0.6),behavior:'smooth'});
+  setTimeout(function(){
+    if(token!==nhRunToken)return;
+    el.scrollBy({top:Math.round(dist*0.4),behavior:'smooth'});
+  },Math.max(250,Math.round((ms||1500)*0.45)));
+  if(dist>=280)setTimeout(function(){
+    if(token!==nhRunToken)return;
+    el.scrollBy({top:-Math.round(dist*0.15),behavior:'smooth'});
+  },Math.max(500,Math.round((ms||1500)*0.8)));
+}
+
+/* 스텝 하나를 화면 동작으로 옮긴다. 여기서만 앵커를 부른다.
+   v1.94 (콘솔 D72):
+   ① **화면이 실제로 따라왔는가를 돌려준다.** 앵커·대상이 없으면 false — nhRun 이
+     nh:step 의 ok 로 실어 보낸다. 지금까지는 실패를 warn 으로 삼키고 대사만 흘렀다.
+   ② 누르는 액션(탭·AI·범위 칩·팝업 닫기)은 **터치 표식을 먼저** 띄우고 한 박자(170ms)
+     뒤에 실행한다 — 사람 손가락의 박자다. 대상을 못 찾으면 표식만 생략하고 즉시 실행. */
+function nhAct(st,token){
+  function exec(){
+    try{
+      if(st.a==='tab'){if(typeof switchTab!=='function')return false;switchTab(st.v);return true;}
+      if(st.a==='mode'){if(typeof switchMode!=='function')return false;
+        if(st.v!==currentMode)switchMode(st.v);return true;}
+      // 지역 이동 — 자체 지도 조작을 만들지 않고 동결 앵커 cpopGoMap 을 부른다.
+      // 그쪽이 팝업·서랍 닫기 → 지도 탭 → 양쪽 지도 이동까지 이미 한다. 줌 14 는 "동네 전체" —
+      // 기본값 16 은 항목 하나를 붙여 보는 값이라 동네가 비었는지 차 있는지가 안 보인다.
+      // **폰 지도만 움직이면 안 된다**: 카메라는 PC → 폰 단방향 미러라 map 의 다음 idle 이
+      // 폰을 원래 자리로 되돌린다. 반드시 map 을 움직여 미러를 태워 보낸다.
+      if(st.a==='area'){var c=SEED_AREAS[st.v];
+        if(!c||typeof cpopGoMap!=='function')return false;
+        nhAreaKey=st.v;cpopGoMap('area',{lat:c.lat,lng:c.lng},NH_AREA_ZOOM);return true;}
+      if(st.a==='pop'){var d=nhPick(st.v,st.i);
+        if(!d||typeof openContentPop!=='function')return false;
+        openContentPop(st.v,d);return true;}
+      if(st.a==='popclose'){if(typeof closeContentPop!=='function')return false;
+        closeContentPop();return true;}
+      if(st.a==='request'){if(typeof openRequestComposer!=='function')return false;
+        openRequestComposer();return true;}
+      if(st.a==='drawer'){if(typeof openPhoneDrawer!=='function')return false;
+        openPhoneDrawer();return true;}
+      if(st.a==='wait')return true; // 화면은 그대로 — 그것이 이 스텝의 전부다
+      // ── v1.71 실제로 무언가를 하는 액션들 ──
+      if(st.a==='like'){var f=nhFeedPick(st.i);
+        if(!f||typeof toggleLike!=='function')return false;
+        var L=toggleLike(f.id);
+        // 전역 시드 카드에 남긴 좋아요는 회차가 걷어야 한다 — 켠 것만 적는다 (v1.94).
+        if(L&&L.me)nhTempIds.like.push(f.id);
         if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
-        if(typeof renderFeedMarkers==='function')renderFeedMarkers();}}
-    else if(st.a==='write'){if(typeof switchTab==='function')switchTab('map');
-      nhWriteSpot(st.v||st.say,token,st.ms);}
-    else if(st.a==='answer'){var rq=nhPick('req',st.i);
-      if(rq&&typeof answerRequest==='function'){answerRequest(rq.id,st.v||'지금 그렇게 안 붐벼요');
-        if(typeof renderDrawerDemo==='function')renderDrawerDemo();}}
-    else if(st.a==='chat')nhChat(st.v,st.say&&st.v==='send'?st.say:(st.i?st.say:''));
-    else if(st.a==='ai')nhAi(token,st.ms);
-    else if(st.a==='scope'){if(typeof switchTab==='function')switchTab('feed');nhScope(st.v);}
-    // ── v1.75 카메라 연출 ──
-    // 자체 지도 조작을 만들지 않고 goMapCam(동결 앵커)만 부른다. **양쪽 지도를 같이 움직인다** —
-    // 카메라는 PC → 폰 단방향 미러라 폰만 움직이면 다음 idle 이 되돌린다 (area 와 같은 이유).
-    else if(st.a==='zoom')nhZoom(st.v);
-    else if(st.a==='focus')nhFocus(st.v,st.i);
-    else if(st.a==='scroll'){
-      var el=document.querySelector('#phone-drawer.open .pd-body')||
-             document.querySelector('.tabpage.active .feed-col')||
-             document.querySelector('.tabpage.active');
-      if(el&&el.scrollBy)el.scrollBy({top:Math.max(120,(st.i||0)*80||220),behavior:'smooth'});}
-  }catch(e){console.warn('[M16] step fail',st,e);}
+        if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+        return true;}
+      if(st.a==='write'){if(typeof switchTab==='function')switchTab('map');
+        return nhWriteSpot(st.v||st.say,token,st.ms)!==false;}
+      if(st.a==='answer'){var rq=nhPick('req',st.i);
+        if(!rq||typeof answerRequest!=='function')return false;
+        answerRequest(rq.id,st.v||'지금 그렇게 안 붐벼요');
+        if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+        return true;}
+      if(st.a==='chat')return nhChat(st.v,st.say&&st.v==='send'?st.say:(st.i?st.say:''))!==false;
+      if(st.a==='ai')return nhAi(token,st.ms)!==false;
+      if(st.a==='scope'){if(typeof switchTab==='function')switchTab('feed');
+        return nhScope(st.v)!==false;}
+      // ── v1.75 카메라 연출 ──
+      // 자체 지도 조작을 만들지 않고 goMapCam(동결 앵커)만 부른다. **양쪽 지도를 같이 움직인다** —
+      // 카메라는 PC → 폰 단방향 미러라 폰만 움직이면 다음 idle 이 되돌린다 (area 와 같은 이유).
+      if(st.a==='zoom')return nhZoom(st.v)!==false;
+      if(st.a==='focus')return nhFocus(st.v,st.i,token,st.ms)!==false;
+      if(st.a==='scroll'){
+        var el=document.querySelector('#phone-drawer.open .pd-body')||
+               document.querySelector('.tabpage.active .feed-col')||
+               document.querySelector('.tabpage.active');
+        if(!el||!el.scrollBy)return false;
+        nhScrollHuman(el,Math.max(120,(st.i||0)*80||220),st.ms,token);
+        return true;}
+      return false; // 모르는 액션 — nhSanitize 가 걸렀어야 하지만, 오면 실패다
+    }catch(e){console.warn('[M16] step fail',st,e);return false;}
+  }
+  var tapEl=nhTouchTarget(st);
+  if(tapEl){
+    nhTouch(tapEl);
+    setTimeout(function(){if(token!==nhRunToken)return;exec();},170);
+    return true; // 누를 대상이 화면에 있다 = 화면이 따라온다
+  }
+  return exec();
 }
 
 var nhRunToken=0;
@@ -6044,8 +6161,18 @@ function nhSweepTemp(){
     }
     if(nhTempIds.chat.length&&typeof socMsgs!=='undefined')
       nhTempIds.chat.forEach(function(k){delete socMsgs[k];});
+    // 전역 시드 카드에 남긴 좋아요를 되돌린다 (v1.94) — 자기 seed 카드는 회차마다
+    // 새 id 라 상관없지만, 전역 카드는 살아남아서 두 번째 재생부터 하트가 이미
+    // 차 있었다 (toggleLike 는 토글이라 "채워지는" 장면이 "꺼지는" 장면이 된다).
+    if(nhTempIds.like&&nhTempIds.like.length&&typeof feedLikes!=='undefined'&&typeof toggleLike==='function'){
+      nhTempIds.like.forEach(function(id){
+        if(feedLikes[id]&&feedLikes[id].me)toggleLike(id);
+      });
+      if(typeof renderFeed==='function'&&typeof currentTab!=='undefined'&&currentTab==='feed')renderFeed();
+      if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+    }
   }catch(e){console.warn('[M16] sweep',e);}
-  nhTempIds={spot:[],feed:[],req:[],chat:[]};
+  nhTempIds={spot:[],feed:[],req:[],chat:[],like:[]};
 }
 
 /* 시나리오가 선언한 seed 를 깐다 — "이 시나리오가 성립하려면 화면에 무엇이 있어야 하나".
@@ -6180,11 +6307,13 @@ function nhRun(id,reply,inline){
     if(token!==nhRunToken)return;            // 새 재생/중지가 들어오면 이 회차는 조용히 끝난다
     if(i>=sc.steps.length){nhPost(reply,{type:'nh:done',id:sc.id});return;}
     var st=sc.steps[i];
-    nhAct(st,token);
+    var ok=nhAct(st,token)!==false; // 화면이 실제로 따라왔는가 (v1.94, 콘솔 D72)
+    if(st.concern)nhConcernBeat();  // 막힌 순간이 화면에서도 한 박자 보이게
     // v 도 같이 보낸다 — 콘솔이 "지역 이동 · 방학·쌍문" 처럼 적으려면 값이 필요하다.
     // 앱 표본 시나리오는 콘솔에 정의가 없어서 이 메시지가 유일한 정보원이다.
+    // ok 는 additive 다 — 옛 콘솔은 모르는 필드를 무시한다 (M16).
     nhPost(reply,{type:'nh:step',id:sc.id,i:i,total:sc.steps.length,
-      say:st.say||'',concern:!!st.concern,key:!!st.key,action:st.a,v:st.v||''});
+      say:st.say||'',concern:!!st.concern,key:!!st.key,action:st.a,v:st.v||'',ok:ok});
     i++;
     setTimeout(next,st.ms||1500);
   })();
