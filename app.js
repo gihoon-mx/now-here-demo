@@ -94,6 +94,19 @@ var SPOT_REF_ZOOM = 16;
 var SPOT_SCALE_MIN = 0.02, SPOT_SCALE_MAX = 40;
 function spotDotScaleM(){var v=Number(spotConfig.dotScaleM);return isNaN(v)?1000:v;} // 축척(축척자 m)이 이 값 초과로 축소되면 점으로
 function spotScale(z){var s=Math.pow(2,z-SPOT_REF_ZOOM);if(s<SPOT_SCALE_MIN)s=SPOT_SCALE_MIN;if(s>SPOT_SCALE_MAX)s=SPOT_SCALE_MAX;return s;}
+/* 지도 위 **컨텐츠**(스팟 말풍선·이모지·피드 썸네일·Request 핀·딜 핀·지역 라벨)가 쓰는 단일 배율 (v1.95).
+   전에는 같은 spotScale 곡선에 **세 가지 다른 클램프**가 걸려 있었다 —
+   라벨 0.7~1.6 · Request/딜 핀 0.34~1.3 · 스팟과 피드 썸네일은 **클램프 없음**.
+   그래서 줌 한 단계에 스팟은 2배로 뛰는데 핀은 거의 그대로라, 컨텐츠끼리의 크기 관계가
+   줌마다 달라졌다(줌13→18 실측: 말풍선 14.6→260px, 이모지 3.7→118.5px, 핀은 3.8배가 상한).
+   한 곡선·한 클램프로 모으면 전부 같은 비율로 커지고 작아진다. 범위는 이미 쓰이던 것 중
+   가장 보수적인 라벨 값을 그대로 쓴다 — 양 끝에서 읽히는 것이 확인된 폭이다.
+   ※ 멀리서 스팟이 점이 되는 것은 이 배율과 무관하다 (mapMpp 기준 isDot 이 따로 판단한다). */
+var CONTENT_SCALE_MIN = 0.7, CONTENT_SCALE_MAX = 1.6;
+function contentScale(z){
+  if(z==null||!isFinite(z))return 1;
+  return Math.max(CONTENT_SCALE_MIN,Math.min(CONTENT_SCALE_MAX,spotScale(z)));
+}
 var spotOverlays = [];          // 메인 지도 SpotBubble
 var phoneSpotOverlays = [];     // 폰 지도 SpotBubble
 var currentSpotEmoji = '💬';
@@ -350,7 +363,7 @@ function initMapLabelClass(){
   MapLabel.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);
     if(this.div&&pos){
       // v1.62 라벨 크기 안정화: 스팟과 동일한 spotScale 곡선으로 줌 연동(클램프 0.7~1.6) — 고정 px는 줌마다 지면 대비 상대 크기가 들쭉날쭉해 보였음
-      var m=this.getMap(),z=m&&m.getZoom&&m.getZoom(),s=(z!=null)?Math.max(0.7,Math.min(1.6,spotScale(z))):1;
+      var m=this.getMap(),z=m&&m.getZoom&&m.getZoom(),s=contentScale(z); // v1.95: 컨텐츠 공통 배율
       if(CSS_ZOOM_OK){
         // v1.64 버그픽스: CSS zoom은 크기뿐 아니라 left/top 오프셋까지 s배로 곱해 렌더 → 앵커가 pos*s로 밀려 줌마다 라벨이 흔들렸음. 좌표를 s로 나눠 보정(렌더 위치=pos, 중심 정렬은 CSS translate(-50%,-50%))
         this.div.style.zoom=s;this.div.style.left=(pos.x/s)+'px';this.div.style.top=(pos.y/s)+'px';
@@ -482,7 +495,7 @@ function initSpotBubbleClass(){
     var mpp=mapMpp(m);var isDot=mpp?((mpp*64)>spotDotScaleM()):(z<13); // 축척자(64px) 거리가 임계값 초과 = 축소 → 점
     // (강조 구역 축척과 독립적: spotConfig.dotScaleM ↔ styleConfig.highlight.spotScaleM)
     var emojiDot=isDot&&(spotConfig.dotStyle==='emoji'); // 작을 때 이모지로 표시 옵션
-    var s=spotScale(z); // 지도 배율에 붙어 확대/축소
+    var s=contentScale(z); // v1.95: 컨텐츠 공통 배율 (전엔 클램프 없이 줌 1단계당 2배로 뛰었다)
     this.div.classList.toggle('spot-dot',isDot);
     this.div.classList.toggle('spot-dot-emoji',emojiDot);
     // 스케일은 CSS zoom(레이아웃)으로 — transform scale은 1배 래스터를 GPU 확대해 줌인 시 글자/이모지가 흐릿해짐
@@ -602,10 +615,11 @@ function initFeedThumbClass(){
     var px=p.fromLatLngToDivPixel(this.position);if(!px)return;
     this.div.style.left=px.x+'px';this.div.style.top=px.y+'px';this._ax=px.x;this._ay=px.y; // 앵커(declutter 참조)
     var m=this.getMap(),z=m?m.getZoom():15;
-    // v1.63: 스팟 이모지와 완전히 동일한 크기 로직 — 기준 크기=spotConfig.emojiSize, 곡선=spotScale(클램프 없음), 점 전환 기준도 동일
+    // v1.63: 스팟 이모지와 완전히 동일한 크기 로직 — 기준 크기=spotConfig.emojiSize, 점 전환 기준도 동일
+    // v1.95: 곡선을 contentScale 로 (전엔 클램프가 없어 줌18 에서 104px 까지 커졌다)
     var mpp2=mapMpp(m),isDot=mpp2?((mpp2*64)>spotDotScaleM()):(z<13);
     var base=Number(spotConfig.emojiSize)||26;
-    var px2=isDot?12:Math.max(10,Math.round(base*spotScale(z)));
+    var px2=isDot?12:Math.max(10,Math.round(base*contentScale(z)));
     this.div.style.width=px2+'px';this.div.style.height=px2+'px';
     this.div.classList.toggle('fp-dot',isDot);
   };
@@ -4501,25 +4515,31 @@ function initReqPinClass(){
   };
   ReqPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
     this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';this._ax=pos.x;this._ay=pos.y;
-    var m=this.getMap(),z=m?m.getZoom():15,sc=Math.max(0.34,Math.min(1.3,spotScale(z))); // 스팟과 동일한 spotScale 줌 연동
+    var m=this.getMap(),z=m?m.getZoom():15,sc=contentScale(z); // v1.95: 컨텐츠 공통 배율 (스팟·피드·라벨과 같은 폭)
     this.div.style.transformOrigin='50% 100%';this.div.style.transform='translate(-50%,-100%) scale('+sc+')';
   }};
   ReqPin.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
 }
 function loadRequests(){try{var a=JSON.parse(localStorage.getItem(REQ_KEY)||'[]');if(Array.isArray(a))fieldRequests=a;}catch(e){}}
 function saveRequests(){try{localStorage.setItem(REQ_KEY,JSON.stringify(fieldRequests.slice(0,30)));}catch(e){}}
-function openRequestComposer(){
+/* presetQ (optional, v1.95): 질문을 이미 알고 있으면 네이티브 prompt 를 띄우지 않는다.
+   임베드 시연이 이 인자를 쓴다 — prompt 는 iframe 위에 브라우저 대화상자를 세워
+   재생을 멈추고, 그 순간만 앱이 아닌 것이 보인다. 게다가 진행자가 취소하면
+   Request 가 안 생기는데 스텝은 성공으로 기록됐다. 사람이 직접 누르는 길은 그대로다. */
+function openRequestComposer(presetQ){
   var m=addTargetMap||primaryMap();var ll=addAtLatLng||(m&&m.getCenter());
   closeAddMenu();
-  if(!ll){alert('지도를 불러온 뒤 이용해 주세요.');return;}
-  var q=prompt('📍 현장 Request\n이 위치의 무엇이 궁금하세요?\n(예: 파이브가이즈 대기줄 얼마나 되나요?)');
-  if(q==null||!q.trim())return;
+  var preset=(presetQ==null)?null:String(presetQ).trim();
+  if(!ll){if(!preset)alert('지도를 불러온 뒤 이용해 주세요.');return false;}
+  var q=preset||prompt('📍 현장 Request\n이 위치의 무엇이 궁금하세요?\n(예: 파이브가이즈 대기줄 얼마나 되나요?)');
+  if(q==null||!q.trim())return false;
   var d=regionAt(ll.lat(),ll.lng());
   var rq={id:'rq_'+Date.now(),lat:ll.lat(),lng:ll.lng(),q:q.trim(),place:d?d.name:'지정 위치',answers:[],by:myUid(),ts:Date.now()};
   if(hasLive()){fbDb.collection('liveRequests').doc(rq.id).set({id:rq.id,lat:rq.lat,lng:rq.lng,q:rq.q,place:rq.place,answers:[],by:myUid(),ts:rq.ts}).catch(liveWriteErr);}
   else{fieldRequests.unshift(rq);saveRequests();renderRequestMarkers();}
   var ab=document.getElementById('ai-bubble'); // 수신 팝업은 타겟 지역의 '다른' 사용자에게만(실시간 리스너) — 요청자 본인에겐 안 띄움
   if(ab){ab.textContent='📍 Request 전송! 근처 현장 유저에게 알림이 갑니다. (10분간 답변 수신)';ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},2600);}
+  return true;
 }
 function showReqBubble(rq){ // AI Agent 수신 팝업: 질문 + 위치 + 응답 버튼 2개 (네비바와 같은 프로스트 톤)
   if(!reqCardShown)return; // v1.92 드로어 '보기'에서 끌 수 있다
@@ -4664,7 +4684,7 @@ function initDealPinClass(){
   };
   DealPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
     this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';this._ax=pos.x;this._ay=pos.y; // declutter 규약(v1.59)
-    var m=this.getMap(),z=m?m.getZoom():15,sc=Math.max(0.34,Math.min(1.3,spotScale(z)));
+    var m=this.getMap(),z=m?m.getZoom():15,sc=contentScale(z); // v1.95: 컨텐츠 공통 배율
     this.div.style.transformOrigin='50% 100%';this.div.style.transform='translate(-50%,-100%) scale('+sc+')';
   }};
   DealPin.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
@@ -5974,12 +5994,18 @@ function nhWriteSpot(text,token,ms){
 
 /* 채팅: 동네방 또는 주제방을 열고, 말이 있으면 보낸다. */
 function nhChat(kind,say){
-  if(typeof socTab==='undefined')return false;
-  socTab=(kind==='topic')?'topic':'local';
-  if(kind==='topic'&&typeof socRoomList!=='undefined'&&socRoomList.length){
-    var r=socRoomList.filter(function(x){return x.type==='topic';})[0];
-    if(r)socRoom={key:'topic:'+r.name,name:r.name};
-  }else{socRoom=null;}
+  if(typeof socTab==='undefined'||typeof socRoomsFor!=='function')return false;
+  /* v1.95: 세그먼트 값은 **our/my** 다 (v1.91 Our/My Talk 분리). 그전까지 여기는
+     'local'/'topic' 을 넣고 있었는데 그건 방의 종류지 세그먼트가 아니다 —
+     어느 탭에도 안 맞아서 활성 탭이 하나도 없는 채로 socRoomsFor 의 else 가
+     걸려 **My Talk(1:1·내 Request)** 이 열렸다. 동네방·주제방은 둘 다 Our 안에 있다.
+     방 목록은 socRoomsFor 에서 그대로 받는다 — 키 규칙을 여기 베껴 두면 또 어긋난다. */
+  socTab='our';
+  var want=(kind==='topic')?'topic':'local';
+  var rooms=socRoomsFor('our')||[];
+  var r=rooms.filter(function(x){return x.type===want;})[0]||rooms[0];
+  if(!r)return false; // 열 방이 없으면 시연은 실패다 (대사만 흐르게 두지 않는다)
+  socRoom={key:r.key,name:r.name}; // 목록이 아니라 **방을 연다** (ACTION_GUIDE: "채팅방을 연다")
   if(typeof switchTab==='function')switchTab('social');
   if(typeof renderSocial==='function')renderSocial();
   if(say&&typeof socRoom!=='undefined'&&socRoom&&typeof socMsgs!=='undefined'){
@@ -6015,6 +6041,30 @@ function nhScope(v){
 /* ── v1.94 사람 손맛 연출 (콘솔 D72) ─────────────────────
    전부 화면 연출이다 — 계약(NH_ACTIONS·메시지 스키마)과 무관하고, 실패해도 재생을
    막지 않는다. 새 액션을 만들지 않으므로 콘솔·프롬프트와의 3중 동기화도 없다. */
+
+/* 지금 화면에서 **실제로 스크롤되는 칸** (v1.95).
+   v1.94 까지 여기 있던 `.pd-body`·`.tabpage`·`.feed-col` 은 **어느 파일에도 없는 클래스**였다
+   (마크업이 #feed-page·#social-page·#phone-drawer-body 로 바뀐 뒤 선택자만 남았다).
+   그래서 scroll 스텝은 언제나 대상을 못 찾고 아무것도 안 했다 — 지금은 ok:false 로 보고까지 된다.
+   후보를 **여는 순서**로 훑고, 넘치는 칸을 먼저 고른다. 없으면 넘치지 않아도 스크롤 가능한 칸을
+   돌려준다 (내용이 짧아 안 밀리는 것과 칸을 못 찾은 것은 다른 일이다). */
+function nhScrollTarget(){
+  var ids=[];
+  if(document.querySelector('#phone-drawer.open'))ids.push('phone-drawer-body'); // 서랍이 위에 있으면 그것부터
+  if(typeof currentTab!=='undefined'&&currentTab==='feed')ids.push('feed-page');
+  if(typeof currentTab!=='undefined'&&currentTab==='social')ids.push('soc-body','social-page');
+  ids.push('feed-page','social-page','phone-drawer-body');
+  var able=[],i,el,cs;
+  for(i=0;i<ids.length;i++){
+    el=document.getElementById(ids[i]);
+    if(!el||!el.scrollBy)continue;
+    cs=getComputedStyle(el);
+    if(cs.overflowY!=='auto'&&cs.overflowY!=='scroll')continue;
+    if(el.scrollHeight>el.clientHeight+2)return el; // 실제로 밀리는 칸
+    able.push(el);
+  }
+  return able[0]||null;
+}
 
 /* 손가락 자국 — 상태가 "스스로" 바뀌면 유령이 조작하는 것처럼 보인다.
    .phone-screen 좌표계에 점 하나를 확장-소멸로 띄운다. */
@@ -6088,8 +6138,9 @@ function nhAct(st,token){
         openContentPop(st.v,d);return true;}
       if(st.a==='popclose'){if(typeof closeContentPop!=='function')return false;
         closeContentPop();return true;}
+      // 시나리오가 준 질문을 그대로 넘긴다 — 안 넘기면 네이티브 prompt 가 재생을 멈춘다 (v1.95).
       if(st.a==='request'){if(typeof openRequestComposer!=='function')return false;
-        openRequestComposer();return true;}
+        return openRequestComposer(st.v||st.say||'지금 여기 사람 많나요?')!==false;}
       if(st.a==='drawer'){if(typeof openPhoneDrawer!=='function')return false;
         openPhoneDrawer();return true;}
       if(st.a==='wait')return true; // 화면은 그대로 — 그것이 이 스텝의 전부다
@@ -6119,9 +6170,7 @@ function nhAct(st,token){
       if(st.a==='zoom')return nhZoom(st.v)!==false;
       if(st.a==='focus')return nhFocus(st.v,st.i,token,st.ms)!==false;
       if(st.a==='scroll'){
-        var el=document.querySelector('#phone-drawer.open .pd-body')||
-               document.querySelector('.tabpage.active .feed-col')||
-               document.querySelector('.tabpage.active');
+        var el=nhScrollTarget();
         if(!el||!el.scrollBy)return false;
         nhScrollHuman(el,Math.max(120,(st.i||0)*80||220),st.ms,token);
         return true;}
