@@ -3874,7 +3874,12 @@ function allFeedEntries(){ // 라이브 사진 + 스팟 + 동네소식 → 포�
   /* v1.88: `hidden` 을 **여기서 실어 보낸다.** 매핑이 필드를 빠뜨리면 소비하는 쪽에서
      `it.hidden` 이 늘 undefined 라 필터가 조용히 통과한다 — 콘솔 표의 상태도 늘 '공개'가 된다. */
   feedItems.forEach(function(f){var pc=feedItemLatLng(f);arr.push({id:f.id,type:'photo',src:f.src,region:f.region||'',zone:f.zone||null,kind:f.kind||'post',desc:f.desc||'',name:f.name||'',by:f.by||'',byEmail:f.byEmail||'',hidden:!!f.hidden,ts:f.ts||0,lat:pc?pc.lat:null,lng:pc?pc.lng:null});});
-  newsItems.forEach(function(n){var rc=regionCenterByName(n.region);arr.push({id:n.id,type:'news',src:n.src,region:n.region||'',ts:0,lat:rc?rc.lat:null,lng:rc?rc.lng:null});});
+  newsItems.forEach(function(n){
+    /* 무대가 깐 지면 카드는 상단 캐러셀 전용이다 (v2.2). 여기 실어 보내면 피드 탭
+       그리드에도 제목 없는 사진 카드로 한 번 더 뜬다 — 지면과 피드 카드는 무대에서
+       서로 다른 종류이고, 그리드를 채우는 것은 seed.feeds 의 몫이다. */
+    if(n.stage)return;
+    var rc=regionCenterByName(n.region);arr.push({id:n.id,type:'news',src:n.src,region:n.region||'',ts:0,lat:rc?rc.lat:null,lng:rc?rc.lng:null});});
   spotMessages.forEach(function(sp){var d=regionAt(sp.lat,sp.lng);arr.push({id:sp.id,type:'spot',text:sp.text,emoji:sp.emoji,color:sp.color,region:d?d.name:'',by:sp.by||'',byEmail:sp.byEmail||'',hidden:!!sp.hidden,ts:sp.ts||0,lat:sp.lat,lng:sp.lng});});
   var foc=focusedRegionName(),nf=normRegion(foc);
   arr.forEach(function(it,i){
@@ -6384,7 +6389,7 @@ function nhLayNews(p,i,c,stamp){
   var tab=(p.tab==='feed'||p.tab==='social')?p.tab:'map';
   var region=String(p.place||'').slice(0,20);
   if(!region)region=((typeof dongAt==='function'?dongAt(c.lat,c.lng):'')||c.name||'');
-  newsItems.push({id:id,tab:tab,
+  newsItems.push({id:id,tab:tab,stage:true,
     src:(typeof seedImg==='function'?seedImg(p.theme||'cafe',''):''),
     region:region,title:String(p.title||'').slice(0,60)});
   nhTempIds.page.push(id);
