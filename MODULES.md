@@ -65,7 +65,7 @@
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 — **콘솔 크롬은 v3 스킨을 함께 탄다**(v1.87) | `initAdminMenu`(M11 공유) `body[data-skin="v3"].page-admin` | admin.html deck.html diagram.html dev.html | v1.87 |
 | M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 3종(legacy / new=v2.0 / v3=v3.0, 기본)** — v3 는 석촌동 에셋 기준 재설계(웜 오프화이트+코랄·°C 지표) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin`(v1.84: 마크업까지 가르므로 재렌더) `initSkinControl` `body[data-skin]` `APP_SKINS` `--nk-*` `--v3-*` | style.css · skin-new.css · **skin-v3.css** · app.js | v1.87 |
 | M17 | deals 타임딜 | 활성 | 지도 ⏰ 핀(+%할인 라벨)·바텀시트(할인율·가격·재고·`mm:ss` 티커·쿠폰/공유)·시드(무대 추종)·콘솔 표 편입 | `timeDeals` `SEED_DEALS` `ensureDealSeed` `DealPin` `renderDealMarkers` `openDealSheet` `syncDealSheet` `dealRemain` `dealActive` `DEAL_NEAR_M` | app.js | v1.89 |
-| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `nhScrollTarget` `nhCustomArea` `nhHeld` `nhDrop` `nhLaySpot` `nhLayFeed` `nhLayReq` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.98 |
+| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `nhScrollTarget` `nhCustomArea` `nhHere` `nhHeld` `nhDrop` `nhLaySpot` `nhLayFeed` `nhLayReq` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.99 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
 
@@ -130,10 +130,19 @@ additive 필드라 옛 콘솔은 무시하고, 옛 앱(필드 없음)을 새 콘
 띄울 때는 `i:0` 을 반복하면 되고, 방금 깔린 것은 목록 맨 뒤라 `pop i:-1` 로 연다.
 깔기는 `nhLaySpot`/`nhLayFeed`/`nhLayReq` 로 떼어 **시작 때와 drop 때가 같은 코드**를 쓴다.
 
-**사람이 정한 동네** (v1.98, 콘솔 D85): 시나리오에 `areaPlace:{name,lat,lng}` 가 오면
+**지금 보고 있는 지도** (v1.99, 콘솔 D87): `{source:'persona-vc', type:'nh:where'}` 에
+`nh:here{lat,lng,zoom}` 로 답한다(`nhHere`). **폰 지도를 읽는다** — 임베드에서 사람 눈에
+보이는 것도 손으로 끄는 것도 폰이고, PC 지도는 `display:none` 이라 미러의 출발점일 뿐이다.
+콘솔은 이것으로 "화면을 맞춘 뒤 그 자리를 저장" 을 만든다 (지도 링크 파싱이 단축 주소에서
+막혀 자리를 정하는 것 자체가 관문이었다). 재생 중에는 콘솔이 버튼을 막는다 — 그때 지도를
+움직이는 것은 대본이다.
+
+**사람이 정한 동네** (v1.98, 콘솔 D85): 시나리오에 `areaPlace:{name,lat,lng,zoom?}` 가 오면
 `nhCustomArea` 가 그것을 `SEED_AREAS.custom` 에 등록한다 — **`nhSanitize` 의 area 검사보다
 먼저** 해야 `{a:'area', v:'custom'}` 단계가 살아남는다. `SEED_AREA_ORDER` 에는 넣지 않는다
 (그 배열은 시드 문서 id 를 정한다). 매번 갈아끼우므로 앞 회차의 좌표가 남지 않는다.
+`zoom` 은 `SEED_AREAS.custom.z` 로 남아 `area` 단계의 카메라 배율이 된다 (v1.99) —
+없으면 `NH_AREA_ZOOM`(14) 이다.
 
 **지역 이동** (v1.70): `{a:'area', v:'gangnam'|'jamsil'|'seongsu'|'dobong'}`. 갈 수 있는 곳은
 시드가 깔린 지역뿐이라 `nh:ready` 의 `areas[]` 로 알려준다 — 콘솔에 복사해 두지 않는다.
@@ -194,6 +203,9 @@ additive 필드라 옛 콘솔은 무시하고, 옛 앱(필드 없음)을 새 콘
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-10 M16: v1.99.0 — **보고 있는 지도를 콘솔이 그대로 가져간다** (콘솔 v0.76.0 D87 과 짝).
+  콘솔이 동네를 정하는 길은 **지도 링크 파싱**뿐이었는데 `naver.me` 단축 주소·카카오가 안 읽혀 자리를 정하는 것 자체가 관문이었다. 임베드의 지도는 원래 손으로 끌 수 있으니, 맞춰 놓고 가져가게 한다: 새 계약 `nh:where` → `nh:here{lat,lng,zoom}` (`nhHere()`). **폰 지도를 읽는다** — 임베드에서 보이는 것도 끄는 것도 폰이고 PC 지도는 `display:none` 인 미러의 출발점이다. **배율도 같이** 실어 `areaPlace.zoom` → `SEED_AREAS.custom.z` → `area` 단계가 `NH_AREA_ZOOM` 대신 쓴다(자리와 배율은 한 짝 — 같은 좌표라도 11 은 서울 전역, 17 은 골목 하나다). 배율 없는 옛 시나리오는 14 그대로.
+  검증(로컬 :8765): `nh:where` → 폰 지도를 옮긴 그대로 `{37.5024,127.1063,17}` · `areaPlace.zoom:17` 시나리오 재생에서 PC·폰 둘 다 배율 17 · 배율 없는 시나리오는 14 · `node tools/check.js` 통과
 - 2026-08-10 M16: v1.98.0 — **사람이 정한 동네 · 콘텐츠가 하나씩 뜬다** (콘솔 v0.74.0 D85·D86 과 짝).
   ① `areaPlace:{name,lat,lng}` → `nhCustomArea` 가 `SEED_AREAS.custom` 에 등록한다. **`nhSanitize` 의 area 검사보다 먼저** 해야 `{a:'area',v:'custom'}` 이 안 버려진다. `SEED_AREA_ORDER` 에는 넣지 않는다(시드 문서 id 를 정하는 배열이다). ② **`hold` + `drop`** — 무대는 시작 때 통째로 깔려서 "빈 지도에서 글이 하나둘 올라온다" 는 연출이 원리적으로 불가능했다. `hold:true` 항목은 `nhHeld` 에 보관하고 `{a:'drop',v:'spot'|'feed'|'req',i}` 가 하나씩 꺼내 깐다(꺼낸 것은 보관함에서 빠진다 → `i:0` 반복, 방금 깔린 것은 맨 뒤라 `pop i:-1`). ⚠️ 깔기를 `nhLaySpot`/`nhLayFeed`/`nhLayReq` 로 떼어 **시작 때와 drop 때가 같은 코드**를 쓴다. 보관함이 비면 `ok:false` 로 보고한다. 액션 어휘 3중 동기화(NH_ACTIONS·PLAY_ACTIONS·ACTION_LIST)
   검증(로컬 :8765): area/custom=true · drop 3회 true · 빈 뒤 false · 지도 중심 37.5024,127.1063 · `node tools/check.js` 통과

@@ -6146,7 +6146,8 @@ function nhAct(st,token){
       // 폰을 원래 자리로 되돌린다. 반드시 map 을 움직여 미러를 태워 보낸다.
       if(st.a==='area'){var c=SEED_AREAS[st.v];
         if(!c||typeof cpopGoMap!=='function')return false;
-        nhAreaKey=st.v;cpopGoMap('area',{lat:c.lat,lng:c.lng},NH_AREA_ZOOM);return true;}
+        // c.z = 사람이 맞춰 둔 배율(custom 만 갖는다, v1.99). 없으면 여태와 같은 기본값.
+        nhAreaKey=st.v;cpopGoMap('area',{lat:c.lat,lng:c.lng},c.z||NH_AREA_ZOOM);return true;}
       if(st.a==='pop'){var d=nhPick(st.v,st.i);
         if(!d||typeof openContentPop!=='function')return false;
         openContentPop(st.v,d);return true;}
@@ -6388,7 +6389,20 @@ function nhCustomArea(raw){
   var lat=Number(p.lat),lng=Number(p.lng);
   if(!isFinite(lat)||!isFinite(lng))return;
   if(Math.abs(lat)>90||Math.abs(lng)>180)return;
-  SEED_AREAS.custom={name:String(p.name||'').slice(0,20)||'직접 정한 동네',lat:lat,lng:lng};
+  var a={name:String(p.name||'').slice(0,20)||'직접 정한 동네',lat:lat,lng:lng};
+  /* 사람이 맞춰 둔 배율 (v1.99). 없으면 NH_AREA_ZOOM 이다 — "이 화면 그대로" 를 저장했는데
+     배율이 안 따라오면 저장한 화면과 재생 화면이 다르다. 앱의 줌 범위로 자른다. */
+  var z=Number(p.zoom);if(isFinite(z))a.z=Math.min(18,Math.max(11,Math.round(z)));
+  SEED_AREAS.custom=a;
+}
+/* 지금 화면이 보고 있는 자리 (v1.99) — 콘솔의 "이 지도 저장" 이 읽어 간다.
+   **폰 지도를 먼저 본다.** 임베드에서 사람 눈에 보이는 것도, 손으로 끄는 것도 폰이다
+   (PC 지도는 display:none 이라 끌 수도 없고 미러의 출발점일 뿐이다). */
+function nhHere(){
+  var m=(typeof phoneMap!=='undefined'&&phoneMap)||map;
+  if(!m||!m.getCenter)return null;
+  var c=m.getCenter();if(!c)return null;
+  return {lat:c.lat(),lng:c.lng(),zoom:(m.getZoom&&m.getZoom())||NH_AREA_ZOOM};
 }
 function nhSanitize(raw){
   if(!raw||!Array.isArray(raw.steps)||!raw.steps.length)return null;
@@ -6470,6 +6484,12 @@ function initScenarioBridge(){
     // "빈 무대를 요청했는데 앱이 안 비웠다"(= 앱 배포가 뒤졌다)를 화면에 드러낸다.
     if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList(),clean:IS_CLEAN_EMBED});
     else if(d.type==='nh:run')nhRun(d.id,reply,d.scenario);
+    /* "지금 보고 있는 지도를 알려 달라" (v1.99). 콘솔이 지도 링크를 파싱하는 대신
+       **사람이 임베드 안에서 직접 맞춘 화면**을 그대로 가져가는 길이다 — 단축 주소·
+       카카오 링크처럼 못 읽는 주소가 많아서 좌표를 얻는 것 자체가 관문이었다. */
+    else if(d.type==='nh:where'){var h=nhHere();
+      if(h)nhPost(reply,{type:'nh:here',lat:h.lat,lng:h.lng,zoom:h.zoom});
+      else nhPost(reply,{type:'nh:error',message:'지도가 아직 준비되지 않았습니다.'});}
     /* 멈추기는 **화면도 처음 상태로** 되돌린다 (v1.97.0).
        여태 토큰만 올렸다 — 대본은 멈추는데 그 회차가 만든 것(쓴 글·좋아요·깐 무대)은
        화면에 그대로 남아서, 다시 재생하기 전까지 세계가 지저분한 채로 있었다.
