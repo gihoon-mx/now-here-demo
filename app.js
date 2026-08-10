@@ -6181,6 +6181,7 @@ function nhAct(st,token){
       // ── v1.75 카메라 연출 ──
       // 자체 지도 조작을 만들지 않고 goMapCam(동결 앵커)만 부른다. **양쪽 지도를 같이 움직인다** —
       // 카메라는 PC → 폰 단방향 미러라 폰만 움직이면 다음 idle 이 되돌린다 (area 와 같은 이유).
+      if(st.a==='drop')return nhDrop(st.v,st.i)!==false;
       if(st.a==='zoom')return nhZoom(st.v)!==false;
       if(st.a==='focus')return nhFocus(st.v,st.i,token,st.ms)!==false;
       if(st.a==='scroll'){
@@ -6247,47 +6248,73 @@ function nhSpread(c,i){
   var a=i*2.399963,r=0.0015+0.0008*(i%3);
   return {lat:c.lat+r*Math.cos(a),lng:c.lng+r*Math.sin(a)*1.25};
 }
+/* 무대에 넣을 것을 **재생 중에도** 깔 수 있어야 한다 (v1.98, 콘솔 D86 "뿅뿅").
+   그래서 항목 하나를 깔는 일을 seed 시점에서 떼어냈다 — nhSeedScenario 와 nhDrop 이
+   같은 코드를 쓴다. 두 벌로 두면 한쪽만 고쳐져 "처음부터 깐 것" 과 "중간에 뜬 것" 이
+   서로 다른 물건이 된다. */
+function nhLayReq(r,i,c,stamp,token){
+  if(typeof fieldRequests==='undefined')return null;
+  var id='rqn_'+stamp+'_'+i,p=nhSpread(c,i);
+  var lat=p.lat,lng=p.lng;
+  fieldRequests.push({id:id,q:String(r.q||'').slice(0,120),lat:lat,lng:lng,
+    place:(typeof dongAt==='function'?dongAt(lat,lng):'')||c.name,
+    answers:[],ts:Date.now(),by:(typeof myUid==='function'?myUid():'anon'),seed:false});
+  nhTempIds.req.push(id);
+  if(r.answerIn){ // 재생 도중에 답이 도착한다 — 이 시연의 핵심 장면
+    setTimeout(function(){
+      if(token!==nhRunToken)return;
+      if(typeof answerRequest==='function')answerRequest(id,String(r.answer||'지금은 여유 있어요'));
+      if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+    },Math.min(Math.max(r.answerIn|0,800),20000));
+  }
+  return id;
+}
+function nhLaySpot(s,i,c,stamp){
+  if(typeof demoSpots==='undefined')return null;
+  var id='spn_'+stamp+'_'+i,p=nhSpread(c,10+i);
+  demoSpots.push({id:id,lat:p.lat,lng:p.lng,
+    text:String(s.t||'').slice(0,80),emoji:s.emoji||'💬',live:true});
+  nhTempIds.spot.push(id);
+  return id;
+}
+function nhLayFeed(f,i,c,stamp){
+  if(typeof feedItems==='undefined')return null;
+  var id='fdn_'+stamp+'_'+i,p=nhSpread(c,20+i);
+  feedItems.push({id:id,
+    src:(typeof seedImg==='function'?seedImg(f.theme||'cafe',f.label||''):''),
+    region:(typeof dongAt==='function'?dongAt(p.lat,p.lng):'')||c.name,zone:null,
+    lat:p.lat,lng:p.lng,kind:'post',
+    desc:String(f.desc||f.label||'').slice(0,120),
+    name:String(f.name||'동네주민').slice(0,20),
+    by:'nh_tmp',ts:Date.now()-(i+1)*3600e3,likes:{},seed:false,type:'photo'});
+  nhTempIds.feed.push(id);
+  return id;
+}
+
+/* 아직 안 깐 것 — `hold` 가 붙은 항목은 여기 담아 두고 `drop` 이 꺼낸다.
+   무대(c)와 stamp 도 같이 들고 있어야 나중에 깔 때 같은 자리에 같은 규칙으로 깔린다. */
+var nhHeld={spot:[],feed:[],req:[],c:null,stamp:0,token:0};
+
 function nhSeedScenario(sc,token){
+  nhHeld={spot:[],feed:[],req:[],c:null,stamp:0,token:token};
   if(!sc||!sc.seed)return;
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
   var stamp=Date.now();
+  nhHeld.c=c;nhHeld.stamp=stamp;
   (sc.seed.reqs||[]).slice(0,3).forEach(function(r,i){
-    if(typeof fieldRequests==='undefined')return;
-    var id='rqn_'+stamp+'_'+i,p=nhSpread(c,i);
-    var lat=p.lat,lng=p.lng;
-    fieldRequests.push({id:id,q:String(r.q||'').slice(0,120),lat:lat,lng:lng,
-      place:(typeof dongAt==='function'?dongAt(lat,lng):'')||c.name,
-      answers:[],ts:Date.now(),by:(typeof myUid==='function'?myUid():'anon'),seed:false});
-    nhTempIds.req.push(id);
-    if(r.answerIn){ // 재생 도중에 답이 도착한다 — 이 시연의 핵심 장면
-      setTimeout(function(){
-        if(token!==nhRunToken)return;
-        if(typeof answerRequest==='function')answerRequest(id,String(r.answer||'지금은 여유 있어요'));
-        if(typeof renderDrawerDemo==='function')renderDrawerDemo();
-      },Math.min(Math.max(r.answerIn|0,800),20000));
-    }
+    if(r&&r.hold){nhHeld.req.push({v:r,i:i});return;}
+    nhLayReq(r,i,c,stamp,token);
   });
   (sc.seed.spots||[]).slice(0,4).forEach(function(s,i){
-    if(typeof demoSpots==='undefined')return;
-    var id='spn_'+stamp+'_'+i,p=nhSpread(c,10+i);
-    demoSpots.push({id:id,lat:p.lat,lng:p.lng,
-      text:String(s.t||'').slice(0,80),emoji:s.emoji||'💬',live:true});
-    nhTempIds.spot.push(id);
+    if(s&&s.hold){nhHeld.spot.push({v:s,i:10+i});return;}
+    nhLaySpot(s,i,c,stamp);
   });
   /* 피드도 시나리오가 깐다 (v1.72) — 없으면 `like`·`scroll`·`scope` 가 늘 같은 전역 카드를
      건드려서 "이 사람이 무엇에 반응했나" 가 시나리오마다 같아진다.
      사진은 seedImg 로 그린다(테마 색 + 라벨) — 외부 이미지에 기대지 않아 회차마다 똑같이 뜬다. */
   (sc.seed.feeds||[]).slice(0,4).forEach(function(f,i){
-    if(typeof feedItems==='undefined')return;
-    var id='fdn_'+stamp+'_'+i,p=nhSpread(c,20+i);
-    feedItems.push({id:id,
-      src:(typeof seedImg==='function'?seedImg(f.theme||'cafe',f.label||''):''),
-      region:(typeof dongAt==='function'?dongAt(p.lat,p.lng):'')||c.name,zone:null,
-      lat:p.lat,lng:p.lng,kind:'post',
-      desc:String(f.desc||f.label||'').slice(0,120),
-      name:String(f.name||'동네주민').slice(0,20),
-      by:'nh_tmp',ts:Date.now()-(i+1)*3600e3,likes:{},seed:false,type:'photo'});
-    nhTempIds.feed.push(id);
+    if(f&&f.hold){nhHeld.feed.push({v:f,i:20+i});return;}
+    nhLayFeed(f,i,c,stamp);
   });
   if(typeof rebuildSpots==='function')rebuildSpots();
   if(typeof renderRequestMarkers==='function')renderRequestMarkers();
@@ -6295,6 +6322,31 @@ function nhSeedScenario(sc,token){
     if(typeof renderFeed==='function')renderFeed();
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();
   }
+}
+
+/* 보관해 둔 것 하나를 **지금** 깐다 (v1.98). "실시간으로 올라온다" 를 보여주는 연출이라,
+   무대에 미리 깔지 않고 그 단계에서 화면에 나타나야 한다.
+   못 깔면 false 를 돌려준다 — 콘솔이 그 단계를 "화면이 따라오지 못함" 으로 표시한다.
+   조용히 성공으로 넘기면 자막만 흐르고 아무 일도 안 일어난 채 시연이 끝난다. */
+function nhDrop(v,i){
+  var kind=(v==='feed'||v==='req')?v:'spot';
+  var list=nhHeld[kind]||[],n=(i|0);
+  if(n<0||n>=list.length)return false;
+  var item=list.splice(n,1)[0]; // 한 번 깐 것은 다시 깔지 않는다
+  var c=nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangnam;
+  if(kind==='spot'){
+    if(!nhLaySpot(item.v,item.i,c,nhHeld.stamp))return false;
+    if(typeof rebuildSpots==='function')rebuildSpots();
+  }else if(kind==='feed'){
+    if(!nhLayFeed(item.v,item.i,c,nhHeld.stamp))return false;
+    if(typeof renderFeed==='function')renderFeed();
+    if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+  }else{
+    if(!nhLayReq(item.v,item.i,c,nhHeld.stamp,nhHeld.token))return false;
+    if(typeof renderRequestMarkers==='function')renderRequestMarkers();
+    if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+  }
+  return true;
 }
 
 function nhReset(){
@@ -6316,13 +6368,31 @@ function nhReset(){
    없고 콘솔에 있다. 액션 어휘는 여전히 아래 화이트리스트뿐이라 임의 코드가 돌지 않는다. */
 var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'like','write','answer','chat','ai','scope','scroll', // v1.71: 보기만 하지 않고 실제로 한다
-  'zoom','focus']; // v1.75: 카메라 연출 — 시연에서 "어디를 보라" 를 화면이 말한다
+  'zoom','focus', // v1.75: 카메라 연출 — 시연에서 "어디를 보라" 를 화면이 말한다
+  'drop']; // v1.98: 무대에 보관해 둔 것을 지금 띄운다 ("실시간으로 올라온다" 연출)
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
   return {key:k,name:SEED_AREAS[k].name};});}
+/* 콘솔이 정한 동네를 등록한다 (v1.98, 콘솔 D85). 앱이 미리 아는 네 곳 밖에서 시연하려면
+   이 길뿐이다 — 여기 심으면 배포가 묶이고, 시연할 동네는 제품보다 자주 바뀐다.
+   **SEED_AREA_ORDER 에는 넣지 않는다**: 그 배열은 시드 평탄화 순서라 문서 id 를 정하고,
+   앞뒤가 바뀌면 기존 문서가 통째로 어긋난다. custom 은 카메라·무대 앵커로만 쓴다.
+   좌표가 이상하면 등록하지 않는다 — 그러면 아래 게이트가 그 스텝을 버려서, 엉뚱한 자리에
+   무대가 깔리는 대신 "지역이 안 움직였다" 는 실패가 남는다. */
+function nhCustomArea(raw){
+  /* **먼저 지운다.** 앞 회차가 등록해 둔 좌표가 남아 있으면, areaPlace 없이 custom 만 온
+     시나리오가 그 자리에 무대를 깔고도 성공한 것처럼 보인다 (조용한 거짓말). */
+  try{delete SEED_AREAS.custom;}catch(e){SEED_AREAS.custom=undefined;}
+  var p=raw&&raw.areaPlace;if(!p)return;
+  var lat=Number(p.lat),lng=Number(p.lng);
+  if(!isFinite(lat)||!isFinite(lng))return;
+  if(Math.abs(lat)>90||Math.abs(lng)>180)return;
+  SEED_AREAS.custom={name:String(p.name||'').slice(0,20)||'직접 정한 동네',lat:lat,lng:lng};
+}
 function nhSanitize(raw){
   if(!raw||!Array.isArray(raw.steps)||!raw.steps.length)return null;
+  nhCustomArea(raw); // 아래 area 게이트보다 **먼저** — 등록돼 있어야 custom 스텝이 산다
   var steps=[];
   for(var i=0;i<raw.steps.length&&steps.length<20;i++){
     var s=raw.steps[i]||{};
@@ -6340,17 +6410,20 @@ function nhSanitize(raw){
   // 여기서 만든 것은 전부 nhTempIds 에 적히고 다음 재생 때 걷힌다.
   var seed=null,rs=raw.seed;
   if(rs&&typeof rs==='object'){
+    // hold: 처음에 안 깔고 보관만 한다 — `drop` 단계가 그때 꺼내 띄운다 (v1.98).
     var reqs=(Array.isArray(rs.reqs)?rs.reqs:[]).slice(0,3).map(function(r){
       r=r||{};
       return {q:String(r.q||'').slice(0,120),answer:String(r.answer||'').slice(0,120),
-        answerIn:Math.min(Math.max(r.answerIn|0,0),20000)};
+        answerIn:Math.min(Math.max(r.answerIn|0,0),20000),hold:!!r.hold};
     }).filter(function(r){return r.q;});
     var sps=(Array.isArray(rs.spots)?rs.spots:[]).slice(0,4).map(function(s){
-      s=s||{};return {t:String(s.t||'').slice(0,80),emoji:String(s.emoji||'💬').slice(0,4)};
+      s=s||{};return {t:String(s.t||'').slice(0,80),emoji:String(s.emoji||'💬').slice(0,4),
+        hold:!!s.hold};
     }).filter(function(s){return s.t;});
     var fds=(Array.isArray(rs.feeds)?rs.feeds:[]).slice(0,4).map(function(f){
       f=f||{};return {label:String(f.label||'').slice(0,40),desc:String(f.desc||'').slice(0,120),
-        theme:String(f.theme||'').slice(0,16),name:String(f.name||'').slice(0,20)};
+        theme:String(f.theme||'').slice(0,16),name:String(f.name||'').slice(0,20),
+        hold:!!f.hold};
     }).filter(function(f){return f.desc||f.label;});
     if(reqs.length||sps.length||fds.length)seed={reqs:reqs,spots:sps,feeds:fds};
   }
