@@ -6183,6 +6183,7 @@ function nhAct(st,token){
       // 자체 지도 조작을 만들지 않고 goMapCam(동결 앵커)만 부른다. **양쪽 지도를 같이 움직인다** —
       // 카메라는 PC → 폰 단방향 미러라 폰만 움직이면 다음 idle 이 되돌린다 (area 와 같은 이유).
       if(st.a==='drop')return nhDrop(st.v,st.i)!==false;
+      if(st.a==='post')return nhPostSpot(st.v);
       if(st.a==='zoom')return nhZoom(st.v)!==false;
       if(st.a==='focus')return nhFocus(st.v,st.i,token,st.ms)!==false;
       if(st.a==='scroll'){
@@ -6292,12 +6293,26 @@ function nhLayFeed(f,i,c,stamp){
   return id;
 }
 
+/* 남이 방금 올린 글 (v2.0) — 무대에 미리 깔지 않고 **그 단계에서 만든다.**
+   hold+drop 은 무대에 항목을 만들고 토글을 켜고 번호를 맞춰야 해서, "남의 글이 하나둘
+   올라온다" 처럼 흔한 장면에 손이 너무 많이 갔다 (콘솔 D88). 깔기는 시드와 **같은
+   함수**(nhLaySpot)를 쓴다 — 뒤늦게 뜬 글만 모양이나 정리 대상이 달라지면 안 된다. */
+var nhPostN=0;
+function nhPostSpot(v){
+  var t=String(v||'').slice(0,80);if(!t)return false;
+  var c=nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangnam;
+  // 40+ 에서 세는 이유: 시드 스팟(10+i)·피드(20+i)와 자리가 겹치지 않게 한다.
+  if(!nhLaySpot({t:t,emoji:'💬'},40+(nhPostN++),c,nhHeld.stamp||Date.now()))return false;
+  if(typeof rebuildSpots==='function')rebuildSpots();
+  return true;
+}
+
 /* 아직 안 깐 것 — `hold` 가 붙은 항목은 여기 담아 두고 `drop` 이 꺼낸다.
    무대(c)와 stamp 도 같이 들고 있어야 나중에 깔 때 같은 자리에 같은 규칙으로 깔린다. */
 var nhHeld={spot:[],feed:[],req:[],c:null,stamp:0,token:0};
 
 function nhSeedScenario(sc,token){
-  nhHeld={spot:[],feed:[],req:[],c:null,stamp:0,token:token};
+  nhHeld={spot:[],feed:[],req:[],c:null,stamp:0,token:token};nhPostN=0;
   if(!sc||!sc.seed)return;
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
   var stamp=Date.now();
@@ -6370,7 +6385,8 @@ function nhReset(){
 var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'like','write','answer','chat','ai','scope','scroll', // v1.71: 보기만 하지 않고 실제로 한다
   'zoom','focus', // v1.75: 카메라 연출 — 시연에서 "어디를 보라" 를 화면이 말한다
-  'drop']; // v1.98: 무대에 보관해 둔 것을 지금 띄운다 ("실시간으로 올라온다" 연출)
+  'drop', // v1.98: 무대에 보관해 둔 것을 지금 띄운다 ("실시간으로 올라온다" 연출)
+  'post']; // v2.0: 남이 방금 올린 글 — 무대 없이 그 자리에서 만든다
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){

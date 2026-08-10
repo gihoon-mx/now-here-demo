@@ -65,7 +65,7 @@
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 — **콘솔 크롬은 v3 스킨을 함께 탄다**(v1.87) | `initAdminMenu`(M11 공유) `body[data-skin="v3"].page-admin` | admin.html deck.html diagram.html dev.html | v1.87 |
 | M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 3종(legacy / new=v2.0 / v3=v3.0, 기본)** — v3 는 석촌동 에셋 기준 재설계(웜 오프화이트+코랄·°C 지표) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin`(v1.84: 마크업까지 가르므로 재렌더) `initSkinControl` `body[data-skin]` `APP_SKINS` `--nk-*` `--v3-*` | style.css · skin-new.css · **skin-v3.css** · app.js | v1.87 |
 | M17 | deals 타임딜 | 활성 | 지도 ⏰ 핀(+%할인 라벨)·바텀시트(할인율·가격·재고·`mm:ss` 티커·쿠폰/공유)·시드(무대 추종)·콘솔 표 편입 | `timeDeals` `SEED_DEALS` `ensureDealSeed` `DealPin` `renderDealMarkers` `openDealSheet` `syncDealSheet` `dealRemain` `dealActive` `DEAL_NEAR_M` | app.js | v1.89 |
-| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `nhScrollTarget` `nhCustomArea` `nhHere` `nhHeld` `nhDrop` `nhLaySpot` `nhLayFeed` `nhLayReq` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v1.99 |
+| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `nhScrollTarget` `nhCustomArea` `nhHere` `nhPostSpot` `nhHeld` `nhDrop` `nhLaySpot` `nhLayFeed` `nhLayReq` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v2.0 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
 
@@ -203,6 +203,9 @@ additive 필드라 옛 콘솔은 무시하고, 옛 앱(필드 없음)을 새 콘
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-10 M16: v2.0.0 — **남이 방금 올린 글 (`post`)** (콘솔 v0.77.0 D88 과 짝).
+  hold+drop(v1.98)은 무대에 항목을 만들고 토글을 켜고 번호를 맞춰야 해서, "남의 글이 하나둘 올라온다" 는 가장 흔한 장면에 손이 세 번 갔다. `{a:"post",v:"글"}` 은 **무대를 안 거치고** 그 단계에서 지도 글을 만든다(`nhPostSpot`) — 여러 번 쓰면 실시간으로 올라오는 그림이 된다. ⚠️ 깔기는 시드와 **같은 함수**(`nhLaySpot`)를 쓴다: 뒤늦게 뜬 글만 모양·id·정리 대상이 달라지면 안 된다. 자리는 `nhSpread(c,40+n)` 으로 시드 스팟(10+i)·피드(20+i)와 안 겹치게 하고, n 은 회차마다 0 으로 돌아간다. 빈 글이면 `ok:false`. 액션 어휘 3중 동기화(NH_ACTIONS·PLAY_ACTIONS·ACTION_LIST). hold+drop 은 남는다 — 피드 카드·Request 를 뒤늦게 띄우는 길이다
+  검증(로컬 :8765): post 2회 → 스팟 2건 생성 · `pop i:-1` 이 방금 것을 연다 · 빈 글 `ok:false` · `nhTempIds` 2건(멈추기가 걷어간다) · `node tools/check.js` 통과
 - 2026-08-10 M16: v1.99.0 — **보고 있는 지도를 콘솔이 그대로 가져간다** (콘솔 v0.76.0 D87 과 짝).
   콘솔이 동네를 정하는 길은 **지도 링크 파싱**뿐이었는데 `naver.me` 단축 주소·카카오가 안 읽혀 자리를 정하는 것 자체가 관문이었다. 임베드의 지도는 원래 손으로 끌 수 있으니, 맞춰 놓고 가져가게 한다: 새 계약 `nh:where` → `nh:here{lat,lng,zoom}` (`nhHere()`). **폰 지도를 읽는다** — 임베드에서 보이는 것도 끄는 것도 폰이고 PC 지도는 `display:none` 인 미러의 출발점이다. **배율도 같이** 실어 `areaPlace.zoom` → `SEED_AREAS.custom.z` → `area` 단계가 `NH_AREA_ZOOM` 대신 쓴다(자리와 배율은 한 짝 — 같은 좌표라도 11 은 서울 전역, 17 은 골목 하나다). 배율 없는 옛 시나리오는 14 그대로.
   검증(로컬 :8765): `nh:where` → 폰 지도를 옮긴 그대로 `{37.5024,127.1063,17}` · `areaPlace.zoom:17` 시나리오 재생에서 PC·폰 둘 다 배율 17 · 배율 없는 시나리오는 14 · `node tools/check.js` 통과
