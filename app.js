@@ -5858,7 +5858,7 @@ var nhAreaKey='';
 /* 이번 회차가 만든 것들 — 시나리오 seed 와 재생 중 쓴 글, 그리고 전역 카드에 남긴
    좋아요(v1.94 — 회차를 넘어 살아남으면 두 번째 재생에서 하트가 이미 차 있다).
    nhReset 이 전부 걷어낸다. */
-var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[]};
+var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],deal:[],page:[]};
 /* 지역 이동 줌 — "동네 전체" 가 보이는 값. 시연은 매번 같은 그림이어야 하므로 고정한다. */
 var NH_AREA_ZOOM=14;
 /* 임베드가 처음 서는 곳 — 시나리오가 area 로 옮기기 전까지 시연 세계의 기본값이다.
@@ -5879,10 +5879,15 @@ function nhGoHome(){
    area 스텝으로 지역이 정해져 있으면 그 지역 반경 안의 것만 고른다: 방학동으로 옮겨 놓고
    강남 스팟을 열면 지도는 방학동인데 팝업만 강남이라 시연이 거짓말을 한다.
    그 지역에 아무것도 없으면 null 을 돌려준다 — 없는 게 사실이면 없는 채로 보여준다. */
+/* 종류별 저장소. **폴백을 두지 않는다** — 전에는 마지막 가지가 fieldRequests 라
+   모르는 종류가 조용히 Request 를 집었다 (v2.2). 모르는 종류는 빈 배열이다. */
 function nhStore(kind){
-  return (kind==='spot')?(typeof demoSpots!=='undefined'?demoSpots:[])
-        :(kind==='feed')?(typeof feedItems!=='undefined'?feedItems:[])
-        :(typeof fieldRequests!=='undefined'?fieldRequests:[]);
+  if(kind==='spot')return (typeof demoSpots!=='undefined')?demoSpots:[];
+  if(kind==='feed')return (typeof feedItems!=='undefined')?feedItems:[];
+  if(kind==='req')return (typeof fieldRequests!=='undefined')?fieldRequests:[];
+  if(kind==='deal')return (typeof timeDeals!=='undefined')?timeDeals:[];
+  if(kind==='page')return (typeof newsItems!=='undefined')?newsItems:[];
+  return [];
 }
 /* 이번 회차에 **이 시나리오가 만든 것** — 깔아둔 seed + 재생 중 직접 쓴 글. 생성 순서 그대로. */
 function nhOwn(kind){
@@ -6159,10 +6164,19 @@ function nhAct(st,token){
         // c.z = 사람이 맞춰 둔 배율(custom 만 갖는다, v1.99). 없으면 여태와 같은 기본값.
         nhAreaKey=st.v;cpopGoMap('area',{lat:c.lat,lng:c.lng},c.z||NH_AREA_ZOOM);return true;}
       if(st.a==='pop'){var d=nhPick(st.v,st.i);
-        if(!d||typeof openContentPop!=='function')return false;
+        if(!d)return false;
+        /* 딜은 다른 물건이다 (v2.2) — 상세 팝업(#content-pop)이 아니라
+           바텀시트(#deal-sheet)이고 여는 함수도 다르다. */
+        if(st.v==='deal'){if(typeof openDealSheet!=='function')return false;
+          openDealSheet(d.id);return true;}
+        if(typeof openContentPop!=='function')return false;
         openContentPop(st.v,d);return true;}
-      if(st.a==='popclose'){if(typeof closeContentPop!=='function')return false;
-        closeContentPop();return true;}
+      if(st.a==='popclose'){
+        var did=false;
+        /* 딜 시트를 안 닫으면 다음 단계들 위에 그대로 얹힌다 (v2.2). */
+        if(typeof closeDealSheet==='function'){closeDealSheet();did=true;}
+        if(typeof closeContentPop==='function'){closeContentPop();did=true;}
+        return did;}
       // 시나리오가 준 질문을 그대로 넘긴다 — 안 넘기면 네이티브 prompt 가 재생을 멈춘다 (v1.95).
       if(st.a==='request'){if(typeof openRequestComposer!=='function')return false;
         return openRequestComposer(st.v||st.say||'지금 여기 사람 많나요?')!==false;}
@@ -6236,6 +6250,14 @@ function nhSweepTemp(){
       fieldRequests=fieldRequests.filter(function(r){return nhTempIds.req.indexOf(r.id)<0;});
       if(typeof renderRequestMarkers==='function')renderRequestMarkers();
     }
+    /* 딜을 걷는다 (v2.2). 여태 timeDeals 는 nhReset 도 안 걷는 유일한 콘텐츠였다.
+       열려 있는 시트도 닫는다 — 지운 딜의 시트가 남으면 syncDealSheet 가
+       dealById 에서 못 찾아 스스로 닫지만, 그 한 박자가 화면에 보인다. */
+    if(nhTempIds.deal.length&&typeof timeDeals!=='undefined'){
+      timeDeals=timeDeals.filter(function(d){return nhTempIds.deal.indexOf(d.id)<0;});
+      if(typeof closeDealSheet==='function')closeDealSheet();
+      if(typeof renderDealMarkers==='function')renderDealMarkers();
+    }
     if(nhTempIds.chat.length&&typeof socMsgs!=='undefined')
       nhTempIds.chat.forEach(function(k){delete socMsgs[k];});
     // 전역 시드 카드에 남긴 좋아요를 되돌린다 (v1.94) — 자기 seed 카드는 회차마다
@@ -6249,7 +6271,7 @@ function nhSweepTemp(){
       if(typeof renderFeedMarkers==='function')renderFeedMarkers();
     }
   }catch(e){console.warn('[M16] sweep',e);}
-  nhTempIds={spot:[],feed:[],req:[],chat:[],like:[]};
+  nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],deal:[],page:[]};
 }
 
 /* 시나리오가 선언한 seed 를 깐다 — "이 시나리오가 성립하려면 화면에 무엇이 있어야 하나".
@@ -6303,6 +6325,31 @@ function nhLayFeed(f,i,c,stamp){
   nhTempIds.feed.push(id);
   return id;
 }
+/* 무대에 타임딜 하나 (v2.2, 콘솔 D90).
+   **`seed:false` 다** — dealRemain 이 이 값을 보고 갈린다. `seed:true` 는 벽시계를
+   주기로 접어 안 끝나지만 화면의 남은시간이 여는 순간의 벽시계에 달린다. 무대가
+   "남은시간" 을 받는 이상 적은 값에서 정직하게 줄어야 "마감 1분 전" 이 성립한다.
+   짧게 적으면 재생 중 dealActive 가 false 가 되며 핀이 사라진다 — 연출로 쓸 수 있다.
+   가격 3칸은 만든다(사람은 5칸만 적는다). **결정적**이어야 한다 — Math.random 금지. */
+function nhLayDeal(d,i,c,stamp){
+  if(typeof timeDeals==='undefined')return null;
+  var id='dln_'+stamp+'_'+i,p=nhSpread(c,60+i);
+  var pct=Math.min(90,Math.max(5,(d.pct|0)||20));
+  var secs=Math.min(7200,Math.max(30,(d.secs|0)||1800));
+  var was=9900+i*5000;                             // 순번을 섞는다 — 셋이 다 같으면 지어낸 게 보인다
+  var now=Math.floor(was*(100-pct)/100/100)*100;   // 백 원 단위로 내림
+  timeDeals.push({id:id,lat:p.lat,lng:p.lng,
+    e:String(d.e||'⏰').slice(0,4),
+    title:String(d.title||'').slice(0,40),
+    shop:String(d.shop||'근처 매장').slice(0,30),
+    pct:pct,
+    price:now.toLocaleString('ko-KR')+'원',
+    was:was.toLocaleString('ko-KR')+'원',
+    stock:Math.max(3,20-Math.round(pct/5))+'개',
+    secs:secs,ts:Date.now(),seed:false});
+  nhTempIds.deal.push(id);
+  return id;
+}
 
 /* 남이 방금 올린 글 (v2.0) — 무대에 미리 깔지 않고 **그 단계에서 만든다.**
    hold+drop 은 무대에 항목을 만들고 토글을 켜고 번호를 맞춰야 해서, "남의 글이 하나둘
@@ -6332,10 +6379,10 @@ function nhPostFeed(v,e,n){
 
 /* 아직 안 깐 것 — `hold` 가 붙은 항목은 여기 담아 두고 `drop` 이 꺼낸다.
    무대(c)와 stamp 도 같이 들고 있어야 나중에 깔 때 같은 자리에 같은 규칙으로 깔린다. */
-var nhHeld={spot:[],feed:[],req:[],c:null,stamp:0,token:0};
+var nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:0};
 
 function nhSeedScenario(sc,token){
-  nhHeld={spot:[],feed:[],req:[],c:null,stamp:0,token:token};nhPostN=0;
+  nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:token};nhPostN=0;
   if(!sc||!sc.seed)return;
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
   var stamp=Date.now();
@@ -6355,12 +6402,18 @@ function nhSeedScenario(sc,token){
     if(f&&f.hold){nhHeld.feed.push({v:f,i:20+i});return;}
     nhLayFeed(f,i,c,stamp);
   });
+  /* 타임딜 (v2.2) — base 60 은 스팟(10+i)·피드(20+i)·post(40+n)와 안 겹치게. */
+  (sc.seed.deals||[]).slice(0,3).forEach(function(d,i){
+    if(d&&d.hold){nhHeld.deal.push({v:d,i:60+i});return;}
+    nhLayDeal(d,i,c,stamp);
+  });
   if(typeof rebuildSpots==='function')rebuildSpots();
   if(typeof renderRequestMarkers==='function')renderRequestMarkers();
   if((sc.seed.feeds||[]).length){
     if(typeof renderFeed==='function')renderFeed();
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();
   }
+  if((sc.seed.deals||[]).length&&typeof renderDealMarkers==='function')renderDealMarkers();
 }
 
 /* 보관해 둔 것 하나를 **지금** 깐다 (v1.98). "실시간으로 올라온다" 를 보여주는 연출이라,
@@ -6368,7 +6421,10 @@ function nhSeedScenario(sc,token){
    못 깔면 false 를 돌려준다 — 콘솔이 그 단계를 "화면이 따라오지 못함" 으로 표시한다.
    조용히 성공으로 넘기면 자막만 흐르고 아무 일도 안 일어난 채 시연이 끝난다. */
 function nhDrop(v,i){
-  var kind=(v==='feed'||v==='req')?v:'spot';
+  /* 모르는 종류를 spot 으로 떨어뜨리지 않는다 (v2.2) — 전에는 삼항의 else 가 spot 이라
+     `drop:deal` 이 조용히 스팟을 집었다. 아는 것만 받고 나머지는 실패다. */
+  var kind=(v==='feed'||v==='req'||v==='deal'||v==='page')?v:(v==='spot'?'spot':'');
+  if(!kind)return false;
   var list=nhHeld[kind]||[],n=(i|0);
   if(n<0||n>=list.length)return false;
   var item=list.splice(n,1)[0]; // 한 번 깐 것은 다시 깔지 않는다
@@ -6380,10 +6436,15 @@ function nhDrop(v,i){
     if(!nhLayFeed(item.v,item.i,c,nhHeld.stamp))return false;
     if(typeof renderFeed==='function')renderFeed();
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();
-  }else{
+  }else if(kind==='deal'){
+    if(!nhLayDeal(item.v,item.i,c,nhHeld.stamp))return false;
+    if(typeof renderDealMarkers==='function')renderDealMarkers();
+  }else if(kind==='req'){
     if(!nhLayReq(item.v,item.i,c,nhHeld.stamp,nhHeld.token))return false;
     if(typeof renderRequestMarkers==='function')renderRequestMarkers();
     if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+  }else{
+    return false;
   }
   return true;
 }
@@ -6485,7 +6546,18 @@ function nhSanitize(raw){
         theme:String(f.theme||'').slice(0,16),name:String(f.name||'').slice(0,20),
         hold:!!f.hold};
     }).filter(function(f){return f.desc||f.label;});
-    if(reqs.length||sps.length||fds.length)seed={reqs:reqs,spots:sps,feeds:fds};
+    /* 타임딜 (v2.2) — 사람은 5칸만 적고 가격 3칸은 nhLayDeal 이 만든다.
+       상한과 자르기는 콘솔의 toSeed 와 **같은 값**이어야 한다. */
+    var dls=(Array.isArray(rs.deals)?rs.deals:[]).slice(0,3).map(function(d){
+      d=d||{};return {e:String(d.e||'').slice(0,4),
+        title:String(d.title||'').slice(0,40),
+        shop:String(d.shop||'').slice(0,30),
+        pct:Math.min(90,Math.max(5,(d.pct|0)||20)),
+        secs:Math.min(7200,Math.max(30,(d.secs|0)||1800)),
+        hold:!!d.hold};
+    }).filter(function(d){return d.title;});
+    if(reqs.length||sps.length||fds.length||dls.length)
+      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls};
   }
   return {id:String(raw.id||'inline'),name:String(raw.name||'시나리오').slice(0,80),
     persona:String(raw.persona||'').slice(0,80),concern:!!raw.concern,
