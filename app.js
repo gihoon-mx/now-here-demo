@@ -6225,6 +6225,7 @@ function nhAct(st,token){
       if(st.a==='drop')return nhDrop(st.v,st.i)!==false;
       if(st.a==='post')return nhPostSpot(st.v,st.e);
       if(st.a==='postfeed')return nhPostFeed(st.v,st.e,st.n);
+      if(st.a==='page')return nhPage(st.v);
       if(st.a==='zoom')return nhZoom(st.v)!==false;
       if(st.a==='focus')return nhFocus(st.v,st.i,token,st.ms)!==false;
       if(st.a==='scroll'){
@@ -6273,6 +6274,10 @@ function nhSweepTemp(){
       timeDeals=timeDeals.filter(function(d){return nhTempIds.deal.indexOf(d.id)<0;});
       if(typeof closeDealSheet==='function')closeDealSheet();
       if(typeof renderDealMarkers==='function')renderDealMarkers();
+    }
+    if(nhTempIds.page.length&&typeof newsItems!=='undefined'){
+      newsItems=newsItems.filter(function(n){return nhTempIds.page.indexOf(n.id)<0;});
+      if(typeof renderNews==='function')renderNews();
     }
     if(nhTempIds.chat.length&&typeof socMsgs!=='undefined')
       nhTempIds.chat.forEach(function(k){delete socMsgs[k];});
@@ -6366,6 +6371,53 @@ function nhLayDeal(d,i,c,stamp){
   nhTempIds.deal.push(id);
   return id;
 }
+/* 무대에 상단 지면 카드 하나 (v2.2, 콘솔 D90).
+   좌표를 안 남긴다 — 캐러셀은 지도가 아니다. `c` 는 place 가 비었을 때 지도 중심의
+   동 이름을 얻는 데만 쓴다.
+   renderNews 가 이미 it.tab·it.title·it.region 을 읽으므로(클라우드 저장이 그 셋을
+   실어 나른다) 그리는 쪽은 손대지 않는다.
+   seedImg 의 두 번째 인자를 **비운다**: 그 인자는 사진 안에 라벨 칩을 그리는데,
+   같은 글이 cps-title 로도 나가면 한 카드에 두 번 적힌다. */
+function nhLayNews(p,i,c,stamp){
+  if(typeof newsItems==='undefined')return null;
+  var id='nwn_'+stamp+'_'+i;
+  var tab=(p.tab==='feed'||p.tab==='social')?p.tab:'map';
+  var region=String(p.place||'').slice(0,20);
+  if(!region)region=((typeof dongAt==='function'?dongAt(c.lat,c.lng):'')||c.name||'');
+  newsItems.push({id:id,tab:tab,
+    src:(typeof seedImg==='function'?seedImg(p.theme||'cafe',''):''),
+    region:region,title:String(p.title||'').slice(0,60)});
+  nhTempIds.page.push(id);
+  return id;
+}
+/* 상단 지면을 한 칸 옆으로 (v2.2, 콘솔 D90 · 액션 `page`).
+   스와이프가 쓰는 .28s 전환을 그대로 타므로 미끄러지는 그림이 공짜로 나온다.
+
+   ⚠️ **손가락 표식을 nhTouchTarget 으로 붙이지 않는다.** nhAct 는 표식 대상을 찾으면
+   `return true` 로 즉시 성공을 보고한다("누를 대상이 화면에 있다 = 화면이 따라온다") —
+   그러면 끝에 닿아 아무 일도 안 일어난 회차도 ok:true 가 된다. 여기서 직접 부른다.
+
+   접혀 있으면 먼저 펼친다: 접힘은 nowhere_sumfold 로 localStorage 에 남고 임베드는
+   관리자 콘솔과 같은 오리진이라, 관리자가 접어 둔 채로 시연에 들어올 수 있다. */
+function nhPage(v){
+  var dir=(v==='prev')?-1:((v==='next')?1:0);
+  if(!dir)return false;
+  var frame=document.getElementById('cp-frame');
+  if(!frame)return false;
+  if(frame.classList.contains('folded')){
+    var btn=document.getElementById('sum-collapse');
+    if(btn)btn.click();
+  }
+  if(typeof newsView==='undefined'||!newsView||newsView.length<2)return false;
+  var next=newsIndex+dir;
+  if(next<0||next>=newsView.length)return false;
+  if(typeof nhTouch==='function')nhTouch(frame);
+  newsIndex=next;
+  setTrackAnim(true);snapTrack();
+  if(typeof updateDots==='function')updateDots();
+  if(typeof updateFoldBtnTone==='function')updateFoldBtnTone();
+  return true;
+}
 
 /* 남이 방금 올린 글 (v2.0) — 무대에 미리 깔지 않고 **그 단계에서 만든다.**
    hold+drop 은 무대에 항목을 만들고 토글을 켜고 번호를 맞춰야 해서, "남의 글이 하나둘
@@ -6428,6 +6480,12 @@ function nhSeedScenario(sc,token){
     if(d&&d.hold){nhHeld.deal.push({v:d,i:i});return;}
     nhLayDeal(d,i,c,stamp);
   });
+  /* 상단 지면 (v2.2) — 좌표가 없으니 base 도 없다. 상한 6은 관리자 화면의
+     NEWS_MAX_COUNT 와 맞춘 값이다(그 상한은 렌더에는 안 걸린다). */
+  (sc.seed.pages||[]).slice(0,6).forEach(function(p,i){
+    if(p&&p.hold){nhHeld.page.push({v:p,i:i});return;}
+    nhLayNews(p,i,c,stamp);
+  });
   if(typeof rebuildSpots==='function')rebuildSpots();
   if(typeof renderRequestMarkers==='function')renderRequestMarkers();
   if((sc.seed.feeds||[]).length){
@@ -6435,6 +6493,7 @@ function nhSeedScenario(sc,token){
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();
   }
   if((sc.seed.deals||[]).length&&typeof renderDealMarkers==='function')renderDealMarkers();
+  if((sc.seed.pages||[]).length&&typeof renderNews==='function')renderNews();
 }
 
 /* 보관해 둔 것 하나를 **지금** 깐다 (v1.98). "실시간으로 올라온다" 를 보여주는 연출이라,
@@ -6464,6 +6523,9 @@ function nhDrop(v,i){
     if(!nhLayReq(item.v,item.i,c,nhHeld.stamp,nhHeld.token))return false;
     if(typeof renderRequestMarkers==='function')renderRequestMarkers();
     if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+  }else if(kind==='page'){
+    if(!nhLayNews(item.v,item.i,c,nhHeld.stamp))return false;
+    if(typeof renderNews==='function')renderNews();
   }else{
     return false;
   }
@@ -6491,7 +6553,8 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'like','write','answer','chat','ai','scope','scroll', // v1.71: 보기만 하지 않고 실제로 한다
   'zoom','focus', // v1.75: 카메라 연출 — 시연에서 "어디를 보라" 를 화면이 말한다
   'drop', // v1.98: 무대에 보관해 둔 것을 지금 띄운다 ("실시간으로 올라온다" 연출)
-  'post','postfeed']; // v2.0/v2.1: 남이 방금 올린 글·피드 카드 — 무대 없이 그 자리에서 만든다
+  'post','postfeed', // v2.0/v2.1: 남이 방금 올린 글·피드 카드 — 무대 없이 그 자리에서 만든다
+  'page']; // v2.2: 상단 지면을 옆으로 넘긴다
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
@@ -6577,8 +6640,17 @@ function nhSanitize(raw){
         secs:Math.min(7200,Math.max(30,(d.secs|0)||1800)),
         hold:!!d.hold};
     }).filter(function(d){return d.title;});
-    if(reqs.length||sps.length||fds.length||dls.length)
-      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls};
+    /* 상단 지면 (v2.2). theme 은 SEED_PAL 의 키 — 모르는 값이면 seedImg 가 cafe 로 떨어진다.
+       상한 6은 콘솔의 MAX_SEED_PAGES 와 같은 값이어야 한다. */
+    var pgs=(Array.isArray(rs.pages)?rs.pages:[]).slice(0,6).map(function(p){
+      p=p||{};return {tab:String(p.tab||'map').slice(0,8),
+        theme:String(p.theme||'').slice(0,16),
+        place:String(p.place||'').slice(0,20),
+        title:String(p.title||'').slice(0,60),
+        hold:!!p.hold};
+    });
+    if(reqs.length||sps.length||fds.length||dls.length||pgs.length)
+      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs};
   }
   return {id:String(raw.id||'inline'),name:String(raw.name||'시나리오').slice(0,80),
     persona:String(raw.persona||'').slice(0,80),concern:!!raw.concern,
