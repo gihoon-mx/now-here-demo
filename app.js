@@ -4637,6 +4637,12 @@ function ensureDealSeed(){
      다시 세운다 — 무대가 깐 딜(nhLayDeal)이 있는데 이게 돌면 지역을 옮기는 순간
      통째로 날아간다. 그래서 이 가드는 결함 수정이면서 무대 딜의 전제다. */
   if(IS_CLEAN_EMBED)return;
+  /* 이번 회차가 깐 무대 딜이 있으면 자가복구를 끈다 (v2.2). 아래 재시드는
+     timeDeals 를 비우고 다시 세우므로, 무대 딜이 깔린 뒤 지역을 옮겨 이 함수가
+     돌면 방금 깐 것이 통째로 사라지고 nhTempIds.deal 에 주인 없는 id 만 남아
+     다음 nhSweepTemp 도 못 걷는다. 빈 무대는 위에서 이미 빠졌고, 여기는
+     "시드 딜에 무대 딜을 얹어 쓰는" 일반 임베드가 스스로를 지키는 몫이다. */
+  if(typeof nhTempIds!=='undefined'&&nhTempIds.deal&&nhTempIds.deal.length)return;
   var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());
   if(!c)return;
   var clat=c.lat(),clng=c.lng();
@@ -6115,7 +6121,13 @@ function nhTouchTarget(st){
     if(st.a==='tab')return document.querySelector('.pn-item[data-nav="'+st.v+'"]');
     if(st.a==='ai')return document.querySelector('#phone-mirror .pn-ai')||document.querySelector('.pn-ai');
     if(st.a==='scope')return document.querySelector('.fsc[data-s="'+(st.v||'local')+'"]');
-    if(st.a==='popclose')return document.getElementById('cpop-close');
+    /* 딜 시트가 열려 있으면 실제로 눌리는 것은 ds-close 다 (v2.2) — cpop-close 는
+       딜 시트가 열려 있을 때 화면에 없어(hidden) 표식이 안 뜨고 조용히 170ms 만 죽는다. */
+    if(st.a==='popclose'){
+      var dsSheet=document.getElementById('deal-sheet');
+      if(dsSheet&&dsSheet.style.display!=='none')return document.getElementById('ds-close');
+      return document.getElementById('cpop-close');
+    }
   }catch(e){}
   return null;
 }
@@ -6168,6 +6180,10 @@ function nhAct(st,token){
         /* 딜은 다른 물건이다 (v2.2) — 상세 팝업(#content-pop)이 아니라
            바텀시트(#deal-sheet)이고 여는 함수도 다르다. */
         if(st.v==='deal'){if(typeof openDealSheet!=='function')return false;
+          // 짧은 secs 로 "딜이 끝나 사라진다" 를 연출로 쓸 수 있다 — 그런데 핀은
+          // renderDealMarkers 가 dealActive 로 걸러 사라지면서 시트만 열리면
+          // 0:00 남음 에 빈 진행바가 뜬 유령이 남는다. 만료는 못 여는 게 정직하다.
+          if(typeof dealActive==='function'&&!dealActive(d))return false;
           openDealSheet(d.id);return true;}
         if(typeof openContentPop!=='function')return false;
         openContentPop(st.v,d);return true;}
@@ -6402,9 +6418,14 @@ function nhSeedScenario(sc,token){
     if(f&&f.hold){nhHeld.feed.push({v:f,i:20+i});return;}
     nhLayFeed(f,i,c,stamp);
   });
-  /* 타임딜 (v2.2) — base 60 은 스팟(10+i)·피드(20+i)·post(40+n)와 안 겹치게. */
+  /* 타임딜 (v2.2) — **여기서는 60 을 더하지 않는다.** nhLayDeal 안에서 이미
+     nhSpread(c,60+i) 로 스팟(10+i)·피드(20+i)·post(40+n)와 자리를 가른다.
+     스팟·피드와 달리 이 i 는 자리만이 아니라 원가(9900+i*5000)도 정한다 —
+     여기서 60+i 를 미리 얹으면 hold 로 보관했다가 drop 한 딜이 배열 순번이 아니라
+     "60+순번" 으로 가격을 매겨 원가가 30만 원대로 튄다(모자가 30만 원짜리가 된다).
+     그래서 보관하는 i 는 배열 순번 그대로 — nhLayReq 와 같은 방식이다. */
   (sc.seed.deals||[]).slice(0,3).forEach(function(d,i){
-    if(d&&d.hold){nhHeld.deal.push({v:d,i:60+i});return;}
+    if(d&&d.hold){nhHeld.deal.push({v:d,i:i});return;}
     nhLayDeal(d,i,c,stamp);
   });
   if(typeof rebuildSpots==='function')rebuildSpots();
