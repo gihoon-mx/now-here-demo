@@ -5701,6 +5701,20 @@ function openAdmPanelFromUrl(){
 
 var IS_EMBED=(function(){try{return /[?&]embed=1(?:&|$)/.test(location.search);}catch(e){return false;}})();
 
+/* **빈 무대 임베드** (`?embed=1&clean=1`, v1.96.0 · 콘솔 D82).
+
+   기본 임베드는 M13 시드를 깔아 화면을 채운다 — 유저 시나리오는 "사람이 실제 앱을 쓴다"
+   가 전제라 동네에 남의 글이 있어야 성립하기 때문이다(콘솔 D25).
+
+   기능 데모는 정반대다. 제품의 **어떤 기능**을 보여주는 연출이라 화면에 있어야 할 것은
+   그 데모가 선언한 것뿐이고, 사이트 데이터셋이 깔려 있으면 "빈 화면에서 시작한다" 는
+   데모가 아예 성립하지 않는다. 게다가 시나리오가 아무것도 안 깔았을 때 `nhPick` 이
+   전역 시드로 폴백하므로, **깔지도 않은 남의 글이 조용히 열린다**.
+
+   그래서 이 모드는 시드를 아예 안 깐다 — 화면은 비어서 시작하고, 뜨는 것은 시나리오가
+   깐 것(`nhSeedScenario`)과 재생 중 만든 것뿐이다. */
+var IS_CLEAN_EMBED=(function(){try{return IS_EMBED&&/[?&]clean=1(?:&|$)/.test(location.search);}catch(e){return false;}})();
+
 // 명령을 받아들일 부모 오리진. 여기 없는 곳에서 온 메시지는 무시한다.
 var EMBED_ORIGINS=[
   'https://persona-vc--persona-lab-503406.asia-east1.hosted.app',
@@ -6379,14 +6393,16 @@ function initScenarioBridge(){
     if(EMBED_ORIGINS.indexOf(e.origin)<0)return;                 // 허용 오리진만
     var d=e.data;if(!d||typeof d!=='object'||d.source!=='persona-vc')return;
     var reply={win:e.source,origin:e.origin};
-    if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList()});
+    // clean 은 additive 다 — 옛 콘솔은 모르는 필드를 무시하고, 새 콘솔은 이 값으로
+    // "빈 무대를 요청했는데 앱이 안 비웠다"(= 앱 배포가 뒤졌다)를 화면에 드러낸다.
+    if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList(),clean:IS_CLEAN_EMBED});
     else if(d.type==='nh:run')nhRun(d.id,reply,d.scenario);
     else if(d.type==='nh:stop'){nhStop();nhPost(reply,{type:'nh:stopped'});}
   });
   // 부모가 언제 붙을지 모르므로 준비되면 알린다 (시나리오 목록은 비밀이 아니다)
   if(window.parent&&window.parent!==window){
     try{window.parent.postMessage({source:'now-here',type:'nh:ready',
-      version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList()},'*');}catch(e){}
+      version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList(),clean:IS_CLEAN_EMBED},'*');}catch(e){}
   }
 }
 function nhVersion(){var el=document.getElementById('app-version');return el?el.textContent:'';}
@@ -6401,7 +6417,8 @@ function startEmbed(){
   var tries=0;
   (function whenReady(){
     if(typeof mapReady!=='undefined'&&mapReady){
-      seedDemoData({silent:true});   // 경계 로드 후에 깔아야 dongAt 이 동 이름을 제대로 붙인다
+      // 빈 무대 임베드(?clean=1)는 시드를 안 깐다 — 화면에 뜨는 것은 시나리오가 깐 것뿐이다.
+      if(!IS_CLEAN_EMBED)seedDemoData({silent:true}); // 경계 로드 후에 깔아야 dongAt 이 동 이름을 제대로 붙인다
       initScenarioBridge();
       return;
     }
