@@ -165,8 +165,13 @@ additive 필드라 옛 콘솔은 무시하고, 옛 앱(필드 없음)을 새 콘
 
 - 명령은 `EMBED_ORIGINS` 에 있는 오리진에서 온 것만 받는다. 새 콘솔 주소가 생기면 여기에 추가.
 - 시나리오 추가는 `NH_SCENARIOS` 에 항목을 넣는 것으로 끝난다. 스텝의 `a` 는
-  `tab·mode·pop·popclose·request·drawer·wait·area·like·write·answer·chat·ai·scope·scroll`
-  뿐이고, **새 액션을 만들 때도 기존 앵커만 부른다.**
+  `tab·mode·pop·popclose·request·drawer·wait·area·like·write·answer·chat·ai·scope·scroll·
+  zoom·focus·drop·post·postfeed·page`(v2.2, `page` 신설) 뿐이고, **새 액션을 만들 때도
+  기존 앵커만 부른다.** `pop`·`focus`(`nhPick`/`nhStore` 경유)·`drop` 은 이제 `v:'deal'` 도
+  받는다 — 딜은 `#content-pop` 이 아니라 `#deal-sheet` 라 `pop`/`popclose` 안에서 따로 갈린다.
+  `drop` 은 `v:'page'` 도 받아 보관해 둔 지면 카드를 하나 깐다(모르는 종류는 더 이상 `spot`
+  으로 새지 않는다 — v2.2 전에는 삼항의 else 가 `spot` 이라 `drop:deal` 같은 것이 조용히
+  스팟을 집었다).
 - **임베드는 상태를 남기지도 물려받지도 않는다** (v1.71, `nhEmbedIsolate`): `nowhere_*`
   localStorage 쓰기가 무음이고, 부팅 때 담겨 있던 콘텐츠를 비운 뒤 시드를 깐다.
   임베드와 실제 앱이 **같은 오리진**이라 이게 없으면 남의 localStorage 가 시연에 섞인다.
@@ -203,6 +208,12 @@ additive 필드라 옛 콘솔은 무시하고, 옛 앱(필드 없음)을 새 콘
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-10 M10+M16: v2.2.0 — **무대가 지면 카드를 깐다 · `page` 액션** (콘솔 D90). `seed.pages`(최대 6, admin.html `NEWS_MAX_COUNT` 와 맞춘 상한)를 받아 `nhLayNews` 가 깐다 — 사진 테마·지역이름(비우면 지도 중심의 동 이름)·한 줄, 탭(map/feed/social)별. 기능 데모의 **피드 탭 지면은 여태 항상 빈 껍데기였다** — `nhEmbedIsolate` 가 `newsItems` 를 비우고, 지도 탭에만 근처 피드가 자동으로 덧붙기 때문이다. `renderNews` 가 이미 `it.tab`·`it.title`·`it.region` 을 읽으므로 그리는 쪽은 **마크업 무수정**. `seedImg` 의 라벨 인자는 **비운다**(사진 안 칩 + `cps-title` 로 두 번 적힌다). `page` 는 `next|prev` 뿐이다 — 지도 탭의 `newsView` 는 무대 카드 뒤에 근처 피드가 최대 4장 붙어서 몇 번째가 될지 사람이 맞힐 수 없다(D89). 끝에 닿으면 실패를 보고한다. 접혀 있으면(`nowhere_sumfold` — 같은 오리진의 관리자 값일 수 있다) **먼저 펼친다.** ⚠️ **손가락 표식을 `nhTouchTarget` 에 걸지 않고 `nhPage` 안에서 직접 띄운다** — 그 등록표에 걸면 `nhAct` 가 표식 대상을 찾는 순간 `return true` 로 즉시 성공을 보고해서, 끝에 닿아 아무 일도 안 일어난 회차까지 `ok:true` 가 될 뻔했다.
+  ⚠️ **리뷰에서 드러난 누수**: `allFeedEntries`(M05)도 `tab` 을 안 보고 `newsItems` 를 그대로 피드 풀에 얹고 있었다 — `nhEmbedIsolate` 가 늘 비워 임베드에서는 죽어 있던 경로였는데, 무대가 그 배열을 채우기 시작하며 살아나서 `#feed-grid` 에 제목 없는 사진 카드가 한 번 더 떴다. 무대가 깐 항목에만 `stage:true` 를 달아 `allFeedEntries` 가 **그것만** 건너뛴다 — `it.tab==='feed'` 로 거르는 안은 기각했다: 관리자가 URL·업로드로 올린 실제 뉴스는 `tab` 필드 자체가 없어서, 그 기준이면 기존 피드 그리드 콘텐츠까지 통째로 사라진다.
+- 2026-08-10 M17+M16: v2.2.0 — **무대가 타임딜을 깐다** (콘솔 D90). 사람은 `seed.deals`(최대 3)에 5칸(이모지·제목·가게·할인율·남은시간)만 적고, 가격 3칸은 **결정적으로** 만든다 — 원가 `9900+i*5000`원 · 지금가는 백 원 단위 내림 · 수량 `max(3,20-round(pct/5))`개. ⚠️ **`seed:false` 로 깐다** — `seed:true` 는 벽시계를 주기로 접어 안 끝나지만, 그러면 화면의 "남은시간" 이 여는 순간의 벽시계에 달려 "마감 1분 전" 이 성립하지 않는다. 짧게 적으면 재생 중 `dealActive` 가 false 가 되며 핀이 사라진다(연출로 쓸 수 있다). `pop`·`focus`·`drop` 이 `v:'deal'` 을 안다.
+  그 과정에서 드러난 세 결함: ①`nhStore` 의 마지막 삼항이 모르는 종류를 전부 `fieldRequests` 로 집었다(모르는 종류는 이제 빈 배열) — `nhDrop` 의 kind 삼항도 else 가 `spot` 이라 `drop:deal` 이 스팟을 집던 것을 같은 모양으로 고쳤다. ②`popclose` 가 `closeContentPop()` 만 불러 딜 시트가 다음 스텝들 위에 그대로 얹혀 있었다 — 열려 있으면 `closeDealSheet()` 도 부르고, 손가락 표식도 `#ds-close` 를 겨눈다(전에는 숨은 `#cpop-close` 를 짚어 170ms 를 허공에 흘렸다). ③`timeDeals` 는 `nhReset`/`nhSweepTemp` 가 여태 안 걷는 유일한 콘텐츠였다 — `nhTempIds.deal`·`nhTempIds.page` 신설로 편입.
+  ⚠️ **리뷰 수정 — 보관(`hold`) 딜의 가격이 자리 오프셋에 물려 있었다.** `nhLayDeal` 은 자리(`nhSpread`)와 원가(`9900+i*5000`)에 **같은 인덱스**를 쓰는데, `nhSeedScenario` 가 보관 항목을 `{v:d,i:60+i}` 로 담아서 드롭한 딜이 원가 30만 원대로 튀었다(자리 오프셋 60은 `nhLayDeal` 안에서 다시 더해진다). 이제 배열 순번 그대로 보관한다(`nhLayReq` 와 같은 방식). 만료된 딜은 `pop` 이 열지 않는다 — `dealActive` 로 막아 `0:00` 유령 시트를 없앴다.
+  ⚠️ **`ensureDealSeed` 가 `IS_CLEAN_EMBED` 를 안 봐서** 빈 무대에 시드 딜 2개가 떠 있었고, 그 함수는 3km 이동마다 `timeDeals` 를 비우고 다시 세우므로 **무대 딜의 전제**였다 — 리뷰에서 한 겹 더 드러났다: 일반 임베드에서도 무대 딜을 깐 뒤 지역을 옮기면 `renderDealMarkers`→`ensureDealSeed` 의 자가복구가 방금 깐 것을 통째로 비웠다. 이번 회차가 깐 무대 딜이 있으면(`nhTempIds.deal`) 자가복구를 끈다. `loadDeals()` 가 `nowhere_deals` 를 읽는 것도 같은 오리진 누출이라 `nhEmbedIsolate` 가 비운다.
 - 2026-08-10 M16: v2.1.0 — **피드 카드도 무대 없이(`postfeed`) · 곁들이는 값(e·n) · ms 하한 50** (콘솔 v0.78.0 D89 와 짝).
   ① `postfeed` — `post`(v2.0)의 피드판. `nhPostFeed` 가 `nhLayFeed` 로 깐다(시드와 같은 함수). 자리는 `nhSpread(c,60+n)`. ② 스텝에 **곁들이는 값 두 개**를 실어 보낸다: `e`(post=이모지 · postfeed=사진 테마) · `n`(올린 사람). additive — 옛 콘솔은 안 보내고 기본값(💬·cafe·동네주민)이 된다. ③ ⚠️ **ms 하한을 400 → 50 으로 내렸다.** 콘솔의 "이 단계 화면 보기" 가 앞 단계를 빨리 감는데 그 하한이 곧 단계당 대기시간이라 여덟 단계짜리가 3초를 기다렸다. 사람이 짜는 값은 콘솔이 400 아래로 못 만든다(MIN_STEP_MS) — 여기 50 은 0·음수 가드다. 비동기 커밋이 있는 write·ai 는 콘솔의 FAST_FLOOR 가 지킨다. ④ 무대 상한: 지도 글·피드 카드 4 → **10** (Request 는 3 유지)
   검증(로컬 :8765): post `e:"☕"` 반영 · postfeed 2건(이름 있는 것/기본값 동네주민, 사진은 data:image/svg+xml) · sanitizer 가 ms:60 을 그대로 통과 · `node tools/check.js` 통과
