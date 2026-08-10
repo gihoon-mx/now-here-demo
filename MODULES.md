@@ -65,7 +65,7 @@
 | M14 | pages 정적 페이지 | 활성 | 관리자 페이지(v1.65 신설)·소개 덱·다이어그램·개발 관리 — **콘솔 크롬은 v3 스킨을 함께 탄다**(v1.87) | `initAdminMenu`(M11 공유) `body[data-skin="v3"].page-admin` | admin.html deck.html diagram.html dev.html | v1.87 |
 | M15 | tokens 디자인 토큰 · 스킨 | 활성 | CSS 변수·프로스트/글래스 공통 문법 + **폰 셸 스킨 3종(legacy / new=v2.0 / v3=v3.0, 기본)** — v3 는 석촌동 에셋 기준 재설계(웜 오프화이트+코랄·°C 지표) | `:root` `--acc` `--frost` `--glass-*` · `appSkin` `applySkin` `setAppSkin`(v1.84: 마크업까지 가르므로 재렌더) `initSkinControl` `body[data-skin]` `APP_SKINS` `--nk-*` `--v3-*` | style.css · skin-new.css · **skin-v3.css** · app.js | v1.87 |
 | M17 | deals 타임딜 | 활성 | 지도 ⏰ 핀(+%할인 라벨)·바텀시트(할인율·가격·재고·`mm:ss` 티커·쿠폰/공유)·시드(무대 추종)·콘솔 표 편입 | `timeDeals` `SEED_DEALS` `ensureDealSeed` `DealPin` `renderDealMarkers` `openDealSheet` `syncDealSheet` `dealRemain` `dealActive` `DEAL_NEAR_M` | app.js | v1.89 |
-| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `nhScrollTarget` `nhCustomArea` `nhHere` `nhPostSpot` `nhHeld` `nhDrop` `nhLaySpot` `nhLayFeed` `nhLayReq` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v2.0 |
+| M16 | scenario-bridge 임베드·시나리오 | 활성 | `?embed=1` 무로그인·무상태 부팅 / postMessage 시나리오 재생 / 지역 이동 + **실제 쓰기 동작**(글·좋아요·답변·채팅·AI) / **시나리오별 무대(seed) 주입·회수 — pop·like 는 그 무대에서만 고른다** / 카메라 연출(zoom·focus) | `IS_EMBED` `startEmbed` `nhEmbedIsolate` `NH_SCENARIOS` `NH_ACTIONS` `nhRun` `nhAct` `nhReset` `nhSweepTemp` `nhSeedScenario` `nhSpread` `nhGoHome` `NH_HOME_AREA` `nhTempIds` `nhOwn` `nhAt` `nhStore` `nhWriteSpot` `nhChat` `nhAi` `nhScope` `nhPick` `nhAreaKey` `nhAreaList` `nhSanitize` `nhZoom` `nhFocus` `nhCenter` `nhScrollTarget` `nhCustomArea` `nhHere` `nhPostSpot` `nhPostFeed` `nhHeld` `nhDrop` `nhLaySpot` `nhLayFeed` `nhLayReq` `initScenarioBridge` `EMBED_ORIGINS` | app.js | v2.1 |
 
 상태: **안정**(변경 적음) / **활성**(현재 개발 중) / **계획**(예정)
 
@@ -203,6 +203,9 @@ additive 필드라 옛 콘솔은 무시하고, 옛 앱(필드 없음)을 새 콘
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-10 M16: v2.1.0 — **피드 카드도 무대 없이(`postfeed`) · 곁들이는 값(e·n) · ms 하한 50** (콘솔 v0.78.0 D89 와 짝).
+  ① `postfeed` — `post`(v2.0)의 피드판. `nhPostFeed` 가 `nhLayFeed` 로 깐다(시드와 같은 함수). 자리는 `nhSpread(c,60+n)`. ② 스텝에 **곁들이는 값 두 개**를 실어 보낸다: `e`(post=이모지 · postfeed=사진 테마) · `n`(올린 사람). additive — 옛 콘솔은 안 보내고 기본값(💬·cafe·동네주민)이 된다. ③ ⚠️ **ms 하한을 400 → 50 으로 내렸다.** 콘솔의 "이 단계 화면 보기" 가 앞 단계를 빨리 감는데 그 하한이 곧 단계당 대기시간이라 여덟 단계짜리가 3초를 기다렸다. 사람이 짜는 값은 콘솔이 400 아래로 못 만든다(MIN_STEP_MS) — 여기 50 은 0·음수 가드다. 비동기 커밋이 있는 write·ai 는 콘솔의 FAST_FLOOR 가 지킨다. ④ 무대 상한: 지도 글·피드 카드 4 → **10** (Request 는 3 유지)
+  검증(로컬 :8765): post `e:"☕"` 반영 · postfeed 2건(이름 있는 것/기본값 동네주민, 사진은 data:image/svg+xml) · sanitizer 가 ms:60 을 그대로 통과 · `node tools/check.js` 통과
 - 2026-08-10 M16: v2.0.0 — **남이 방금 올린 글 (`post`)** (콘솔 v0.77.0 D88 과 짝).
   hold+drop(v1.98)은 무대에 항목을 만들고 토글을 켜고 번호를 맞춰야 해서, "남의 글이 하나둘 올라온다" 는 가장 흔한 장면에 손이 세 번 갔다. `{a:"post",v:"글"}` 은 **무대를 안 거치고** 그 단계에서 지도 글을 만든다(`nhPostSpot`) — 여러 번 쓰면 실시간으로 올라오는 그림이 된다. ⚠️ 깔기는 시드와 **같은 함수**(`nhLaySpot`)를 쓴다: 뒤늦게 뜬 글만 모양·id·정리 대상이 달라지면 안 된다. 자리는 `nhSpread(c,40+n)` 으로 시드 스팟(10+i)·피드(20+i)와 안 겹치게 하고, n 은 회차마다 0 으로 돌아간다. 빈 글이면 `ok:false`. 액션 어휘 3중 동기화(NH_ACTIONS·PLAY_ACTIONS·ACTION_LIST). hold+drop 은 남는다 — 피드 카드·Request 를 뒤늦게 띄우는 길이다
   검증(로컬 :8765): post 2회 → 스팟 2건 생성 · `pop i:-1` 이 방금 것을 연다 · 빈 글 `ok:false` · `nhTempIds` 2건(멈추기가 걷어간다) · `node tools/check.js` 통과

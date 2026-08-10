@@ -6183,7 +6183,8 @@ function nhAct(st,token){
       // 자체 지도 조작을 만들지 않고 goMapCam(동결 앵커)만 부른다. **양쪽 지도를 같이 움직인다** —
       // 카메라는 PC → 폰 단방향 미러라 폰만 움직이면 다음 idle 이 되돌린다 (area 와 같은 이유).
       if(st.a==='drop')return nhDrop(st.v,st.i)!==false;
-      if(st.a==='post')return nhPostSpot(st.v);
+      if(st.a==='post')return nhPostSpot(st.v,st.e);
+      if(st.a==='postfeed')return nhPostFeed(st.v,st.e,st.n);
       if(st.a==='zoom')return nhZoom(st.v)!==false;
       if(st.a==='focus')return nhFocus(st.v,st.i,token,st.ms)!==false;
       if(st.a==='scroll'){
@@ -6298,12 +6299,24 @@ function nhLayFeed(f,i,c,stamp){
    올라온다" 처럼 흔한 장면에 손이 너무 많이 갔다 (콘솔 D88). 깔기는 시드와 **같은
    함수**(nhLaySpot)를 쓴다 — 뒤늦게 뜬 글만 모양이나 정리 대상이 달라지면 안 된다. */
 var nhPostN=0;
-function nhPostSpot(v){
+function nhPostCenter(){return nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangnam;}
+function nhPostSpot(v,e){
   var t=String(v||'').slice(0,80);if(!t)return false;
-  var c=nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangnam;
   // 40+ 에서 세는 이유: 시드 스팟(10+i)·피드(20+i)와 자리가 겹치지 않게 한다.
-  if(!nhLaySpot({t:t,emoji:'💬'},40+(nhPostN++),c,nhHeld.stamp||Date.now()))return false;
+  if(!nhLaySpot({t:t,emoji:String(e||'').slice(0,4)||'💬'},40+(nhPostN++),
+                nhPostCenter(),nhHeld.stamp||Date.now()))return false;
   if(typeof rebuildSpots==='function')rebuildSpots();
+  return true;
+}
+/* 남이 방금 올린 **피드 카드** (v2.1). post 와 같은 이유로 있다 — 무대에 적고 hold 를
+   켜고 번호를 맞추는 세 손을 없앤다. 사진은 seedImg(테마 색 + 라벨)로 그려서 외부
+   이미지에 기대지 않는다(nhLayFeed 안). e = 테마, n = 올린 사람. */
+function nhPostFeed(v,e,n){
+  var d=String(v||'').slice(0,120);if(!d)return false;
+  if(!nhLayFeed({desc:d,label:d,theme:String(e||'')||'cafe',name:String(n||'')||'동네주민'},
+                60+(nhPostN++),nhPostCenter(),nhHeld.stamp||Date.now()))return false;
+  if(typeof renderFeed==='function')renderFeed();
+  if(typeof renderFeedMarkers==='function')renderFeedMarkers();
   return true;
 }
 
@@ -6321,14 +6334,14 @@ function nhSeedScenario(sc,token){
     if(r&&r.hold){nhHeld.req.push({v:r,i:i});return;}
     nhLayReq(r,i,c,stamp,token);
   });
-  (sc.seed.spots||[]).slice(0,4).forEach(function(s,i){
+  (sc.seed.spots||[]).slice(0,10).forEach(function(s,i){
     if(s&&s.hold){nhHeld.spot.push({v:s,i:10+i});return;}
     nhLaySpot(s,i,c,stamp);
   });
   /* 피드도 시나리오가 깐다 (v1.72) — 없으면 `like`·`scroll`·`scope` 가 늘 같은 전역 카드를
      건드려서 "이 사람이 무엇에 반응했나" 가 시나리오마다 같아진다.
      사진은 seedImg 로 그린다(테마 색 + 라벨) — 외부 이미지에 기대지 않아 회차마다 똑같이 뜬다. */
-  (sc.seed.feeds||[]).slice(0,4).forEach(function(f,i){
+  (sc.seed.feeds||[]).slice(0,10).forEach(function(f,i){
     if(f&&f.hold){nhHeld.feed.push({v:f,i:20+i});return;}
     nhLayFeed(f,i,c,stamp);
   });
@@ -6386,7 +6399,7 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'like','write','answer','chat','ai','scope','scroll', // v1.71: 보기만 하지 않고 실제로 한다
   'zoom','focus', // v1.75: 카메라 연출 — 시연에서 "어디를 보라" 를 화면이 말한다
   'drop', // v1.98: 무대에 보관해 둔 것을 지금 띄운다 ("실시간으로 올라온다" 연출)
-  'post']; // v2.0: 남이 방금 올린 글 — 무대 없이 그 자리에서 만든다
+  'post','postfeed']; // v2.0/v2.1: 남이 방금 올린 글·피드 카드 — 무대 없이 그 자리에서 만든다
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
@@ -6432,8 +6445,15 @@ function nhSanitize(raw){
     if(s.a==='area'&&!SEED_AREAS[String(s.v||'')])continue;
     steps.push({a:s.a,v:String(s.v||''),i:(s.i|0),
       say:String(s.say||'').slice(0,300),
+      // e = 이모지(post) 또는 테마(postfeed) · n = 올린 사람 이름 (v2.1). 옛 콘솔은 안 보낸다.
+      e:String(s.e||'').slice(0,12),n:String(s.n||'').slice(0,20),
       concern:!!s.concern,key:!!s.key,
-      ms:Math.min(Math.max(s.ms|0,400),6000)});          // 시연이 멈춰 보이지 않게 상·하한
+      /* 상·하한 (시연이 멈춰 보이지 않게). **하한은 50 이다** — 400 이었는데, 콘솔의
+         "이 단계 화면 보기" 가 앞 단계를 빨리 감아 지나가는 데 그 바닥이 곧 대기시간이라
+         여덟 단계짜리는 3초를 기다려야 했다. 사람이 짜는 값은 콘솔이 400 아래로 못 만들고
+         (MIN_STEP_MS), 여기 50 은 0·음수를 막는 가드다. 비동기 커밋이 있는 write·ai 는
+         콘솔이 따로 바닥을 지킨다(play-pacing 의 FAST_FLOOR). */
+      ms:Math.min(Math.max(s.ms|0,50),6000)});
   }
   if(!steps.length)return null;
   // 콘솔이 보낸 seed 도 받아들이되 모양과 양을 자른다 — 임의의 콘텐츠 주입이 되지 않게.
@@ -6446,11 +6466,11 @@ function nhSanitize(raw){
       return {q:String(r.q||'').slice(0,120),answer:String(r.answer||'').slice(0,120),
         answerIn:Math.min(Math.max(r.answerIn|0,0),20000),hold:!!r.hold};
     }).filter(function(r){return r.q;});
-    var sps=(Array.isArray(rs.spots)?rs.spots:[]).slice(0,4).map(function(s){
+    var sps=(Array.isArray(rs.spots)?rs.spots:[]).slice(0,10).map(function(s){
       s=s||{};return {t:String(s.t||'').slice(0,80),emoji:String(s.emoji||'💬').slice(0,4),
         hold:!!s.hold};
     }).filter(function(s){return s.t;});
-    var fds=(Array.isArray(rs.feeds)?rs.feeds:[]).slice(0,4).map(function(f){
+    var fds=(Array.isArray(rs.feeds)?rs.feeds:[]).slice(0,10).map(function(f){
       f=f||{};return {label:String(f.label||'').slice(0,40),desc:String(f.desc||'').slice(0,120),
         theme:String(f.theme||'').slice(0,16),name:String(f.name||'').slice(0,20),
         hold:!!f.hold};
