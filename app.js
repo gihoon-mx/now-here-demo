@@ -4631,6 +4631,12 @@ function saveDeals(){try{localStorage.setItem(DEAL_KEY,JSON.stringify(timeDeals.
    결정적 오프셋으로 놓는다(Math.random 금지 — v1.72 에서 배치가 매번 달라지던 문제). */
 var DEAL_NEAR_M=3000; // 이 거리를 넘으면 '내 주변 딜'이 아니다 — 무대를 따라 다시 세운다
 function ensureDealSeed(){
+  /* 빈 무대 임베드는 시드 딜을 안 세운다 (v2.2, 콘솔 D90).
+     D82 가 "화면에 뜨는 것은 그 데모가 깐 것뿐" 으로 정했는데 딜만 안 걸려 있었다.
+     그리고 이 함수는 지도가 DEAL_NEAR_M 를 넘어 움직이면 timeDeals 를 **비우고**
+     다시 세운다 — 무대가 깐 딜(nhLayDeal)이 있는데 이게 돌면 지역을 옮기는 순간
+     통째로 날아간다. 그래서 이 가드는 결함 수정이면서 무대 딜의 전제다. */
+  if(IS_CLEAN_EMBED)return;
   var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());
   if(!c)return;
   var clat=c.lat(),clng=c.lng();
@@ -5838,6 +5844,10 @@ function nhEmbedIsolate(){
     if(typeof demoSpots!=='undefined')demoSpots.length=0;
     if(typeof fieldRequests!=='undefined')fieldRequests.length=0;
     if(typeof newsItems!=='undefined')newsItems.length=0;
+    /* 딜도 비운다 (v2.2). loadDeals() 가 nowhere_deals 를 localStorage 에서 읽고,
+       임베드는 관리자 콘솔과 **같은 오리진**이라 관리자가 만든 딜이 시연에 새어 든다.
+       initTimeDeals() 는 IIFE 고 이 함수는 startEmbed() 안이라 순서는 이미 맞다. */
+    if(typeof timeDeals!=='undefined')timeDeals.length=0;
     if(typeof feedLikes!=='undefined')Object.keys(feedLikes).forEach(function(k){delete feedLikes[k];});
     if(typeof socMsgs!=='undefined')Object.keys(socMsgs).forEach(function(k){delete socMsgs[k];});
   }catch(e){}
