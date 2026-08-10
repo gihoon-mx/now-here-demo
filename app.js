@@ -6397,7 +6397,14 @@ function initScenarioBridge(){
     // "빈 무대를 요청했는데 앱이 안 비웠다"(= 앱 배포가 뒤졌다)를 화면에 드러낸다.
     if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList(),clean:IS_CLEAN_EMBED});
     else if(d.type==='nh:run')nhRun(d.id,reply,d.scenario);
-    else if(d.type==='nh:stop'){nhStop();nhPost(reply,{type:'nh:stopped'});}
+    /* 멈추기는 **화면도 처음 상태로** 되돌린다 (v1.97.0).
+       여태 토큰만 올렸다 — 대본은 멈추는데 그 회차가 만든 것(쓴 글·좋아요·깐 무대)은
+       화면에 그대로 남아서, 다시 재생하기 전까지 세계가 지저분한 채로 있었다.
+       콘솔은 진작부터 이걸 초기화로 알고 있었다(그쪽 "처음부터" 버튼이 nh:stop 을
+       보내며 "화면도 처음 상태로" 라고 적어 뒀다) — 계약을 코드에 맞춘다.
+       끝까지 본 회차(nh:done)는 안 건드린다: 데모의 결말이 곧 보여줄 것이라, 끝나자마자
+       치우면 방금 만든 글을 볼 수가 없다. */
+    else if(d.type==='nh:stop'){nhStop();nhReset();nhPost(reply,{type:'nh:stopped'});}
   });
   // 부모가 언제 붙을지 모르므로 준비되면 알린다 (시나리오 목록은 비밀이 아니다)
   if(window.parent&&window.parent!==window){
