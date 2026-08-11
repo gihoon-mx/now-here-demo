@@ -274,7 +274,15 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
   **검증**
 
   - `node tools/check.js` 통과 (버전 v2.3.0 동기화 · dev/diagram 스탬프 · app.js 문법).
-  - 로컬 브라우저 검증은 아래 배포 확인과 함께 기록.
+  - 로컬(:8766) 임베드: 빈 무대·일반 임베드 모두 **딜 0개**(자동 시드 없음) · 무대 딜의
+    자동 가격(pct 33 → 6,600원/9,900원/13개·seed:false) · 지면(tab:feed·stage:true) ·
+    **옮긴 자리 라운드트립**(nhPosSave → sweep → 재시드가 그 좌표에 깔림) · 5km 가드
+    (부산 좌표는 무시) · 설정 캐시 풀세트(skin new·emojiSize 44·zoneCard list·
+    feedTime clock·spotMapBg·feedIconSize 60 전부 임베드에 발현, 파일 백스톱 스킵) ·
+    admin `#feed-icon-size` 48→기준 48, 비우면 스팟 크기(26) 복귀 · 콘솔 에러 0.
+  - ✅ **v2.3.0 배포·검증 완료 (2026-08-11).** 배포본(?embed=1&clean=1)에서 딜 0개 ·
+    무대 딜 가격(20% → 7,900원/9,900원/16개) · 위치 오버라이드 재현 · nhPage 존재 확인.
+    짝인 콘솔 v0.79.0 도 같은 날 롤아웃 확인.
 
   **없는 것 / 한계**
 
