@@ -1200,17 +1200,51 @@ function persistSpotEdit(sp){ // 개별 스팟 편집 저장 (관리자=클라�
   if(sp.live){if(hasLive())fbDb.collection('liveSpots').doc(sp.id).set(liveSpotDoc(sp),{merge:true});else saveLocalSpots();}
   else markCloudDirty();
 }
+/* 스팟 오버레이를 **있는 것은 두고, 바뀐 것만** 만든다 (v2.13).
+
+   여태는 한 번 그릴 때마다 전부 지우고 다시 만들었다(clearSpots → new SpotBubble). 화면이
+   같아 보여서 오래 문제가 없었는데, 등장 연출이 붙자 드러났다: `drop` 하나에 **모든**
+   말풍선이 새 DOM 이 되니 이미 있던 것들도 다시 태어나며 같이 튄다(사용자: "기존 메시지도
+   바운스가 된다"). 피드 핀은 사진 한 장이라 다시 만들어도 티가 안 나서 새 것만 튀는 것처럼
+   보였다 — 같은 구조인데 증상만 달랐다.
+
+   그래서 id 로 짝을 맞춘다. 남아 있는 것은 그 오버레이를 그대로 쓰고(좌표·설정만 새로
+   반영), 없어진 것만 걷고, 새로 생긴 것만 만든다. 등장 연출이 **정말 새로 생긴 것에만**
+   붙는 것은 이 구조라야 성립한다. 덤으로 재렌더마다 나던 DOM 교체가 사라진다. */
 function renderSpots(){
-  clearSpots();
-  // 스팟 메시지는 모드(베이직/트렌드) 무관하게 항상 표시 — 모드는 지도 구획 방식일 뿐
+  var prevM={},prevP={};
+  spotOverlays.forEach(function(o){if(o&&o.spot)prevM[o.spot.id]=o;});
+  phoneSpotOverlays.forEach(function(o){if(o&&o.spot)prevP[o.spot.id]=o;});
+  var keepM={},keepP={},nextM=[],nextP=[];
   /* v1.88: 숨김은 **여기서** 거른다. `rebuildSpots` 에서 걸러 버리면 `spotMessages` 에서
      사라져 콘솔 표에도 안 보이고 — 숨긴 것을 다시 공개할 방법이 없어진다.
      목록은 원본을 갖고, 화면만 숨긴다. */
+  // 스팟 메시지는 모드(베이직/트렌드) 무관하게 항상 표시 — 모드는 지도 구획 방식일 뿐
+  function reuse(o,s){
+    o.spot=s;o.cfg=spotConfig;
+    // 자리가 바뀌었으면(편집·드래그) 새 좌표를 물린다 — 안 그러면 옛 자리에 남는다.
+    var ll=o.position;
+    if(!ll||ll.lat()!==s.lat||ll.lng()!==s.lng){
+      o.position=new google.maps.LatLng(s.lat,s.lng);
+      o._dir=null;o._gap=null; // 자리가 바뀌면 방향도 다시 정한다
+    }
+    if(o.div){o._render();if(o.draw)o.draw();}
+  }
   spotMessages.forEach(function(s){
     if(s.hidden)return;
-    spotOverlays.push(new SpotBubble(s,spotConfig,map));
-    if(phoneMap)phoneSpotOverlays.push(new SpotBubble(s,spotConfig,phoneMap));
+    var om=prevM[s.id];
+    if(om){keepM[s.id]=1;reuse(om,s);nextM.push(om);}
+    else nextM.push(new SpotBubble(s,spotConfig,map));
+    if(phoneMap){
+      var op=prevP[s.id];
+      if(op){keepP[s.id]=1;reuse(op,s);nextP.push(op);}
+      else nextP.push(new SpotBubble(s,spotConfig,phoneMap));
+    }
   });
+  // 짝을 못 찾은 것 = 사라진 스팟(또는 숨긴 것) — 그것만 걷는다.
+  Object.keys(prevM).forEach(function(id){if(!keepM[id])prevM[id].setMap(null);});
+  Object.keys(prevP).forEach(function(id){if(!keepP[id])prevP[id].setMap(null);});
+  spotOverlays=nextM;phoneSpotOverlays=nextP;
   renderFeedMarkers(); // 피드 썸네일 핀도 같은 타이밍에 갱신(지도 준비/모드 전환/클라우드 반영)
   renderSpotList();if(typeof renderDrawerDemo==='function')renderDrawerDemo();
   declutterMarkers(); // 렌더 후 겹침 방지 재계산(디바운스)
@@ -4824,7 +4858,12 @@ function initLiveCamera(){
 var fieldRequests=[]; var REQ_KEY='nowhere_requests'; var reqMarkers=[]; var reqBubbleTimer=null;
 var REQ_TTL_MS=10*60*1000; // 현장 Request 기본 타임아웃(10분) — 만료 시 지도/타인 목록에서 숨김·답변 차단
 function isMyReq(rq){return !!rq.by&&rq.by===myUid();}
-function reqActive(rq){return !!rq.seed||(Date.now()-(rq.ts||0)<REQ_TTL_MS);} // 시드=데모 연출용 상시 활성
+/* 시드=데모 연출용 상시 활성. **무대가 깐 것(stage)도 안 만료된다** (v2.13):
+   Request 는 10분 뒤 핀·드로어·팝업에서 통째로 사라지는데, 데모를 만들다 보면 재생과
+   재생 사이가 10분을 훌쩍 넘는다 — 그러면 화면에서 Request 가 없어지고 `pop v:req` 는
+   빈손, `answer` 는 "종료된 Request" 네이티브 alert 로 재생을 멈춰 세웠다.
+   무대의 시간은 시연의 시간이지 벽시계가 아니다. */
+function reqActive(rq){return !!rq.seed||!!rq.stage||(Date.now()-(rq.ts||0)<REQ_TTL_MS);}
 function reqRemainLabel(rq){ // 남은 시간: 1분 이상=분 단위, 1분 미만=초 단위 (시드·만료=빈 문자열)
   if(!rq||rq.seed)return '';
   var left=REQ_TTL_MS-(Date.now()-(rq.ts||0));
@@ -6946,7 +6985,8 @@ function nhLayReq(r,i,c,stamp,token){
   var lat=p.lat,lng=p.lng;
   fieldRequests.push({id:id,q:String(r.q||'').slice(0,120),lat:lat,lng:lng,
     place:(typeof dongAt==='function'?dongAt(lat,lng):'')||c.name,
-    answers:[],ts:Date.now(),by:(typeof myUid==='function'?myUid():'anon'),seed:false});
+    // stage: 무대가 깐 것 — 10분 만료를 안 탄다 (v2.13, reqActive 참조).
+    answers:[],ts:Date.now(),stage:true,by:(typeof myUid==='function'?myUid():'anon'),seed:false});
   nhTempIds.req.push(id);
   if(r.answerIn){ // 재생 도중에 답이 도착한다 — 이 시연의 핵심 장면
     setTimeout(function(){
@@ -7136,14 +7176,28 @@ function nhBurst(v,n,e,ms,token){
   n=Math.min(NH_BURST_MAX,Math.max(1,n|0||12));
   ms=Math.max(800,ms|0||4000);
   var z=parseInt(e,10);if(!isFinite(z))z=13;z=Math.min(16,Math.max(11,z));
-  // 줌아웃부터 — 쏟아지는 것은 넓어진 화면 위의 일이다. area 와 같은 이유로 양쪽 지도.
   if(typeof switchTab==='function')switchTab('map');
   var at=nhCenter()||c;
-  goMapCam(map,at.lat,at.lng,z);
-  if(phoneMap)goMapCam(phoneMap,at.lat,at.lng,z);
   var salt=String(nhScenarioKey||'burst');
-  var maxR=0.028*Math.pow(2,13-z); // 줌 13 화면 반폭 기준 — 레벨당 두 배
   var stamp=nhHeld.stamp||Date.now();
+  /* 줌아웃을 **듀레이션에 걸쳐** 돈다 (v2.13). v2.12 는 시작하자마자 목표 줌으로 한 번에
+     갔다 — Maps 의 줌 애니메이션은 0.3초쯤이라, 나머지 시간은 이미 다 빠진 화면 위에서
+     흐르고 "줌아웃하며 쏟아진다" 가 두 장면으로 갈렸다. 앞 80% 를 열두 걸음으로 나눈다.
+     (mapId 지도라 소수 줌이 그대로 먹는다 — 걸음이 계단으로 안 보인다.)
+     ⚠️ 여기서 목표 줌으로 **먼저 가지 않는다.** 처음 한 번은 지금 줌 그대로 자리만 잡고,
+     줌은 아래 걸음이 전부 맡는다 — 한 번이라도 목표로 튀면 걸음이 도로 줌인이 된다. */
+  var z0=(phoneMap&&phoneMap.getZoom&&phoneMap.getZoom())||(map&&map.getZoom&&map.getZoom())||NH_AREA_ZOOM;
+  goMapCam(map,at.lat,at.lng,z0);
+  if(phoneMap)goMapCam(phoneMap,at.lat,at.lng,z0);
+  var zoomWin=Math.round(ms*0.8),ZSTEPS=12;
+  for(var s=1;s<=ZSTEPS;s++)(function(s){
+    setTimeout(function(){
+      if(token!==nhRunToken)return;
+      var zz=z0+(z-z0)*(s/ZSTEPS);
+      goMapCam(map,at.lat,at.lng,zz);
+      if(phoneMap)goMapCam(phoneMap,at.lat,at.lng,zz);
+    },Math.round(zoomWin*s/ZSTEPS));
+  })(s);
   for(var k=0;k<n;k++)(function(k){
     /* 등장 시각 (v2.12) — **줌아웃이 도는 동안부터** 마구 생긴다.
        v2.11 은 앞 15% 를 비우고 등간격으로 놨더니 메트로놈처럼 규칙적이었고, 카메라가
@@ -7156,7 +7210,14 @@ function nhBurst(v,n,e,ms,token){
       // 종류도 순번이 아니라 섞기로 고른다 — 둘을 고르면 번갈아 나오는 티가 났다.
       var kind=kinds[Math.floor(heatJitter(salt+'k'+k)*kinds.length)%kinds.length];
       var a=k*2.399963+heatJitter(salt)*6.283; // 황금각 + 시나리오별 시작각
-      var r=maxR*(0.3+0.7*Math.sqrt(heatJitter(salt+'r'+k))); // sqrt = 면적 균등
+      /* 반경은 **그 순간 보이는 화면**을 따라 넓어진다 (v2.13).
+         목표 줌 기준으로 한 번에 정하면, 카메라가 아직 안 빠진 초반에 깔린 것들이 화면
+         밖에 떨어져서 "줌아웃이 끝난 뒤에야 뜬다" 로 보였다 — 실제로는 이미 있었다.
+         지금 줌(zAt)에서의 화면 반폭을 쓰면 처음부터 눈앞에 하나씩 앉는다. */
+      var prog=Math.min(1,(t/Math.max(1,zoomWin)));
+      var zAt=z0+(z-z0)*prog;
+      var rVis=0.028*Math.pow(2,13-zAt); // 줌 13 화면 반폭 기준 — 레벨당 두 배
+      var r=rVis*(0.25+0.7*Math.sqrt(heatJitter(salt+'r'+k))); // sqrt = 면적 균등
       var p={lat:at.lat+r*Math.cos(a)*0.8,lng:at.lng+r*Math.sin(a),name:c.name};
       var pick=function(pool){return pool[(k+Math.floor(heatJitter(salt)*pool.length))%pool.length];};
       var idx=NH_POST_FROM+(nhPostN++);

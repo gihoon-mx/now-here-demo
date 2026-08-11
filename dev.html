@@ -44,7 +44,7 @@ footer{max-width:1060px;margin:20px auto 0;font-size:.7rem;color:var(--ink3);tex
 footer code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(15,23,42,0.05);padding:1px 6px;border-radius:5px;}
 </style>
 </head>
-<body data-app-ver="v2.12.0">
+<body data-app-ver="v2.13.0">
 <header>
   <div><h1>🛠 <span>Now Here</span> 개발 관리</h1><p>모듈 레지스트리 · 세션별 모듈 단위 작업 — 소스: MODULES.md · <b id="doc-ver"></b></p></div>
   <div class="links"><a href="./">📱 라이브 데모</a><a href="deck.html">📽 소개 덱</a><a href="diagram.html">🧩 다이어그램</a></div>
@@ -70,7 +70,7 @@ var MODS=[
  {id:'M01',emoji:'🗺️',name:'core-map 지도 코어',st:'stable',ver:'v1.28',files:'app.js',desc:'지도 초기화·GeoJSON 동 경계·베이직/트렌드 모드 전환·메인 지도 이벤트.',anchors:['initMap','applyGeoJsonToMap','switchMode','refreshMapStyles'],deps:[]},
  {id:'M02',emoji:'🔍',name:'lens 포커스 렌즈',st:'stable',ver:'v1.62',files:'app.js',desc:'베이직/트렌드 마스크 렌즈 — 포그·페이드·히스테리시스. 선택 핀 고정은 센터 이탈 시 자동 해제(autoReleaseFocus), 지도 탭 선택은 3개 이상 노출 시만.',anchors:['updatePhoneLens','lensBuild','lensApply','holeRing'],deps:['M01']},
  {id:'M03',emoji:'⬡',name:'zones 트렌드 존',st:'active',ver:'v1.65',files:'app.js',desc:'헥사 그리드·존 생성/편집/삭제·존 카드(글래스/리스트)·병합 아웃라인·하트 합산·라벨 표시 토글·존 채움 투명도(fillA, 색상 팝업 알파).',anchors:['generateHexagons','trendZones','zoneOutlineLoops','makeZoneCard','zoneLabelsShown','zoneFillA'],deps:['M01']},
- {id:'M04',emoji:'💬',name:'spots 스팟 메시지',st:'stable',ver:'v1.65',files:'app.js',desc:'스팟 버블(자유 방향·겹침 방지 declutter)·컴포저·편집/드래그·워드클라우드. 모드 컬러: 베이직=무채색/트렌드=존 온도색. 개별 색 투명도(alpha).',anchors:['SpotBubble','SpotComposer','renderSpots','canEditSpot'],deps:['M01','M12']},
+ {id:'M04',emoji:'💬',name:'spots 스팟 메시지',st:'stable',ver:'v2.13',files:'app.js',desc:'<b>v2.13: renderSpots 가 오버레이를 재사용한다</b> — id 로 짝을 맞춰 있는 것은 그대로 쓰고(좌표·설정만 물림), 사라진 것만 걷고, 새로 생긴 것만 만든다. 전부 다시 만들던 시절에는 drop 하나에 모든 말풍선이 새 DOM 이 돼 등장 연출이 기존 것까지 다시 붙었다. 스팟 버블(자유 방향·겹침 방지 declutter)·컴포저·편집/드래그·워드클라우드. 모드 컬러: 베이직=무채색/트렌드=존 온도색. 개별 색 투명도(alpha).',anchors:['SpotBubble','SpotComposer','renderSpots','canEditSpot'],deps:['M01','M12']},
  {id:'M05',emoji:'🖼️',name:'feed 피드',st:'active',ver:'v1.84',files:'app.js',desc:'피드 탭 그리드·스코프/종류 필터·썸네일 핀+클러스터·좋아요·업로드(카메라/갤러리). <b>v1.84: 사진 아래 흰 본문</b> — 설명글(부제, 2줄 클램프) + 메타 줄(동 · 시간 … ♥n). 설명글은 그전까지 상세 팝업에서만 보였다. 카드를 세로 flex 로 만들고 본문에 flex:1 을 줘서 한 줄/두 줄 카드가 나란히 서도 메타 줄이 같은 높이에 선다. 좋아요는 사진 위 흰 원형에서 메타 줄 오른쪽 숫자로. 글 카드(.txt)는 제외 — 본문이 곧 카드다. legacy 는 마크업까지 그대로(새 스킨일 때만 만든다).',anchors:['renderFeed','feedEntriesScoped','FeedThumb','clusterFeedPins','toggleLike','fc-body'],deps:['M01','M12','M15']},
  {id:'M06',emoji:'👥',name:'social 소셜',st:'stable',ver:'v1.45',files:'app.js',desc:'동네 채팅방(포커스 구역)·주제방·프라이빗·liveChat 실시간 공유.',anchors:['renderSocial','socRoomList','roomMsgs'],deps:['M12']},
  {id:'M07',emoji:'📍',name:'request 현장 Request',st:'active',ver:'v1.63',files:'app.js',desc:'Request 등록(10분 타임아웃)·전용 펄스 핀·삭제 → 타겟 지역 사용자에게 AI Agent 실시간 응답 팝업(💬답하기·📷사진, 요청자 제외) → 요청자는 도착 알림+드로어 내 Request에서 답변 확인.',anchors:['openRequestComposer','showReqBubble','reqNearMe','reqActive','answerRequest'],deps:['M01','M08','M12']},
