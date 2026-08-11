@@ -233,13 +233,26 @@ body[data-skin="v3"] .pn-ai{padding:3.3cqw;}
 /* 캐릭터 얼굴을 흰 계열로 — 회색 유리 위에서 선이 죽는다 */
 body[data-skin="v3"] .pn-ai svg g[fill]{fill:rgba(255,255,255,.94);}
 body[data-skin="v3"] .pn-ai.ai-on{background:var(--v3-glass-on);}
-/* Trend 에서 AI 는 **코랄**로 바뀐다 — 시안이 명시한 유일한 네비 색 변화다 */
+/* Trend 에서 AI 는 **온도색이 흐른다** (v2.6) — 시안의 코랄 한 색에서 HEAT_STOPS 스펙트럼으로.
+   ⚠️ 그라디언트를 **여기서 다시 적는다.** 위 `body[data-skin="v3"] .pn-ai` 의 `background`
+   축약이 (0,2,1) 로 style.css 의 `.pn-ai.ai-flame` (0,2,0) 을 이겨서 `background-image` 를
+   none 으로 지운다 — 스킨 파일이 나중에 로드되는 것과 무관한 명시도 문제다.
+   색 목록은 style.css·app.js 의 HEAT_STOPS 와 같은 값이어야 한다. */
 body[data-skin="v3"] .pn-ai.ai-flame{
-  background:rgba(232,87,74,.82);
+  background-color:rgba(232,87,74,.82);
+  background-image:linear-gradient(115deg,#ffc24a,#ff8a3d,#ff2e1f,#ff6a4d,#ffc24a);
+  background-size:320% 320%;
   border:none;
   box-shadow:none;
 }
-body[data-skin="v3"] .pn-ai.ai-flame.ai-on{background:var(--v3-red);}
+/* 활성은 배경을 덮지 않는다 — 덮으면 흐름이 멈춘 것처럼 보인다. 링으로만 알린다 */
+body[data-skin="v3"] .pn-ai.ai-flame.ai-on{
+  background-color:var(--v3-red);
+  box-shadow:0 0 0 .6cqw rgba(255,61,46,.22);
+}
+@media (prefers-reduced-motion:reduce){
+  body[data-skin="v3"] .pn-ai.ai-flame{background-image:linear-gradient(115deg,#ffc24a,#ff6a4d);}
+}
 
 /* ══ ② 지도 오버레이 ═══════════════════════════════════════════════════════
    **여기부터 `cqw` 를 쓰지 않는다.** 스팟 버블·핀은 PC 지도(admin.html `#map`)에도
@@ -261,7 +274,10 @@ body[data-skin="v3"] .spot-bubble{
 }
 
 /* ── 사진 핀 ── 시안의 핵심 마커. **원형 + 두꺼운 컬러 링**이고,
-   Basic 에서는 사진이 흑백으로 가라앉고 링이 흰색이 된다(색은 Trend 의 언어다). */
+   Basic 에서는 링이 흰색이 된다(색은 Trend 의 언어다 — 크롬만 무채색, v1.58).
+   ⚠️ v2.6: **사진 자체는 두 모드 모두 컬러다.** 시안은 Basic 에서 사진까지 흑백으로
+   가라앉혔는데, 지도 위에서 무엇을 찍은 사진인지 알아볼 수 없다는 말이 나왔다 —
+   무채색 규칙의 대상은 처음부터 "크롬(링·뱃지)" 이고 사진 콘텐츠는 예외였다(v1.58). */
 body[data-skin="v3"] .feed-pin .fp-im{
   border-radius:50%;
   border:3.5px solid var(--heat,#F4A15C);
@@ -270,7 +286,6 @@ body[data-skin="v3"] .feed-pin .fp-im{
 body[data-skin="v3"] .feed-pin img{border-radius:50%;}
 body[data-skin="v3"]:not(.mode-trend) .feed-pin .fp-im{
   border-color:#fff;
-  filter:grayscale(1);opacity:.96;
   box-shadow:0 3px 10px rgba(0,0,0,.1);
 }
 body[data-skin="v3"] .feed-pin.cluster .fp-im{
@@ -385,9 +400,13 @@ body[data-skin="v3"] .fc-meta{
 body[data-skin="v3"] .fc-mplace{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 body[data-skin="v3"] .fc-mtime{flex:none;}
 body[data-skin="v3"] .fc-mtime::before{content:'·';margin:0 1.1cqw;}
-/* 좋아요를 사진 좌상단으로 — 흐름에서 빼면 부모(카드)의 좌상단, 곧 사진 좌상단이다 */
+/* 좋아요를 사진 좌상단으로 — 흐름에서 빼면 부모(카드)의 좌상단, 곧 사진 좌상단이다.
+   ⚠️ v2.6: **`right`·`bottom` 을 반드시 되돌린다.** 바탕 규칙(style.css)이 이 칩을
+   우하단(`right`+`bottom`)에 두는데, 여기서 `left`+`top` 만 얹으면 네 변이 모두 물려
+   **칩이 카드 전체로 늘어난다**(실측 328×576px — 사진을 덮는 흰 돔이 그것이었다).
+   글자는 `align-items:center` 때문에 그 큰 상자의 세로 가운데에 떠 있었다. */
 body[data-skin="v3"] .feed-card.has-body .fc-like{
-  position:absolute;left:2cqw;top:2cqw;margin:0;
+  position:absolute;left:2cqw;top:2cqw;right:auto;bottom:auto;margin:0;
   display:flex;align-items:center;
   min-width:0;height:auto;padding:.8cqw 2cqw;
   border-radius:9999px;

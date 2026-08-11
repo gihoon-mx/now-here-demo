@@ -460,7 +460,8 @@ function initSpotBubbleClass(){
     // 모드별 컬러 규칙(v1.58): 베이직=무채색 통일(화이트 버블+잉크 텍스트+그레이 점) / 트렌드=온도색(속한 존의 좋아요 열기)
     // — 개별 스팟 색(s.color)·설정 색(bgColor/textColor)은 지도 위에선 모드 규칙이 우선(드로어 칩 등 리스트엔 개별 색 유지)
     var mono=currentMode!=='trend';
-    var baseCol=mono?MONO_PIN:heatColor(heatTOf(s,zoneHeatT(s.lat,s.lng))); // 스팟 수동 온도(temp) 우선, 자동=속한 존 열기
+    // v2.6: 존 안이라도 항목마다 온도가 다르다 (수동 temp 우선 · 자동=존 온도 둘레로 흩기)
+    var baseCol=mono?MONO_PIN:heatColor(contentHeatT(s,s.lat,s.lng,0));
     if(this.dotEl)this.dotEl.style.background=hexToRgba(baseCol,1); // 점 색상 = 버블 색상 규칙과 동일
     this.bubbleEl.textContent=t;
     if(this.cmtEl){ // 의견 수 뱃지 — textContent 대입이 자식을 지우므로 다시 부착 (색=모드 규칙과 동일)
@@ -513,8 +514,11 @@ function initSpotBubbleClass(){
       this.div.style.transformOrigin='50% 50%';
       this.div.style.transform='translate(-50%,-50%)'+(zk!==1?' scale('+zk+')':''); // 이모지만 배율로
     }else{
-      // 말풍선: declutter가 정한 방향(_dir, 기본 up)으로 앵커 기준 배치 + 그 방향에 맞는 꼬리
-      var dir=this._dir||'up',ot=dirTransform(dir);
+      // 말풍선: declutter가 정한 방향으로 앵커 기준 배치 + 그 방향에 맞는 꼬리.
+      // v2.6: 기억해 둔 방향(spotDirById)을 먼저 본다 — 오버레이가 새로 만들어져도
+      // (renderSpots) 첫 draw 부터 제자리다. 안 그러면 up 으로 한 번 그렸다가 튄다.
+      var dir=this._dir||spotDirById[this.spot.id]||'up',ot=dirTransform(dir);
+      this._dir=dir;
       this.div.style.transformOrigin=ot[0];
       this.div.style.transform=ot[1]+(zk!==1?' scale('+zk+')':'');
       this.bubbleEl.classList.remove('no-tail','tl-b','tl-t','tl-l','tl-r');
@@ -549,7 +553,9 @@ function initFeedThumbClass(){
     var img=document.createElement('img');img.src=this.item.src;img.alt='';im.appendChild(img);
     d.appendChild(im);
     // 온도색(트렌드 모드에서만 CSS body.mode-trend 스코프로 발현): 개별 수동 온도(temp) 우선, 자동=좋아요 온도. 클러스터=멤버 중 최고
-    var ht=0;this.members.forEach(function(m){var f=m.f||m;var t2=heatTOf(f,feedHeatT(f.id));if(t2>ht)ht=t2;});
+    // v2.6: 존 온도를 중심으로 항목마다 흩는다 (존 밖이면 좋아요 온도가 중심). 클러스터=멤버 최고
+    var ht=0;this.members.forEach(function(m){var f=m.f||m,p=m.pos||{};
+      var t2=contentHeatT(f,p.lat,p.lng,feedHeatT(f.id));if(t2>ht)ht=t2;});
     d.style.setProperty('--heat',heatColor(ht));
     this.div=d;
     if(n>1){ // 클러스터: 대표 사진 + 개수 뱃지, 탭=멤버 범위로 줌인(펼치기)
@@ -761,11 +767,43 @@ function feedHeatT(id){ // 피드 온도 = 좋아요 / 현재 최다 좋아요 (
 function heatTOf(o,fallbackT){ // 수동 온도(temp 0~100, 관리자 지정) 오버라이드 우선 — 없으면 fallback(자동 계산값)
   return (o&&o.temp!=null&&o.temp!=='')?Math.max(0,Math.min(1,Number(o.temp)/100)):fallbackT;
 }
-function zoneHeatT(lat,lng){ // 좌표 온도 = 속한 트렌드 존의 온도(수동 temp 우선, 자동=하트합산/최다 존). 스팟·Request용
+function zoneHeatAt(lat,lng){ // {found,t} — 속한 존과 그 온도 (v2.6: found 를 밖에서도 쓴다)
   var found=null,max=0;
   trendZones.forEach(function(z){var h=zoneTotalHearts(z);if(h>max)max=h;if(!found&&ptInZone(z,lat,lng))found=z;});
-  if(!found)return 0;
-  return heatTOf(found,max>0?zoneTotalHearts(found)/max:0);
+  if(!found)return {found:false,t:0};
+  return {found:true,t:heatTOf(found,max>0?zoneTotalHearts(found)/max:0)};
+}
+function zoneHeatT(lat,lng){ // 좌표 온도 = 속한 트렌드 존의 온도. Request 핀은 이걸 그대로 쓴다(존 하나의 신호)
+  return zoneHeatAt(lat,lng).t;
+}
+/* 컨텐츠 **하나**의 트렌드 온도 (v2.6) — 존 온도는 **분포의 중심**이고 색은 항목마다 다르다.
+
+   전에는 존 안의 스팟이 전부 `zoneHeatT` 하나를 그대로 써서 **같은 색 한 덩어리**였다.
+   그러면 "어느 구역이 뜨거운가" 만 보이고 "그 안에서 무엇이 뜨거운가" 는 안 보인다.
+   규칙: 항목마다 고유 온도를 갖되 **뜨거운 존일수록 뜨거운 항목의 비율이 높고, 식은
+   존일수록 식은 항목이 많다** — 그래서 존 온도를 중심으로 흩는다.
+
+   흩는 값은 id 해시라 **결정적**이다. Math.random 이면 렌더할 때마다 색이 바뀌어 지도가
+   깜빡이고 시연도 회차마다 달라진다 (v1.72·v2.4 와 같은 이유).
+   사람이 정한 `temp` 는 언제나 먼저이고, 흩지 않는다. */
+var HEAT_SPREAD=0.6; // 존 온도 둘레로 퍼지는 폭 (0~1 스케일) — 존 온도 ±0.3
+/* 0~1 결정적 난수. **비트를 제대로 섞어야 한다** — `h*31+c` 만 쓰면 `sps_0`·`sps_1` 처럼
+   끝 글자만 다른 id 가 값도 이웃해서(0.001 차이) 존 안 온도가 한 값으로 뭉친다.
+   실제로 그렇게 나왔다: 같은 존 14개가 전부 66. FNV-1a + fmix32 로 눈사태를 만든다. */
+function heatJitter(key){
+  var s=String(key||''),h=2166136261;
+  for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
+  h^=h>>>16;h=Math.imul(h,2246822507);
+  h^=h>>>13;h=Math.imul(h,3266489909);
+  h^=h>>>16;
+  return (h>>>0)/4294967296;
+}
+function contentHeatT(o,lat,lng,fallbackT){
+  if(o&&o.temp!=null&&o.temp!=='')return Math.max(0,Math.min(1,Number(o.temp)/100)); // 수동 지정이 먼저
+  var z=zoneHeatAt(lat,lng);
+  // 존 밖이면 중심은 호출자가 준 값 — 피드는 좋아요 온도(v1.58), 스팟은 0(식음).
+  var base=z.found?z.t:(Number(fallbackT)||0);
+  return Math.max(0,Math.min(1,base+(heatJitter(o&&o.id)-0.5)*HEAT_SPREAD));
 }
 
 /* ========== [M00] 지도 마커 겹침 방지 (declutter) — 말풍선 방향을 앵커 기준 자유 배치 ========== */
@@ -809,13 +847,32 @@ function dirTransform(dir){ // 꼬리 끝이 앵커(div left/top)에 오도록 o
   if(dir==='right')return ['0% 50%','translate(0%,-50%)'];
   return ['50% 100%','translate(-50%,-100%)']; // up (기존 동작)
 }
+/* 말풍선 방향을 **스팟 id 로 기억한다** (v2.6).
+
+   전에는 방향이 오버레이 객체(`o._dir`)에만 있었다. 그래서 ① 줌·팬마다 declutter 가
+   다시 돌며 방향이 뒤집혔고(줌인하면 버블이 커져 겹침 관계가 통째로 달라진다),
+   ② `renderSpots()` 가 오버레이를 새로 만들 때마다 방향이 리셋됐다.
+   사용자가 본 "줌인아웃 할 때 스팟 메시지 위치가 변한다" 가 이것이다 — 앵커(좌표)는
+   가만히 있는데 말풍선이 앵커의 위/아래/좌/우로 튀어 다녔다.
+
+   이제 한 번 정한 방향은 **그 스팟의 것**으로 남는다. 이미 방향이 있는 말풍선은
+   declutter 에서 **고정 장애물**로 취급하고, 방향이 없는 것(새로 뜬 컨텐츠)만 자리를
+   고른다 — 새 글 하나 때문에 기존 배치가 흔들리지 않는다. */
+var spotDirById={};
 var _declTimer=null;
 function declutterMarkers(){ // 디바운스 — idle/렌더 후 한 번만
   if(_declTimer)return;
   _declTimer=setTimeout(function(){_declTimer=null;try{
     declutterOn(map,spotOverlays,feedThumbOverlays,[]);
     declutterOn(phoneMap,phoneSpotOverlays,phoneFeedThumbOverlays,reqMarkers);
+    spotDirForget();
   }catch(e){}},60);
+}
+/* 사라진 스팟의 기억은 버린다 — 안 버리면 시연을 오래 돌릴수록 표가 계속 자란다. */
+function spotDirForget(){
+  var live={};
+  (typeof spotMessages!=='undefined'?spotMessages:[]).forEach(function(s){live[s.id]=1;});
+  Object.keys(spotDirById).forEach(function(id){if(!live[id])delete spotDirById[id];});
 }
 function declutterOn(m,spots,feeds,reqs){
   if(!m||typeof google==='undefined')return;
@@ -827,14 +884,26 @@ function declutterOn(m,spots,feeds,reqs){
   spots.forEach(function(o){
     if(!o.div||o._ax==null)return;
     if(o.div.classList.contains('spot-dot')){items.push({movable:false,ax:o._ax,ay:o._ay,w:14,h:14});return;} // 점=고정
-    var r=o.bubbleEl.getBoundingClientRect();
-    items.push({movable:true,id:o.spot.id,ax:o._ax,ay:o._ay,w:r.width||60,h:r.height||24,cur:o._dir}); // cur=현재 방향(안정화)
+    var r=o.bubbleEl.getBoundingClientRect(),w=r.width||60,h=r.height||24;
+    var known=spotDirById[o.spot.id];
+    if(known){ // v2.6: 이미 자리를 정한 말풍선은 **움직이지 않는다** — 장애물로만 센다
+      var b=dirBox(o._ax,o._ay,w,h,known);
+      items.push({movable:false,ax:(b[0]+b[2])/2,ay:(b[1]+b[3])/2,w:w,h:h});
+      if(o._dir!==known){o._dir=known;o.draw();} // 오버레이가 새로 만들어진 경우 기억한 방향을 다시 입힌다
+      return;
+    }
+    items.push({movable:true,id:o.spot.id,ax:o._ax,ay:o._ay,w:w,h:h});
     movers.push(o);
   });
   feeds.forEach(function(o){if(o.div&&o._ax!=null){var r=o.div.getBoundingClientRect();items.push({movable:false,ax:o._ax,ay:o._ay,w:r.width||30,h:r.height||30});}});
   reqs.forEach(function(o){if(o.div&&o._ax!=null){var r=o.div.getBoundingClientRect();items.push({movable:false,ax:o._ax,ay:o._ay,w:r.width||34,h:r.height||46});}});
+  if(!movers.length)return; // 전부 자리를 정해 뒀다 — 줌·팬으로는 아무것도 안 움직인다 (v2.6)
   var res=declutterBoxes(items,ctr.x,ctr.y);
-  movers.forEach(function(o){var d=res[o.spot.id];if(d&&d!==o._dir){o._dir=d;o.draw();}else if(d)o._dir=d;});
+  movers.forEach(function(o){
+    var d=res[o.spot.id];if(!d)return;
+    spotDirById[o.spot.id]=d; // 이 스팟의 자리로 굳힌다
+    if(d!==o._dir){o._dir=d;o.draw();}else o._dir=d;
+  });
 }
 
 /* ========== [M09] 지도 컨텐츠 상세 팝업 — 스팟/피드/Request 탭 시 크게 보기 ========== */
@@ -5298,6 +5367,41 @@ function seedFlat(byArea,ratio,dens){
   });
   return out;
 }
+/* 시드 좌표를 **서로 겹치지 않게** 벌린다 (v2.6).
+
+   시드는 종류별 배열(SEED_FEED·SEED_SPOTS·SEED_REQS)이 각자 손으로 적은 좌표라, 한 종류
+   안에서는 떨어져 있어도 **종류를 가로지르면 겹친다** — 스팟 말풍선 위에 사진 핀이
+   얹히는 그림이 그래서 났다. 밀집도(dens) 를 '촘촘' 으로 두면 더 심해진다.
+
+   푸는 방식: 가까운 쌍을 서로 반대로 조금씩 밀어내는 완화(relaxation)를 몇 번 돌린다.
+   **결정적이다** — 입력 순서만 보고 Math.random 을 안 쓴다(시드는 회차마다 같은 자리에
+   있어야 한다). 완전히 같은 좌표면 나눗셈이 깨지므로 순번으로 방향을 준다(황금각).
+
+   기준 거리는 줌 16 에서 핀 하나가 차지하는 폭 정도다 — 그 줌이 '동네 하나' 를 보는
+   기본 배율이라 여기서 안 겹치면 더 확대해도 안 겹친다. */
+var SEED_MIN_M=85;
+function seedSpread(items,minM){
+  var n=items.length;if(n<2)return;
+  var mLat=1/111320;
+  for(var pass=0;pass<8;pass++){
+    var moved=false;
+    for(var i=0;i<n;i++)for(var j=i+1;j<n;j++){
+      var a=items[i],b=items[j];
+      if(typeof a.lat!=='number'||typeof b.lat!=='number')continue;
+      var d=haversineM(a.lat,a.lng,b.lat,b.lng);
+      if(d>=minM)continue;
+      var dy=b.lat-a.lat,dx=b.lng-a.lng,norm=Math.sqrt(dy*dy+dx*dx);
+      if(norm<1e-9){var ang=i*2.399963;dy=Math.cos(ang);dx=Math.sin(ang);norm=1;} // 같은 자리 — 황금각으로 가른다
+      var push=(minM-d)/2+0.5; // 0.5m 여유: 경계에 딱 붙어 다음 패스에서 다시 걸리지 않게
+      var mLng=1/(111320*Math.max(0.2,Math.cos(a.lat*Math.PI/180)));
+      var uy=dy/norm,ux=dx/norm;
+      a.lat-=uy*push*mLat; a.lng-=ux*push*mLng;
+      b.lat+=uy*push*mLat; b.lng+=ux*push*mLng;
+      moved=true;
+    }
+    if(!moved)break;
+  }
+}
 function seedDemoData(opts){
   // opts.silent: 임베드(M16) 전용 무음 경로 — 확인창·완료 알림 없이 깐다.
   // IS_EMBED 로 한 번 더 막는다: 임베드가 아니면 클라우드에 쓰이므로 관리자 확인을 거쳐야 한다.
@@ -5306,6 +5410,10 @@ function seedDemoData(opts){
   var amtEl=document.getElementById('seed-amount'),denEl=document.getElementById('seed-density');
   var ratio=amtEl?(parseFloat(amtEl.value)||1):1,dens=denEl?(parseFloat(denEl.value)||1):1;
   var feeds=seedFlat(SEED_FEED,ratio,dens),spots=seedFlat(SEED_SPOTS,ratio,dens),reqs=seedFlat(SEED_REQS,ratio,dens);
+  /* 종류를 **가로질러** 벌린다 (v2.6) — 한 종류 안에서만 떨어뜨려 놨더니 스팟 위에 사진
+     핀이 얹혔다. 동 라벨은 아래에서 어차피 dongAt 으로 다시 판정하므로(밀집도 경로와
+     같은 이유) 좌표가 몇십 m 움직여도 표기가 어긋나지 않는다. */
+  seedSpread(feeds.concat(spots).concat(reqs),SEED_MIN_M);
   if(!silent&&!confirm('강남·잠실·성수·방학(한산) 데모 데이터를 채울까요?\n(피드 '+feeds.length+' · 스팟 '+spots.length+' · Request '+reqs.length+' · 채팅 시드 — 공유 컬렉션에 기록되어 모든 계정에 보여요.\n수량 '+Math.round(ratio*100)+'% · 밀집도 '+(dens===1?'보통':(dens<1?'촘촘':'넓게'))+' — 수량을 줄여 다시 채울 땐 🧹 비우기 먼저.\n⚠️ v1.70 에서 시드가 늘어 문서 인덱스가 밀렸어요 — 기존 시드가 있으면 🧹 비우기 먼저 하세요.\n트렌드 존은 만들지 않아요. 컨텐츠 소유자: '+SEED_OWNER+')'))return;
   var now=Date.now();
   // ① 트렌드 존 시드는 만들지 않음(기존 tzs_* 존은 🧹 비우기로 삭제) — 존은 관리자가 직접 관리
@@ -6455,9 +6563,9 @@ function nhTemp(v){
    같은 데모를 두 번 재생할 때 색이 달라진다 — 결정적이라는 말이 무색해진다.
    대신 그 항목의 **글과 순번**을 섞는다: 시나리오가 같으면 늘 같고, 항목마다 다르다. */
 function nhAutoTemp(key){
-  var h=0,s=String(key||'');
-  for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0;}
-  return 22+(h%71);
+  // 섞기는 heatJitter 한 벌만 쓴다 (v2.6) — 여기도 `h*31+c` 였는데, 끝 글자만 다른 키가
+  // 이웃 값으로 몰리는 같은 결함이 있었다. 두 벌로 두면 한쪽만 고쳐진다.
+  return 22+Math.floor(heatJitter(key)*71);
 }
 /* 사람이 올린 사진 주소만 통과시킨다 (v2.4) — `javascript:` 같은 것이 img src 로 들어가지
    않게. data: 는 이미지 한정. 못 믿을 값이면 빈 문자열이고, 그러면 테마 색으로 그린다. */
