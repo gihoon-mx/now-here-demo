@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=2.4.0" />
+  <link rel="stylesheet" href="style.css?v=2.5.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.4.0" />
+  <link rel="stylesheet" href="skin-new.css?v=2.5.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.4.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.5.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -36,15 +36,15 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.4.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.5.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
       <button class="mode-btn" data-mode="trend"><span class="mode-icon">⬡</span> 트렌드</button>
     </div>
     <nav class="atb-menus">
-      <button type="button" data-adm-open="c-spot">🗂 컨텐츠 관리</button>
-      <button type="button" data-adm-open="s-spot">🎨 스타일 설정</button>
+      <button type="button" data-adm-open="c-table">📦 컨텐츠</button>
+      <button type="button" data-adm-open="s-skin">🖥 화면 · 스타일</button>
       <button type="button" data-adm-open="y-preview">🛠 시스템</button>
     </nav>
     <div class="atb-right">
@@ -250,18 +250,25 @@
     <div class="modal-card adm-card">
       <div class="modal-head"><span id="adm-title">관리자 메뉴</span><button id="adm-close" class="acct-btn" type="button">✕</button></div>
       <div class="adm-body">
+        <!-- v2.5 재정비: 그룹 = 하려는 일. ①컨텐츠(하나씩 만들고 정리) ②채우기(한 번에)
+             ③화면·디자인(고르면 즉시) ④지도 스타일(미리보기→적용) ⑤시스템.
+             표시 옵션(그리드·아이콘 크기·카드 스타일…)은 컨텐츠 패널에 섞여 있던 것을
+             s-view 로 모았다 — "옵션이 안 보인다" 는 말이 나온 원인이 그 섞임이었다. -->
         <nav id="adm-nav">
-          <div class="adm-nav-cap">🗂 컨텐츠 관리</div>
+          <div class="adm-nav-cap">📦 컨텐츠 — 만들고 정리</div>
           <button type="button" data-panel="c-table">📋 전체 컨텐츠</button>
           <button type="button" data-panel="c-spot">💬 스팟 메시지</button>
+          <button type="button" data-panel="c-feed">🖼 피드 사진</button>
           <button type="button" data-panel="c-zone">⬡ 트렌드 존</button>
-          <button type="button" data-panel="c-feed">🖼 피드</button>
-          <button type="button" data-panel="c-social">👥 소셜 채팅방</button>
           <button type="button" data-panel="c-news">📰 요약 지면</button>
-          <button type="button" data-panel="c-seed">🌱 데모 데이터</button>
+          <button type="button" data-panel="c-social">👥 소셜 채팅방</button>
+          <div class="adm-nav-cap">🌱 한 번에 채우기</div>
+          <button type="button" data-panel="c-seed">🌱 데모 데이터 (3지역)</button>
           <button type="button" data-panel="c-gen">📍 지역 시드 생성</button>
-          <div class="adm-nav-cap">🎨 스타일 설정</div>
-          <button type="button" data-panel="s-skin">🎛 디자인</button>
+          <div class="adm-nav-cap">🖥 화면 · 디자인 — 즉시 적용</div>
+          <button type="button" data-panel="s-skin">🎛 디자인 스킨</button>
+          <button type="button" data-panel="s-view">📐 표시 옵션</button>
+          <div class="adm-nav-cap">🗺 지도 스타일 — 미리보기 → 적용</div>
           <button type="button" data-panel="s-spot">💬 스팟 말풍선</button>
           <button type="button" data-panel="s-region">🗺 동 구역·라벨</button>
           <button type="button" data-panel="s-zone">⬡ 트렌드 존·라벨</button>
@@ -343,22 +350,15 @@
               <div id="zone-list-area" style="display:none;">
                 <div id="zone-list"></div>
               </div>
-              <div class="setting-row" style="margin-top:8px;"><label>목록 카드</label><select id="zone-card-style" class="mini-select"><option value="glass">글래스 캡션</option><option value="list">리스트 (별점·거리)</option></select></div>
-              <p class="section-hint">트렌드 모드에서 지도의 헥사곤을 선택하면 새 존을 만들 수 있어요. 카드 스타일은 존 리스트·트렌드 요약 공간에 반영돼요.</p>
+              <p class="section-hint">트렌드 모드에서 지도의 헥사곤을 선택하면 새 존을 만들 수 있어요. 목록 카드 스타일은 <b>🖥 화면·디자인 › 📐 표시 옵션</b>에 있어요.</p>
             </div>
             <div class="settings-section" data-adm="c-feed">
-              <h4>피드 컨텐츠</h4>
+              <h4>피드 사진</h4>
               <button id="feed-add-btn" class="action-btn accent" type="button" style="width:100%;">＋ 사진 추가 (업로드)</button>
               <input type="file" id="feed-file" accept="image/*" multiple hidden />
               <div class="news-url-row"><input type="url" id="feed-url-input" placeholder="또는 이미지 링크(https://...) 붙여넣기" /><button id="feed-url-btn" class="action-btn accent small" type="button">링크</button></div>
               <div id="feedcol-list"></div>
-              <p class="section-hint">사진을 올리면 피드 탭에 노출돼요. 각 사진의 트렌드존을 지정하면 동(구역)이 자동으로 채워져요.</p>
-              <div class="setting-row" style="margin-top:8px;"><label>지도 아이콘 크기</label><input type="number" id="feed-icon-size" min="8" max="120" step="1" placeholder="스팟과 동일" style="width:110px;" /><span class="section-hint" style="margin:0;">지도 위 사진 핀(px)</span></div>
-              <div class="setting-row"><label>그리드 열</label><select id="feed-cols" class="mini-select"><option value="1">1개 (전체폭)</option><option value="2">2개</option><option value="3">3개</option></select></div>
-              <div class="setting-row"><label>사진 간격</label><select id="feed-gap" class="mini-select"><option value="0">없음</option><option value="0.6">최소</option><option value="1.2">좁게</option><option value="2.4">보통</option></select></div>
-              <div class="setting-row"><label>올린 시간</label><select id="feed-time" class="mini-select"><option value="ago">상대 (n분 전)</option><option value="clock">시각 (월/일 시:분)</option><option value="off">숨김</option></select></div>
-              <div class="setting-row"><label>스팟 지도 배경</label><select id="spotmap-op" class="mini-select"><option value="0">끔</option><option value="0.2">옅게</option><option value="0.35">보통</option><option value="0.55">진하게</option></select><select id="spotmap-scale" class="mini-select"><option value="50">50 m</option><option value="100">100 m</option><option value="200">200 m</option></select></div>
-              <p class="section-hint">피드 탭의 스팟 메시지 카드 배경에 해당 위치 지도를 연하게 깔아요. 축척=카드 128px 기준. ⚠️ API 키에 Maps Static API 허용 필요(미허용 시 배경 없이 표시).</p>
+              <p class="section-hint">사진을 올리면 피드 탭에 노출돼요. 각 사진의 트렌드존을 지정하면 동(구역)이 자동으로 채워져요. 보이는 방식(그리드 열·아이콘 크기·시간)은 <b>🖥 화면·디자인 › 📐 표시 옵션</b>에 있어요.</p>
             </div>
             <div class="settings-section" data-adm="c-social">
               <h4>소셜 컨텐츠 (채팅방)</h4>
@@ -376,9 +376,8 @@
                 <input type="url" id="news-url-input" placeholder="이미지 링크(https://...) 붙여넣기" />
                 <button id="news-url-btn" class="action-btn accent small" type="button">링크</button>
               </div>
-              <div class="setting-row" style="margin-top:8px;"><label>카드 스타일</label><select id="news-cardver" class="mini-select"><option value="1">버전 1 · 풀 이미지</option><option value="2">버전 2 · 분할 카드</option><option value="3">버전 3 · 글라스 캡션</option></select></div>
               <div id="news-list"></div>
-              <p class="section-hint">상단 요약 공간에 노출할 UI 목업 이미지. 각 이미지의 탭(지도/피드/소셜)을 지정하면 해당 탭에서만 보여요. 피드 컨텐츠와는 별개.</p>
+              <p class="section-hint">상단 요약 공간에 노출할 UI 목업 이미지. 각 이미지의 탭(지도/피드/소셜)을 지정하면 해당 탭에서만 보여요. 피드 컨텐츠와는 별개. 카드 스타일은 <b>🖥 화면·디자인 › 📐 표시 옵션</b>에 있어요.</p>
             </div>
             <!-- [M13] v1.93 지역 시드 생성기 — 포커스 지역 기준 Places 검색 + AI 문구 -->
             <div class="settings-section" data-adm="c-gen">
@@ -433,6 +432,23 @@
               </div>
               <p class="section-hint"><b>v3.0</b>은 석촌동 에셋 기준 재설계(웜 오프화이트 + 코랄 · °C 지표)로, 폰 화면뿐 아니라 <b>이 콘솔 화면까지 함께</b> 바뀝니다 — 핸드오프가 웹앱과 콘솔을 같이 그렸기 때문이에요. <b>v2.0</b>은 시안 스킨(폰 화면만). 고르는 즉시 바뀌고, 저장하면 모든 사용자에게 반영돼요. 문제가 생기면 <b>기존(Legacy)</b>으로 되돌리면 v1.77 화면 그대로입니다.</p>
             </div>
+            <!-- v2.5 신설: 표시 옵션 — 컨텐츠 패널들에 섞여 있던 "어떻게 보이나" 를 한 곳에.
+                 전부 고르는 즉시 적용·클라우드 동기 (아래 지도 스타일의 미리보기→적용과 다르다). -->
+            <div class="settings-section" data-adm="s-view">
+              <h4>표시 옵션</h4>
+              <p class="section-hint">서비스 화면이 <b>어떻게 보이는지</b>만 모았어요. 고르는 즉시 적용되고 모든 사용자에게 저장됩니다. 무엇이 떠 있는지(컨텐츠 추가·정리)는 📦 컨텐츠 그룹에 있어요.</p>
+              <div class="row-cap">피드 화면</div>
+              <div class="setting-row"><label>지도 아이콘 크기</label><input type="number" id="feed-icon-size" min="8" max="120" step="1" placeholder="스팟과 동일" style="width:110px;" /><span class="section-hint" style="margin:0;">지도 위 사진 핀(px, 기준 줌 16). 비우면 스팟 이모지 크기를 따라요.</span></div>
+              <div class="setting-row"><label>그리드 열</label><select id="feed-cols" class="mini-select"><option value="1">1개 (전체폭)</option><option value="2">2개</option><option value="3">3개</option></select></div>
+              <div class="setting-row"><label>사진 간격</label><select id="feed-gap" class="mini-select"><option value="0">없음</option><option value="0.6">최소</option><option value="1.2">좁게</option><option value="2.4">보통</option></select></div>
+              <div class="setting-row"><label>올린 시간</label><select id="feed-time" class="mini-select"><option value="ago">상대 (n분 전)</option><option value="clock">시각 (월/일 시:분)</option><option value="off">숨김</option></select></div>
+              <div class="setting-row"><label>스팟 지도 배경</label><select id="spotmap-op" class="mini-select"><option value="0">끔</option><option value="0.2">옅게</option><option value="0.35">보통</option><option value="0.55">진하게</option></select><select id="spotmap-scale" class="mini-select"><option value="50">50 m</option><option value="100">100 m</option><option value="200">200 m</option></select></div>
+              <p class="section-hint">스팟 지도 배경 = 피드 탭의 스팟 메시지 카드 뒤에 그 위치 지도를 연하게 깔아요 (축척=카드 128px 기준, ⚠️ API 키에 Maps Static API 허용 필요).</p>
+              <div class="row-cap">카드 스타일</div>
+              <div class="setting-row"><label>존 목록 카드</label><select id="zone-card-style" class="mini-select"><option value="glass">글래스 캡션</option><option value="list">리스트 (별점·거리)</option></select></div>
+              <div class="setting-row"><label>지면 카드</label><select id="news-cardver" class="mini-select"><option value="1">버전 1 · 풀 이미지</option><option value="2">버전 2 · 분할 카드</option><option value="3">버전 3 · 글라스 캡션</option></select></div>
+              <p class="section-hint">존 목록 카드 = 드로어·트렌드 요약의 존 리스트, 지면 카드 = 상단 요약 공간의 이미지 카드.</p>
+            </div>
             <div id="settings-apply-bar" class="sab">
               <span class="sab-dot" aria-hidden="true"></span>
               <span id="sab-msg" class="sab-msg">모든 변경 적용됨</span>
@@ -440,7 +456,7 @@
               <button id="sab-revert" class="action-btn small" type="button" style="display:none;" title="마지막 적용 상태로 되돌리기">취소</button>
               <button id="sab-apply" class="action-btn accent small" type="button" style="display:none;">전체 적용</button>
             </div>
-            <p class="section-hint">설정 변경은 각 블록의 <b>미리보기 타일에만</b> 반영돼요. 블록의 <b>적용</b>(또는 위 <b>전체 적용</b>)을 눌러야 실제 지도와 모든 사용자에게 저장됩니다.</p>
+            <p class="section-hint" id="sab-hint">설정 변경은 각 블록의 <b>미리보기 타일에만</b> 반영돼요. 블록의 <b>적용</b>(또는 위 <b>전체 적용</b>)을 눌러야 실제 지도와 모든 사용자에게 저장됩니다.</p>
             <div class="settings-section" data-adm="s-spot" data-prev="spot">
               <h4>스팟 메시지 기본 스타일</h4>
               <div class="setting-row"><label>이모지 위치</label><select id="spot-emoji-pos" class="mini-select"><option value="bottom">아래</option><option value="top">위</option><option value="left">왼쪽</option><option value="right">오른쪽</option></select></div>
@@ -591,7 +607,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.4.0"></script>
-  <script src="app.js?v=2.4.0"></script>
+  <script src="config.js?v=2.5.0"></script>
+  <script src="app.js?v=2.5.0"></script>
 </body>
 </html>

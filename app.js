@@ -3155,6 +3155,24 @@ function applySettingsData(s){ // 스타일 설정 병합 (클라우드·파일 
    ⚠️ 이 브라우저에서 앱(로그인)을 한 번도 안 연 기기는 캐시가 없다 — 그때는 파일 백스톱이 기준. */
 var SETTINGS_CACHE_KEY='nowhere_settings_cache';
 var settingsCacheOn=false; // 임베드가 캐시를 적용했나 — 뒤늦게 오는 파일 백스톱이 덮지 않게
+var settingsRemoteOn=false; // 임베드가 공개 설정 문서를 적용했나 (v2.5) — 셋 중 가장 최신
+/* 관리자 적용 설정의 통째 스냅샷 — 캐시(localStorage)·공개 문서(publicSettings)가 같은 것을 나른다. */
+function settingsSnapshotFull(){
+  var snap=snapshotSettings();
+  return {
+    settings:{styleConfig:snap.styleConfig,hexStyleConfig:snap.hexStyleConfig,localLabelConfig:snap.localLabelConfig,zoneLabelConfig:snap.zoneLabelConfig,smoothEnabled:snap.smoothEnabled,smoothIntensity:snap.smoothIntensity,hexRadiusKm:snap.hexRadiusKm,zoneMergeBlocks:snap.zoneMergeBlocks},
+    spotConfig:snap.spotConfig,
+    zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,
+    spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},feedIconSize:feedIconSize};
+}
+/* 스냅샷 하나를 통째로 적용한다 — 캐시·공개 문서가 같은 코드를 탄다 (두 벌이면 한쪽만 고쳐진다). */
+function applyFullSettings(c){
+  if(!c||typeof c!=='object')return false;
+  applySettingsData(c.settings);
+  if(c.spotConfig)mergeInto(spotConfig,c.spotConfig);
+  applyExtraSettings(c);
+  return true;
+}
 /* 스타일 밖의 설정 다섯 — 스킨·존 카드·피드 시간·스팟 지도배경·피드 아이콘 크기 (v2.3.1).
    **값만 읽는다** (화면 갱신은 부르는 쪽 몫 — 임베드는 부팅 전이라 갱신할 컨트롤이 없다).
 
@@ -3170,31 +3188,47 @@ function applyExtraSettings(s){
   if(s.feedIconSize!=null&&isFinite(Number(s.feedIconSize)))feedIconSize=Math.max(0,Math.round(Number(s.feedIconSize)));
 }
 function saveSettingsCache(){
-  try{
-    var snap=snapshotSettings();
-    localStorage.setItem(SETTINGS_CACHE_KEY,JSON.stringify({
-      settings:{styleConfig:snap.styleConfig,hexStyleConfig:snap.hexStyleConfig,localLabelConfig:snap.localLabelConfig,zoneLabelConfig:snap.zoneLabelConfig,smoothEnabled:snap.smoothEnabled,smoothIntensity:snap.smoothIntensity,hexRadiusKm:snap.hexRadiusKm,zoneMergeBlocks:snap.zoneMergeBlocks},
-      spotConfig:snap.spotConfig,
-      zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,
-      spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},feedIconSize:feedIconSize}));
-  }catch(e){}
+  try{localStorage.setItem(SETTINGS_CACHE_KEY,JSON.stringify(settingsSnapshotFull()));}catch(e){}
 }
 function loadSettingsCache(){ // 임베드 부팅 전용 — applyCloudData 의 설정 부분과 같은 적용 순서
   if(!IS_EMBED)return;
   try{
-    var c=JSON.parse(localStorage.getItem(SETTINGS_CACHE_KEY)||'null');
-    if(!c||typeof c!=='object')return;
-    applySettingsData(c.settings);
-    if(c.spotConfig)mergeInto(spotConfig,c.spotConfig);
-    applyExtraSettings(c);
-    settingsCacheOn=true;
+    if(applyFullSettings(JSON.parse(localStorage.getItem(SETTINGS_CACHE_KEY)||'null')))
+      settingsCacheOn=true;
   }catch(e){}
+}
+/* ── 공개 설정 문서 (v2.5) — persona-vc 임베드에 자동으로 건너가는 유일한 실시간 경로 ──
+   localStorage 캐시는 cross-site iframe 에서 안 보인다 (storage partitioning — D91 ③).
+   그래서 관리자가 설정을 적용할 때 `shared/publicSettings` 문서에도 스냅샷을 남기고,
+   임베드가 부팅에서 **REST 로** 읽는다 — Firebase SDK 를 안 붙인다는 임베드 설계(M16)를
+   지키면서 문서 하나만 fetch 한다. 규칙이 이 문서만 비로그인 읽기를 연다(firestore.rules).
+   값은 `json` 문자열 필드 하나다 — Firestore REST 의 타입 달린 필드(mapValue…)를
+   되짚어 조립하지 않기 위해서다. 규칙이 아직 게시 전이면 403 이고, 조용히 예전 경로
+   (캐시 → settings-default.json)로 산다. */
+var PUBLIC_SETTINGS_URL='https://firestore.googleapis.com/v1/projects/'
+  +'now-here-demo/databases/(default)/documents/shared/publicSettings';
+function loadRemoteSettings(){
+  if(!IS_EMBED||typeof fetch!=='function')return;
+  if(typeof CONFIG==='undefined'||!CONFIG.FIREBASE||!CONFIG.FIREBASE.apiKey)return;
+  fetch(PUBLIC_SETTINGS_URL+'?key='+CONFIG.FIREBASE.apiKey)
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(doc){
+      var raw=doc&&doc.fields&&doc.fields.json&&doc.fields.json.stringValue;
+      if(!raw)return;
+      if(!applyFullSettings(JSON.parse(raw)))return;
+      settingsRemoteOn=true; // 파일 백스톱이 나중에 와도 안 덮게
+      // 이미 그려진 뒤에 도착할 수 있다 — 화면을 지금 값으로 다시 맞춘다.
+      if(typeof mapReady!=='undefined'&&mapReady){refreshMapStyles();refreshHexStyles();refreshSpotStyles();refreshZoneLabels();updateLocalLabelStyle();}
+      if(typeof renderNews==='function')renderNews();
+      if(typeof renderFeed==='function'&&typeof currentTab!=='undefined'&&currentTab==='feed')renderFeed();
+      if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+    }).catch(function(e){});
 }
 function loadFileDefaults(){ // repo 백스톱(settings-default.json): 코드 기본값 < 파일 < 클라우드 순으로 적용
   fetch('settings-default.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(s){
     if(!s||typeof s!=='object'||(!s.styleConfig&&!s.spotConfig))return; // 빈 파일({})이면 무시
     if(cloudData)return; // 이미 클라우드 설정이 적용됨 — 클라우드 우선
-    if(settingsCacheOn)return; // 임베드가 관리자 캐시를 적용함 — 캐시가 파일보다 최신이다 (v2.3)
+    if(settingsCacheOn||settingsRemoteOn)return; // 임베드가 캐시·공개 문서를 적용함 — 그쪽이 파일보다 최신이다 (v2.3·v2.5)
     applySettingsData(s);
     if(s.spotConfig)mergeInto(spotConfig,s.spotConfig);
     applyExtraSettings(s); // 스킨·존 카드·피드 시간·지도배경·아이콘 크기도 파일이 정한다 (v2.3.1)
@@ -3502,6 +3536,13 @@ function cloudSave(){
     feedIconSize:feedIconSize}; // v2.3 — additive(옛 클라이언트는 모르고 지나간다)
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
+  /* 공개 설정 문서 (v2.5) — persona-vc 임베드가 비로그인 REST 로 읽는다. json 문자열
+     하나로 싣는다(REST 파싱 단순화). 규칙 게시 전에는 permission-denied 로 조용히 실패하고
+     아무것도 잃지 않는다 — mapContent 저장과 분리된 catch 라 서로를 못 막는다. */
+  fbDb.collection('shared').doc('publicSettings').set({
+    json:JSON.stringify(settingsSnapshotFull()),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(function(e){console.warn('publicSettings save fail (규칙 게시 전이면 정상)',e);});
 }
 
 /* ========== [M12] 접근권한(allowlist) 관리 ========== */
@@ -5713,17 +5754,28 @@ function initAdminMenu(){
   if(!IS_ADMIN_PAGE)return;
   var menu=document.getElementById('admin-menu');if(!menu)return;
   var title=document.getElementById('adm-title');
-  var GROUP_TITLES={c:'🗂 컨텐츠 관리',s:'🎨 스타일 설정',y:'🛠 시스템'};
+  /* 미리보기→적용(드래프트)을 타는 패널만 — 적용 바·안내문은 여기서만 보인다 (v2.5).
+     즉시 적용 패널(s-skin·s-view)에 그 안내가 같이 뜨면 "적용을 눌러야 하나" 로 헷갈린다. */
+  var DRAFT_PANELS=['s-spot','s-region','s-zone','s-lens'];
   function show(key){
     menu.style.display='flex';
     var grp=key.charAt(0);
-    document.querySelectorAll('#adm-nav [data-panel]').forEach(function(b){b.classList.toggle('active',b.dataset.panel===key);});
+    var active=null;
+    document.querySelectorAll('#adm-nav [data-panel]').forEach(function(b){
+      var on=b.dataset.panel===key;b.classList.toggle('active',on);if(on)active=b;
+    });
     var cs=document.getElementById('content-section'),ss=document.getElementById('settings-section');
     if(cs)cs.style.display=(grp==='c')?'':'none';
     if(ss)ss.style.display=(grp==='s')?'':'none';
+    var draft=DRAFT_PANELS.indexOf(key)>=0;
+    var bar=document.getElementById('settings-apply-bar');if(bar)bar.style.display=draft?'':'none';
+    var hint=document.getElementById('sab-hint');if(hint)hint.style.display=draft?'':'none';
     document.querySelectorAll('#adm-panels .adm-sys').forEach(function(p){p.style.display=(p.dataset.adm===key)?'block':'none';}); // 기본 CSS가 none이라 명시적 block
     document.querySelectorAll('#adm-panels .settings-section[data-adm]').forEach(function(p){p.classList.toggle('adm-active',p.dataset.adm===key);});
-    if(title)title.textContent=GROUP_TITLES[grp]||'관리자 메뉴';
+    // 팝업 제목 = 내비의 그룹 캡션 (v2.5) — 그룹이 다섯이라 키 첫 글자로는 못 가른다.
+    var cap=null,el=active;
+    while(el&&(el=el.previousElementSibling))if(el.classList&&el.classList.contains('adm-nav-cap')){cap=el.textContent;break;}
+    if(title)title.textContent=(cap||'관리자 메뉴').replace(/\s+—.*$/,''); // 캡션의 부연("— 즉시 적용")은 제목에서 뺀다
     var pn=document.getElementById('adm-panels');if(pn)pn.scrollTop=0;
   }
   window.openAdminMenu=show;
@@ -6849,6 +6901,7 @@ function startEmbed(){
   currentRole='user'; // ⚠️교차 M12: 글쓰기 앵커(addSpotContent)가 역할을 본다. 로그인은 여전히 없다
   nhEmbedIsolate();
   loadSettingsCache(); // 관리자가 적용한 스킨·설정을 데모의 기본값으로 (v2.3 — 지도 그리기 전에)
+  loadRemoteSettings(); // 공개 설정 문서 — cross-site iframe(persona-vc)에서도 닿는 유일한 실시간 경로 (v2.5)
   hideAuthOverlay();
   bootMap();
   var tries=0;
