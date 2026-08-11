@@ -443,7 +443,8 @@ function initSpotBubbleClass(){
       if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}
       if(dragging){m.setOptions({draggable:prevDrag!==false});if(self.div)self.div.classList.remove('dragging');}
       if(!fin)return; // 팬으로 판정 — 지도에 맡김
-      if(dragging&&moved){renderSpots();persistSpotEdit(self.spot);} // 저장: 라이브=liveSpots·로컬=기기 / 관리자=클라우드
+      if(dragging&&moved){renderSpots();persistSpotEdit(self.spot);
+        if(typeof nhPosNote==='function')nhPosNote(self.spot.id,self.spot.lat,self.spot.lng);} // 무대 항목이면 옮긴 자리를 다음 재생에도 (v2.3)
       else if(!moved&&(!dragging||!isTouch))openContentPop('spot',self.spot); // 탭/클릭=상세 팝업(✏️로 편집 진입 — 터치 롱프레스 후 제자리 해제는 무동작)
     }
     document.addEventListener('pointermove',mv); // 팬 중 버블이 손가락에서 벗어나도 추적되게 document에
@@ -534,7 +535,13 @@ function FeedThumb(cluster,m){ // cluster={pos,items:[{f,pos},…]} — 1개=단
 }
 function initFeedThumbClass(){
   FeedThumb.prototype=new google.maps.OverlayView();
-  FeedThumb.prototype._canEdit=function(){return this.members.length===1&&(currentRole==='admin'||ownsContent(this.item));}; // 만든이(uid/이메일) + 관리자 (클러스터는 이동 불가)
+  FeedThumb.prototype._canEdit=function(){
+    if(this.members.length!==1)return false; // 클러스터는 이동 불가
+    // 임베드의 무대 피드(fdn_)는 누구든 옮길 수 있다 (v2.3) — 로그인이 없어 소유자가
+    // 없고, 옮긴 자리는 nhPosNote 로 남아 다음 재생의 연출이 된다.
+    if(typeof IS_EMBED!=='undefined'&&IS_EMBED&&/^fdn_/.test(String(this.item.id||'')))return true;
+    return currentRole==='admin'||ownsContent(this.item); // 만든이(uid/이메일) + 관리자
+  };
   FeedThumb.prototype.onAdd=function(){
     var self=this,n=this.members.length;
     var d=document.createElement('div');d.className='feed-pin';
@@ -604,6 +611,7 @@ function initFeedThumbClass(){
       var lat=self.position.lat(),lng=self.position.lng();
       var zz=zoneObjAtCenter(lat,lng);
       feedUpdate(self.item,{lat:lat,lng:lng,region:dongAt(lat,lng)||self.item.region||'',zone:zz?zz.id:null});
+      if(typeof nhPosNote==='function')nhPosNote(self.item.id,lat,lng); // 무대 항목이면 옮긴 자리를 다음 재생에도 (v2.3)
       renderFeedMarkers();renderFeedColList();renderDrawerDemo();renderNews();if(currentTab==='feed')renderFeed(); // 다른 지도 핀·리스트 동기화
     }
     document.addEventListener('pointermove',mv); // 팬 중 핀이 손가락에서 벗어나도 추적되게 document에
@@ -615,10 +623,11 @@ function initFeedThumbClass(){
     var px=p.fromLatLngToDivPixel(this.position);if(!px)return;
     this.div.style.left=px.x+'px';this.div.style.top=px.y+'px';this._ax=px.x;this._ay=px.y; // 앵커(declutter 참조)
     var m=this.getMap(),z=m?m.getZoom():15;
-    // v1.63: 스팟 이모지와 완전히 동일한 크기 로직 — 기준 크기=spotConfig.emojiSize, 점 전환 기준도 동일
+    // v1.63: 스팟 이모지와 동일한 크기 곡선 — 점 전환 기준도 동일
     // v1.95: 곡선을 contentScale 로 (전엔 클램프가 없어 줌18 에서 104px 까지 커졌다)
+    // v2.3: 기준 크기만 분리 옵션(feedIconSize, 0=스팟 이모지 크기 따름)
     var mpp2=mapMpp(m),isDot=mpp2?((mpp2*64)>spotDotScaleM()):(z<13);
-    var base=Number(spotConfig.emojiSize)||26;
+    var base=feedIconBase();
     var px2=isDot?12:Math.max(10,Math.round(base*contentScale(z)));
     this.div.style.width=px2+'px';this.div.style.height=px2+'px';
     this.div.classList.toggle('fp-dot',isDot);
@@ -3137,10 +3146,45 @@ function applySettingsData(s){ // 스타일 설정 병합 (클라우드·파일 
   if(s.smoothIntensity!==undefined)smoothIntensity=s.smoothIntensity;
   if(s.hexRadiusKm!==undefined)hexRadiusKm=s.hexRadiusKm;
 }
+/* ── 관리자 적용 설정의 로컬 캐시 (v2.3) ──
+   임베드(persona-vc 데모)는 Firebase 를 안 붙여서 클라우드 설정을 못 읽는다 — 그래서
+   관리자가 콘솔에서 고른 스킨·스타일이 데모에는 코드 기본값으로 떨어졌다.
+   임베드는 관리자 콘솔과 **같은 오리진**(gihoon-mx.github.io)이므로, 관리자가 설정을
+   적용(cloudSave)하거나 클라우드본을 받을(applyCloudData) 때 통째 스냅샷을 localStorage 에
+   남기고, 임베드가 부팅에서 그걸 읽는다. 우선순위: 코드 기본값 < settings-default.json < 이 캐시.
+   ⚠️ 이 브라우저에서 앱(로그인)을 한 번도 안 연 기기는 캐시가 없다 — 그때는 파일 백스톱이 기준. */
+var SETTINGS_CACHE_KEY='nowhere_settings_cache';
+var settingsCacheOn=false; // 임베드가 캐시를 적용했나 — 뒤늦게 오는 파일 백스톱이 덮지 않게
+function saveSettingsCache(){
+  try{
+    var snap=snapshotSettings();
+    localStorage.setItem(SETTINGS_CACHE_KEY,JSON.stringify({
+      settings:{styleConfig:snap.styleConfig,hexStyleConfig:snap.hexStyleConfig,localLabelConfig:snap.localLabelConfig,zoneLabelConfig:snap.zoneLabelConfig,smoothEnabled:snap.smoothEnabled,smoothIntensity:snap.smoothIntensity,hexRadiusKm:snap.hexRadiusKm,zoneMergeBlocks:snap.zoneMergeBlocks},
+      spotConfig:snap.spotConfig,
+      zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,
+      spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},feedIconSize:feedIconSize}));
+  }catch(e){}
+}
+function loadSettingsCache(){ // 임베드 부팅 전용 — applyCloudData 의 설정 부분과 같은 적용 순서
+  if(!IS_EMBED)return;
+  try{
+    var c=JSON.parse(localStorage.getItem(SETTINGS_CACHE_KEY)||'null');
+    if(!c||typeof c!=='object')return;
+    applySettingsData(c.settings);
+    if(c.spotConfig)mergeInto(spotConfig,c.spotConfig);
+    if(c.zoneCardStyle==='glass'||c.zoneCardStyle==='list')zoneCardStyle=c.zoneCardStyle;
+    if(c.feedTimeMode==='ago'||c.feedTimeMode==='clock'||c.feedTimeMode==='off')feedTimeMode=c.feedTimeMode;
+    if(APP_SKINS.indexOf(c.appSkin)>=0){appSkin=c.appSkin;applySkin();} // setAppSkin 은 저장까지 하는데 임베드는 저장이 무음이라 직접 적용
+    if(c.spotMapBg&&typeof c.spotMapBg==='object'){spotMapBg.op=Number(c.spotMapBg.op)||0;spotMapBg.scaleM=Number(c.spotMapBg.scaleM)||100;}
+    if(c.feedIconSize!=null&&isFinite(Number(c.feedIconSize)))feedIconSize=Math.max(0,Math.round(Number(c.feedIconSize)));
+    settingsCacheOn=true;
+  }catch(e){}
+}
 function loadFileDefaults(){ // repo 백스톱(settings-default.json): 코드 기본값 < 파일 < 클라우드 순으로 적용
   fetch('settings-default.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(s){
     if(!s||typeof s!=='object'||(!s.styleConfig&&!s.spotConfig))return; // 빈 파일({})이면 무시
     if(cloudData)return; // 이미 클라우드 설정이 적용됨 — 클라우드 우선
+    if(settingsCacheOn)return; // 임베드가 관리자 캐시를 적용함 — 캐시가 파일보다 최신이다 (v2.3)
     applySettingsData(s);
     if(s.spotConfig)mergeInto(spotConfig,s.spotConfig);
     initDraft();syncSettingsUI();renderMiniPreviews();
@@ -3171,6 +3215,11 @@ function applyCloudData(d){
     var _mo=document.getElementById('spotmap-op');if(_mo)_mo.value=String(spotMapBg.op);
     var _ms=document.getElementById('spotmap-scale');if(_ms)_ms.value=String(spotMapBg.scaleM);
     if(currentTab==='feed')renderFeed();}
+  if(d.feedIconSize!=null&&isFinite(Number(d.feedIconSize))){ // v2.3 피드 지도 아이콘 크기 (additive — 필드 없으면 유지)
+    feedIconSize=Math.max(0,Math.round(Number(d.feedIconSize)));saveFeedIconSize();
+    var _fis=document.getElementById('feed-icon-size');if(_fis)_fis.value=feedIconSize>0?String(feedIconSize):'';
+    if(typeof renderFeedMarkers==='function')renderFeedMarkers();}
+  saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   blockDirty={};updateApplyBar();updateBlockBars(); // 클라우드본 = 적용 기준선
 }
 /* ========== [M11] 설정 미니 프리뷰: 각 설정 블록 상단에 그 옵션의 예시를 실시간 렌더 ========== */
@@ -3421,7 +3470,9 @@ function cloudSave(){
     spots:adminSpots.map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text,emoji:s.emoji,color:s.color||null,alpha:(s.alpha!=null?Number(s.alpha):null)};}),
     spotConfig:snap.spotConfig,
     social:{rooms:socRoomList,seedLocal:socSeedLocal},
-    zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM}};
+    zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},
+    feedIconSize:feedIconSize}; // v2.3 — additive(옛 클라이언트는 모르고 지나간다)
+  saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
 }
 
@@ -3896,6 +3947,12 @@ try{var _fty=JSON.parse(localStorage.getItem('nowhere_feedtypes')||'{}');Object.
 function feedTypeOf(it){return it.type==='photo'?(it.kind==='cam'?'cam':'post'):it.type;} // post/cam/spot/news
 var feedTimeMode='ago'; // 올린 시간 표시: 'ago'(상대)/'clock'(시각)/'off'
 try{var _ft=localStorage.getItem('nowhere_feedtime');if(_ft==='ago'||_ft==='clock'||_ft==='off')feedTimeMode=_ft;}catch(e){}
+// 피드 지도 아이콘(썸네일 핀) 기준 크기 px (v2.3) — 0 = 스팟 이모지 크기(spotConfig.emojiSize)를 따른다.
+// 여태 스팟과 한 몸이었는데(v1.63) 따로 조절하고 싶다는 요청으로 분리 — 관리자 설정·클라우드 동기, additive.
+var feedIconSize=0;
+try{var _fis=parseInt(localStorage.getItem('nowhere_feedicon'),10);if(isFinite(_fis)&&_fis>=0)feedIconSize=_fis;}catch(e){}
+function saveFeedIconSize(){try{localStorage.setItem('nowhere_feedicon',String(feedIconSize));}catch(e){}}
+function feedIconBase(){return feedIconSize>0?feedIconSize:(Number(spotConfig.emojiSize)||26);}
 // 스팟 카드 지도 배경(피드 탭): op=지도 불투명도(0=끔), scaleM=축척(카드 세로 128px 기준 m) — 관리자 설정·클라우드 동기
 var spotMapBg={op:0.35,scaleM:100};
 try{var _smb=JSON.parse(localStorage.getItem('nowhere_spotmapbg')||'null');if(_smb&&typeof _smb==='object'){if(_smb.op!=null)spotMapBg.op=Number(_smb.op)||0;if(_smb.scaleM)spotMapBg.scaleM=Number(_smb.scaleM)||100;}}catch(e){}
@@ -4187,6 +4244,15 @@ function initFeedTools(){
   var mop=document.getElementById('spotmap-op'),msc=document.getElementById('spotmap-scale');
   if(mop){mop.value=String(spotMapBg.op);mop.addEventListener('change',function(){spotMapBg.op=parseFloat(this.value)||0;saveSpotMapBg();markCloudDirty();if(currentTab==='feed')renderFeed();});}
   if(msc){msc.value=String(spotMapBg.scaleM);msc.addEventListener('change',function(){spotMapBg.scaleM=parseInt(this.value,10)||100;saveSpotMapBg();markCloudDirty();if(currentTab==='feed')renderFeed();});}
+  // 피드 지도 아이콘 크기 (v2.3) — 빈 칸 = 스팟 이모지 크기를 따른다. 클라우드 동기.
+  var fis=document.getElementById('feed-icon-size');
+  if(fis){fis.value=feedIconSize>0?String(feedIconSize):'';fis.addEventListener('change',function(){
+    var v=parseInt(this.value,10);
+    feedIconSize=(isFinite(v)&&v>0)?Math.min(120,Math.max(8,v)):0;
+    this.value=feedIconSize>0?String(feedIconSize):'';
+    saveFeedIconSize();markCloudDirty();
+    if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+  });}
   applyFeedGap(feedGap);
   // 링크로 피드 이미지 추가 (관리자 · 요약 공간 지면과 동일 방식)
   var ub=document.getElementById('feed-url-btn'),ui=document.getElementById('feed-url-input');
@@ -4625,60 +4691,13 @@ function renderRequestMarkers(){
    30분마다 처음으로 돌아가며 계속 카운트다운한다. */
 var timeDeals=[], dealMarkers=[], dealSheetId=null, dealTicker=null;
 var DEAL_KEY='nowhere_deals';
-var SEED_DEALS=[
-  {e:'🧢',title:'여름 필수템 30% 타임딜',shop:'팝업스토어',pct:30,price:'13,900원',was:'19,900원',stock:'12개',secs:2130},
-  {e:'🍞',title:'소금빵 2+1 마감딜',shop:'송심당 베이커리',pct:33,price:'2개 값',was:'3개 값',stock:'8개',secs:900}
-];
-function loadDeals(){try{var a=JSON.parse(localStorage.getItem(DEAL_KEY)||'[]');if(Array.isArray(a))timeDeals=a;}catch(e){}}
+/* v2.3: 시드 딜(SEED_DEALS·ensureDealSeed) 폐지 — "추가하지 않았는데 딜 2개가 기본으로
+   떠 있다"(사용자). 딜은 이제 **까는 쪽이 명시한 것만** 뜬다: 무대(nhLayDeal)·시드
+   생성기(initSeedGen). 옛 자동 시드가 localStorage 에 남긴 것(id `dl_N`·seed:true —
+   그 경로만 쓰던 id 형식이다)은 읽을 때 걸러 낸다. 안 거르면 코드를 지워도
+   dealActive 가 seed:true 를 영영 살려 두어 화면에는 계속 남는다. */
+function loadDeals(){try{var a=JSON.parse(localStorage.getItem(DEAL_KEY)||'[]');if(Array.isArray(a))timeDeals=a.filter(function(d){return !(d&&d.seed&&/^dl_\d+$/.test(String(d.id)));});}catch(e){}}
 function saveDeals(){try{localStorage.setItem(DEAL_KEY,JSON.stringify(timeDeals.slice(0,20)));}catch(e){}}
-/* 딜을 **컨텐츠가 있는 자리**에 세운다. 좌표를 상수로 박으면 시드 지역을 옮길 때마다
-   딜만 엉뚱한 곳에 남는다 — 이미 올라온 사진의 좌표를 빌리고, 없으면 지도 센터에서
-   결정적 오프셋으로 놓는다(Math.random 금지 — v1.72 에서 배치가 매번 달라지던 문제). */
-var DEAL_NEAR_M=3000; // 이 거리를 넘으면 '내 주변 딜'이 아니다 — 무대를 따라 다시 세운다
-function ensureDealSeed(){
-  /* 빈 무대 임베드는 시드 딜을 안 세운다 (v2.2, 콘솔 D90).
-     D82 가 "화면에 뜨는 것은 그 데모가 깐 것뿐" 으로 정했는데 딜만 안 걸려 있었다.
-     그리고 이 함수는 지도가 DEAL_NEAR_M 를 넘어 움직이면 timeDeals 를 **비우고**
-     다시 세운다 — 무대가 깐 딜(nhLayDeal)이 있는데 이게 돌면 지역을 옮기는 순간
-     통째로 날아간다. 그래서 이 가드는 결함 수정이면서 무대 딜의 전제다. */
-  if(IS_CLEAN_EMBED)return;
-  /* 이번 회차가 깐 무대 딜이 있으면 자가복구를 끈다 (v2.2). 아래 재시드는
-     timeDeals 를 비우고 다시 세우므로, 무대 딜이 깔린 뒤 지역을 옮겨 이 함수가
-     돌면 방금 깐 것이 통째로 사라지고 nhTempIds.deal 에 주인 없는 id 만 남아
-     다음 nhSweepTemp 도 못 걷는다. 빈 무대는 위에서 이미 빠졌고, 여기는
-     "시드 딜에 무대 딜을 얹어 쓰는" 일반 임베드가 스스로를 지키는 몫이다. */
-  if(typeof nhTempIds!=='undefined'&&nhTempIds.deal&&nhTempIds.deal.length)return;
-  var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());
-  if(!c)return;
-  var clat=c.lat(),clng=c.lng();
-  /* 이미 있어도 **멀면 다시 세운다.** 딜은 '지금 여기'의 컨텐츠라 지역을 옮기면
-     따라와야 한다 — 처음 만든 자리에 그대로 두면 시연에서 화면에 아무것도 안 뜬다.
-     (임베드 시나리오가 지역을 옮겨 다니는 것을 전제로 한다 — M16.) */
-  if(timeDeals.length){
-    var near=Math.min.apply(null,timeDeals.map(function(d){return haversineM(clat,clng,d.lat,d.lng);}));
-    if(near<=DEAL_NEAR_M)return;
-  }
-  /* 딜을 **컨텐츠가 있는 자리**에 세운다. 좌표를 상수로 박으면 시드 지역을 옮길 때마다
-     딜만 엉뚱한 곳에 남는다. 그리고 배열 순서가 아니라 **센터에서 가까운 순**으로 고른다 —
-     시드가 5개 지역에 흩어져 있어서 순서대로 집으면 13km 밖에 세워진다(실측). */
-  var spots=[],seen={};
-  feedItems.map(function(f){
-    var pc=feedItemLatLng(f);
-    return pc?{p:pc,d:haversineM(clat,clng,pc.lat,pc.lng)}:null;
-  }).filter(Boolean).sort(function(a,b){return a.d-b.d;}).forEach(function(o){
-    if(spots.length>=SEED_DEALS.length)return;
-    var k=o.p.lat.toFixed(3)+','+o.p.lng.toFixed(3);if(seen[k])return;seen[k]=1;
-    spots.push(o.p);
-  });
-  timeDeals=[];
-  SEED_DEALS.forEach(function(d,i){
-    var p=spots[i];
-    if(!p)p={lat:clat+[0.0016,-0.0013][i%2],lng:clng+[-0.0019,0.0021][i%2]}; // 결정적 오프셋(Math.random 금지 — v1.72)
-    timeDeals.push({id:'dl_'+i,lat:p.lat,lng:p.lng,e:d.e,title:d.title,shop:d.shop,pct:d.pct,
-      price:d.price,was:d.was,stock:d.stock,secs:d.secs,ts:Date.now(),seed:true});
-  });
-  saveDeals();
-}
 function dealRemain(d){ // 남은 초
   if(!d)return 0;
   if(d.seed)return d.secs-Math.floor((Date.now()/1000)%d.secs); // 시드=주기적으로 되감김(시연용 상시 활성)
@@ -4709,7 +4728,6 @@ function initDealPinClass(){
 function renderDealMarkers(){
   dealMarkers.forEach(function(o){o.setMap(null);});dealMarkers=[];
   if(!phoneMap||typeof google==='undefined'||!google.maps)return;
-  ensureDealSeed();
   timeDeals.filter(dealActive).forEach(function(d){dealMarkers.push(new DealPin(d,phoneMap));});
   if(typeof declutterMarkers==='function')declutterMarkers();
 }
@@ -5846,7 +5864,9 @@ function nhEmbedIsolate(){
   try{
     var set=localStorage.setItem.bind(localStorage);
     localStorage.setItem=function(k,v){
-      if(String(k).indexOf('nowhere_')===0)return; // 이 앱의 상태 키만 막는다
+      // 이 앱의 상태 키만 막는다. 예외 하나(v2.3): 사람이 옮긴 무대 자리(NH_POS_KEY)는
+      // "사람이 정한 연출" 이라 다음 재생에 남아야 뜻이 있다.
+      if(String(k).indexOf('nowhere_')===0&&k!==NH_POS_KEY)return;
       return set(k,v);
     };
   }catch(e){}
@@ -5866,6 +5886,37 @@ function nhEmbedIsolate(){
 
 /* 지금 시나리오가 서 있는 지역 (area 스텝이 정한다). 빈 값이면 전 지역에서 고른다. */
 var nhAreaKey='';
+/* ── 무대 콘텐츠의 **사람이 옮긴 자리** (v2.3) ──
+   무대는 nhSpread 로 결정적으로 깔리지만, 사람이 임베드에서 핀을 끌어 옮기면 그 자리가
+   여기 남아 **다음 재생에도 그 자리에 깔린다** — "매번 같은 화면" 이라는 무대의 약속을
+   사람이 고친 자리까지 포함해서 지킨다.
+   키는 시나리오 id + 종류 + 항목 번호(id 접미사 — 회차가 달라도 같은 항목은 같은 값)다.
+   임베드의 localStorage 차단(nhEmbedIsolate)에서 이 키만 예외다 — 나머지 상태는 회차마다
+   버리는 것이 맞지만, 이 값은 "사람이 정한 연출" 이라 남아야 뜻이 있다. */
+var NH_POS_KEY='nowhere_stagepos';
+var nhScenarioKey=''; // 지금 재생 중인 시나리오 id — nhRun 이 채운다
+function nhPosAll(){try{var o=JSON.parse(localStorage.getItem(NH_POS_KEY)||'{}');return (o&&typeof o==='object')?o:{};}catch(e){return {};}}
+/* 무대 중심에서 5km 넘게 벗어난 저장값은 무시한다 — 데모의 동네를 옮기면 옛 자리는
+   다른 동네에 남은 값이라, 그대로 쓰면 화면 밖에 깔린다. */
+function nhPosGet(kind,i,c){
+  if(!nhScenarioKey)return null;
+  var o=nhPosAll()[nhScenarioKey],p=o&&o[kind+'_'+i];
+  if(!p||!isFinite(p.lat)||!isFinite(p.lng))return null;
+  if(c&&typeof haversineM==='function'&&haversineM(c.lat,c.lng,p.lat,p.lng)>5000)return null;
+  return p;
+}
+function nhPosSave(kind,i,lat,lng){
+  if(!nhScenarioKey)return;
+  var all=nhPosAll();
+  (all[nhScenarioKey]=all[nhScenarioKey]||{})[kind+'_'+i]={lat:lat,lng:lng};
+  try{localStorage.setItem(NH_POS_KEY,JSON.stringify(all));}catch(e){}
+}
+/* 드래그된 것이 무대 항목이면 그 자리를 남긴다 — id 접미사가 곧 항목 번호다. */
+function nhPosNote(id,lat,lng){
+  var m=/^(spn|fdn|rqn|dln)_\d+_(\d+)$/.exec(String(id||''));
+  if(!m)return;
+  nhPosSave({spn:'spot',fdn:'feed',rqn:'req',dln:'deal'}[m[1]],Number(m[2]),lat,lng);
+}
 /* 이번 회차가 만든 것들 — 시나리오 seed 와 재생 중 쓴 글, 그리고 전역 카드에 남긴
    좋아요(v1.94 — 회차를 넘어 살아남으면 두 번째 재생에서 하트가 이미 차 있다).
    nhReset 이 전부 걷어낸다. */
@@ -6315,7 +6366,7 @@ function nhSpread(c,i){
    서로 다른 물건이 된다. */
 function nhLayReq(r,i,c,stamp,token){
   if(typeof fieldRequests==='undefined')return null;
-  var id='rqn_'+stamp+'_'+i,p=nhSpread(c,i);
+  var id='rqn_'+stamp+'_'+i,p=nhPosGet('req',i,c)||nhSpread(c,i); // 사람이 옮긴 자리 우선 (v2.3)
   var lat=p.lat,lng=p.lng;
   fieldRequests.push({id:id,q:String(r.q||'').slice(0,120),lat:lat,lng:lng,
     place:(typeof dongAt==='function'?dongAt(lat,lng):'')||c.name,
@@ -6332,7 +6383,7 @@ function nhLayReq(r,i,c,stamp,token){
 }
 function nhLaySpot(s,i,c,stamp){
   if(typeof demoSpots==='undefined')return null;
-  var id='spn_'+stamp+'_'+i,p=nhSpread(c,10+i);
+  var id='spn_'+stamp+'_'+i,p=nhPosGet('spot',i,c)||nhSpread(c,10+i); // 사람이 옮긴 자리 우선 (v2.3)
   demoSpots.push({id:id,lat:p.lat,lng:p.lng,
     text:String(s.t||'').slice(0,80),emoji:s.emoji||'💬',live:true});
   nhTempIds.spot.push(id);
@@ -6340,7 +6391,7 @@ function nhLaySpot(s,i,c,stamp){
 }
 function nhLayFeed(f,i,c,stamp){
   if(typeof feedItems==='undefined')return null;
-  var id='fdn_'+stamp+'_'+i,p=nhSpread(c,20+i);
+  var id='fdn_'+stamp+'_'+i,p=nhPosGet('feed',i,c)||nhSpread(c,20+i); // 사람이 옮긴 자리 우선 (v2.3)
   feedItems.push({id:id,
     src:(typeof seedImg==='function'?seedImg(f.theme||'cafe',f.label||''):''),
     region:(typeof dongAt==='function'?dongAt(p.lat,p.lng):'')||c.name,zone:null,
@@ -6359,7 +6410,7 @@ function nhLayFeed(f,i,c,stamp){
    가격 3칸은 만든다(사람은 5칸만 적는다). **결정적**이어야 한다 — Math.random 금지. */
 function nhLayDeal(d,i,c,stamp){
   if(typeof timeDeals==='undefined')return null;
-  var id='dln_'+stamp+'_'+i,p=nhSpread(c,60+i);
+  var id='dln_'+stamp+'_'+i,p=nhPosGet('deal',i,c)||nhSpread(c,60+i); // 사람이 옮긴 자리 우선 (v2.3)
   var pct=Math.min(90,Math.max(5,(d.pct|0)||20));
   var secs=Math.min(7200,Math.max(30,(d.secs|0)||1800));
   var was=9900+i*5000;                             // 순번을 섞는다 — 셋이 다 같으면 지어낸 게 보인다
@@ -6665,6 +6716,7 @@ function nhSanitize(raw){
 function nhRun(id,reply,inline){
   var sc=inline?nhSanitize(inline):nhScenario(id);
   if(!sc){nhPost(reply,{type:'nh:error',message:inline?'시나리오 형식이 올바르지 않습니다.':'없는 시나리오: '+id});return;}
+  nhScenarioKey=String(sc.id||id||''); // 사람이 옮긴 무대 자리의 저장 단위 (v2.3)
   nhStop();nhReset();
   var token=++nhRunToken, i=0;
   nhSeedScenario(sc,token); // 이 시나리오가 성립하려면 화면에 있어야 하는 것부터 깐다
@@ -6728,6 +6780,7 @@ function startEmbed(){
   document.body.classList.add('embed-mode','role-user'); // role-user: 관리자 UI 를 CSS 로 닫아둔다
   currentRole='user'; // ⚠️교차 M12: 글쓰기 앵커(addSpotContent)가 역할을 본다. 로그인은 여전히 없다
   nhEmbedIsolate();
+  loadSettingsCache(); // 관리자가 적용한 스킨·설정을 데모의 기본값으로 (v2.3 — 지도 그리기 전에)
   hideAuthOverlay();
   bootMap();
   var tries=0;

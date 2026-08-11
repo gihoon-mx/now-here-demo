@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=2.2.0" />
+  <link rel="stylesheet" href="style.css?v=2.3.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.2.0" />
+  <link rel="stylesheet" href="skin-new.css?v=2.3.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.2.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.3.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -36,7 +36,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.2.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.3.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -358,6 +358,8 @@
               <div class="setting-row"><label>올린 시간</label><select id="feed-time" class="mini-select"><option value="ago">상대 (n분 전)</option><option value="clock">시각 (월/일 시:분)</option><option value="off">숨김</option></select></div>
               <div class="setting-row"><label>스팟 지도 배경</label><select id="spotmap-op" class="mini-select"><option value="0">끔</option><option value="0.2">옅게</option><option value="0.35">보통</option><option value="0.55">진하게</option></select><select id="spotmap-scale" class="mini-select"><option value="50">50 m</option><option value="100">100 m</option><option value="200">200 m</option></select></div>
               <p class="section-hint">피드 탭의 스팟 메시지 카드 배경에 해당 위치 지도를 연하게 깔아요. 축척=카드 128px 기준. ⚠️ API 키에 Maps Static API 허용 필요(미허용 시 배경 없이 표시).</p>
+              <div class="setting-row"><label>지도 아이콘 크기</label><input type="number" id="feed-icon-size" min="8" max="120" step="1" placeholder="스팟과 동일" style="width:110px;" /></div>
+              <p class="section-hint">지도 위 피드 썸네일 핀의 기준 크기(px, 기준 줌 16). 비우면 스팟 이모지 크기를 따라가요.</p>
             </div>
             <div class="settings-section" data-adm="c-social">
               <h4>소셜 컨텐츠 (채팅방)</h4>
@@ -590,7 +592,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.2.0"></script>
-  <script src="app.js?v=2.2.0"></script>
+  <script src="config.js?v=2.3.0"></script>
+  <script src="app.js?v=2.3.0"></script>
 </body>
 </html>
