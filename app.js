@@ -6720,6 +6720,20 @@ function nhSpread(c,i){
   var a=i*2.399963,r=0.0015+0.0008*(i%3);
   return {lat:c.lat+r*Math.cos(a),lng:c.lng+r*Math.sin(a)*1.25};
 }
+/* 무대에 깔 수 있는 개수 (v2.10) — **콘솔의 MAX_SEED_* 와 같은 값이어야 한다.**
+   화면이 허용한 것을 앱이 조용히 버리면 시연이 설명과 어긋난다. 10 이던 시절에는
+   "무대 = 여는 장면의 전제" 였는데, 콘솔이 컨텐츠 탭을 따로 내면서(콘솔 D93) 여기가
+   동네를 채우는 자리가 됐다. */
+var NH_MAX={req:10,spot:40,feed:40,deal:10,page:12};
+/* 자리 대역 (v2.10) — `nhSpread` 는 번호 하나로 자리를 정하므로, 종류가 겹치지 않게
+   하는 유일한 길이 대역이다. 상한이 10 이던 시절에는 10 칸(스팟 10+i · 피드 20+i)이면
+   충분했지만 40 이 되면 다른 종류가 **같은 자리에** 깔린다. 종류마다 100 칸을 준다:
+   앞 절반(0~49)은 무대가 미리 깐 것, 뒤(50~)는 재생 중 생긴 남의 글이다.
+   ⚠️ 대역이 바뀌면 옛 데모의 콘텐츠 자리도 같이 바뀐다 — 사람이 끌어 옮긴 자리
+   (NH_POS_KEY)는 종류+번호로 저장돼서 그대로 살아남는다. */
+var NH_BAND={req:0,spot:100,feed:200,deal:300};
+/* 재생 중 생긴 것이 무대와 겹치지 않게 하는 시작 번호 (대역 안의 뒤 절반). */
+var NH_POST_FROM=50;
 /* 트렌드 온도 (v2.4) — 사람이 적은 값을 0~100 으로 자르고, 안 적었으면 null 이다.
    빈 문자열과 0 을 가른다: 0 은 "가장 식은" 이라는 **선택**이고 빈 값은 "안 정했다" 다. */
 function nhTemp(v){
@@ -6754,7 +6768,7 @@ function nhImgSrc(v){
    서로 다른 물건이 된다. */
 function nhLayReq(r,i,c,stamp,token){
   if(typeof fieldRequests==='undefined')return null;
-  var id='rqn_'+stamp+'_'+i,p=nhPosGet('req',i,c)||nhSpread(c,i); // 사람이 옮긴 자리 우선 (v2.3)
+  var id='rqn_'+stamp+'_'+i,p=nhPosGet('req',i,c)||nhSpread(c,NH_BAND.req+i); // 사람이 옮긴 자리 우선 (v2.3)
   var lat=p.lat,lng=p.lng;
   fieldRequests.push({id:id,q:String(r.q||'').slice(0,120),lat:lat,lng:lng,
     place:(typeof dongAt==='function'?dongAt(lat,lng):'')||c.name,
@@ -6771,7 +6785,7 @@ function nhLayReq(r,i,c,stamp,token){
 }
 function nhLaySpot(s,i,c,stamp){
   if(typeof demoSpots==='undefined')return null;
-  var id='spn_'+stamp+'_'+i,p=nhPosGet('spot',i,c)||nhSpread(c,10+i); // 사람이 옮긴 자리 우선 (v2.3)
+  var id='spn_'+stamp+'_'+i,p=nhPosGet('spot',i,c)||nhSpread(c,NH_BAND.spot+i); // 사람이 옮긴 자리 우선 (v2.3)
   demoSpots.push({id:id,lat:p.lat,lng:p.lng,
     text:String(s.t||'').slice(0,80),emoji:s.emoji||'💬',
     /* 트렌드 온도 (v2.4) — heatTOf 가 이 값을 자동 계산보다 먼저 본다. 안 정했으면
@@ -6784,9 +6798,12 @@ function nhLaySpot(s,i,c,stamp){
 }
 function nhLayFeed(f,i,c,stamp){
   if(typeof feedItems==='undefined')return null;
-  var id='fdn_'+stamp+'_'+i,p=nhPosGet('feed',i,c)||nhSpread(c,20+i); // 사람이 옮긴 자리 우선 (v2.3)
+  var id='fdn_'+stamp+'_'+i,p=nhPosGet('feed',i,c)||nhSpread(c,NH_BAND.feed+i); // 사람이 옮긴 자리 우선 (v2.3)
   feedItems.push({id:id,
-    src:(typeof seedImg==='function'?seedImg(f.theme||'cafe',f.label||''):''),
+    /* 사진: 사람이 올린 것이 있으면 그것, 없으면 테마 색으로 그린다 (v2.10 — 지면
+       카드가 v2.4 에 얻은 길을 피드 카드도 갖는다). 콘솔이 Storage 에 두고 주소만
+       실어 보낸다 — 시나리오 문서에 이미지를 통째로 담으면 Firestore 상한에 닿는다. */
+    src:(nhImgSrc(f.img)||(typeof seedImg==='function'?seedImg(f.theme||'cafe',f.label||''):'')),
     region:(typeof dongAt==='function'?dongAt(p.lat,p.lng):'')||c.name,zone:null,
     lat:p.lat,lng:p.lng,kind:'post',
     desc:String(f.desc||f.label||'').slice(0,120),
@@ -6804,7 +6821,7 @@ function nhLayFeed(f,i,c,stamp){
    가격 3칸은 만든다(사람은 5칸만 적는다). **결정적**이어야 한다 — Math.random 금지. */
 function nhLayDeal(d,i,c,stamp){
   if(typeof timeDeals==='undefined')return null;
-  var id='dln_'+stamp+'_'+i,p=nhPosGet('deal',i,c)||nhSpread(c,60+i); // 사람이 옮긴 자리 우선 (v2.3)
+  var id='dln_'+stamp+'_'+i,p=nhPosGet('deal',i,c)||nhSpread(c,NH_BAND.deal+i); // 사람이 옮긴 자리 우선 (v2.3)
   var pct=Math.min(90,Math.max(5,(d.pct|0)||20));
   var secs=Math.min(7200,Math.max(30,(d.secs|0)||1800));
   var was=9900+i*5000;                             // 순번을 섞는다 — 셋이 다 같으면 지어낸 게 보인다
@@ -6880,8 +6897,8 @@ var nhPostN=0;
 function nhPostCenter(){return nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangnam;}
 function nhPostSpot(v,e){
   var t=String(v||'').slice(0,80);if(!t)return false;
-  // 40+ 에서 세는 이유: 시드 스팟(10+i)·피드(20+i)와 자리가 겹치지 않게 한다.
-  if(!nhLaySpot({t:t,emoji:String(e||'').slice(0,4)||'💬'},40+(nhPostN++),
+  // NH_POST_FROM 에서 세는 이유: 무대가 미리 깐 것(0~)과 자리가 겹치지 않게 한다.
+  if(!nhLaySpot({t:t,emoji:String(e||'').slice(0,4)||'💬'},NH_POST_FROM+(nhPostN++),
                 nhPostCenter(),nhHeld.stamp||Date.now()))return false;
   if(typeof rebuildSpots==='function')rebuildSpots();
   return true;
@@ -6892,9 +6909,10 @@ function nhPostSpot(v,e){
 function nhPostFeed(v,e,n){
   var d=String(v||'').slice(0,120);if(!d)return false;
   if(!nhLayFeed({desc:d,label:d,theme:String(e||'')||'cafe',name:String(n||'')||'동네주민'},
-                60+(nhPostN++),nhPostCenter(),nhHeld.stamp||Date.now()))return false;
+                NH_POST_FROM+(nhPostN++),nhPostCenter(),nhHeld.stamp||Date.now()))return false;
   if(typeof renderFeed==='function')renderFeed();
   if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+  if(typeof renderNews==='function')renderNews(); // 지도 탭 상단 지면에도 실린다 (v2.10)
   return true;
 }
 
@@ -6908,19 +6926,22 @@ function nhSeedScenario(sc,token){
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
   var stamp=Date.now();
   nhHeld.c=c;nhHeld.stamp=stamp;
-  (sc.seed.reqs||[]).slice(0,3).forEach(function(r,i){
+  (sc.seed.reqs||[]).slice(0,NH_MAX.req).forEach(function(r,i){
     if(r&&r.hold){nhHeld.req.push({v:r,i:i});return;}
     nhLayReq(r,i,c,stamp,token);
   });
-  (sc.seed.spots||[]).slice(0,10).forEach(function(s,i){
-    if(s&&s.hold){nhHeld.spot.push({v:s,i:10+i});return;}
+  /* 보관하는 번호는 **배열 순번 그대로**다 (v2.10). 전에는 스팟만 `10+i`, 피드만 `20+i`
+     로 대역을 미리 얹어서, 같은 항목이라도 hold 를 켠 것과 안 켠 것이 다른 자리에
+     깔렸다 — 대역은 nhLay* 안에서 한 번만 붙는다(NH_BAND). */
+  (sc.seed.spots||[]).slice(0,NH_MAX.spot).forEach(function(s,i){
+    if(s&&s.hold){nhHeld.spot.push({v:s,i:i});return;}
     nhLaySpot(s,i,c,stamp);
   });
   /* 피드도 시나리오가 깐다 (v1.72) — 없으면 `like`·`scroll`·`scope` 가 늘 같은 전역 카드를
      건드려서 "이 사람이 무엇에 반응했나" 가 시나리오마다 같아진다.
      사진은 seedImg 로 그린다(테마 색 + 라벨) — 외부 이미지에 기대지 않아 회차마다 똑같이 뜬다. */
-  (sc.seed.feeds||[]).slice(0,10).forEach(function(f,i){
-    if(f&&f.hold){nhHeld.feed.push({v:f,i:20+i});return;}
+  (sc.seed.feeds||[]).slice(0,NH_MAX.feed).forEach(function(f,i){
+    if(f&&f.hold){nhHeld.feed.push({v:f,i:i});return;}
     nhLayFeed(f,i,c,stamp);
   });
   /* 타임딜 (v2.2) — **여기서는 60 을 더하지 않는다.** nhLayDeal 안에서 이미
@@ -6929,13 +6950,14 @@ function nhSeedScenario(sc,token){
      여기서 60+i 를 미리 얹으면 hold 로 보관했다가 drop 한 딜이 배열 순번이 아니라
      "60+순번" 으로 가격을 매겨 원가가 30만 원대로 튄다(모자가 30만 원짜리가 된다).
      그래서 보관하는 i 는 배열 순번 그대로 — nhLayReq 와 같은 방식이다. */
-  (sc.seed.deals||[]).slice(0,3).forEach(function(d,i){
+  (sc.seed.deals||[]).slice(0,NH_MAX.deal).forEach(function(d,i){
     if(d&&d.hold){nhHeld.deal.push({v:d,i:i});return;}
     nhLayDeal(d,i,c,stamp);
   });
-  /* 상단 지면 (v2.2) — 좌표가 없으니 base 도 없다. 상한 6은 관리자 화면의
-     NEWS_MAX_COUNT 와 맞춘 값이다(그 상한은 렌더에는 안 걸린다). */
-  (sc.seed.pages||[]).slice(0,6).forEach(function(p,i){
+  /* 상단 지면 (v2.2) — 좌표가 없으니 base 도 없다. 상한은 관리자 화면의
+     NEWS_MAX_COUNT(6)보다 클 수 있다 — 그 상한은 렌더에 안 걸리고, 무대는 관리자가
+     올린 지면이 아니라 이 회차가 깔았다 걷는 것이다. */
+  (sc.seed.pages||[]).slice(0,NH_MAX.page).forEach(function(p,i){
     if(p&&p.hold){nhHeld.page.push({v:p,i:i});return;}
     nhLayNews(p,i,c,stamp);
   });
@@ -6946,7 +6968,12 @@ function nhSeedScenario(sc,token){
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();
   }
   if((sc.seed.deals||[]).length&&typeof renderDealMarkers==='function')renderDealMarkers();
-  if((sc.seed.pages||[]).length&&typeof renderNews==='function')renderNews();
+  /* 지면을 **피드만 깔았을 때도** 다시 그린다 (v2.10).
+     지도 탭의 상단 지면은 관리자 지면 + `feedSummaryItems`(사진 있는 가까운 피드 4장)
+     인데, 여기서 pages 가 있을 때만 renderNews 를 불렀다 — 피드 카드만 깐 데모는
+     탭을 갈아탈 때까지 지면이 빈 채로 있었고, 그게 "피드 사진이 왜 위에 안 뜨나" 의
+     원인이다 (콘솔 D93). 무대를 깐 직후가 그 지면이 정해지는 자리다. */
+  if(((sc.seed.pages||[]).length||(sc.seed.feeds||[]).length)&&typeof renderNews==='function')renderNews();
 }
 
 /* 보관해 둔 것 하나를 **지금** 깐다 (v1.98). "실시간으로 올라온다" 를 보여주는 연출이라,
@@ -6969,6 +6996,7 @@ function nhDrop(v,i){
     if(!nhLayFeed(item.v,item.i,c,nhHeld.stamp))return false;
     if(typeof renderFeed==='function')renderFeed();
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+    if(typeof renderNews==='function')renderNews(); // 지도 탭 상단 지면에도 실린다 (v2.10)
   }else if(kind==='deal'){
     if(!nhLayDeal(item.v,item.i,c,nhHeld.stamp))return false;
     if(typeof renderDealMarkers==='function')renderDealMarkers();
@@ -7069,25 +7097,27 @@ function nhSanitize(raw){
   var seed=null,rs=raw.seed;
   if(rs&&typeof rs==='object'){
     // hold: 처음에 안 깔고 보관만 한다 — `drop` 단계가 그때 꺼내 띄운다 (v1.98).
-    var reqs=(Array.isArray(rs.reqs)?rs.reqs:[]).slice(0,3).map(function(r){
+    var reqs=(Array.isArray(rs.reqs)?rs.reqs:[]).slice(0,NH_MAX.req).map(function(r){
       r=r||{};
       return {q:String(r.q||'').slice(0,120),answer:String(r.answer||'').slice(0,120),
         answerIn:Math.min(Math.max(r.answerIn|0,0),20000),hold:!!r.hold};
     }).filter(function(r){return r.q;});
-    var sps=(Array.isArray(rs.spots)?rs.spots:[]).slice(0,10).map(function(s){
+    var sps=(Array.isArray(rs.spots)?rs.spots:[]).slice(0,NH_MAX.spot).map(function(s){
       s=s||{};return {t:String(s.t||'').slice(0,80),emoji:String(s.emoji||'💬').slice(0,4),
         temp:nhTemp(s.temp), // v2.4: 트렌드 온도 (빈 값이면 null → 깔 때 결정적 랜덤)
         hold:!!s.hold};
     }).filter(function(s){return s.t;});
-    var fds=(Array.isArray(rs.feeds)?rs.feeds:[]).slice(0,10).map(function(f){
+    var fds=(Array.isArray(rs.feeds)?rs.feeds:[]).slice(0,NH_MAX.feed).map(function(f){
       f=f||{};return {label:String(f.label||'').slice(0,40),desc:String(f.desc||'').slice(0,120),
         theme:String(f.theme||'').slice(0,16),name:String(f.name||'').slice(0,20),
         temp:nhTemp(f.temp), // v2.4
+        img:nhImgSrc(f.img), // v2.10: 사람이 올린 사진 (없으면 테마 색으로 그린다 — 지면 카드와 같은 규칙)
         hold:!!f.hold};
-    }).filter(function(f){return f.desc||f.label;});
+    // 사진만 올리고 글은 안 적을 수 있다 (v2.10) — 카드가 곧 사진인 피드다.
+    }).filter(function(f){return f.desc||f.label||f.img;});
     /* 타임딜 (v2.2) — 사람은 5칸만 적고 가격 3칸은 nhLayDeal 이 만든다.
        상한과 자르기는 콘솔의 toSeed 와 **같은 값**이어야 한다. */
-    var dls=(Array.isArray(rs.deals)?rs.deals:[]).slice(0,3).map(function(d){
+    var dls=(Array.isArray(rs.deals)?rs.deals:[]).slice(0,NH_MAX.deal).map(function(d){
       d=d||{};return {e:String(d.e||'').slice(0,4),
         title:String(d.title||'').slice(0,40),
         shop:String(d.shop||'').slice(0,30),
@@ -7096,8 +7126,8 @@ function nhSanitize(raw){
         hold:!!d.hold};
     }).filter(function(d){return d.title;});
     /* 상단 지면 (v2.2). theme 은 SEED_PAL 의 키 — 모르는 값이면 seedImg 가 cafe 로 떨어진다.
-       상한 6은 콘솔의 MAX_SEED_PAGES 와 같은 값이어야 한다. */
-    var pgs=(Array.isArray(rs.pages)?rs.pages:[]).slice(0,6).map(function(p){
+       상한은 콘솔의 MAX_SEED_PAGES 와 같은 값이어야 한다. */
+    var pgs=(Array.isArray(rs.pages)?rs.pages:[]).slice(0,NH_MAX.page).map(function(p){
       p=p||{};return {tab:String(p.tab||'map').slice(0,8),
         theme:String(p.theme||'').slice(0,16),
         place:String(p.place||'').slice(0,20),
