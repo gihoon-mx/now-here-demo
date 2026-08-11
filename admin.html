@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=2.14.0" />
+  <link rel="stylesheet" href="style.css?v=2.15.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.14.0" />
+  <link rel="stylesheet" href="skin-new.css?v=2.15.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.14.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.15.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -23,7 +23,7 @@
   <div id="auth-overlay">
     <div class="auth-card">
       <img class="auth-mark" src="icon-192.png" alt="Now Here 앱 아이콘" />
-      <div class="auth-logo">Now Here <span style="font-size:.6em;color:var(--ink3);">Admin</span></div>
+      <div class="auth-logo">Now Here <span class="auth-role">Admin</span></div>
       <div class="auth-ver" id="auth-ver"></div>
       <p class="auth-sub" id="auth-sub">관리자 페이지 · 접근 권한이 필요합니다</p>
       <button id="google-login-btn" class="google-btn" type="button">
@@ -36,7 +36,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.14.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.15.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -157,8 +157,8 @@
               <ellipse cx="26.4" cy="21" rx="2" ry="2.7" fill="#2b3038"/>
               <g class="ai-shades" aria-hidden="true"><!-- 트렌드 모드 전용 선글라스 (CSS .ai-flame로 표시) -->
                 <path d="M11 18.4 L14 19.3 M33 18.4 L30 19.3" stroke="#1d222b" stroke-width="1.4" stroke-linecap="round"/>
-                <rect x="13.5" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
-                <rect x="22.3" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
+                <rect class="sh-lens" x="13.5" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
+                <rect class="sh-lens" x="22.3" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
                 <path d="M21.4 20 h1.4" stroke="#1d222b" stroke-width="1.8" stroke-linecap="round"/>
                 <path class="sh-hi" d="M15.2 19.9 q1.5 -0.9 3 0" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1" stroke-linecap="round"/>
               </g>
@@ -242,6 +242,37 @@
             </div>
           </div>
         </div>
+        <!-- [M17] v2.15 매장 전용 페이지 — 타임딜 핀 탭 시 전면 페이지 (쿠폰 시트는 z-30으로 이 위에 뜬다) -->
+        <div id="store-page" class="store-page" style="display:none;">
+          <div class="stp-head">
+            <button class="stp-back" id="stp-back" type="button" aria-label="뒤로">‹</button>
+            <b class="stp-loc" id="stp-loc"></b>
+            <span class="stp-ava" aria-hidden="true">👤</span>
+          </div>
+          <div class="stp-scroll" id="stp-scroll">
+            <div class="stp-chips" id="stp-chips"></div>
+            <h2 class="stp-name" id="stp-name"></h2>
+            <p class="stp-addr" id="stp-addr"></p>
+            <p class="stp-desc" id="stp-desc"></p>
+            <div class="stp-acts">
+              <button class="stp-act" id="stp-menu" type="button">메뉴보기</button>
+              <button class="stp-act" id="stp-map" type="button">지도보기</button>
+              <button class="stp-act" id="stp-comm" type="button">커뮤니티 입장</button>
+              <button class="stp-act stp-cta" id="stp-coupon" type="button">타임딜 쿠폰받기</button>
+            </div>
+            <div class="stp-promo" id="stp-promo">
+              <img class="stp-pr-img" id="stp-pr-img" alt="" style="display:none;" />
+              <div class="stp-pr-main">
+                <span class="stp-pr-tag">⏰ TIME DEAL</span>
+                <b class="stp-pr-title" id="stp-pr-title"></b>
+                <span class="stp-pr-time" id="stp-pr-time"></span>
+                <span class="stp-pr-price"><i id="stp-pr-was"></i><b id="stp-pr-now"></b><em id="stp-pr-pct"></em></span>
+              </div>
+              <span class="stp-pr-emoji" id="stp-pr-emoji" aria-hidden="true"></span>
+            </div>
+            <div class="stp-grid" id="stp-grid"></div>
+          </div>
+        </div>
       </div>
   </div>
   </aside>
@@ -254,8 +285,10 @@
       <div class="adm-body">
         <!-- v2.5 재정비: 그룹 = 하려는 일. ①컨텐츠(하나씩 만들고 정리) ②채우기(한 번에)
              ③화면·디자인(고르면 즉시) ④지도 스타일(미리보기→적용) ⑤시스템.
-             표시 옵션(그리드·아이콘 크기·카드 스타일…)은 컨텐츠 패널에 섞여 있던 것을
-             s-view 로 모았다 — "옵션이 안 보인다" 는 말이 나온 원인이 그 섞임이었다. -->
+             표시 옵션(그리드·카드 스타일…)은 컨텐츠 패널에 섞여 있던 것을 s-view 로
+             모았다 — "옵션이 안 보인다" 는 말이 나온 원인이 그 섞임이었다.
+             v2.15: 지도 위 핀 4종의 표시 방식(on/off·크기·라벨, 아이콘 크기 포함)은
+             s-pins(🧷 지도 컨텐츠 표시)로. -->
         <nav id="adm-nav">
           <div class="adm-nav-cap">📦 컨텐츠 — 만들고 정리</div>
           <button type="button" data-panel="c-table">📋 전체 컨텐츠</button>
@@ -270,6 +303,7 @@
           <div class="adm-nav-cap">🖥 화면 · 디자인 — 즉시 적용</div>
           <button type="button" data-panel="s-skin">🎛 디자인 스킨</button>
           <button type="button" data-panel="s-view">📐 표시 옵션</button>
+          <button type="button" data-panel="s-pins">🧷 지도 컨텐츠 표시</button>
           <div class="adm-nav-cap">🗺 지도 스타일 — 미리보기 → 적용</div>
           <button type="button" data-panel="s-spot">💬 스팟 말풍선</button>
           <button type="button" data-panel="s-region">🗺 동 구역·라벨</button>
@@ -356,17 +390,17 @@
             </div>
             <div class="settings-section" data-adm="c-feed">
               <h4>피드 사진</h4>
-              <button id="feed-add-btn" class="action-btn accent" type="button" style="width:100%;">＋ 사진 추가 (업로드)</button>
+              <button id="feed-add-btn" class="action-btn accent btn-block" type="button">＋ 사진 추가 (업로드)</button>
               <input type="file" id="feed-file" accept="image/*" multiple hidden />
               <div class="news-url-row"><input type="url" id="feed-url-input" placeholder="또는 이미지 링크(https://...) 붙여넣기" /><button id="feed-url-btn" class="action-btn accent small" type="button">링크</button></div>
               <div id="feedcol-list"></div>
-              <p class="section-hint">사진을 올리면 피드 탭에 노출돼요. 각 사진의 트렌드존을 지정하면 동(구역)이 자동으로 채워져요. 보이는 방식(그리드 열·아이콘 크기·시간)은 <b>🖥 화면·디자인 › 📐 표시 옵션</b>에 있어요.</p>
+              <p class="section-hint">사진을 올리면 피드 탭에 노출돼요. 각 사진의 트렌드존을 지정하면 동(구역)이 자동으로 채워져요. 보이는 방식(그리드 열·시간)은 <b>🖥 화면·디자인 › 📐 표시 옵션</b>에, 지도 아이콘 크기는 <b>🖥 화면·디자인 › 🧷 지도 컨텐츠 표시</b>에 있어요.</p>
             </div>
             <div class="settings-section" data-adm="c-social">
               <h4>소셜 컨텐츠 (채팅방)</h4>
               <div class="al-add"><input id="room-name" type="text" placeholder="방 이름" maxlength="20" /><select id="room-type" class="mini-select"><option value="topic">주제방</option><option value="private">프라이빗</option></select><button id="room-add" class="action-btn accent small" type="button">추가</button></div>
               <div id="room-list"></div>
-              <div class="setting-row" style="margin-top:8px;"><label>동네 채팅</label><button id="chat-fill" class="action-btn small" type="button">📄 JSON/CSV 채우기</button><button id="chat-clear" class="action-btn danger small" type="button">비우기</button></div>
+              <div class="setting-row row-sep"><label>동네 채팅</label><button id="chat-fill" class="action-btn small" type="button">📄 JSON/CSV 채우기</button><button id="chat-clear" class="action-btn danger small" type="button">비우기</button></div>
               <input type="file" id="chat-file" accept=".json,.csv,application/json,text/csv" hidden />
               <p class="section-hint">주제방/프라이빗은 관리자만 개설·수정(전체 공유). 동네 채팅 기본 대화는 JSON [{"who":"닉","t":"내용"}] 또는 CSV(닉,내용 한 줄씩)로 채워요.</p>
             </div>
@@ -440,7 +474,6 @@
               <h4>표시 옵션</h4>
               <p class="section-hint">서비스 화면이 <b>어떻게 보이는지</b>만 모았어요. 고르는 즉시 적용되고 모든 사용자에게 저장됩니다. 무엇이 떠 있는지(컨텐츠 추가·정리)는 📦 컨텐츠 그룹에 있어요.</p>
               <div class="row-cap">피드 화면</div>
-              <div class="setting-row"><label>지도 아이콘 크기</label><input type="number" id="feed-icon-size" min="8" max="120" step="1" placeholder="스팟과 동일" style="width:110px;" /><span class="section-hint" style="margin:0;">지도 위 사진 핀(px, 기준 줌 16). 비우면 스팟 이모지 크기를 따라요.</span></div>
               <div class="setting-row"><label>그리드 열</label><select id="feed-cols" class="mini-select"><option value="1">1개 (전체폭)</option><option value="2">2개</option><option value="3">3개</option></select></div>
               <div class="setting-row"><label>사진 간격</label><select id="feed-gap" class="mini-select"><option value="0">없음</option><option value="0.6">최소</option><option value="1.2">좁게</option><option value="2.4">보통</option></select></div>
               <div class="setting-row"><label>올린 시간</label><select id="feed-time" class="mini-select"><option value="ago">상대 (n분 전)</option><option value="clock">시각 (월/일 시:분)</option><option value="off">숨김</option></select></div>
@@ -450,6 +483,24 @@
               <div class="setting-row"><label>존 목록 카드</label><select id="zone-card-style" class="mini-select"><option value="glass">글래스 캡션</option><option value="list">리스트 (별점·거리)</option></select></div>
               <div class="setting-row"><label>지면 카드</label><select id="news-cardver" class="mini-select"><option value="1">버전 1 · 풀 이미지</option><option value="2">버전 2 · 분할 카드</option><option value="3">버전 3 · 글라스 캡션</option></select></div>
               <p class="section-hint">존 목록 카드 = 드로어·트렌드 요약의 존 리스트, 지면 카드 = 상단 요약 공간의 이미지 카드.</p>
+            </div>
+            <!-- v2.15 지도 컨텐츠별 표시 — 즉시 적용(mapPinView, 클라우드 동기). 스팟 스타일 풀셋은 s-spot 블록이 담당 -->
+            <div class="settings-section" data-adm="s-pins">
+              <h4>지도 컨텐츠 표시</h4>
+              <p class="section-hint">지도 위 컨텐츠 핀 4종(스팟 메시지·피드·Request·타임딜)의 표시 방식이에요. 고르는 즉시 적용되고 모든 사용자에게 저장됩니다.</p>
+              <div class="row-cap">스팟 메시지</div>
+              <div class="setting-row"><label>지도에 표시</label><label class="toggle-switch"><input type="checkbox" id="pv-spot-show" checked /><span class="toggle-slider"></span></label></div>
+              <div class="setting-row"><label>말풍선 스타일</label><button type="button" class="action-btn small" id="pv-spot-style">💬 스팟 말풍선 설정 열기</button></div>
+              <div class="row-cap">피드 사진</div>
+              <div class="setting-row"><label>지도에 표시</label><label class="toggle-switch"><input type="checkbox" id="pv-feed-show" checked /><span class="toggle-slider"></span></label></div>
+              <div class="setting-row"><label>아이콘 크기</label><input type="number" id="feed-icon-size" min="8" max="120" step="1" placeholder="스팟과 동일" class="num-in" /><span class="num-hint">px (기준 줌 16) — 비우면 스팟 이모지 크기를 따라요</span></div>
+              <div class="row-cap">Request</div>
+              <div class="setting-row"><label>지도에 표시</label><label class="toggle-switch"><input type="checkbox" id="pv-req-show" checked /><span class="toggle-slider"></span></label></div>
+              <div class="setting-row"><label>핀 크기</label><input type="number" id="pv-req-size" min="40" max="200" step="5" value="100" class="num-in" /><span class="num-hint">% (기본 100)</span></div>
+              <div class="row-cap">타임딜</div>
+              <div class="setting-row"><label>지도에 표시</label><label class="toggle-switch"><input type="checkbox" id="pv-deal-show" checked /><span class="toggle-slider"></span></label></div>
+              <div class="setting-row"><label>핀 크기</label><input type="number" id="pv-deal-size" min="40" max="200" step="5" value="100" class="num-in" /><span class="num-hint">% (기본 100)</span></div>
+              <div class="setting-row"><label>할인율 라벨</label><label class="toggle-switch"><input type="checkbox" id="pv-deal-label" checked /><span class="toggle-slider"></span></label></div>
             </div>
             <div id="settings-apply-bar" class="sab">
               <span class="sab-dot" aria-hidden="true"></span>
@@ -522,25 +573,25 @@
 
           <!-- ── 🛠 시스템 ── -->
           <div class="adm-sys" data-adm="y-preview">
-            <h4>📱 미리보기 · 설정 백업</h4>
+            <h4>미리보기 · 설정 백업</h4>
             <div class="settings-section">
               <div class="setting-row"><label>폰 표시영역 오버레이</label><label class="toggle-switch"><input type="checkbox" id="phone-viewport-toggle" checked /><span class="toggle-slider"></span></label></div>
               <p class="section-hint">우측 폰 미리보기가 보는 범위를 PC 지도 위에 사각형으로 표시해요.</p>
               <div class="setting-row" id="settings-export-row">
                 <button id="settings-export" class="action-btn small" type="button" title="현재 적용된 설정 전체를 JSON으로 복사">📋 설정 JSON 복사</button>
-                <span class="section-hint" style="margin:0;">repo <b>settings-default.json</b>에 붙여넣으면 배포 기본값이 돼요 — <b>이 사이트를 처음 여는 기기·데모 임베드</b>가 이 값으로 뜹니다 (스킨·스타일·피드 옵션 전부 포함)</span>
+                <span class="section-hint">repo <b>settings-default.json</b>에 붙여넣으면 배포 기본값이 돼요 — <b>이 사이트를 처음 여는 기기·데모 임베드</b>가 이 값으로 뜹니다 (스킨·스타일·피드 옵션 전부 포함)</span>
               </div>
             </div>
           </div>
           <div class="adm-sys" data-adm="y-account">
-            <h4>👥 계정 · 접근 권한</h4>
+            <h4>계정 · 접근 권한</h4>
             <div class="settings-section">
               <button id="adm-allowlist" class="action-btn accent" type="button">👥 접근 권한 관리 열기</button>
               <p class="section-hint">Google 계정 이메일로 데모유저/관리자 권한을 부여·회수해요. 관리자=모든 관리 메뉴, 데모유저=서비스 열람+모드 전환.</p>
             </div>
           </div>
           <div class="adm-sys" data-adm="y-docs">
-            <h4>📚 문서 · 개발</h4>
+            <h4>문서 · 개발</h4>
             <div class="settings-section">
               <div class="adm-docs">
                 <a href="deck.html" target="_blank" rel="noopener">📽 소개 덱</a>
@@ -609,7 +660,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.14.0"></script>
-  <script src="app.js?v=2.14.0"></script>
+  <script src="config.js?v=2.15.0"></script>
+  <script src="app.js?v=2.15.0"></script>
 </body>
 </html>

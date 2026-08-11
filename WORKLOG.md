@@ -47,7 +47,7 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v2.14.0** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
+- **현재 최신: v2.15.0** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
 - ⚠️ v1.65부터 **admin.html도 버전 동기 대상**(check.js가 index/admin의 #app-version·?v= 일치를 강제). index/admin에 **공통 요소**(폰 화면 마크업·모달·설정 섹션)를 수정하면 **두 파일 모두** 반영할 것.
 
 ---
@@ -263,6 +263,63 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ---
 
 ## 📝 변경 이력
+
+### 2026-08-12 (1)
+- **v2.15.0 — 지도 컨텐츠별 표시 설정 · 타임딜 매장 페이지 · AI 무지개 선글라스 · 콘솔 크롬 정리 (M11+M17+M08+M14/M15)**
+  — 사용자 4건.
+
+  ① **지도 컨텐츠별 표시 설정 (M11)** — 콘솔 메뉴 "🖥 화면·디자인"에 **🧷 지도 컨텐츠
+  표시**(`s-pins`) 패널 신설. 4종(스팟·피드·Request·타임딜) 각각 표시 on/off, Request·딜은
+  핀 크기(%), 딜은 %라벨 토글. 스팟 스타일 풀셋(s-spot)·피드 크기(`#feed-icon-size`,
+  s-view 에서 이사)는 기존 노브를 그 자리에 묶었다. 저장은 **additive 최상위 키
+  `mapPinView`** — feedIconSize 와 같은 즉시 적용 패턴으로 왕복 6지점(cloudSave ·
+  applyCloudData · settingsSnapshotFull · applyExtraSettings · loadFileDefaults ·
+  initSettingsExport) 전부 배선(v2.3.1/v2.11 교훈 그대로). 렌더 게이트는 각 render 함수
+  머리에서 걷기만 하고 기존 연쇄(스팟→피드→목록·Request→딜→declutter)는 유지.
+  크기는 `contentScale` 곡선 공통 유지 × 종류별 배율(`pinScale`)만 곱한다(v1.95 계약 보존).
+
+  ② **타임딜 → 매장 전용 페이지 (M17)** — 핀 탭이 바텀시트 대신 **전면 매장 페이지**
+  (`#store-page`, z-29)를 연다(시안: 석촌동 쵸리상경). 뱃지 칩(참여중·°C·타임딜)은
+  Overview 칩과 같은 **실값 문법** — 참여중=반경 400m 컨텐츠 수, °C=존 온도(36.5~99.9).
+  `#매장명`·주소줄(동네+실측 거리)·소개(optional `desc`, 없으면 템플릿)·액션 4버튼
+  (메뉴보기=사진 그리드 스크롤 · 지도보기=cpopGoMap · 커뮤니티=switchTab('social') ·
+  **타임딜 쿠폰받기**=기존 딜 시트가 z-30 으로 위에 뜬다)·TIME DEAL 배너(1초 티커)·
+  사진 그리드(같은 매장 `shop===feed.name` 우선 → 근처 400m → 결정적 seedImg 폴백).
+  마크업은 index/admin 양쪽 복제(딜 시트 관례). 임베드 `pop v:'deal'` 도 매장 페이지를
+  열고(구버전 앱이면 시트 폴백), popclose·회차 종료 sweep 이 페이지도 닫는다.
+  `nhLayDeal` 에 optional `addr`/`desc` 두 칸 추가(additive — 콘솔이 안 주면 파생값).
+
+  ③ **AI 버튼: 트렌드 색상 변화 삭제 → 선글라스 무지개 (M08)** — v2.6~2.7 의 온도
+  팔레트 대각선 흐름(aiHeatFlow)·웜톤 블롭 재도색(AI_PALETTE.trend)·skin-v3 재선언을
+  전부 삭제. 트렌드 구분은 **렌즈(rect.sh-lens) fill 무지개 순환 + 그룹 drop-shadow 발광**
+  (`aiLensRainbow`/`aiShadeGlow`, 같은 6s 주기) 하나다. SVG fill/filter 애니라 v3 의
+  background 축약 명시도 문제(237 주석)와 안 싸운다. reduced-motion 은 보라 한 색 고정.
+  렌즈 rect 에 `sh-lens` 클래스 부여(index/admin 양쪽).
+
+  ④ **콘솔 크롬 정리 (M14/M15)** — v3 콘솔 문법 3원칙(카드·알약·높이)으로 남은 곳을
+  수렴: 독립 모달 4종·모달 ✕(.acct-btn)·문서 링크 2벌(.ft-docs→.adm-docs 문법)·
+  목록 행(.al-item/.room-item)·폼 입력·색상 팝업·토글(켜짐=잉크)을 v3 재도색.
+  리터럴 5색을 토큰 승격(--v3-hover/tabface/danger-bg/danger-bg2/dirty). action-btn
+  높이 32/28 로 표준화(탑바·셀렉트·탭과 한 벌). **토글 132px 버그 수정** — `.toggle-switch`
+  도 label 이라 v3 의 라벨 폭 132px 를 물려받아 트랙이 행 폭만큼 늘어나 있었다(s-region
+  등 기존 패널도 같았다). 시스템 패널 h4 이모지 제거(이모지는 내비 캡션에만), 인라인
+  스타일 4곳을 클래스로(.btn-block/.row-sep/.auth-role/.setting-row .section-hint),
+  number 입력 정식 클래스 `.num-in` 신설(sg-num 임시변통 종결).
+
+  검증(로컬 :8765): 매장 페이지 시안 재현·쿠폰 시트 z층 정합·티커 감소 실측, AI 버튼
+  legacy/v3 양쪽에서 배경 애니 제거(computed background-image:none)·sh-lens
+  aiLensRainbow 구동·블롭 stop 무채색 유지 실측, 표시 설정 게이트(4종 0↔N)·%라벨·
+  배율(0.8/1.5) 상태 검증, s-pins 패널 v3 렌더·클라우드 저장 키 확인, `node tools/check.js` PASS.
+  ⚠️ 샌드박스 브라우저는 지도 타일이 막혀 오버레이 라이프사이클이 지연됐다 — 핀 부착은
+  수동 사이클로 확인했고, 실지도 시각 확인은 배포 후 한 번 볼 것.
+
+  리뷰(4렌즈+적대 검증)가 잡은 3건도 반영: ① **nhReset 이 매장 페이지를 안 닫았다** —
+  sweep 은 이번 회차 임시 딜이 있을 때만 닫으므로, 전역 시드 딜을 열어 둔 채(재생 중단·
+  수동 탭) 다음 회차가 오면 z-29 전면 페이지가 화면을 덮은 채 뒤에서 재생된다 →
+  nhReset 무조건 닫기 묶음에 closeStorePage+closeDealSheet(승격) 추가. ② 스팟 숨김
+  게이트가 declutterMarkers 를 생략 — 새 피드 핀이 옛 offset 핀 위에 겹칠 수 있어
+  게이트에도 재계산 한 줄(60ms 디바운스라 중복 무해). ③ c-feed 안내문이 아이콘 크기의
+  옛 위치(표시 옵션)를 가리킴 → s-pins 로 안내 수정.
 
 ### 2026-08-11 (13)
 - **v2.14.0 — burst 줌아웃을 프레임으로 돌린다 (M16)**

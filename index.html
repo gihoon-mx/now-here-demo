@@ -18,11 +18,11 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here</title>
-  <link rel="stylesheet" href="style.css?v=2.14.0" />
+  <link rel="stylesheet" href="style.css?v=2.15.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.14.0" />
+  <link rel="stylesheet" href="skin-new.css?v=2.15.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.14.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.15.0" />
   <script>window.PAGE_MODE='app';</script><!-- v1.65 서비스 페이지(폰 앱). 관리자 지도·설정은 admin.html -->
 </head>
 <body class="page-app">
@@ -66,7 +66,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v2.14.0</span>
+        <span id="app-version">v2.15.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -344,8 +344,8 @@
               <ellipse cx="26.4" cy="21" rx="2" ry="2.7" fill="#2b3038"/>
               <g class="ai-shades" aria-hidden="true"><!-- 트렌드 모드 전용 선글라스 (CSS .ai-flame로 표시) -->
                 <path d="M11 18.4 L14 19.3 M33 18.4 L30 19.3" stroke="#1d222b" stroke-width="1.4" stroke-linecap="round"/>
-                <rect x="13.5" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
-                <rect x="22.3" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
+                <rect class="sh-lens" x="13.5" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
+                <rect class="sh-lens" x="22.3" y="18" width="8.2" height="5.8" rx="2.7" fill="#1d222b"/>
                 <path d="M21.4 20 h1.4" stroke="#1d222b" stroke-width="1.8" stroke-linecap="round"/>
                 <path class="sh-hi" d="M15.2 19.9 q1.5 -0.9 3 0" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1" stroke-linecap="round"/>
               </g>
@@ -429,6 +429,37 @@
             </div>
           </div>
         </div>
+        <!-- [M17] v2.15 매장 전용 페이지 — 타임딜 핀 탭 시 전면 페이지 (쿠폰 시트는 z-30으로 이 위에 뜬다) -->
+        <div id="store-page" class="store-page" style="display:none;">
+          <div class="stp-head">
+            <button class="stp-back" id="stp-back" type="button" aria-label="뒤로">‹</button>
+            <b class="stp-loc" id="stp-loc"></b>
+            <span class="stp-ava" aria-hidden="true">👤</span>
+          </div>
+          <div class="stp-scroll" id="stp-scroll">
+            <div class="stp-chips" id="stp-chips"></div>
+            <h2 class="stp-name" id="stp-name"></h2>
+            <p class="stp-addr" id="stp-addr"></p>
+            <p class="stp-desc" id="stp-desc"></p>
+            <div class="stp-acts">
+              <button class="stp-act" id="stp-menu" type="button">메뉴보기</button>
+              <button class="stp-act" id="stp-map" type="button">지도보기</button>
+              <button class="stp-act" id="stp-comm" type="button">커뮤니티 입장</button>
+              <button class="stp-act stp-cta" id="stp-coupon" type="button">타임딜 쿠폰받기</button>
+            </div>
+            <div class="stp-promo" id="stp-promo">
+              <img class="stp-pr-img" id="stp-pr-img" alt="" style="display:none;" />
+              <div class="stp-pr-main">
+                <span class="stp-pr-tag">⏰ TIME DEAL</span>
+                <b class="stp-pr-title" id="stp-pr-title"></b>
+                <span class="stp-pr-time" id="stp-pr-time"></span>
+                <span class="stp-pr-price"><i id="stp-pr-was"></i><b id="stp-pr-now"></b><em id="stp-pr-pct"></em></span>
+              </div>
+              <span class="stp-pr-emoji" id="stp-pr-emoji" aria-hidden="true"></span>
+            </div>
+            <div class="stp-grid" id="stp-grid"></div>
+          </div>
+        </div>
       </div>
   </div>
   </aside>
@@ -486,7 +517,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.14.0"></script>
-  <script src="app.js?v=2.14.0"></script>
+  <script src="config.js?v=2.15.0"></script>
+  <script src="app.js?v=2.15.0"></script>
 </body>
 </html>

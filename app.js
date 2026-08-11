@@ -7,9 +7,9 @@ var currentMode = 'local';
 /* ========== 온도 컬러 팔레트 (v2.7) — 이 앱의 '온도' 를 말하는 단일 기준 ==========
    식음(연두) → 미지근(노랑) → 따뜻(주황) → 뜨거움(빨강). 순서가 곧 0→1 이다.
    지도 마커·존·AI 버튼·색상 팝업 프리셋이 **전부 이 배열 하나**를 본다.
-   ⚠️ CSS 에도 같은 값이 박혀 있다 (style.css 의 `--heat` 폴백·`aiHeatFlow` 그라디언트,
-   skin-v3.css 의 핀 링). 여기를 바꾸면 그쪽도 같이 바꾼다 — 색은 CSS 변수로 못 넘기는
-   자리(그라디언트 키프레임)가 있어서 한 벌로 못 모은다. */
+   ⚠️ CSS 에도 같은 값이 박혀 있다 (style.css 의 `--heat` 폴백, skin-v3.css 의 핀 링 —
+   AI 버튼의 aiHeatFlow 그라디언트는 v2.15 에서 삭제됨). 여기를 바꾸면 그쪽도 같이
+   바꾼다 — 색은 CSS 변수로 못 넘기는 자리(키프레임)가 있어서 한 벌로 못 모은다. */
 var HEAT_STOPS = ['#9dc64c','#f2c53d','#f2862e','#e23b2a'];
 // 색상 팝업 프리셋(v1.65) = 온도 4색(뜨거운 쪽부터) + 브랜드 블루. 온도색을 두 번 적지 않는다.
 var PALETTE = HEAT_STOPS.slice().reverse().concat(['#1428A0']);
@@ -694,6 +694,7 @@ function clusterFeedPins(m){ // 현재 줌의 월드픽셀 기준 근접(56px) �
 function renderFeedMarkers(){ // 피드 사진 = 지도 위 원형 썸네일 핀 (메인+폰 동시, 근접 핀=클러스터)
   if(typeof google==='undefined'||!google.maps||(!map&&!phoneMap))return;
   clearFeedMarkers();
+  if(!mapPinView.feed.show)return; // v2.15 컨텐츠별 표시 설정 — 끄면 걷기만 하고 안 만든다
   if(map)clusterFeedPins(map).forEach(function(c){feedThumbOverlays.push(new FeedThumb(c,map));});
   if(phoneMap)clusterFeedPins(phoneMap).forEach(function(c){phoneFeedThumbOverlays.push(new FeedThumb(c,phoneMap));});
 }
@@ -1212,6 +1213,11 @@ function persistSpotEdit(sp){ // 개별 스팟 편집 저장 (관리자=클라�
    반영), 없어진 것만 걷고, 새로 생긴 것만 만든다. 등장 연출이 **정말 새로 생긴 것에만**
    붙는 것은 이 구조라야 성립한다. 덤으로 재렌더마다 나던 DOM 교체가 사라진다. */
 function renderSpots(){
+  if(!mapPinView.spot.show){ // v2.15 표시 설정 — 지도만 비우고, 이 함수가 하던 연쇄(피드·목록·서랍)는 유지
+    clearSpots();renderFeedMarkers();renderSpotList();
+    if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+    declutterMarkers(); // 게이트 경로도 '렌더 후 재계산' 불변식 유지 — 새 피드 핀이 옛 offset 핀 위에 겹치지 않게
+    return;}
   var prevM={},prevP={};
   spotOverlays.forEach(function(o){if(o&&o.spot)prevM[o.spot.id]=o;});
   phoneSpotOverlays.forEach(function(o){if(o&&o.spot)prevP[o.spot.id]=o;});
@@ -3394,6 +3400,7 @@ function settingsSnapshotFull(){
     spotConfig:snap.spotConfig,
     zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,
     spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},feedIconSize:feedIconSize,
+    mapPinView:mapPinView, // v2.15 지도 컨텐츠별 표시 — 임베드(REST)·캐시·파일도 같은 범위
     /* 상단 지면 타입 (v2.11) — cardVer 는 shared/news(SDK 전용)로만 다녀서 persona-vc
        임베드(REST publicSettings)가 영영 못 봤다. 스킨은 건너가는데 지면 타입만 기본(1)
        으로 뜨던 원인. */
@@ -3420,6 +3427,7 @@ function applyExtraSettings(s){
   if(APP_SKINS.indexOf(s.appSkin)>=0){appSkin=s.appSkin;applySkin();} // setAppSkin 은 저장까지 한다 — 여기는 값 적용만
   if(s.spotMapBg&&typeof s.spotMapBg==='object'){spotMapBg.op=Number(s.spotMapBg.op)||0;spotMapBg.scaleM=Number(s.spotMapBg.scaleM)||100;}
   if(s.feedIconSize!=null&&isFinite(Number(s.feedIconSize)))feedIconSize=Math.max(0,Math.round(Number(s.feedIconSize)));
+  if(s.mapPinView&&typeof s.mapPinView==='object')mergePinView(s.mapPinView); // v2.15 — 값만, 갱신은 부르는 쪽
   // 상단 지면 타입 (v2.11) — 화면 갱신은 부르는 쪽의 renderNews 가 한다 (이 함수의 규칙 그대로).
   var _ncv=parseInt(s.newsCardVer,10);
   if(_ncv>=1&&_ncv<=3)newsCardVer=_ncv;
@@ -3459,6 +3467,7 @@ function loadRemoteSettings(){
       if(typeof renderNews==='function')renderNews();
       if(typeof renderFeed==='function'&&typeof currentTab!=='undefined'&&currentTab==='feed')renderFeed();
       if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+      renderAllPins(); // v2.15 — 컨텐츠별 표시 설정이 공개 문서로 왔을 수 있다
     }).catch(function(e){});
 }
 function loadFileDefaults(){ // repo 백스톱(settings-default.json): 코드 기본값 < 파일 < 클라우드 순으로 적용
@@ -3477,11 +3486,13 @@ function loadFileDefaults(){ // repo 백스톱(settings-default.json): 코드 �
     var _mo=document.getElementById('spotmap-op');if(_mo)_mo.value=String(spotMapBg.op);
     var _ms=document.getElementById('spotmap-scale');if(_ms)_ms.value=String(spotMapBg.scaleM);
     var _fis=document.getElementById('feed-icon-size');if(_fis)_fis.value=feedIconSize>0?String(feedIconSize):'';
+    syncPinViewUI(); // v2.15 지도 컨텐츠별 표시 컨트롤도 파일 값으로
     if(mapReady){refreshMapStyles();refreshHexStyles();refreshSpotStyles();refreshZoneLabels();updateLocalLabelStyle();}
     // 스킨은 마크업까지 가른다(v1.84) — 속성만 바꾸면 다음 렌더까지 옛 구조가 남는다
     if(typeof renderNews==='function')renderNews();
     if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+    renderAllPins(); // v2.15 — 표시 설정이 파일에서 왔을 수 있다
   }).catch(function(e){});
 }
 function applyCloudData(d){
@@ -3512,6 +3523,8 @@ function applyCloudData(d){
     feedIconSize=Math.max(0,Math.round(Number(d.feedIconSize)));saveFeedIconSize();
     var _fis=document.getElementById('feed-icon-size');if(_fis)_fis.value=feedIconSize>0?String(feedIconSize):'';
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();}
+  if(d.mapPinView&&typeof d.mapPinView==='object'){ // v2.15 지도 컨텐츠별 표시 (additive)
+    mergePinView(d.mapPinView);savePinView();syncPinViewUI();renderAllPins();}
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   blockDirty={};updateApplyBar();updateBlockBars(); // 클라우드본 = 적용 기준선
 }
@@ -3754,6 +3767,7 @@ function initSettingsExport(){ // 현재 적용 설정 → JSON 복사 (repo set
     var snap=snapshotSettings();
     snap.appSkin=appSkin;snap.zoneCardStyle=zoneCardStyle;snap.feedTimeMode=feedTimeMode;
     snap.spotMapBg={op:spotMapBg.op,scaleM:spotMapBg.scaleM};snap.feedIconSize=feedIconSize;
+    snap.mapPinView=mapPinView; // v2.15 지도 컨텐츠별 표시
     var json=JSON.stringify(snap,null,1);
     function done(){btn.textContent='✅ 복사됨';setTimeout(function(){btn.textContent='📋 설정 JSON 복사';},1600);}
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(json).then(done,function(){prompt('아래 JSON을 복사하세요',json);});
@@ -3770,7 +3784,8 @@ function cloudSave(){
     spotConfig:snap.spotConfig,
     social:{rooms:socRoomList,seedLocal:socSeedLocal},
     zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},
-    feedIconSize:feedIconSize}; // v2.3 — additive(옛 클라이언트는 모르고 지나간다)
+    feedIconSize:feedIconSize, // v2.3 — additive(옛 클라이언트는 모르고 지나간다)
+    mapPinView:mapPinView};    // v2.15 — 지도 컨텐츠별 표시 방식 (additive)
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
   /* 공개 설정 문서 (v2.5) — persona-vc 임베드가 비로그인 REST 로 읽는다. json 문자열
@@ -3888,15 +3903,17 @@ function focusNearbyZones(){ // 베이직→트렌드: 가까운 존 N개(관리
 }
 function setNavActive(nav){document.querySelectorAll('#phone-mirror .pn-item').forEach(function(x){x.classList.toggle('active',x.dataset.nav===nav);});}
 
-/* ========== [M08] AI Agent: 상황 맞춤 프리셋 + 모드별 아이콘 톤 (트렌드=불꽃) ========== */
-var AI_PALETTE={local:{idle:['#cbd0d8','#cbd0d8'],on:['#8ed0ff','#a78bfa']},trend:{idle:['#ffb37a','#ff6a4d'],on:['#ffd24a','#ff3d2e']}};
+/* ========== [M08] AI Agent: 상황 맞춤 프리셋 + 트렌드=무지개 선글라스 ========== */
+/* v2.15: 모드별 톤(트렌드 웜톤 재도색·온도 흐름 배경)은 삭제 — 트렌드 구분은
+   선글라스 착용 + 렌즈 무지개 발광(CSS aiLensRainbow/aiShadeGlow)만 담당한다. */
+var AI_PALETTE={idle:['#cbd0d8','#cbd0d8'],on:['#8ed0ff','#a78bfa']};
 var aiActiveOn=false;
-function updateAiVisual(on){ // on 생략=마지막 상태 유지(모드 전환 시 재도색)
+function updateAiVisual(on){ // on 생략=마지막 상태 유지(모드 전환 시 재호출)
   if(typeof on==='boolean')aiActiveOn=on;
   var btn=document.querySelector('#phone-mirror .pn-ai');if(!btn)return;
-  var pal=AI_PALETTE[currentMode==='trend'?'trend':'local'],c=aiActiveOn?pal.on:pal.idle;
+  var c=aiActiveOn?AI_PALETTE.on:AI_PALETTE.idle;
   btn.classList.toggle('ai-on',aiActiveOn);
-  btn.classList.toggle('ai-flame',currentMode==='trend');
+  btn.classList.toggle('ai-flame',currentMode==='trend'); // 선글라스 표시 스위치(색은 안 바꾼다)
   var stops=document.querySelectorAll('#aiBlob stop');
   if(stops[0]&&stops[1]){stops[0].setAttribute('stop-color',c[0]);stops[1].setAttribute('stop-color',c[1]);}
 }
@@ -4259,6 +4276,50 @@ var feedIconSize=0;
 try{var _fis=parseInt(localStorage.getItem('nowhere_feedicon'),10);if(isFinite(_fis)&&_fis>=0)feedIconSize=_fis;}catch(e){}
 function saveFeedIconSize(){try{localStorage.setItem('nowhere_feedicon',String(feedIconSize));}catch(e){}}
 function feedIconBase(){return feedIconSize>0?feedIconSize:(Number(spotConfig.emojiSize)||26);}
+/* v2.15 [M11] 지도 컨텐츠별 표시 방식 — 관리자 s-pins 패널. 종류별 {show(표시),
+   size(핀 배율 %, Request·딜만 — CSS 고정 크기라 배율로 조절), label(딜 %라벨)}.
+   feedIconSize 와 같은 즉시 적용·additive 클라우드 동기 패턴(왕복 6지점 전부 배선).
+   피드 크기는 기존 feedIconSize(0=스팟 따름)가, 스팟 스타일은 spotConfig 블록이 담당. */
+var mapPinView={spot:{show:true},feed:{show:true},req:{show:true,size:100},deal:{show:true,size:100,label:true}};
+function mergePinView(v){ // additive 병합 — 모르는 키 무시, 빠진 키는 기본값 유지(옛 문서 호환)
+  ['spot','feed','req','deal'].forEach(function(k){
+    var s=v&&v[k];if(!s||typeof s!=='object')return;var t=mapPinView[k];
+    if(typeof s.show==='boolean')t.show=s.show;
+    if(s.size!=null&&isFinite(Number(s.size)))t.size=Math.max(40,Math.min(200,Math.round(Number(s.size))));
+    if(typeof s.label==='boolean')t.label=s.label;
+  });
+}
+try{var _mpv=JSON.parse(localStorage.getItem('nowhere_pinview')||'null');if(_mpv)mergePinView(_mpv);}catch(e){}
+function savePinView(){try{localStorage.setItem('nowhere_pinview',JSON.stringify(mapPinView));}catch(e){}}
+function pinScale(kind){var s=mapPinView[kind];return s&&s.size?s.size/100:1;}
+function renderAllPins(){ // 표시 설정 변경 후 4종 재렌더 — Request 가 끝에서 딜·declutter 까지 연쇄한다
+  if(typeof renderSpots==='function')renderSpots();       // (renderSpots 는 피드 핀도 같이 부른다)
+  if(typeof renderRequestMarkers==='function')renderRequestMarkers();
+}
+function syncPinViewUI(){ // s-pins 컨트롤 ← mapPinView (admin.html 에만 있다 — 없으면 조용히 통과)
+  function v(id,val){var el=document.getElementById(id);if(!el)return;
+    if(el.type==='checkbox')el.checked=!!val;else el.value=String(val);}
+  v('pv-spot-show',mapPinView.spot.show);v('pv-feed-show',mapPinView.feed.show);
+  v('pv-req-show',mapPinView.req.show);v('pv-req-size',mapPinView.req.size);
+  v('pv-deal-show',mapPinView.deal.show);v('pv-deal-size',mapPinView.deal.size);
+  v('pv-deal-label',mapPinView.deal.label);
+}
+function initPinViewUI(){
+  if(!document.getElementById('pv-spot-show'))return;
+  syncPinViewUI();
+  function on(id,fn){var el=document.getElementById(id);if(!el)return;
+    el.addEventListener('change',function(){fn(el);savePinView();
+      if(typeof markCloudDirty==='function')markCloudDirty();renderAllPins();});}
+  on('pv-spot-show',function(el){mapPinView.spot.show=!!el.checked;});
+  on('pv-feed-show',function(el){mapPinView.feed.show=!!el.checked;});
+  on('pv-req-show',function(el){mapPinView.req.show=!!el.checked;});
+  on('pv-deal-show',function(el){mapPinView.deal.show=!!el.checked;});
+  on('pv-deal-label',function(el){mapPinView.deal.label=!!el.checked;});
+  on('pv-req-size',function(el){mapPinView.req.size=Math.max(40,Math.min(200,parseInt(el.value,10)||100));el.value=String(mapPinView.req.size);});
+  on('pv-deal-size',function(el){mapPinView.deal.size=Math.max(40,Math.min(200,parseInt(el.value,10)||100));el.value=String(mapPinView.deal.size);});
+  var st=document.getElementById('pv-spot-style'); // 스팟 스타일 풀셋은 기존 s-spot 드래프트 블록으로
+  if(st)st.addEventListener('click',function(){if(typeof openAdminMenu==='function')openAdminMenu('s-spot');});
+}
 // 스팟 카드 지도 배경(피드 탭): op=지도 불투명도(0=끔), scaleM=축척(카드 세로 128px 기준 m) — 관리자 설정·클라우드 동기
 var spotMapBg={op:0.35,scaleM:100};
 try{var _smb=JSON.parse(localStorage.getItem('nowhere_spotmapbg')||'null');if(_smb&&typeof _smb==='object'){if(_smb.op!=null)spotMapBg.op=Number(_smb.op)||0;if(_smb.scaleM)spotMapBg.scaleM=Number(_smb.scaleM)||100;}}catch(e){}
@@ -4924,7 +4985,8 @@ function initReqPinClass(){
     this._ax=pos.x;this._ay=pos.y; // 앵커=원래 좌표
     // v2.9: 겹침 방지가 밀어낸 만큼을 얹어 그린다
     this.div.style.left=(pos.x+(this._ndx||0))+'px';this.div.style.top=(pos.y+(this._ndy||0))+'px';
-    var m=this.getMap(),z=m?m.getZoom():15,sc=contentScale(z); // v1.95: 컨텐츠 공통 배율 (스팟·피드·라벨과 같은 폭)
+    // v1.95 컨텐츠 공통 배율 × v2.15 종류별 배율(관리자 s-pins, 곡선은 공통 유지)
+    var m=this.getMap(),z=m?m.getZoom():15,sc=contentScale(z)*pinScale('req');
     this.div.style.transformOrigin='50% 100%';this.div.style.transform='translate(-50%,-100%) scale('+sc+')';
   }};
   ReqPin.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
@@ -5009,6 +5071,7 @@ function renderRequestMarkers(){
   reqMarkers.forEach(function(o){o.setMap(null);});reqMarkers=[];
   if(!phoneMap||typeof google==='undefined')return;
   if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+  if(mapPinView.req.show) // v2.15 컨텐츠별 표시 설정 — 꺼도 딜·declutter 연쇄는 그대로 탄다
   fieldRequests.filter(reqActive).forEach(function(rq){ // 활성(10분 내·시드)만 표시, 전용 핀(답변 내용 노출 안 함)
     reqMarkers.push(new ReqPin(rq,phoneMap));
   });
@@ -5052,8 +5115,10 @@ function initDealPinClass(){
     var self=this;
     var el=document.createElement('div');el.className='deal-pin';
     el.innerHTML='<span class="dp-circle">⏰</span><span class="dp-pct">'+escHtml(String(this.d.pct))+'%</span>';
+    el.classList.toggle('no-pct',!mapPinView.deal.label); // v2.15 %라벨 표시 설정
     el.title=this.d.title;
-    el.addEventListener('click',function(e){e.stopPropagation();openDealSheet(self.d.id);});
+    // v2.15: 핀 탭=매장 전용 페이지. 쿠폰 시트는 그 페이지의 '타임딜 쿠폰받기'가 연다.
+    el.addEventListener('click',function(e){e.stopPropagation();openStorePage(self.d.id);});
     if(nhBounceTake(this.d.id))el.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
     this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
   };
@@ -5061,7 +5126,8 @@ function initDealPinClass(){
     this._ax=pos.x;this._ay=pos.y; // 앵커=원래 좌표 (declutter 규약 v1.59)
     // v2.9: 겹침 방지가 밀어낸 만큼(_ndx·_ndy)을 얹어 그린다. 앵커는 그대로 둔다.
     this.div.style.left=(pos.x+(this._ndx||0))+'px';this.div.style.top=(pos.y+(this._ndy||0))+'px';
-    var m=this.getMap(),z=m?m.getZoom():15,sc=contentScale(z); // v1.95: 컨텐츠 공통 배율
+    // v1.95 컨텐츠 공통 배율 × v2.15 종류별 배율(관리자 s-pins, 곡선은 공통 유지)
+    var m=this.getMap(),z=m?m.getZoom():15,sc=contentScale(z)*pinScale('deal');
     /* 점 전환 (v2.11) — 스팟·피드와 **같은 기준**(spotDotScaleM)이다. 딜만 축소에서
        원래 크기로 남아 지도를 덮었다. 점일 때는 앵커를 중심으로(피드 점과 같은 문법). */
     var mppD=mapMpp(m),isDot=mppD?((mppD*64)>spotDotScaleM()):(z<13);
@@ -5077,6 +5143,7 @@ function initDealPinClass(){
 function renderDealMarkers(){
   dealMarkers.forEach(function(o){o.setMap(null);});dealMarkers=[];
   if(!phoneMap||typeof google==='undefined'||!google.maps)return;
+  if(!mapPinView.deal.show)return; // v2.15 컨텐츠별 표시 설정
   timeDeals.filter(dealActive).forEach(function(d){dealMarkers.push(new DealPin(d,phoneMap));});
   if(typeof declutterMarkers==='function')declutterMarkers();
 }
@@ -5134,6 +5201,98 @@ function initTimeDeals(){
     if(typeof liveChat==='function'){/* 채팅 공유는 M06 경유 — 없으면 알림만 */}
     alert((d?d.title:'딜')+'을 동네 채팅방에 공유했어요.');
   });
+}
+
+/* ── [M17] v2.15 매장 전용 페이지 — 타임딜 핀을 누르면 시트 대신 전면 페이지가 뜬다.
+   시안(석촌동 쵸리상경): 뱃지 칩 → #매장명 → 주소줄 → 소개 → 액션 4버튼 →
+   타임딜 배너 → 사진 그리드. 배지·주소·사진은 전부 **실제로 있는 값**으로 채운다
+   (v3 규칙): 참여중=반경 400m 컨텐츠 수, °C=존 온도(36.5~99.9 눈금),
+   사진=같은 매장(shop===feed.name, 시드 생성기 연결고리)·근처 피드.
+   '타임딜 쿠폰받기'는 기존 딜 시트(z-30)를 다시 연다 — 페이지(z-29) 위로 올라온다. */
+var storePageId=null, storeTicker=null;
+function storeFeedPhotos(d){ // 같은 매장 사진 우선, 모자라면 근처 — 하나도 없으면 결정적 대체 타일
+  var same=feedItems.filter(function(f){return !f.hidden&&f.src&&f.name===d.shop;});
+  var near=feedItems.filter(function(f){
+    return !f.hidden&&f.src&&f.name!==d.shop&&f.lat!=null&&haversineM(f.lat,f.lng,d.lat,d.lng)<=400;});
+  var out=same.concat(near).slice(0,9);
+  if(!out.length){
+    var th=['food','cafe','shop','night','park','art'];
+    for(var i=0;i<6;i++)out.push({src:seedImg(th[i%th.length],d.shop)});
+  }
+  return out;
+}
+function storeChipData(d){ // 시안의 배지 자리 — Overview 칩(ovChipData)과 같은 실값 문법
+  var t=zoneHeatT(d.lat,d.lng),near=0,chips=[];
+  feedItems.forEach(function(f){if(!f.hidden&&f.lat!=null&&haversineM(f.lat,f.lng,d.lat,d.lng)<=400)near++;});
+  fieldRequests.forEach(function(r){if(r.lat!=null&&haversineM(r.lat,r.lng,d.lat,d.lng)<=400)near++;});
+  if(t!=null&&t>=0.7)chips.push({t:'⭐ Top Spot',hot:true});
+  chips.push({t:'👥 '+Math.max(1,near)+'명 참여중'});
+  if(t!=null)chips.push({t:'🔥 '+(36.5+t*63.4).toFixed(1)+'°C',hot:t>=0.5}); // 시안의 °C 눈금
+  chips.push({t:'🚩 타임딜 진행중'});
+  return chips;
+}
+function openStorePage(id){
+  var pg=document.getElementById('store-page'),d=dealById(id);
+  if(!pg||!d)return;
+  storePageId=id;
+  function set(eid,v){var el=document.getElementById(eid);if(el)el.textContent=v;}
+  set('stp-loc',dongAt(d.lat,d.lng)||d.shop);
+  var chips=document.getElementById('stp-chips');
+  if(chips){chips.innerHTML='';storeChipData(d).forEach(function(c){
+    var s=document.createElement('span');s.className='stp-chip'+(c.hot?' hot':'');s.textContent=c.t;chips.appendChild(s);});}
+  set('stp-name','#'+d.shop);
+  set('stp-addr',(d.addr||dongAt(d.lat,d.lng)||'근처')+' · 내 위치에서 '+dealDistLabel(d));
+  set('stp-desc',d.desc||(d.shop+' — '+(dongAt(d.lat,d.lng)||'우리 동네')+'에서 지금 타임딜을 진행 중인 매장이에요. 소식·사진·딜을 한곳에서 보세요.'));
+  var img=document.getElementById('stp-pr-img'),promo=document.getElementById('stp-promo');
+  if(img&&promo){ // 사진(v2.12 규칙: 통과한 주소만)이 있으면 배너 배경으로
+    if(d.img){if(img.src!==d.img)img.src=d.img;img.style.display='';promo.classList.add('has-img');}
+    else{img.removeAttribute('src');img.style.display='none';promo.classList.remove('has-img');}
+  }
+  set('stp-pr-emoji',d.e||'⏰');
+  set('stp-pr-title',d.title);
+  var grid=document.getElementById('stp-grid');
+  if(grid){grid.innerHTML='';storeFeedPhotos(d).forEach(function(f){
+    var cell=document.createElement('span');cell.className='stp-ph';
+    var im=document.createElement('img');im.src=f.src;im.alt='';im.loading='lazy';cell.appendChild(im);
+    grid.appendChild(cell);});}
+  var sc=document.getElementById('stp-scroll');if(sc)sc.scrollTop=0;
+  pg.style.display='';
+  syncStorePage();
+  if(!storeTicker)storeTicker=setInterval(syncStorePage,1000); // 열려 있을 때만 도는 1초 티커(시트와 동일)
+}
+function closeStorePage(){
+  var pg=document.getElementById('store-page');if(pg)pg.style.display='none';
+  storePageId=null;
+  if(storeTicker){clearInterval(storeTicker);storeTicker=null;}
+}
+function syncStorePage(){ // 티커 — 남은 시간·가격줄만 갱신 (syncDealSheet 문법: 딜이 사라지면 자기 닫음)
+  var d=dealById(storePageId);if(!d)return closeStorePage();
+  var rem=dealRemain(d);
+  function set(eid,v){var el=document.getElementById(eid);if(el)el.textContent=v;}
+  set('stp-pr-time','⏰ '+dealClock(rem)+' 남음 · 남은 수량 '+d.stock);
+  set('stp-pr-was',d.was);set('stp-pr-now',d.price);set('stp-pr-pct',d.pct+'% 할인');
+  var cta=document.getElementById('stp-coupon');
+  if(cta)cta.disabled=!dealActive(d);
+}
+function initStorePage(){
+  var pg=document.getElementById('store-page');if(!pg)return;
+  var back=document.getElementById('stp-back');
+  if(back)back.addEventListener('click',closeStorePage);
+  var mn=document.getElementById('stp-menu'); // 메뉴보기=사진 그리드로 스크롤(사진이 메뉴판 역할)
+  if(mn)mn.addEventListener('click',function(){
+    var g=document.getElementById('stp-grid');if(g)g.scrollIntoView({behavior:'smooth',block:'start'});
+  });
+  var mp=document.getElementById('stp-map'); // 지도 이동은 동결 앵커 cpopGoMap 경유(탭 UX 통일 규칙)
+  if(mp)mp.addEventListener('click',function(){
+    var d=dealById(storePageId);closeStorePage();
+    if(d)cpopGoMap('deal',{lat:d.lat,lng:d.lng});
+  });
+  var cm=document.getElementById('stp-comm');
+  if(cm)cm.addEventListener('click',function(){
+    closeStorePage();setNavActive('social');switchTab('social');
+  });
+  var cp=document.getElementById('stp-coupon');
+  if(cp)cp.addEventListener('click',function(){if(storePageId)openDealSheet(storePageId);});
 }
 
 /* ========== [M06] 소셜 탭: 동네 채팅 · 주제방 · 프라이빗(크레딧) ========== */
@@ -6805,20 +6964,21 @@ function nhAct(st,token){
         nhAreaKey=st.v;cpopGoMap('area',{lat:c.lat,lng:c.lng},c.z||NH_AREA_ZOOM);return true;}
       if(st.a==='pop'){var d=nhPick(st.v,st.i);
         if(!d)return false;
-        /* 딜은 다른 물건이다 (v2.2) — 상세 팝업(#content-pop)이 아니라
-           바텀시트(#deal-sheet)이고 여는 함수도 다르다. */
-        if(st.v==='deal'){if(typeof openDealSheet!=='function')return false;
-          // 짧은 secs 로 "딜이 끝나 사라진다" 를 연출로 쓸 수 있다 — 그런데 핀은
-          // renderDealMarkers 가 dealActive 로 걸러 사라지면서 시트만 열리면
-          // 0:00 남음 에 빈 진행바가 뜬 유령이 남는다. 만료는 못 여는 게 정직하다.
+        /* 딜은 다른 물건이다 (v2.2) — 상세 팝업(#content-pop)이 아니다.
+           v2.15 부터 핀 탭=매장 전용 페이지라 여기서도 같은 것을 연다(구버전 앱이면
+           시트 폴백). 만료는 못 여는 게 정직하다(v2.2 유령 방지 규칙 그대로). */
+        if(st.v==='deal'){
           if(typeof dealActive==='function'&&!dealActive(d))return false;
+          if(typeof openStorePage==='function'){openStorePage(d.id);return true;}
+          if(typeof openDealSheet!=='function')return false;
           openDealSheet(d.id);return true;}
         if(typeof openContentPop!=='function')return false;
         openContentPop(st.v,d);return true;}
       if(st.a==='popclose'){
         var did=false;
-        /* 딜 시트를 안 닫으면 다음 단계들 위에 그대로 얹힌다 (v2.2). */
+        /* 딜 시트를 안 닫으면 다음 단계들 위에 그대로 얹힌다 (v2.2). 매장 페이지도 같다 (v2.15). */
         if(typeof closeDealSheet==='function'){closeDealSheet();did=true;}
+        if(typeof closeStorePage==='function'){closeStorePage();did=true;}
         if(typeof closeContentPop==='function'){closeContentPop();did=true;}
         return did;}
       // 시나리오가 준 질문을 그대로 넘긴다 — 안 넘기면 네이티브 prompt 가 재생을 멈춘다 (v1.95).
@@ -6902,6 +7062,7 @@ function nhSweepTemp(){
     if(nhTempIds.deal.length&&typeof timeDeals!=='undefined'){
       timeDeals=timeDeals.filter(function(d){return nhTempIds.deal.indexOf(d.id)<0;});
       if(typeof closeDealSheet==='function')closeDealSheet();
+      if(typeof closeStorePage==='function')closeStorePage(); // 지운 딜의 매장 페이지도 함께 (v2.15)
       if(typeof renderDealMarkers==='function')renderDealMarkers();
     }
     if(nhTempIds.page.length&&typeof newsItems!=='undefined'){
@@ -7049,6 +7210,9 @@ function nhLayDeal(d,i,c,stamp){
     e:String(d.e||'⏰').slice(0,4),
     title:String(d.title||'').slice(0,40),
     shop:String(d.shop||'근처 매장').slice(0,30),
+    // 매장 페이지(v2.15)용 optional 두 칸 — 콘솔이 안 주면 페이지가 파생값(동네·템플릿)으로 채운다
+    addr:d.addr?String(d.addr).slice(0,60):undefined,
+    desc:d.desc?String(d.desc).slice(0,120):undefined,
     pct:pct,
     price:now.toLocaleString('ko-KR')+'원',
     was:was.toLocaleString('ko-KR')+'원',
@@ -7396,6 +7560,11 @@ function nhReset(){
     if(typeof nhGoHome==='function')nhGoHome();else nhAreaKey='';
     if(typeof closeComposer==='function')closeComposer();
     if(typeof closeContentPop==='function')closeContentPop();
+    /* 매장 페이지·딜 시트는 **무조건** 닫는다 (v2.15 리뷰) — sweep 은 이번 회차가 깐
+       임시 딜이 있을 때만 닫으므로, 전역 시드 딜을 열어 둔 채(재생 중단·수동 탭) 다음
+       회차가 오면 z-29 전면 페이지가 화면을 덮은 채 뒤에서 재생된다. */
+    if(typeof closeStorePage==='function')closeStorePage();
+    if(typeof closeDealSheet==='function')closeDealSheet();
     if(typeof closeDrawer==='function')closeDrawer();
     if(typeof closeComposer==='function')closeComposer();
     if(typeof switchTab==='function')switchTab('map');
@@ -7619,7 +7788,7 @@ function startEmbed(){
   loadFileDefaults(); // repo 백스톱 설정(settings-default.json) — 공장값 캡처 후 비동기 적용, 클라우드가 오면 그쪽 우선
   initSettingsExport();
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initOverview();syncCoinUI();initSeedGen();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();syncCoinUI();initSeedGen();
   window.addEventListener('resize',layoutTabPages);
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)
   setInterval(function(){try{tickReqRemain();}catch(e){}},1000); // Request 남은 시간(분/초) 1초 갱신 — 텍스트만(경량)

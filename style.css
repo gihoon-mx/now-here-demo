@@ -241,6 +241,11 @@ button:focus:not(:focus-visible){outline:none;}
 /* 설정 셀렉트 (미니) */
 .mini-select{margin-left:auto;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font-family:inherit;font-size:.72rem;outline:none;cursor:pointer;}
 .mini-select:focus{border-color:var(--acc);}
+/* 설정 숫자 입력 (v2.15) — mini-select 와 같은 치수의 정식 클래스.
+   여태 number 는 mini-select 를 빌려 쓰거나(sg-num !important) 인라인 width 였다. */
+.num-in{width:110px;margin-left:auto;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font-family:inherit;font-size:.72rem;outline:none;}
+.num-in:focus{border-color:var(--acc);}
+.setting-row .num-in+.num-hint{margin-left:6px;}
 
 /* ========== Settings Toggle ========== */
 .settings-toggle-row{margin-top:9px;}
@@ -331,6 +336,10 @@ button:focus:not(:focus-visible){outline:none;}
 .action-btn.danger:hover{background:rgba(210,55,55,0.08);}
 .action-btn.small{padding:3px 8px;font-size:.68rem;}
 .action-btn:active{transform:scale(.96);}
+.action-btn.btn-block{width:100%;justify-content:center;text-align:center;} /* v2.15: 인라인 width 정리 */
+/* v2.15 콘솔 정리: 행 안 힌트는 붙여 쓰고(마크업 인라인 margin 제거), 구분 행은 클래스로 */
+.setting-row .section-hint{margin:0;}
+.setting-row.row-sep{margin-top:8px;}
 
 /* ========== Color Trigger (색상+투명도 통합 버튼) ========== */
 .color-trigger{margin-left:auto;padding:0;border:1px solid rgba(15,23,42,0.18);border-radius:6px;background:transparent;cursor:pointer;line-height:0;transition:border-color .2s ease,transform .1s ease;}
@@ -384,6 +393,7 @@ button:focus:not(:focus-visible){outline:none;}
 .auth-mark{display:block;width:68px;height:68px;margin:0 auto 12px;object-fit:cover;border-radius:15px;
   border:1px solid rgba(15,23,42,0.08);box-shadow:0 8px 22px rgba(47,123,255,0.18);}
 .auth-logo{font-size:1.5rem;font-weight:800;letter-spacing:.01em;background:linear-gradient(135deg,var(--acc,#2f7bff),#7b61ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--acc,#2f7bff);}
+.auth-logo .auth-role{font-size:.6em;color:var(--ink3);-webkit-text-fill-color:var(--ink3);} /* v2.15: 인라인 스타일 정리 */
 .auth-ver{margin-top:4px;font-size:.66rem;font-weight:600;letter-spacing:.04em;color:var(--ink3,#8a93a3);}
 .auth-ver:empty{display:none;}
 .auth-sub{margin-top:8px;font-size:.78rem;line-height:1.5;color:var(--ink2,#4b5565);}
@@ -665,35 +675,9 @@ body.mode-trend .aip-chat button{background:linear-gradient(160deg,#ff8c3c,#ff3d
 body.mode-trend .aip-head{color:#c2410c;}
 body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 
-/* 트렌드 모드: AI 버튼 = 온도 팔레트가 **대각선으로 순차 이동** (v2.7).
-
-   효과는 **하나뿐**이다 — 색이 좌상단에서 우하단으로 흐르고 다시 반복. v2.6 의 플리커
-   글로우(밝기가 들썩이던 것)는 뺐다: 두 애니메이션이 겹치면 무엇이 의도인지 안 보인다.
-   글로우는 애니 없는 고정값으로 남긴다.
-
-   ⚠️ 색은 app.js 의 `HEAT_STOPS`(#9dc64c → #f2c53d → #f2862e → #e23b2a)와 같은 값이어야
-   한다. 키프레임 안에는 CSS 변수를 넣어도 보간이 안 돼서 리터럴로 적는다.
-   팔레트를 **두 바퀴** 적고 끝을 시작색으로 맞춘다 — 그래야 한 바퀴 돈 뒤 이어 붙는 자리가
-   안 튄다(대각선 이동은 0%→100% 가 정확히 한 주기가 아니다). */
-.pn-ai.ai-flame{
-  border-color:rgba(226,59,42,0.45);
-  background-image:linear-gradient(135deg,
-    #9dc64c,#f2c53d,#f2862e,#e23b2a,
-    #9dc64c,#f2c53d,#f2862e,#e23b2a,#9dc64c);
-  background-size:300% 300%;
-  filter:drop-shadow(0 0 1.6cqw rgba(226,59,42,0.34));
-  animation:aiHeatFlow 5s linear infinite;
-}
-.pn-ai.ai-flame ellipse,.pn-ai.ai-flame path{stroke:#5c1d10;}
-.pn-ai.ai-flame ellipse{fill:#5c1d10;}
-@keyframes aiHeatFlow{from{background-position:0% 0%;}to{background-position:100% 100%;}}
-/* 트렌드 전용 클릭(활성): 흐르는 배경은 그대로 두고 링만 얹는다 — 배경을 덮으면 흐름이 멈춘 것처럼 보인다 */
-.pn-ai.ai-flame.ai-on{border-color:rgba(226,59,42,0.85);box-shadow:0 0 0 0.6cqw rgba(226,59,42,0.18);}
-.pn-ai.ai-flame.spin{animation:aiSpin .62s cubic-bezier(.3,1,.35,1),aiHeatFlow 5s linear infinite;}
-/* 움직임을 줄이라고 한 기기에서는 흐르지 않고 팔레트 그대로 선다 (mapMorph 와 같은 규칙) */
-@media (prefers-reduced-motion:reduce){
-  .pn-ai.ai-flame,.pn-ai.ai-flame.spin{animation:none;background-image:linear-gradient(135deg,#9dc64c,#f2c53d,#f2862e,#e23b2a);}
-}
+/* 트렌드 모드: AI 버튼 색은 베이직과 같다 (v2.15) — v2.7 의 온도 팔레트 대각선 흐름
+   (aiHeatFlow)·웜톤 재도색은 삭제. 트렌드 구분은 선글라스 무지개 발광 하나
+   (아래 v1.61 선글라스 블록의 aiLensRainbow/aiShadeGlow)가 담당한다. */
 .pn-ai.ai-on{background:linear-gradient(135deg,rgba(47,123,255,0.16),rgba(154,119,221,0.16)),var(--frost);border-color:rgba(154,119,221,0.45);}
 
 /* 스팟 편집 모달 행 */
@@ -1110,12 +1094,34 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 .feed-card .fc-mapbg{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:cover;border-radius:inherit;pointer-events:none;z-index:0;}
 .feed-card.txt .fc-emoji,.feed-card.txt .fc-text{position:relative;z-index:1;}
 
-/* ── 트렌드 모드 AI 캐릭터 = 선글라스 (v1.61) ── */
+/* ── 트렌드 모드 AI 캐릭터 = 선글라스 (v1.61) + 렌즈 무지개 발광 (v2.15) ──
+   렌즈(rect.sh-lens)의 fill 이 무지개를 돌고, 그룹(.ai-shades)의 drop-shadow 가
+   같은 색으로 함께 돈다. 두 키프레임은 같은 6s 주기 — 어긋나면 발광색과 렌즈색이
+   따로 논다. SVG rect 의 fill 은 CSS 애니가 presentation attribute 를 이긴다. */
 .pn-ai .ai-shades{display:none;}
-.pn-ai.ai-flame .ai-shades{display:block;}
+.pn-ai.ai-flame .ai-shades{display:block;animation:aiShadeGlow 6s linear infinite;}
 .pn-ai.ai-flame svg ellipse{display:none;} /* 눈은 선글라스 뒤로 */
 .pn-ai.ai-flame .ai-shades path{stroke:#1d222b;}
-.pn-ai.ai-flame .ai-shades .sh-hi{stroke:rgba(255,255,255,0.5);} /* 렌즈 하이라이트 */
+.pn-ai.ai-flame .ai-shades .sh-hi{stroke:rgba(255,255,255,0.65);} /* 렌즈 하이라이트 */
+.pn-ai.ai-flame .sh-lens{animation:aiLensRainbow 6s linear infinite;}
+@keyframes aiLensRainbow{
+  0%,100%{fill:#ff3b5c;}17%{fill:#ff9d2e;}33%{fill:#f2c53d;}
+  50%{fill:#34c26e;}67%{fill:#3a8dff;}83%{fill:#8a5cff;}
+}
+@keyframes aiShadeGlow{
+  0%,100%{filter:drop-shadow(0 0 1.4cqw rgba(255,59,92,0.75));}
+  17%{filter:drop-shadow(0 0 1.4cqw rgba(255,157,46,0.75));}
+  33%{filter:drop-shadow(0 0 1.4cqw rgba(242,197,61,0.75));}
+  50%{filter:drop-shadow(0 0 1.4cqw rgba(52,194,110,0.75));}
+  67%{filter:drop-shadow(0 0 1.4cqw rgba(58,141,255,0.75));}
+  83%{filter:drop-shadow(0 0 1.4cqw rgba(138,92,255,0.75));}
+}
+/* 움직임을 줄이라고 한 기기에서는 보라 한 색으로 선다 (mapMorph 와 같은 규칙) */
+@media (prefers-reduced-motion:reduce){
+  .pn-ai.ai-flame .ai-shades,.pn-ai.ai-flame .sh-lens{animation:none;}
+  .pn-ai.ai-flame .sh-lens{fill:#8a5cff;}
+  .pn-ai.ai-flame .ai-shades{filter:drop-shadow(0 0 1.4cqw rgba(138,92,255,0.55));}
+}
 
 /* ── 스팟 의견: 메시지 버블 리스트 + 입력 (상세 팝업 내부) ── */
 #cpop-body .cps-comments{margin-top:12px;max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;text-align:left;}
@@ -1294,6 +1300,7 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
   font-size:10px;font-weight:800;line-height:1.3;box-shadow:0 1px 5px rgba(15,23,42,0.24);white-space:nowrap;}
 body.mode-trend .deal-pin .dp-circle{background:#f2c33c;border-color:#e8a92b;}
 body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
+.deal-pin.no-pct .dp-pct{display:none;} /* v2.15 관리자 표시 설정: %라벨 끔 */
 /* 축소 시 점 (v2.11) — 피드 .fp-dot 과 같은 문법: 12px 고정, 라벨 숨김. 색은 모드 규칙 그대로. */
 .deal-pin.dl-dot{opacity:.75;gap:0;}
 .deal-pin.dl-dot .dp-pct{display:none;}
@@ -1330,6 +1337,54 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
   font-family:inherit;font-size:3.8cqw;font-weight:700;cursor:pointer;}
 .deal-sheet .ds-share{height:12.2cqw;padding:0 4.6cqw;border:none;border-radius:9999px;background:#f4f3f1;color:#4a4a4a;
   font-family:inherit;font-size:3.8cqw;font-weight:700;cursor:pointer;}
+
+/* ── [M17] v2.15 매장 전용 페이지 — 타임딜 핀 탭 → 전면 페이지 (시안: 석촌동 쵸리상경).
+   z-29: Overview(28) 위·딜 시트(30) 아래 — '쿠폰받기'가 시트를 이 위로 올린다. */
+.store-page{position:absolute;inset:0;z-index:29;background:#fff;display:flex;flex-direction:column;
+  animation:stpIn .24s cubic-bezier(.22,1,.36,1);}
+@keyframes stpIn{from{opacity:0;transform:translateY(3cqw);}to{opacity:1;transform:none;}}
+.store-page .stp-head{display:flex;align-items:center;gap:2.6cqw;padding:3.6cqw 4.1cqw 2cqw;}
+.store-page .stp-back{border:none;background:transparent;font-size:6.6cqw;font-weight:700;color:#1a1a1a;
+  cursor:pointer;padding:0 1.5cqw;line-height:1;}
+.store-page .stp-loc{flex:1;text-align:center;font-size:3.8cqw;font-weight:800;letter-spacing:-0.02em;color:#1a1a1a;}
+.store-page .stp-ava{display:flex;align-items:center;justify-content:center;width:8.7cqw;height:8.7cqw;flex:none;
+  border-radius:50%;background:#1a1a1a;color:#fff;font-size:4.1cqw;overflow:hidden;}
+.store-page .stp-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2cqw 4.6cqw 8cqw;}
+/* 뱃지 칩 — 시안의 보라 알약 (Top Spot · 참여중 · °C · 타임딜) */
+.store-page .stp-chips{display:flex;flex-wrap:wrap;gap:1.8cqw;margin-top:2cqw;}
+.store-page .stp-chip{padding:1.5cqw 3cqw;border-radius:9999px;background:#7b61ff;color:#fff;
+  font-size:2.8cqw;font-weight:700;white-space:nowrap;}
+.store-page .stp-chip.hot{background:#5b3df0;}
+.store-page .stp-name{margin:3cqw 0 0;font-size:8.2cqw;font-weight:900;letter-spacing:-0.04em;line-height:1.2;color:#111;}
+.store-page .stp-addr{margin:1.3cqw 0 0;font-size:3.1cqw;color:#9c9c9c;}
+.store-page .stp-desc{margin:2.6cqw 0 0;font-size:3.6cqw;line-height:1.6;color:#2a2a2a;}
+/* 액션 줄 — 보조 3개는 흰 알약, CTA(쿠폰받기)만 보라 솔리드 (시안 그대로) */
+.store-page .stp-acts{display:flex;flex-wrap:wrap;gap:2cqw;margin-top:3.6cqw;}
+.store-page .stp-act{padding:2.4cqw 3.8cqw;border:1px solid #d8d6d2;border-radius:9999px;background:#fff;
+  color:#1a1a1a;font-family:inherit;font-size:3.1cqw;font-weight:700;cursor:pointer;}
+.store-page .stp-act.stp-cta{border:none;background:#7b61ff;color:#fff;}
+.store-page .stp-act:disabled{opacity:.45;cursor:default;}
+/* 타임딜 배너 — 사진이 있으면 배경으로 깔고 본문을 반투명 카드로 띄운다 */
+.store-page .stp-promo{position:relative;display:flex;align-items:center;gap:3cqw;margin-top:4.1cqw;
+  padding:4.1cqw;border-radius:4.6cqw;overflow:hidden;background:linear-gradient(135deg,#dff1ff,#b7d7f3);}
+.store-page .stp-pr-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.store-page .stp-pr-main{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:1.3cqw;align-items:flex-start;}
+.store-page .stp-promo.has-img .stp-pr-main{background:rgba(255,255,255,0.85);border-radius:3cqw;padding:2.6cqw 3cqw;}
+.store-page .stp-promo.has-img .stp-pr-emoji{display:none;}
+.store-page .stp-pr-tag{padding:1.2cqw 2.6cqw;border-radius:9999px;background:#123a63;color:#ffd94a;
+  font-size:2.8cqw;font-weight:900;letter-spacing:0.02em;}
+.store-page .stp-pr-title{font-size:4.6cqw;font-weight:900;letter-spacing:-0.03em;color:#123a63;line-height:1.3;}
+.store-page .stp-pr-time{font-size:3.1cqw;font-weight:700;color:#e8574a;}
+.store-page .stp-pr-price{display:flex;align-items:baseline;gap:1.8cqw;flex-wrap:wrap;}
+.store-page .stp-pr-price i{font-style:normal;font-size:3.1cqw;color:#6b7b90;text-decoration:line-through;}
+.store-page .stp-pr-price b{font-size:5.1cqw;font-weight:900;color:#123a63;letter-spacing:-0.03em;}
+.store-page .stp-pr-price em{font-style:normal;padding:0.8cqw 2.2cqw;border-radius:9999px;background:#e8574a;color:#fff;
+  font-size:2.8cqw;font-weight:800;}
+.store-page .stp-pr-emoji{position:relative;flex:none;font-size:12.2cqw;line-height:1;}
+/* 사진 그리드 — 시안의 3열 정방형 */
+.store-page .stp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5cqw;margin-top:4.1cqw;}
+.store-page .stp-ph{display:block;aspect-ratio:1;border-radius:2cqw;overflow:hidden;background:#f0efec;}
+.store-page .stp-ph img{width:100%;height:100%;object-fit:cover;display:block;}
 
 /* ── [M10] v1.90 지역 Overview 글래스 패널 ─────────────────────────────────── */
 .ov-panel{position:absolute;inset:0;z-index:28;}

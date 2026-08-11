@@ -83,6 +83,14 @@ body[data-skin="v3"]{
   --v3-sh-soft:0 2px 8px rgba(0,0,0,.06);
   --v3-sh-float:0 8px 30px rgba(0,0,0,.18);
   --v3-sh-pin:0 3px 10px rgba(0,0,0,.18);
+
+  /* ── 콘솔 상태색 (v2.15 토큰 승격) ── 콘솔 섹션 곳곳에 리터럴로 적혀 있던 값들의
+     단일 소스. 값은 그대로다 — 이름만 붙였다. */
+  --v3-hover:#E9E7E3;      /* 알약 hover 면 */
+  --v3-tabface:#EFEEEB;    /* 비활성 탭 면 */
+  --v3-danger-bg:#FDEEEA;  /* danger 알약 면 */
+  --v3-danger-bg2:#FBE0DA; /* danger hover 면 */
+  --v3-dirty:#F2994A;      /* 미적용(dirty) 점 — --v3-t4 와 같은 값 */
 }
 
 /* 트렌드 렌즈로 넘어가면 액센트가 코랄로 굳는다(Basic 은 무채색이 기본이다) */
@@ -233,27 +241,9 @@ body[data-skin="v3"] .pn-ai{padding:3.3cqw;}
 /* 캐릭터 얼굴을 흰 계열로 — 회색 유리 위에서 선이 죽는다 */
 body[data-skin="v3"] .pn-ai svg g[fill]{fill:rgba(255,255,255,.94);}
 body[data-skin="v3"] .pn-ai.ai-on{background:var(--v3-glass-on);}
-/* Trend 에서 AI 는 **온도색이 흐른다** (v2.6) — 시안의 코랄 한 색에서 HEAT_STOPS 스펙트럼으로.
-   ⚠️ 그라디언트를 **여기서 다시 적는다.** 위 `body[data-skin="v3"] .pn-ai` 의 `background`
-   축약이 (0,2,1) 로 style.css 의 `.pn-ai.ai-flame` (0,2,0) 을 이겨서 `background-image` 를
-   none 으로 지운다 — 스킨 파일이 나중에 로드되는 것과 무관한 명시도 문제다.
-   색 목록은 style.css·app.js 의 HEAT_STOPS 와 같은 값이어야 한다. */
-body[data-skin="v3"] .pn-ai.ai-flame{
-  background-color:#f2862e;
-  background-image:linear-gradient(135deg,
-    #9dc64c,#f2c53d,#f2862e,#e23b2a,
-    #9dc64c,#f2c53d,#f2862e,#e23b2a,#9dc64c);
-  background-size:300% 300%;
-  border:none;
-  box-shadow:none;
-}
-/* 활성은 배경을 덮지 않는다 — 덮으면 흐름이 멈춘 것처럼 보인다. 링으로만 알린다 */
-body[data-skin="v3"] .pn-ai.ai-flame.ai-on{
-  box-shadow:0 0 0 .6cqw rgba(226,59,42,.22);
-}
-@media (prefers-reduced-motion:reduce){
-  body[data-skin="v3"] .pn-ai.ai-flame{background-image:linear-gradient(135deg,#9dc64c,#f2c53d,#f2862e,#e23b2a);}
-}
+/* Trend 재도색 없음 (v2.15) — v2.6 의 온도 흐름 재선언은 삭제. 트렌드 구분은
+   style.css 의 선글라스 무지개 발광(aiLensRainbow/aiShadeGlow)이 그대로 v3 에서도 돈다
+   (배경이 아니라 SVG fill/filter 애니라 이 스킨의 background 축약과 충돌하지 않는다). */
 
 /* ══ ② 지도 오버레이 ═══════════════════════════════════════════════════════
    **여기부터 `cqw` 를 쓰지 않는다.** 스팟 버블·핀은 PC 지도(admin.html `#map`)에도
@@ -361,7 +351,7 @@ body[data-skin="v3"] #feed-tools{padding:3.1cqw 4.1cqw 0;}
 body[data-skin="v3"] #feed-tools .fsc{
   border:none;border-radius:9999px;
   padding:1.5cqw 3.8cqw;
-  background:#EFEEEB;color:var(--v3-ink3);
+  background:var(--v3-tabface);color:var(--v3-ink3);
   font-size:3.3cqw;font-weight:700;
   box-shadow:none;
 }
@@ -450,7 +440,7 @@ body[data-skin="v3"] .soc-tabs{padding:3.1cqw 4.1cqw 1.5cqw;gap:1.5cqw;}
 body[data-skin="v3"] .soc-tab{
   border:none;border-radius:9999px;
   padding:1.8cqw 3.8cqw;
-  background:#EFEEEB;color:var(--v3-ink3);
+  background:var(--v3-tabface);color:var(--v3-ink3);
   font-size:3.3cqw;font-weight:700;
 }
 body[data-skin="v3"] .soc-tab.active{background:var(--v3-ink);color:#fff;}
@@ -494,7 +484,7 @@ body[data-skin="v3"] #admin-topbar .atb-link{
   display:inline-flex;align-items:center;
 }
 body[data-skin="v3"] #admin-topbar .atb-menus button:hover,
-body[data-skin="v3"] #admin-topbar .atb-link:hover{background:#E9E7E3;}
+body[data-skin="v3"] #admin-topbar .atb-link:hover{background:var(--v3-hover);}
 
 /* ── 사이드바(폰 미리보기) ── 캔버스보다 한 톤 밝게 두고 경계는 헤어라인만 */
 body[data-skin="v3"] #sidebar{background:var(--v3-soft);border-left:1px solid var(--v3-line);}
@@ -568,6 +558,8 @@ body[data-skin="v3"] #adm-panels .setting-row{gap:12px;margin-bottom:12px;min-he
 body[data-skin="v3"] #adm-panels .setting-row label{
   min-width:132px;font-size:13px;font-weight:600;color:var(--v3-ink2);
 }
+/* .toggle-switch 도 label 이다 — 위 132px 라벨 폭을 물려받으면 트랙이 행 폭만큼 늘어난다 */
+body[data-skin="v3"] #adm-panels .setting-row label.toggle-switch{min-width:0;margin-left:auto;}
 body[data-skin="v3"] .mini-select{
   height:32px;padding:0 12px;
   border:none;border-radius:9999px;
@@ -591,31 +583,31 @@ body[data-skin="v3"] .sab{
   box-shadow:none;
 }
 body[data-skin="v3"] .sab .sab-dot{background:var(--v3-green);box-shadow:none;}
-body[data-skin="v3"] .sab.dirty .sab-dot{background:#F2994A;box-shadow:none;}
+body[data-skin="v3"] .sab.dirty .sab-dot{background:var(--v3-dirty);box-shadow:none;}
 body[data-skin="v3"] .sab .sab-msg{font-size:13px;font-weight:600;color:var(--v3-ink2);}
 body[data-skin="v3"] .sab.dirty .sab-msg{color:var(--v3-ink2);}
 
 /* 버튼 — 회색 알약이 기본, `.accent`(전체 적용·초대) 만 검정 알약 */
 body[data-skin="v3"].page-admin .action-btn{
-  height:34px;padding:0 14px;
+  height:32px;padding:0 14px;
   border:none;border-radius:9999px;
   background:var(--v3-canvas);color:var(--v3-ink2);
   font-size:13px;font-weight:700;
   display:inline-flex;align-items:center;
 }
-body[data-skin="v3"].page-admin .action-btn:hover{background:#E9E7E3;color:var(--v3-ink);}
-body[data-skin="v3"].page-admin .action-btn.small{height:30px;padding:0 12px;font-size:12px;}
+body[data-skin="v3"].page-admin .action-btn:hover{background:var(--v3-hover);color:var(--v3-ink);}
+body[data-skin="v3"].page-admin .action-btn.small{height:28px;padding:0 12px;font-size:12px;}
 body[data-skin="v3"].page-admin .action-btn.accent{background:var(--v3-ink);color:#fff;}
 body[data-skin="v3"].page-admin .action-btn.accent:hover{background:#000;color:#fff;}
-body[data-skin="v3"].page-admin .action-btn.danger{background:#FDEEEA;color:var(--v3-red);}
-body[data-skin="v3"].page-admin .action-btn.danger:hover{background:#FBE0DA;color:var(--v3-red-dark);}
+body[data-skin="v3"].page-admin .action-btn.danger{background:var(--v3-danger-bg);color:var(--v3-red);}
+body[data-skin="v3"].page-admin .action-btn.danger:hover{background:var(--v3-danger-bg2);color:var(--v3-red-dark);}
 
 /* ── 전체 컨텐츠 표 (v1.88) ── 시안의 '컨텐츠 관리' 화면.
    종류 탭은 검정 알약, 헤더 줄은 회색 캡션, 상태는 색 알약이다. */
 body[data-skin="v3"] .ct-tab{
   height:32px;padding:0 15px;
   border:none;border-radius:9999px;
-  background:#EFEEEB;color:var(--v3-ink3);
+  background:var(--v3-tabface);color:var(--v3-ink3);
   font-size:13px;font-weight:700;
   display:inline-flex;align-items:center;
 }
@@ -651,6 +643,72 @@ body[data-skin="v3"] .ct-foot{
   font-size:13px;color:var(--v3-ink4);
 }
 
+/* ── 콘솔 나머지 크롬 (v2.15) ── 여태 v3 재도색이 안 닿던 곳들: 독립 모달 4종
+   (접근 권한·스팟 수정·기능 맵·상세), 모달 ✕(.acct-btn), 목록 행(.al-item/.room-item),
+   문서 링크(.ft-docs — .adm-docs 와 같은 3개 링크가 다른 모양이었다), 폼 입력, 색상 팝업,
+   프리뷰 타일. 같은 화면에 legacy 파랑과 v3 종이색이 섞여 나오던 것을 콘솔 문법
+   3원칙(카드·알약·높이)으로 모은다. **폰 미러(.phone-screen)와 서비스 페이지는 건드리지
+   않는다** — 전부 .page-admin 스코프. */
+body[data-skin="v3"].page-admin .modal-card,
+body[data-skin="v3"].page-admin .feature-card,
+body[data-skin="v3"].page-admin .cpop-card{
+  border:none;border-radius:20px;
+  background:var(--v3-surface);
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  box-shadow:0 24px 60px rgba(0,0,0,.24);
+}
+body[data-skin="v3"].page-admin .modal-head{font-weight:800;letter-spacing:-.3px;color:var(--v3-ink);}
+body[data-skin="v3"].page-admin .acct-btn{
+  height:28px;padding:0 10px;
+  border:none;border-radius:9999px;
+  background:var(--v3-canvas);color:var(--v3-ink3);
+  font-size:12px;font-weight:700;
+  display:inline-flex;align-items:center;
+}
+body[data-skin="v3"].page-admin .acct-btn:hover{background:var(--v3-hover);color:var(--v3-ink);}
+body[data-skin="v3"].page-admin .cpop-hbtn{border:none;border-radius:9999px;background:var(--v3-canvas);color:var(--v3-ink3);}
+body[data-skin="v3"].page-admin .cpop-hbtn:hover{background:var(--v3-hover);color:var(--v3-ink);}
+/* 문서 링크 두 벌 통일 — .adm-docs 의 회색 알약 문법으로 */
+body[data-skin="v3"].page-admin .ft-docs a{
+  border:none;border-radius:9999px;
+  background:var(--v3-canvas);color:var(--v3-ink2);
+  font-size:13px;font-weight:700;padding:8px 14px;
+  box-shadow:none;
+}
+body[data-skin="v3"].page-admin .ft-docs a:hover{background:var(--v3-hover);color:var(--v3-ink);}
+/* 목록 한 줄 — 행 카드 문법 하나(soft 면 + radius 14)로 */
+body[data-skin="v3"].page-admin .al-item{border:none;border-radius:14px;background:var(--v3-soft);}
+body[data-skin="v3"].page-admin .room-item{border:1px solid var(--v3-line);border-radius:14px;background:var(--v3-surface);}
+body[data-skin="v3"].page-admin .al-del,
+body[data-skin="v3"].page-admin .ri-del{
+  border:none;border-radius:9999px;
+  background:var(--v3-danger-bg);color:var(--v3-red);
+}
+body[data-skin="v3"].page-admin .al-del:hover,
+body[data-skin="v3"].page-admin .ri-del:hover{background:var(--v3-danger-bg2);color:var(--v3-red-dark);}
+/* 폼 입력 — mini-select 와 같은 알약 한 벌 (콘솔 컨테이너 스코프만, 폰 미러 제외) */
+body[data-skin="v3"].page-admin .al-add input,
+body[data-skin="v3"].page-admin .al-add select,
+body[data-skin="v3"].page-admin .news-url-row input,
+body[data-skin="v3"].page-admin #zone-name-input,
+body[data-skin="v3"].page-admin .modal-card .se-row input,
+body[data-skin="v3"].page-admin #adm-panels .num-in{
+  height:32px;padding:0 12px;
+  border:none;border-radius:9999px;
+  background:var(--v3-canvas);color:var(--v3-ink);
+  font-size:13px;font-weight:600;outline:none;
+}
+body[data-skin="v3"].page-admin .setting-row .num-in+.num-hint{margin-left:8px;font-size:12px;color:var(--v3-ink5);}
+/* 색상 팝업·프리뷰 타일·소제목 — 카드 문법으로 */
+body[data-skin="v3"].page-admin .color-popup{border:none;border-radius:16px;background:var(--v3-surface);box-shadow:var(--v3-sh-float);}
+body[data-skin="v3"].page-admin .mini-prev{border:1px solid var(--v3-line);border-radius:14px;}
+body[data-skin="v3"].page-admin .row-cap{margin:16px 0 8px;font-size:12px;font-weight:800;letter-spacing:.3px;color:var(--v3-ink5);}
+/* 토글도 알약 문법 — 켜짐은 액센트가 아니라 잉크(확정 동작=검정 규칙과 한 벌) */
+body[data-skin="v3"].page-admin .toggle-switch input:checked+.toggle-slider{background:var(--v3-ink);}
+body[data-skin="v3"].page-admin .toggle-slider{background:var(--v3-line2);}
+body[data-skin="v3"].page-admin .auth-card{border:none;border-radius:20px;background:var(--v3-surface);box-shadow:var(--v3-sh-float);}
+body[data-skin="v3"].page-admin .google-btn{border-radius:9999px;}
+
 /* ── 타임딜 (v1.89) ── 기본형이 이미 시안 값이라 v3 에서는 **온도 팔레트만 맞춘다**.
    Basic 에서 핀이 흰색으로 가라앉는 규칙은 사진 핀과 같다. */
 body[data-skin="v3"] .deal-pin .dp-circle{border-width:3.5px;box-shadow:var(--v3-sh-pin);}
@@ -671,6 +729,18 @@ body[data-skin="v3"] .deal-sheet .ds-was{color:var(--v3-ink5);}
 body[data-skin="v3"] .deal-sheet .ds-bar{background:var(--v3-fill);}
 body[data-skin="v3"] .deal-sheet .ds-claim{background:var(--v3-ink);}
 body[data-skin="v3"] .deal-sheet .ds-share{background:var(--v3-canvas);color:var(--v3-ink3);}
+
+/* ── 매장 전용 페이지 (v2.15) ── 기본형이 이미 시안 값 — v3 는 토큰 색만 맞춘다 */
+body[data-skin="v3"] .store-page{background:var(--v3-canvas);}
+body[data-skin="v3"] .store-page .stp-loc,
+body[data-skin="v3"] .store-page .stp-name{color:var(--v3-ink);}
+body[data-skin="v3"] .store-page .stp-addr{color:var(--v3-ink5);}
+body[data-skin="v3"] .store-page .stp-desc{color:var(--v3-ink2);}
+body[data-skin="v3"] .store-page .stp-act{background:var(--v3-surface);border-color:var(--v3-line);color:var(--v3-ink);}
+body[data-skin="v3"] .store-page .stp-act.stp-cta{background:#7b61ff;color:#fff;border:none;}
+body[data-skin="v3"] .store-page .stp-pr-time{color:var(--v3-red);}
+body[data-skin="v3"] .store-page .stp-pr-price em{background:var(--v3-red);}
+body[data-skin="v3"] .store-page .stp-ph{background:var(--v3-fill);}
 
 /* ── 지역 Overview 패널 (v1.90) ── 기본형이 이미 시안 값이라 v3 는 타이포만 맞춘다 */
 body[data-skin="v3"] .ov-panel .ov-chip{font-weight:700;color:var(--v3-ink2);}
