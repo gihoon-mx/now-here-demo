@@ -47,7 +47,7 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v2.8.0** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
+- **현재 최신: v2.9.0** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
 - ⚠️ v1.65부터 **admin.html도 버전 동기 대상**(check.js가 index/admin의 #app-version·?v= 일치를 강제). index/admin에 **공통 요소**(폰 화면 마크업·모달·설정 섹션)를 수정하면 **두 파일 모두** 반영할 것.
 
 ---
@@ -214,7 +214,32 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 2. now-here-demo → OAuth 웹 클라이언트 · 승인된 JavaScript 원본
 3. Firebase Console → Authentication → Settings → **승인된 도메인**
 
-> 🔑 **단일 키 제약(권장)**: Application restriction=Websites(HTTP 리퍼러: `https://gihoon-mx.github.io/*` + firebaseapp/web.app + 로컬 테스트 `http://localhost:8765/*`), API restriction=**Maps JavaScript API + Identity Toolkit API(Firebase Auth)** 등 실제 쓰는 것만. 키 하나가 지도·로그인·Firestore를 모두 여니 API 제약 목록에 Firebase가 쓰는 API도 포함돼야 함(과도 제한 시 로그인 깨짐).
+> 🔑 **단일 키 제약 (2026-08-11 v2.9 확정판)**
+>
+> **애플리케이션 제한 = 웹사이트(HTTP 리퍼러)** — 아래가 **전부** 있어야 한다:
+> `https://gihoon-mx.github.io/*` · `https://now-here-demo.firebaseapp.com/*` ·
+> `https://now-here-demo.web.app/*` (+ 로컬에서 지도를 보려면 `http://localhost:8765/*`,
+> `http://localhost:8766/*`)
+>
+> **API 제한 = 아래 6개.** 키 하나가 지도·로그인·Firestore를 다 여니 **하나만 빠져도 그 기능이 죽는다**:
+>
+> | API | 없으면 |
+> |---|---|
+> | Maps JavaScript API | 지도 전체 |
+> | **Places API** (New 아님 — 레거시 `PlacesService`) | 지역 시드 생성 |
+> | **Maps Static API** | 피드 스팟 카드의 지도 배경 |
+> | Identity Toolkit API | Google 로그인 |
+> | Token Service API | 로그인 유지(토큰 갱신) |
+> | Cloud Firestore API | 콘텐츠·설정 저장/읽기 + 데모 임베드 설정 전달 |
+>
+> ⚠️ 증상으로 가르는 법: `REQUEST_DENIED` + 콘솔에 *"not authorized to use this service or API …
+> check the API restrictions settings of your API key"* 가 뜨면 **프로젝트가 아니라 이 키의
+> API 제한 목록** 문제다 (2026-08-11 실측으로 확인). 격리 테스트는 API 제한을 잠시
+> "키 제한 안함" 으로 두고 재시도 → 되면 목록 문제가 확정된다.
+>
+> 🧯 **요금 방어는 키 제한이 아니라 할당량이다.** 리퍼러는 위조가 가능하다 — API 및 서비스 →
+> Places API → 할당량에서 **일일 요청 수 상한**(200 정도)을 걸어 두는 것이 실질 방어선이다.
+> 예산 알림은 알려만 주고 막지 않는다.
 
 ⚠️⚠️ **Firebase 브라우저 키(1번)의 HTTP 리퍼러에는 앱 도메인과 별개로 아래가 항상 있어야 함** (없으면 Google 로그인이 403 `API_KEY_HTTP_REFERRER_BLOCKED` → "The requested action is invalid."로 깨짐. 로그인 팝업이 이 도메인에서 돌기 때문):
 - `https://now-here-demo.firebaseapp.com/*`
@@ -222,6 +247,7 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 
 ### Firestore 규칙
 - 소스 오브 트루스: repo의 **`firestore.rules`**. 콘솔(Firebase → Firestore → 규칙)에 배포하며, 양쪽을 항상 같게 유지.
+- ✅ **2026-08-11 게시 완료** — `shared/publicSettings` 비로그인 읽기가 열렸다(실측: 인증 없이 REST 200). 이로써 관리자가 적용한 스킨·설정이 **persona-vc 데모 임베드에 자동 반영**된다(v2.5 경로). localStorage 캐시는 cross-site iframe 에서 안 보이므로(D91 ③) 이 문서가 유일한 자동 경로다.
 - 규칙의 관리자 이메일(`gihoon.mx@gmail.com`)은 `config.js`의 `ADMIN_EMAIL`과 일치해야 함.
 
 ---
@@ -237,6 +263,46 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ---
 
 ## 📝 변경 이력
+
+### 2026-08-11 (8)
+- **v2.9.0 — 시드 생성이 지도를 죽이던 것 · 문구 다양화 · 겹침 방지 전면 개편 (M13+M00+M04+M05+M07+M17)**:
+
+  사용자 넷: 관리자 콘솔에서 지역 시드 생성을 하면 **구글 맵이 안 뜬다** · 시드 문구가 너무
+  단순하다("재고 있다 이런 것만") · 지도 위 데이터가 서로 겹친다(말풍선 포함) ·
+  (Firestore 규칙 게시 완료 · Places 키 정리).
+
+  ① **시드 생성이 지도를 죽이던 것 (M13).** `sgSearchPlaces` 가 `PlacesService` 에
+  **지도 컨테이너 div(`#map`)를 넘기고 있었다.** 그 인자는 "출처 표기를 그릴 곳" 이라
+  Maps 가 자기 DOM 을 채워 둔 자리에 표기 노드가 끼어들어 지도가 통째로 사라졌다.
+  **Map 객체**를 넘기면 Maps 가 자기 규칙대로 지도 안에 표기를 그린다.
+
+  ② **문구 다양화 (M13).** 템플릿이 종류마다 **한 벌**뿐이라 12곳을 만들면 상호만 다르고
+  문장이 전부 같았다 — `SG_TPL` 을 종류마다 3~5벌로 늘리고 순번으로 고른다(결정적).
+  AI 프롬프트도 다시 썼다: 장소의 **실제 분류(types)**·**현재 시각**을 같이 주고,
+  "같은 문장 틀을 반복하지 마라 · 분류에 맞는 구체적인 것을 말해라 · 시간대를 살려라 ·
+  가격·영업시간은 지어내지 마라" 를 명시. ⚠️ 프롬프트의 `'서울 '` 하드코딩도 지웠다 —
+  수원 매탄3동에서 돌렸을 때 프롬프트가 거짓을 말하고 있었다.
+
+  ③ **겹침 방지 전면 개편 (M00).** 전에는 **말풍선만** 자리를 골랐고 핀은 고정 장애물이라
+  핀끼리는 아무도 안 비켰다(사진 핀 클러스터는 종류를 넘나들면 안 묶인다). 게다가
+  **타임딜 핀은 declutter 에 아예 안 들어가 있었다.**
+  이제 **모든 마커가 후보 자리를 갖는다**: 말풍선=4방향×3거리, 핀=제자리+황금각 14곳.
+  첫 후보가 언제나 제자리라 **안 겹치면 안 움직인다**. 순서가 우선순위다 —
+  타임딜 → Request → 사진 핀 → 말풍선(가장 유연한 것이 마지막에 비킨다).
+  ⚠️ 후보 거리는 **마커 크기에 비례**해야 한다: 처음엔 고정값(핀 12~57px, 말풍선 14·30)이라
+  34×46 핀 다섯이 한 점에 있을 때 여전히 둘이 물렸다 — 자기 폭·높이만큼 벌어져야 한다.
+
+  **검증**
+  - `declutterBoxes` 를 **app.js 실제 소스에서 떼어** node 로 단위 검증(로컬은 API 키
+    리퍼러 제한으로 지도가 죽어 마커가 DOM 에서 사라진다 — 화면 실측은 라이브에서).
+    같은 자리 핀 5개 → **겹침 0** · 같은 자리 말풍선 6개 → **겹침 0** ·
+    14개를 70×30px 에 몰아넣은 극단 케이스 → **77쌍 → 4쌍** · 안 겹치면 안 움직임(dx=dy=0,
+    말풍선은 기존 방향 유지) · 같은 입력 두 번 = 같은 결과.
+  - 시드 템플릿: 종류마다 여러 벌이 순번으로 갈린다.
+  - `node tools/check.js` 통과.
+
+  **없는 것**: 극단 밀집에서 겹침이 0 이 되지는 않는다 — 14개를 70×30px 에 넣으면 물리적으로
+  자리가 없다. 그 구간은 줌아웃 시 점 전환(`spotDotScaleM`)이 맡는다.
 
 ### 2026-08-11 (7)
 - **v2.8.0 — 지역 시드 생성이 AI 문구를 받는다 (M13, 콘솔 v0.81.0 과 짝)**:

@@ -525,10 +525,15 @@ function initSpotBubbleClass(){
       // 말풍선: declutter가 정한 방향으로 앵커 기준 배치 + 그 방향에 맞는 꼬리.
       // v2.6: 기억해 둔 방향(spotDirById)을 먼저 본다 — 오버레이가 새로 만들어져도
       // (renderSpots) 첫 draw 부터 제자리다. 안 그러면 up 으로 한 번 그렸다가 튄다.
-      var dir=this._dir||spotDirById[this.spot.id]||'up',ot=dirTransform(dir);
-      this._dir=dir;
+      var mem=spotDirById[this.spot.id];
+      var dir=this._dir||(mem&&(mem.dir||mem))||'up',ot=dirTransform(dir);
+      // v2.9: 네 방향이 다 막히면 조금 더 띄운다(gap). 꼬리 쪽으로만 민다.
+      var gap=(this._gap!=null?this._gap:((mem&&mem.gap)||0));
+      this._dir=dir;this._gap=gap;
+      var gx=(dir==='left'?-gap:(dir==='right'?gap:0)),gy=(dir==='up'?-gap:(dir==='down'?gap:0));
       this.div.style.transformOrigin=ot[0];
-      this.div.style.transform=ot[1]+(zk!==1?' scale('+zk+')':'');
+      // 띄우기는 translate 로 얹는다 — origin(꼬리 끝)은 그대로라 꼬리가 계속 앵커를 가리킨다
+      this.div.style.transform=ot[1]+(gap?' translate('+gx+'px,'+gy+'px)':'')+(zk!==1?' scale('+zk+')':'');
       this.bubbleEl.classList.remove('no-tail','tl-b','tl-t','tl-l','tl-r');
       this.bubbleEl.classList.add(this._tailOn===false?'no-tail':(DIR_TAIL[dir]||'tl-b'));
     }
@@ -635,7 +640,9 @@ function initFeedThumbClass(){
   FeedThumb.prototype.draw=function(){
     var p=this.getProjection();if(!p||!this.div)return;
     var px=p.fromLatLngToDivPixel(this.position);if(!px)return;
-    this.div.style.left=px.x+'px';this.div.style.top=px.y+'px';this._ax=px.x;this._ay=px.y; // 앵커(declutter 참조)
+    this._ax=px.x;this._ay=px.y; // 앵커=원래 좌표 (declutter 참조)
+    // v2.9: 겹침 방지가 밀어낸 만큼을 얹어 그린다
+    this.div.style.left=(px.x+(this._ndx||0))+'px';this.div.style.top=(px.y+(this._ndy||0))+'px';
     var m=this.getMap(),z=m?m.getZoom():15;
     // v1.63: 스팟 이모지와 동일한 크기 곡선 — 점 전환 기준도 동일
     // v1.95: 곡선을 contentScale 로 (전엔 클램프가 없어 줌18 에서 104px 까지 커졌다)
@@ -822,34 +829,79 @@ function contentHeatT(o,lat,lng,fallbackT){
 // 순수 기하 함수(단위테스트 가능): 말풍선은 4방향(위/아래/좌/우) 중 이웃과 가장 안 겹치는 쪽으로,
 // 동점이면 지도 센터에서 바깥으로 향하는 방향을 선호(자연스러운 부채꼴). 핀·점은 고정 장애물.
 var DECL_DIRS=['up','down','left','right'];
-function dirBox(ax,ay,w,h,dir){ // 앵커에 꼬리가 붙는 박스 [x0,y0,x1,y1]
-  if(dir==='up')  return [ax-w/2, ay-h,   ax+w/2, ay];
-  if(dir==='down')return [ax-w/2, ay,     ax+w/2, ay+h];
-  if(dir==='left')return [ax-w,   ay-h/2, ax,     ay+h/2];
-  return               [ax,     ay-h/2, ax+w,   ay+h/2]; // right
+/* 말풍선을 앵커에서 얼마나 띄울까 (v2.9). 0 = 꼬리가 앵커에 붙은 기존 배치.
+   네 방향이 다 막혔을 때 **조금 더 밀어 보는** 자리다 — 방향만 4개면 밀집 구역에서
+   결국 겹친 채로 놓였다. 꼬리는 그만큼 길어 보이지만 어느 앵커의 것인지는 유지된다.
+
+   **말풍선 높이에 비례해야 한다.** 고정값(14·30)으로 뒀더니 같은 방향으로 띄운 두 개가
+   여전히 12px 씩 물렸다 — 위로 h 만큼 띄워야 앞의 것 위에 얹힌다. */
+function declGaps(h){var u=Math.max(18,Math.round(h)+8);return [0,u,u*2];}
+function dirBox(ax,ay,w,h,dir,gap){ // 앵커에 꼬리가 붙는 박스 [x0,y0,x1,y1]
+  var g=gap||0;
+  if(dir==='up')  return [ax-w/2, ay-h-g, ax+w/2, ay-g];
+  if(dir==='down')return [ax-w/2, ay+g,   ax+w/2, ay+h+g];
+  if(dir==='left')return [ax-w-g, ay-h/2, ax-g,   ay+h/2];
+  return               [ax+g,   ay-h/2, ax+w+g, ay+h/2]; // right
 }
 function boxOverlap(a,b){var ox=Math.min(a[2],b[2])-Math.max(a[0],b[0]),oy=Math.min(a[3],b[3])-Math.max(a[1],b[1]);return (ox>0&&oy>0)?ox*oy:0;}
 function outwardDir(dx,dy){return Math.abs(dx)>Math.abs(dy)?(dx>=0?'right':'left'):(dy>=0?'down':'up');} // 센터→앵커 바깥 방향
+/* 핀(사진·Request·타임딜)을 앵커에서 밀어낼 후보 자리 (v2.9).
+   황금각으로 돌며 멀어진다 — 어느 쪽으로 밀지 편향이 없고 결정적이다.
+   첫 후보는 언제나 제자리(0,0): **안 겹치면 안 움직인다.**
+
+   **거리가 핀 크기에 비례해야 한다.** 고정 12~57px 로 뒀더니 34×46 짜리 핀 다섯이
+   한 점에 있을 때 여전히 둘이 물렸다 — 자기 폭만큼은 벌어져야 안 겹친다. */
+function pinNudges(w,h){
+  var out=[{x:0,y:0}],step=Math.max(16,Math.round((w+h)/2*0.85));
+  for(var i=0;i<14;i++){
+    var a=i*2.399963,r=step*(1+Math.floor(i/6)*0.8);
+    out.push({x:Math.round(r*Math.cos(a)),y:Math.round(r*Math.sin(a))});
+  }
+  return out;
+}
+/* 지도 위 겹침 방지 (v2.9 전면 개편).
+
+   전에는 **말풍선만** 자리를 골랐고 핀(사진·Request·딜)은 고정 장애물이었다. 그래서
+   핀끼리는 서로 겹쳐도 아무도 안 비켰고(사진 핀은 클러스터가 있지만 종류를 넘나들면
+   안 묶인다), 말풍선도 네 방향이 다 막히면 그냥 겹친 채로 놓였다.
+
+   이제 **모든 마커가 후보 자리를 갖는다**:
+   - 말풍선: 4방향 × 3거리 = 12 후보 (`cur` 방향을 먼저 본다 — 줌해도 안 튀게, v2.6)
+   - 핀: 제자리 + 황금각 11 후보 (제자리가 비면 안 움직인다)
+   그리디로 앞선 것들과 안 겹치는 첫 후보에 놓는다. 다 겹치면 겹침이 가장 작은 자리다.
+
+   순서가 곧 우선순위다: **먼저 놓인 것이 자리를 지킨다.** 호출부가 딜·Request 처럼
+   드물고 중요한 것을 앞에 넣는다.
+
+   반환: {id:{dir?,dx,dy}} — 말풍선은 dir, 핀은 dx·dy 픽셀 오프셋. */
 function declutterBoxes(items,cx,cy){
-  // items: [{id,ax,ay,w,h,movable,cur}] — movable=말풍선(방향 선택, cur=현재 방향), 그 외=고정 장애물. 반환: {id:dir}
-  // 안정화(v1.60): 현재 방향(cur)의 겹침이 최소 겹침과 같으면 유지 — 줌/팬마다 방향이 뒤바뀌는 churn 방지
   var placed=[],out={};
-  items.forEach(function(it){if(!it.movable)placed.push([it.ax-it.w/2,it.ay-it.h/2,it.ax+it.w/2,it.ay+it.h/2]);});
-  items.filter(function(it){return it.movable;})
-    .slice().sort(function(a,b){return a.ay-b.ay;}) // 위(북)부터 그리디
-    .forEach(function(it){
-      var want=outwardDir(it.ax-cx,it.ay-cy),ovs={},minOv=Infinity;
-      DECL_DIRS.forEach(function(dir){
-        var box=dirBox(it.ax,it.ay,it.w,it.h,dir),ov=0;
-        for(var i=0;i<placed.length;i++)ov+=boxOverlap(box,placed[i]);
-        ovs[dir]=ov;if(ov<minOv)minOv=ov;
-      });
-      var best;
-      if(it.cur&&ovs[it.cur]<=minOv+0.5)best=it.cur;                 // 현재 방향이 최선과 사실상 동급 → 유지
-      else if(!it.cur&&ovs[want]<=minOv+0.5)best=want;               // 첫 배치: 바깥 방향이 동급이면 그쪽
-      else{best='up';DECL_DIRS.forEach(function(dir){if(ovs[dir]<ovs[best]||(ovs[dir]===ovs[best]&&dir===want))best=dir;});}
-      out[it.id]=best;placed.push(dirBox(it.ax,it.ay,it.w,it.h,best));
-    });
+  items.forEach(function(it){if(it.fixed)placed.push([it.ax-it.w/2,it.ay-it.h/2,it.ax+it.w/2,it.ay+it.h/2]);});
+  items.filter(function(it){return !it.fixed;}).forEach(function(it){
+    var best=null,bestOv=Infinity;
+    function tryBox(box,pick){
+      var ov=0;
+      for(var i=0;i<placed.length&&ov<bestOv;i++)ov+=boxOverlap(box,placed[i]);
+      if(ov<bestOv){bestOv=ov;best={box:box,pick:pick};}
+      return ov<=0;
+    }
+    if(it.kind==='bubble'){
+      // 지금 방향을 **가장 먼저** 본다 — 비어 있으면 그대로 둔다(줌·팬에 안 튄다).
+      var dirs=it.cur?[it.cur].concat(DECL_DIRS.filter(function(d){return d!==it.cur;})):
+                      [outwardDir(it.ax-cx,it.ay-cy)].concat(DECL_DIRS);
+      var gaps=declGaps(it.h),done=false;
+      for(var gi=0;gi<gaps.length&&!done;gi++)
+        for(var di=0;di<dirs.length&&!done;di++)
+          if(tryBox(dirBox(it.ax,it.ay,it.w,it.h,dirs[di],gaps[gi]),{dir:dirs[di],dx:0,dy:0,gap:gaps[gi]}))done=true;
+    }else{
+      var nud=pinNudges(it.w,it.h);
+      for(var ni=0;ni<nud.length;ni++){
+        var n=nud[ni],x=it.ax+n.x,y=it.ay+n.y;
+        if(tryBox([x-it.w/2,y-it.h/2,x+it.w/2,y+it.h/2],{dx:n.x,dy:n.y}))break;
+      }
+    }
+    if(best){out[it.id]=best.pick;placed.push(best.box);}
+  });
   return out;
 }
 var DIR_TAIL={up:'tl-b',down:'tl-t',left:'tl-r',right:'tl-l'}; // 말풍선 배치 방향 → 앵커 향한 꼬리 위치
@@ -875,8 +927,9 @@ var _declTimer=null;
 function declutterMarkers(){ // 디바운스 — idle/렌더 후 한 번만
   if(_declTimer)return;
   _declTimer=setTimeout(function(){_declTimer=null;try{
-    declutterOn(map,spotOverlays,feedThumbOverlays,[]);
-    declutterOn(phoneMap,phoneSpotOverlays,phoneFeedThumbOverlays,reqMarkers);
+    // v2.9: 타임딜 핀도 넣는다 — 전에는 빠져 있어 딜 위에 사진 핀이 그대로 얹혔다.
+    declutterOn(map,spotOverlays,feedThumbOverlays,[],[]);
+    declutterOn(phoneMap,phoneSpotOverlays,phoneFeedThumbOverlays,reqMarkers,dealMarkers);
     spotDirForget();
   }catch(e){}},60);
 }
@@ -886,35 +939,58 @@ function spotDirForget(){
   (typeof spotMessages!=='undefined'?spotMessages:[]).forEach(function(s){live[s.id]=1;});
   Object.keys(spotDirById).forEach(function(id){if(!live[id])delete spotDirById[id];});
 }
-function declutterOn(m,spots,feeds,reqs){
+/* 한 지도의 마커를 겹치지 않게 놓는다 (v2.9).
+
+   순서 = 우선순위다. **드물고 시간에 묶인 것부터** 자리를 잡는다: 타임딜 → Request →
+   사진 핀 → 말풍선. 딜·Request 는 몇 개 안 되고 그 자리에 있다는 것 자체가 정보라
+   밀리면 안 되고, 말풍선은 앵커 둘레 어디든 놓을 수 있어 가장 유연하다. */
+function declutterOn(m,spots,feeds,reqs,deals){
   if(!m||typeof google==='undefined')return;
-  var all=spots.concat(feeds).concat(reqs),proj=null;
+  reqs=reqs||[];deals=deals||[];
+  var all=spots.concat(feeds).concat(reqs).concat(deals),proj=null;
   for(var i=0;i<all.length&&!proj;i++)proj=all[i].getProjection&&all[i].getProjection();
   if(!proj)return;
   var ctr=proj.fromLatLngToDivPixel(m.getCenter());if(!ctr)return;
-  var items=[],movers=[];
+
+  var items=[],pins=[],bubbles=[];
+  /* 핀 하나를 후보로 등록. **앵커는 늘 원래 좌표(_ax·_ay)** 다 — 이미 밀어 둔 값을
+     기준으로 다시 재면 잴 때마다 조금씩 더 밀려서 핀이 흘러간다. */
+  function addPin(o,dw,dh){
+    if(!o.div||o._ax==null)return;
+    var r=o.div.getBoundingClientRect();
+    items.push({id:'pin_'+pins.length,kind:'pin',ax:o._ax,ay:o._ay,w:r.width||dw,h:r.height||dh});
+    pins.push(o);
+  }
+  deals.forEach(function(o){addPin(o,34,46);});
+  reqs.forEach(function(o){addPin(o,34,46);});
+  feeds.forEach(function(o){addPin(o,30,30);});
+
   spots.forEach(function(o){
     if(!o.div||o._ax==null)return;
-    if(o.div.classList.contains('spot-dot')){items.push({movable:false,ax:o._ax,ay:o._ay,w:14,h:14});return;} // 점=고정
+    if(o.div.classList.contains('spot-dot')){items.push({fixed:true,ax:o._ax,ay:o._ay,w:14,h:14});return;} // 점=고정
     var r=o.bubbleEl.getBoundingClientRect(),w=r.width||60,h=r.height||24;
     var known=spotDirById[o.spot.id];
-    if(known){ // v2.6: 이미 자리를 정한 말풍선은 **움직이지 않는다** — 장애물로만 센다
-      var b=dirBox(o._ax,o._ay,w,h,known);
-      items.push({movable:false,ax:(b[0]+b[2])/2,ay:(b[1]+b[3])/2,w:w,h:h});
-      if(o._dir!==known){o._dir=known;o.draw();} // 오버레이가 새로 만들어진 경우 기억한 방향을 다시 입힌다
+    if(known){ // v2.6: 이미 자리를 정한 말풍선은 **안 움직인다** — 장애물로만 센다
+      var b=dirBox(o._ax,o._ay,w,h,known.dir||known,known.gap||0);
+      items.push({fixed:true,ax:(b[0]+b[2])/2,ay:(b[1]+b[3])/2,w:w,h:h});
+      if(o._dir!==(known.dir||known)){o._dir=(known.dir||known);o._gap=known.gap||0;o.draw();}
       return;
     }
-    items.push({movable:true,id:o.spot.id,ax:o._ax,ay:o._ay,w:w,h:h});
-    movers.push(o);
+    items.push({id:'sp_'+bubbles.length,kind:'bubble',ax:o._ax,ay:o._ay,w:w,h:h,cur:o._dir});
+    bubbles.push(o);
   });
-  feeds.forEach(function(o){if(o.div&&o._ax!=null){var r=o.div.getBoundingClientRect();items.push({movable:false,ax:o._ax,ay:o._ay,w:r.width||30,h:r.height||30});}});
-  reqs.forEach(function(o){if(o.div&&o._ax!=null){var r=o.div.getBoundingClientRect();items.push({movable:false,ax:o._ax,ay:o._ay,w:r.width||34,h:r.height||46});}});
-  if(!movers.length)return; // 전부 자리를 정해 뒀다 — 줌·팬으로는 아무것도 안 움직인다 (v2.6)
+  if(!pins.length&&!bubbles.length)return;
+
   var res=declutterBoxes(items,ctr.x,ctr.y);
-  movers.forEach(function(o){
-    var d=res[o.spot.id];if(!d)return;
-    spotDirById[o.spot.id]=d; // 이 스팟의 자리로 굳힌다
-    if(d!==o._dir){o._dir=d;o.draw();}else o._dir=d;
+  // 핀: 밀어낸 픽셀을 오버레이에 적어 두고 다시 그린다 (각 draw 가 _ndx·_ndy 를 얹는다)
+  pins.forEach(function(o,i){
+    var p=res['pin_'+i];if(!p)return;
+    if(o._ndx!==p.dx||o._ndy!==p.dy){o._ndx=p.dx;o._ndy=p.dy;o.draw();}
+  });
+  bubbles.forEach(function(o,i){
+    var p=res['sp_'+i];if(!p)return;
+    spotDirById[o.spot.id]={dir:p.dir,gap:p.gap||0}; // 이 스팟의 자리로 굳힌다
+    if(o._dir!==p.dir||o._gap!==(p.gap||0)){o._dir=p.dir;o._gap=p.gap||0;o.draw();}
   });
 }
 
@@ -4735,7 +4811,9 @@ function initReqPinClass(){
     this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);
   };
   ReqPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
-    this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';this._ax=pos.x;this._ay=pos.y;
+    this._ax=pos.x;this._ay=pos.y; // 앵커=원래 좌표
+    // v2.9: 겹침 방지가 밀어낸 만큼을 얹어 그린다
+    this.div.style.left=(pos.x+(this._ndx||0))+'px';this.div.style.top=(pos.y+(this._ndy||0))+'px';
     var m=this.getMap(),z=m?m.getZoom():15,sc=contentScale(z); // v1.95: 컨텐츠 공통 배율 (스팟·피드·라벨과 같은 폭)
     this.div.style.transformOrigin='50% 100%';this.div.style.transform='translate(-50%,-100%) scale('+sc+')';
   }};
@@ -4869,7 +4947,9 @@ function initDealPinClass(){
     this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
   };
   DealPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
-    this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';this._ax=pos.x;this._ay=pos.y; // declutter 규약(v1.59)
+    this._ax=pos.x;this._ay=pos.y; // 앵커=원래 좌표 (declutter 규약 v1.59)
+    // v2.9: 겹침 방지가 밀어낸 만큼(_ndx·_ndy)을 얹어 그린다. 앵커는 그대로 둔다.
+    this.div.style.left=(pos.x+(this._ndx||0))+'px';this.div.style.top=(pos.y+(this._ndy||0))+'px';
     var m=this.getMap(),z=m?m.getZoom():15,sc=contentScale(z); // v1.95: 컨텐츠 공통 배율
     this.div.style.transformOrigin='50% 100%';this.div.style.transform='translate(-50%,-100%) scale('+sc+')';
   }};
@@ -5513,14 +5593,61 @@ var SG_THEME={cafe:'cafe',bakery:'cafe',restaurant:'food',meal_takeaway:'food',b
   park:'park',gym:'gym',book_store:'book',library:'book',
   store:'shop',clothing_store:'shop',convenience_store:'shop',supermarket:'shop',
   tourist_attraction:'park',art_gallery:'book',museum:'book'};
-/* 템플릿 — AI 없이도 성립하는 최소 세트. `{n}` 은 실제 상호로 치환된다 */
+/* 템플릿 — AI 없이도 성립하는 세트. `{n}` 은 실제 상호로 치환된다.
+
+   v2.9: **종류마다 여러 벌**이다. 전에는 한 벌뿐이라 12곳을 만들면 상호만 다르고 문장이
+   전부 같았다 — 사용자가 "재고 있다 이런 것만 만들어진다" 고 한 것이 이것이다.
+   고르기는 장소 순번(i)이라 결정적이다(회차마다 같은 자리에 같은 글). */
 var SG_TPL={
-  cafe:{e:'☕',spot:'{n} 창가 자리 비어 있어요',feed:'{n} 라떼 맛있다. 조용해서 작업하기 좋음',req:'{n} 지금 웨이팅 있나요?',deal:'{n} 오후 음료 20% 타임딜',img:'latte'},
-  food:{e:'🍜',spot:'{n} 지금 웨이팅 없어요',feed:'{n} 점심 특선 가성비 좋다',req:'{n} 오늘 브레이크타임 언제예요?',deal:'{n} 마감 임박 30% 타임딜',img:'noodle'},
-  park:{e:'🌳',spot:'{n} 산책로 한산해요',feed:'{n} 오늘 공기 좋다. 러닝 완주',req:'{n} 주차 자리 있나요?',deal:'',img:'parkPath'},
-  gym:{e:'💪',spot:'{n} 지금 사람 없어요',feed:'{n} 새벽 타임이 제일 한산',req:'{n} 일일권 얼마예요?',deal:'{n} 오늘 등록 30% 할인',img:'gym'},
-  book:{e:'📚',spot:'{n} 신간 들어왔어요',feed:'{n} 여기 이런 곳이 있었다니',req:'{n} 오늘 몇 시까지 해요?',deal:'',img:'book'},
-  shop:{e:'🛍',spot:'{n} 오늘 신상 들어왔어요',feed:'{n} 구경만 해도 재밌음',req:'{n} 재고 있나요?',deal:'{n} 마감 할인 25%',img:'gangnam'}
+  cafe:{e:'☕',img:'latte',
+    spot:['{n} 창가 자리 비어 있어요','{n} 지금 조용해요, 작업하기 좋음','{n} 콘센트 자리 아직 있어요',
+          '{n} 방금 디저트 나왔어요','{n} 2층이 훨씬 한산해요'],
+    feed:['{n} 라떼 맛있다. 조용해서 오래 앉아 있기 좋음','{n} 오늘 원두 바뀌었대요. 산미 있는 쪽',
+          '{n} 창가 햇살 들어올 때가 제일 예쁨','{n} 케이크 종류 생각보다 많다',
+          '{n} 아침 일찍 오면 자리 골라 앉을 수 있어요'],
+    req:['{n} 지금 웨이팅 있나요?','{n} 콘센트 있는 자리 남았을까요?','{n} 디카페인 되나요?',
+         '{n} 몇 시까지 하는지 아시는 분','{n} 지금 시끄러운 편인가요?'],
+    deal:['{n} 오후 음료 20% 타임딜','{n} 마감 전 디저트 떨이','{n} 원두 소진 임박 할인']},
+  food:{e:'🍜',img:'noodle',
+    spot:['{n} 지금 웨이팅 없어요','{n} 점심 줄 방금 빠졌어요','{n} 브레이크타임 곧 들어가요',
+          '{n} 포장이 훨씬 빨라요','{n} 오늘 재료 소진 임박이래요'],
+    feed:['{n} 점심 특선 가성비 좋다','{n} 국물이 진해서 해장에 딱','{n} 양이 생각보다 많아요',
+          '{n} 반찬 리필 편하게 해주심','{n} 혼밥하기 편한 자리 많음'],
+    req:['{n} 오늘 브레이크타임 언제예요?','{n} 지금 웨이팅 얼마나 되나요?','{n} 포장 되나요?',
+         '{n} 주차 가능한지 아시는 분','{n} 예약 받나요?'],
+    deal:['{n} 마감 임박 30% 타임딜','{n} 저녁 세트 할인','{n} 포장 주문 할인']},
+  park:{e:'🌳',img:'parkPath',
+    spot:['{n} 산책로 한산해요','{n} 벤치 자리 넉넉해요','{n} 지금 노을 예쁨',
+          '{n} 그늘 쪽이 훨씬 시원해요','{n} 강아지 산책 많이 나왔어요'],
+    feed:['{n} 오늘 공기 좋다. 러닝 완주','{n} 한 바퀴 딱 좋은 거리','{n} 잔디밭 자리 아직 많아요',
+          '{n} 저녁에 조명 들어오면 분위기 좋음','{n} 유아차 다니기 편한 길'],
+    req:['{n} 주차 자리 있나요?','{n} 지금 사람 많나요?','{n} 화장실 어디쪽인가요?',
+         '{n} 돗자리 펴도 되나요?','{n} 야간 조명 몇 시까지예요?'],
+    deal:[]},
+  gym:{e:'💪',img:'gym',
+    spot:['{n} 지금 사람 없어요','{n} 러닝머신 다 비어 있어요','{n} 샤워실 한산해요',
+          '{n} 저녁 타임은 붐벼요','{n} 신규 기구 들어왔어요'],
+    feed:['{n} 새벽 타임이 제일 한산','{n} 기구 상태 깔끔해요','{n} 샤워실이 넓고 좋음',
+          '{n} PT 상담 부담 없이 해주심','{n} 주차 2시간 무료라 편함'],
+    req:['{n} 일일권 얼마예요?','{n} 지금 붐비나요?','{n} 락커 대여 되나요?',
+         '{n} 몇 시부터 여나요?','{n} 샤워용품 있나요?'],
+    deal:['{n} 오늘 등록 30% 할인','{n} 일일권 반값','{n} 3개월 등록 추가 할인']},
+  book:{e:'📚',img:'book',
+    spot:['{n} 신간 들어왔어요','{n} 열람석 아직 비어 있어요','{n} 지금 아주 조용해요',
+          '{n} 창가 자리 좋아요','{n} 오늘 늦게까지 한대요'],
+    feed:['{n} 여기 이런 곳이 있었다니','{n} 큐레이션이 취향 저격','{n} 앉아서 읽을 자리가 많음',
+          '{n} 조명이 눈이 편해요','{n} 조용해서 집중 잘 됨'],
+    req:['{n} 오늘 몇 시까지 해요?','{n} 열람석 남았나요?','{n} 노트북 써도 되나요?',
+         '{n} 이 책 있나요?','{n} 주말에도 여나요?'],
+    deal:[]},
+  shop:{e:'🛍',img:'gangnam',
+    spot:['{n} 오늘 신상 들어왔어요','{n} 지금 계산대 안 붐벼요','{n} 세일 코너 생겼어요',
+          '{n} 재고 정리 중이래요','{n} 이월 상품 싸게 나왔어요'],
+    feed:['{n} 구경만 해도 재밌음','{n} 생각보다 종류가 많다','{n} 가격대가 착한 편',
+          '{n} 직원분이 편하게 둘러보게 해주심','{n} 여기 이 브랜드도 들어와 있네요'],
+    req:['{n} 재고 있나요?','{n} 오늘 몇 시까지 해요?','{n} 교환 되나요?',
+         '{n} 주차 되나요?','{n} 지금 줄 긴가요?'],
+    deal:['{n} 마감 할인 25%','{n} 이월 상품 반값','{n} 오늘만 1+1']}
 };
 function sgTheme(types){
   for(var i=0;i<(types||[]).length;i++)if(SG_THEME[types[i]])return SG_THEME[types[i]];
@@ -5532,7 +5659,11 @@ function sgSearchPlaces(lat,lng,radius,cb){
   if(typeof google==='undefined'||!google.maps||!google.maps.places||!google.maps.places.PlacesService){
     cb(null,'Places 라이브러리를 못 불러왔어요. GCP 콘솔에서 Places API 를 켜 주세요.');return;
   }
-  var host=document.getElementById('map')||document.getElementById('phone-map');
+  /* ⚠️ **지도 컨테이너 div 를 넘기지 않는다** (v2.9). PlacesService 의 인자는 "출처 표기를
+     그릴 곳" 이라, `#map` 을 주면 Maps 가 자기 DOM 을 채워 둔 그 자리에 표기 노드를 끼워
+     넣는다 — 관리자 콘솔에서 시드 생성을 돌리면 **지도가 통째로 사라지던 것**이 이것이다.
+     Map 객체를 주면 Maps 가 자기 규칙대로(지도 안 구석에) 표기를 그린다. */
+  var host=(typeof map!=='undefined'&&map)||(typeof phoneMap!=='undefined'&&phoneMap)||null;
   if(!host){cb(null,'지도가 아직 준비되지 않았어요.');return;}
   var svc=new google.maps.places.PlacesService(host);
   svc.nearbySearch({location:new google.maps.LatLng(lat,lng),radius:Math.max(50,Math.min(3000,radius))},
@@ -5572,7 +5703,13 @@ function sgParseLines(text){
     return Array.isArray(arr)?arr:null;
   }catch(e){return null;}
 }
-function sgFill(tpl,name){return (tpl||'').replace(/\{n\}/g,name);}
+/* 템플릿 하나를 골라 상호를 끼운다. 여러 벌이면 순번으로 고른다 — 결정적이다.
+   문자열 하나만 준 옛 형태도 그대로 받는다(호출부를 한 번에 다 못 고칠 때를 위해). */
+function sgFill(tpl,name,i){
+  var t=Array.isArray(tpl)?(tpl.length?tpl[Math.abs(i|0)%tpl.length]:''):tpl;
+  return (t||'').replace(/\{n\}/g,name);
+}
+function sgHas(tpl){return Array.isArray(tpl)?tpl.length>0:!!tpl;} // 빈 배열은 truthy 라 따로 본다
 
 function sgUI(){
   function v(id,d){var e=document.getElementById(id);if(!e)return d;var n=parseFloat(e.value);return isNaN(n)?d:n;}
@@ -5636,12 +5773,32 @@ function sgFallbackPlaces(f,o){
 }
 function sgAfterPlaces(f,o,picked){
   sgStatus('장소 '+picked.length+'곳 · 문구를 만드는 중…');
-  var prompt='다음은 서울 '+f.name+' 주변 실제 장소 목록입니다.\n'+
-    picked.map(function(p,i){return (i+1)+'. '+p.name+' ('+p.theme+')';}).join('\n')+
-      '\n\n각 장소마다 동네 실시간 앱에 올라올 법한 짧은 한국어 문구를 만들어 주세요.'+
-      ' 설명 없이 JSON 배열만 출력하세요. 형식:'+
-      ' [{"spot":"지도 위 한 줄(20자 내외)","feed":"사진 설명(25자 내외)","req":"주변에 물어볼 질문(20자 내외)","deal":"타임딜 제목(20자 내외)"}]'+
-      ' 배열 길이는 '+picked.length+'개여야 합니다.';
+  /* v2.9: 프롬프트를 다시 썼다. 전에는 "짧은 문구를 만들어 주세요" 뿐이라 12곳이
+     "재고 있나요? / 웨이팅 있나요?" 같은 한 패턴으로 돌아왔다. 셋을 더한다:
+     ①장소의 실제 분류(types)를 같이 준다 — theme 만 주면 다 같은 상점으로 읽힌다.
+     ②지금 시각을 준다 — 아침·점심·밤에 할 말이 다르다.
+     ③**같은 말투를 반복하지 말라고 못박는다** + 각 칸이 서로 다른 각도를 보게 한다.
+     ⚠️ '서울' 을 붙이지 않는다 — 수원 매탄3동에서 돌렸을 때 프롬프트가 거짓을 말했다. */
+  var hour=new Date().getHours();
+  var prompt='아래는 「'+f.name+'」 주변의 실제 장소 목록입니다. 지금은 '+hour+'시입니다.\n'+
+    picked.map(function(p,i){
+      var t=(p.types||[]).filter(function(x){return x!=='point_of_interest'&&x!=='establishment';}).slice(0,3).join(', ');
+      return (i+1)+'. '+p.name+(t?' — '+t:'')+' [분류:'+p.theme+']';
+    }).join('\n')+
+      '\n\n동네 실시간 지도 앱에 이웃들이 올릴 법한 한국어 문구를 장소마다 하나씩 만들어 주세요.\n'+
+      '- spot: 지도 위 한 줄 (20자 내외). 지금 그 앞을 지나는 사람이 남길 말.\n'+
+      '- feed: 사진에 붙는 설명 (25자 내외). 다녀온 사람의 감상.\n'+
+      '- req: 가기 전에 근처 사람에게 물을 질문 (20자 내외).\n'+
+      '- deal: 그 가게가 낼 법한 타임딜 제목 (20자 내외). 장소 성격상 할인이 어색하면 빈 문자열.\n'+
+      '\n지킬 것:\n'+
+      '- **12곳이 다 다른 말을 해야 합니다.** 같은 문장 틀("~있나요?", "~좋아요")을 반복하지 마세요.\n'+
+      '- 그 장소의 분류에 맞는 구체적인 것을 말하세요 (카페=자리·원두, 공원=산책로·주차,\n'+
+      '  헬스장=기구·샤워실, 서점=열람석·신간). 아무 데나 붙는 말은 쓰지 마세요.\n'+
+      '- 시간대를 살리세요 — 아침이면 문 여는 시간, 점심이면 웨이팅, 밤이면 마감.\n'+
+      '- **지어내지 마세요**: 가격·영업시간·전화번호·주소·평점. 상호는 준 것만 씁니다.\n'+
+      '\n설명 없이 JSON 배열만 출력하세요. 형식:'+
+      ' [{"spot":"...","feed":"...","req":"...","deal":"..."}]'+
+      ' 배열 길이는 정확히 '+picked.length+'개여야 합니다.';
   /* 왜 템플릿으로 떨어졌는지 구분해 둔다 (v2.8) — 전에는 파싱 실패까지 "응답을 못
      받았어요" 로 뭉쳐서, 실제로는 200 이 오는데 형식만 안 맞던 상황을 못 알아봤다. */
   sgAskAgent(prompt,function(text){
@@ -5659,7 +5816,7 @@ function sgCommit(focus,o,places,ai,aiWhy){
     var a=(ai&&ai[i])||{};
     var jit=function(k){return (((i*37+k*13)%11)-5)/20000;}; // 같은 좌표 겹침 방지(결정적 — Math.random 금지)
     if(o.spot){
-      var st=(a.spot||sgFill(T.spot,p.name)).slice(0,60);
+      var st=(a.spot||sgFill(T.spot,p.name,i)).slice(0,60);
       var sd={id:'sg_'+gid+'_s'+i,lat:p.lat+jit(1),lng:p.lng+jit(2),text:st,emoji:T.e,
               by:'sg_'+gid,byEmail:SEED_OWNER,ts:now-i*600e3,sgroup:gid};
       if(hasLive())fbDb.collection('liveSpots').doc(sd.id).set(sd).catch(liveWriteErr);
@@ -5667,7 +5824,7 @@ function sgCommit(focus,o,places,ai,aiWhy){
       counts.spot++;
     }
     if(o.feed){
-      var ft=(a.feed||sgFill(T.feed,p.name)).slice(0,80);
+      var ft=(a.feed||sgFill(T.feed,p.name,i)).slice(0,80);
       var fd={id:'sg_'+gid+'_f'+i,src:(SEED_IMG[T.img]||seedImg(p.theme,p.name)),
               region:dongAt(p.lat,p.lng)||focus.name,zone:null,lat:p.lat+jit(3),lng:p.lng+jit(4),
               kind:'post',desc:ft,name:p.name,by:'sg_'+gid,byEmail:SEED_OWNER,
@@ -5677,15 +5834,15 @@ function sgCommit(focus,o,places,ai,aiWhy){
       counts.feed++;
     }
     if(o.req&&i%3===0){ // Request 는 드물어야 '현장 질문'으로 읽힌다 — 3곳마다 하나
-      var qt=(a.req||sgFill(T.req,p.name)).slice(0,60);
+      var qt=(a.req||sgFill(T.req,p.name,i)).slice(0,60);
       var rd={id:'sg_'+gid+'_r'+i,lat:p.lat+jit(5),lng:p.lng+jit(6),q:qt,
               place:dongAt(p.lat,p.lng)||focus.name,answers:[],by:'sg_'+gid,ts:now,seed:true,sgroup:gid};
       if(hasLive())fbDb.collection('liveRequests').doc(rd.id).set(rd).catch(liveWriteErr);
       else fieldRequests.unshift(rd);
       counts.req++;
     }
-    if(o.deal&&T.deal&&i%4===0){ // 타임딜은 더 드물게 — 흔하면 특가가 아니다
-      var dt=(a.deal||sgFill(T.deal,p.name)).slice(0,40);
+    if(o.deal&&sgHas(T.deal)&&i%4===0){ // 타임딜은 더 드물게 — 흔하면 특가가 아니다
+      var dt=(a.deal||sgFill(T.deal,p.name,i)).slice(0,40);
       var pct=[20,25,30,33][i%4];
       timeDeals.push({id:'sg_'+gid+'_d'+i,lat:p.lat+jit(7),lng:p.lng+jit(8),e:T.e,title:dt,
         shop:p.name,pct:pct,price:'현장가',was:'정가',stock:(6+i%9)+'개',secs:1800,ts:now,seed:true,sgroup:gid});
