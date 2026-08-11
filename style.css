@@ -1095,6 +1095,12 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 #cpop-body .cpr-state{margin-top:8px;font-size:.78rem;font-weight:700;color:var(--ink2);}
 #cpop-body .rqc-answers{margin-top:10px;}
 .cpop-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+/* Request 답장 줄 (v2.12) — 스팟 컴포저와 같은 문법. 네이티브 prompt 를 대신한다:
+   그 창은 스크립트를 멈춰 시연이 그 자리에 서고, 답하는 모습도 화면에 안 남았다. */
+#cpop-body .cpr-reply{display:flex;gap:8px;align-items:center;margin-top:14px;}
+#cpop-body .cpr-in{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:12px;
+  padding:9px 12px;font-family:inherit;font-size:.84rem;color:var(--ink);background:#fff;outline:none;}
+#cpop-body .cpr-in:focus{border-color:var(--acc);}
 
 /* Request 남은 시간 칩 (드로어 카드·상세 팝업 — 1초 티커가 텍스트 갱신) */
 .rqc-left{display:inline-flex;align-items:center;font-size:.7rem;font-weight:800;color:#d97706;background:rgba(255,178,36,0.14);border-radius:999px;padding:2px 8px;margin-top:6px;width:fit-content;}
@@ -1304,6 +1310,8 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
 .deal-sheet .ds-tag{padding:1.3cqw 2.8cqw;border-radius:9999px;background:#f2c33c;color:#4a3b00;font-size:2.8cqw;font-weight:800;}
 .deal-sheet .ds-left{font-size:3.1cqw;font-weight:700;color:#e8574a;}
 .deal-sheet .ds-x{margin-left:auto;border:none;background:transparent;color:#9c9c9c;font-size:3.8cqw;cursor:pointer;padding:0 1cqw;}
+/* 딜 사진 (v2.12) — 시트 위 히어로. 폰 컨테이너 안이라 cqw 를 쓴다(컨테이너 밖은 px, v1.82). */
+.deal-sheet .ds-img{width:100%;height:34cqw;object-fit:cover;border-radius:4cqw;margin-top:3.6cqw;display:block;}
 .deal-sheet .ds-main{display:flex;align-items:center;gap:3.6cqw;margin-top:3.6cqw;}
 .deal-sheet .ds-emoji{display:flex;align-items:center;justify-content:center;width:18.4cqw;height:18.4cqw;flex:none;
   border-radius:4.6cqw;background:linear-gradient(150deg,#fdf0c8,#f5d78a);font-size:8.2cqw;}

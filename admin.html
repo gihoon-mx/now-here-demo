@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=2.11.0" />
+  <link rel="stylesheet" href="style.css?v=2.12.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.11.0" />
+  <link rel="stylesheet" href="skin-new.css?v=2.12.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.11.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.12.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -36,7 +36,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.11.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.12.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -223,6 +223,8 @@
               <span class="ds-left" id="ds-left"></span>
               <button class="ds-x" id="ds-close" type="button" aria-label="닫기">✕</button>
             </div>
+            <!-- 딜 사진 (v2.12) — 무대가 올린 것이 있을 때만 보인다 (syncDealSheet 가 켠다) -->
+            <img class="ds-img" id="ds-img" alt="" style="display:none;" />
             <div class="ds-main">
               <span class="ds-emoji" id="ds-emoji"></span>
               <span class="ds-tt"><b id="ds-title"></b><i id="ds-sub"></i></span>
@@ -607,7 +609,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.11.0"></script>
-  <script src="app.js?v=2.11.0"></script>
+  <script src="config.js?v=2.12.0"></script>
+  <script src="app.js?v=2.12.0"></script>
 </body>
 </html>

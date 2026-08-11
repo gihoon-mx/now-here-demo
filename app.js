@@ -413,7 +413,7 @@ function initSpotBubbleClass(){
       if(!handled)openContentPop('spot',self.spot);
     });
     this.div=wrap;this.bubbleEl=bubble;this.emojiEl=emoji;this.dotEl=dot;
-    if(nhBounceIds[this.spot.id])wrap.classList.add('nh-pop-in'); // drop·post 로 지금 생긴 것 (v2.11)
+    if(nhBounceTake(this.spot.id))wrap.classList.add('nh-pop-in'); // drop·post 로 지금 생긴 것 (v2.11)
     this._render();
     this.getPanes().overlayMouseTarget.appendChild(wrap);
   };
@@ -571,7 +571,7 @@ function initFeedThumbClass(){
     var ht=0;this.members.forEach(function(m){var f=m.f||m,p=m.pos||{};
       var t2=contentHeatT(f,p.lat,p.lng,feedHeatT(f.id));if(t2>ht)ht=t2;});
     d.style.setProperty('--heat',heatColor(ht));
-    if(nhBounceIds[this.item.id])d.classList.add('nh-pop-in'); // drop·postfeed 로 지금 생긴 것 (v2.11)
+    if(nhBounceTake(this.item.id))d.classList.add('nh-pop-in'); // drop·postfeed 로 지금 생긴 것 (v2.11)
     this.div=d;
     if(n>1){ // 클러스터: 대표 사진 + 개수 뱃지, 탭=멤버 범위로 줌인(펼치기)
       d.classList.add('cluster');
@@ -1111,13 +1111,27 @@ function openContentPop(kind,data){
     body.querySelector('.cpr-state').textContent=(act?'⏳ 답변 받는 중':'⏱ 종료')+' · 답변 '+n+'개';
     var lf=body.querySelector('[data-rq-left]');lf.setAttribute('data-rq-left',data.id); // 1초 티커(tickReqRemain)가 갱신
     var rl=reqRemainLabel(data);lf.textContent=rl?('⏱ '+rl):'';
-    if(act&&!mineR){ // 현장 유저: 응답 (기존 플로우 재사용)
-      var ar2=document.createElement('div');ar2.className='cpop-actions';
-      var cm=document.createElement('button');cm.type='button';cm.className='action-btn accent small';cm.textContent='💬 답하기';
-      cm.addEventListener('click',function(){var t=prompt('현장 답변을 입력하세요\n"'+data.q+'"');if(t&&t.trim()){answerRequest(data.id,t.trim());closeContentPop();}});
+    if(act&&!mineR){
+      /* 현장 유저: 응답 (v2.12 — 팝업 안에서 답한다).
+         여태는 네이티브 `prompt()` 였다. 그 창은 **자바스크립트를 멈춰서** 시연에서는
+         재생이 그 자리에 서고, 사람이 답하는 모습도 화면에 안 남았다(창은 브라우저 것이다).
+         스팟 컴포저와 같은 문법의 입력 줄을 팝업에 둔다 — `answer` 액션은 이 칸에
+         글자를 하나씩 넣고 보낸다(nhAnswerTyped). */
+      var ar2=document.createElement('div');ar2.className='cpr-reply';
+      ar2.innerHTML='<input class="cpr-in" type="text" maxlength="120" placeholder="현장 답변을 적어 주세요" />'
+        +'<button type="button" class="action-btn accent small cpr-send">보내기</button>';
+      var rin=ar2.querySelector('.cpr-in');
+      function sendAns(){
+        var t=(rin.value||'').trim();if(!t)return;
+        rin.value='';answerRequest(data.id,t);closeContentPop();
+      }
+      ar2.querySelector('.cpr-send').addEventListener('click',sendAns);
+      rin.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();sendAns();}});
+      body.appendChild(ar2);
+      var ar3=document.createElement('div');ar3.className='cpop-actions';
       var ph=document.createElement('button');ph.type='button';ph.className='action-btn small';ph.textContent='📷 사진 올리기';
       ph.addEventListener('click',function(){closeContentPop();answerRequestPhoto(data.id);});
-      ar2.appendChild(cm);ar2.appendChild(ph);body.appendChild(ar2);
+      ar3.appendChild(ph);body.appendChild(ar3);
     }else if(mineR&&n){ // 요청자: 도착한 답변 목록
       var ansBox=document.createElement('div');ansBox.className='rqc-answers';
       (data.answers||[]).forEach(function(a){
@@ -1283,6 +1297,11 @@ function saveLocalSpots(){
 }
 function loadLocalSpotsInto(){ // 로컬 폴백 전용 (라이브면 liveSpots 스냅샷이 담당)
   if(hasLive())return;
+  /* 빈 무대 임베드는 **아무것도 안 읽는다** (v2.12, 콘솔 D95). 이 함수는 지도 부팅의
+     geojson 콜백에서 불려서 `nhEmbedIsolate` 보다 **나중에** 돈다 — 그래서 여기서
+     막지 않으면, 방금 비운 화면에 같은 오리진(실서비스·관리자)에서 쓴 글이 다시 깔린다.
+     기능 데모에 뜨는 것은 컨텐츠 탭이 깐 것뿐이어야 한다. */
+  if(IS_CLEAN_EMBED){demoSpots=[];return;}
   try{
     var arr=JSON.parse(localStorage.getItem('nowhere_localSpots')||'[]');
     demoSpots=arr.map(function(s){return {id:s.id,lat:s.lat,lng:s.lng,text:s.text||'',emoji:s.emoji||'💬',color:s.color||null,alpha:(s.alpha!=null?s.alpha:null),temp:(s.temp!=null?s.temp:null),by:s.by||'',byEmail:s.byEmail||'',live:true};});
@@ -1518,7 +1537,7 @@ function renderNews(){
   if(frame){frame.classList.remove('cv1','cv2','cv3');frame.classList.add('cv'+newsCardVer);}
   if(track){track.innerHTML='';newsView.forEach(function(it){
     var sl=document.createElement('div');sl.className='cp-slide'+(it.feed?' cp-feed':'');
-    if(typeof nhBounceIds!=='undefined'&&nhBounceIds[it.id])sl.classList.add('nh-pop-in'); // drop 으로 지금 생긴 지면 (v2.11)
+    if(typeof nhBounceTake==='function'&&nhBounceTake(it.id))sl.classList.add('nh-pop-in'); // drop 으로 지금 생긴 지면 (v2.11)
     var im=document.createElement('img');im.src=it.src;im.alt='';sl.appendChild(im);
     var grad=document.createElement('div');grad.className='cps-grad';sl.appendChild(grad);
     var body=document.createElement('div');body.className='cps-body';
@@ -1695,7 +1714,10 @@ function compressNews(file,cb){
   r.onerror=function(){cb(null);};r.readAsDataURL(file);
 }
 function saveNews(){try{localStorage.setItem('nowhere_news',JSON.stringify(newsItems));}catch(e){}markNewsDirty();} // 로컬 캐시 + 공유(관리자)
-function loadNews(){try{var s=localStorage.getItem('nowhere_news');if(s){var o=JSON.parse(s);if(Array.isArray(o))newsItems=o;}}catch(e){}renderNews();}
+function loadNews(){
+  // 빈 무대 임베드는 저장된 지면을 안 읽는다 (v2.12) — loadLocalSpotsInto 와 같은 이유.
+  if(IS_CLEAN_EMBED){newsItems=[];renderNews();return;}
+  try{var s=localStorage.getItem('nowhere_news');if(s){var o=JSON.parse(s);if(Array.isArray(o))newsItems=o;}}catch(e){}renderNews();}
 // 공유 저장 (관리자만 · Firestore shared/news · 무료 상한 재확인)
 function markNewsDirty(){if(!fbDb||!currentUser||currentRole!=='admin')return;clearTimeout(newsCloudTimer);newsCloudTimer=setTimeout(newsCloudSave,1200);}
 function newsCloudSave(){
@@ -4158,7 +4180,7 @@ function zoneBestPhoto(zone){ // 존 썸네일 = 존 컨텐츠(존 태깅 + 존 
   });
   return best?best.src:(zone.photo||null);
 }
-function loadFeed(){try{var a=JSON.parse(localStorage.getItem(FEED_KEY)||'[]');if(Array.isArray(a))feedItems=a;}catch(e){}}
+function loadFeed(){if(IS_CLEAN_EMBED){feedItems=[];return;}try{var a=JSON.parse(localStorage.getItem(FEED_KEY)||'[]');if(Array.isArray(a))feedItems=a;}catch(e){}}
 function saveFeed(){try{localStorage.setItem(FEED_KEY,JSON.stringify(feedItems.slice(0,40)));}catch(e){}}
 function normRegion(t){return (t||'').replace(/[0-9\s]/g,'');}
 function regionCenterByName(name){ // 동 이름 → 중심 좌표 (숫자 무시 매칭)
@@ -4822,15 +4844,28 @@ function tickReqRemain(){ // 1초 티커: data-rq-left 요소의 텍스트만 �
   if(expired)renderRequestMarkers(); // 만료 → 지도/드로어 반영
 }
 /* ── 등장 바운스 (v2.11, M16 이 채운다) ──
-   drop·post·burst 로 **지금 생긴** 컨텐츠만 뿅 하고 나타난다. 렌더는 전체를 다시 만드므로
+   drop·post 로 **지금 생긴** 컨텐츠만 뿅 하고 나타난다. 렌더는 전체를 다시 만드므로
    (rebuildSpots·renderFeedMarkers…) "새 것" 을 렌더 함수는 모른다 — 만든 쪽이 id 를 여기
-   적어 두면 각 오버레이의 onAdd 가 보고 클래스를 붙인다. 지우는 것은 시간이다(1.6초):
-   첫 소비에서 지우면 PC·폰 두 지도 중 먼저 만든 쪽(임베드에선 안 보이는 PC)이 먹어 버린다. */
+   적어 두면 각 오버레이의 onAdd 가 보고 클래스를 붙인다.
+
+   **표를 쓰고 버린다** (v2.12). v2.11 은 1.6초 시간으로 지웠는데, 그 창 안에 다른 항목이
+   하나 더 깔리면 렌더가 전부를 다시 만들면서 **아직 표가 남은 앞 항목도 다시 튀었다** —
+   여러 개가 잇달아 깔리는 burst 에서 화면 전체가 깜박이는 것으로 보였다. 이제 오버레이가
+   한 번 쓰면 그만큼 차감하고, 0 이 되면 표가 사라진다.
+   `n` 은 그 종류를 그리는 지도 수다 — 스팟·피드는 PC·폰 둘(임베드의 PC 지도는 안 보여도
+   오버레이는 만들어진다), 딜·Request·지면은 하나. 시간(2초)은 렌더가 아예 안 왔을 때를
+   위한 뒷문일 뿐이다. */
 var nhBounceIds={};
-function nhBounceMark(id){
+function nhBounceMark(id,n){
   if(!id)return;
-  nhBounceIds[id]=1;
-  setTimeout(function(){delete nhBounceIds[id];},1600);
+  nhBounceIds[id]=Math.max(1,n|0||1);
+  setTimeout(function(){delete nhBounceIds[id];},2000);
+}
+/** 이 항목이 지금 막 생긴 것인가 — **묻는 순간 한 장을 뗀다.** */
+function nhBounceTake(id){
+  if(!id||!nhBounceIds[id])return false;
+  if(--nhBounceIds[id]<=0)delete nhBounceIds[id];
+  return true;
 }
 /* Request 전용 맵 핀: 현장에 질문 신호를 쏘는 특성 — 펄스 링 + ? 티어드롭 (말풍선 없음, 스팟/피드 핀과 구분) */
 function ReqPin(rq,m){this.rq=rq;this.position=new google.maps.LatLng(rq.lat,rq.lng);this.div=null;this.setMap(m);}
@@ -4843,7 +4878,7 @@ function initReqPinClass(){
     d.title=this.rq.place+' · 현장 Request';
     d.style.setProperty('--heat',heatColor(zoneHeatT(this.rq.lat,this.rq.lng))); // 트렌드 모드 온도색(속한 존 열기) — 베이직은 CSS 무채색
     d.addEventListener('click',function(e){e.stopPropagation();openContentPop('req',self.rq);}); // 탭=상세 팝업(질문·남은 시간·답변)
-    if(nhBounceIds[this.rq.id])d.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
+    if(nhBounceTake(this.rq.id))d.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
     this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);
   };
   ReqPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
@@ -4855,7 +4890,7 @@ function initReqPinClass(){
   }};
   ReqPin.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
 }
-function loadRequests(){try{var a=JSON.parse(localStorage.getItem(REQ_KEY)||'[]');if(Array.isArray(a))fieldRequests=a;}catch(e){}}
+function loadRequests(){if(IS_CLEAN_EMBED){fieldRequests=[];return;}try{var a=JSON.parse(localStorage.getItem(REQ_KEY)||'[]');if(Array.isArray(a))fieldRequests=a;}catch(e){}}
 function saveRequests(){try{localStorage.setItem(REQ_KEY,JSON.stringify(fieldRequests.slice(0,30)));}catch(e){}}
 /* presetQ (optional, v1.95): 질문을 이미 알고 있으면 네이티브 prompt 를 띄우지 않는다.
    임베드 시연이 이 인자를 쓴다 — prompt 는 iframe 위에 브라우저 대화상자를 세워
@@ -4960,7 +4995,7 @@ var DEAL_KEY='nowhere_deals';
    생성기(initSeedGen). 옛 자동 시드가 localStorage 에 남긴 것(id `dl_N`·seed:true —
    그 경로만 쓰던 id 형식이다)은 읽을 때 걸러 낸다. 안 거르면 코드를 지워도
    dealActive 가 seed:true 를 영영 살려 두어 화면에는 계속 남는다. */
-function loadDeals(){try{var a=JSON.parse(localStorage.getItem(DEAL_KEY)||'[]');if(Array.isArray(a))timeDeals=a.filter(function(d){return !(d&&d.seed&&/^dl_\d+$/.test(String(d.id)));});}catch(e){}}
+function loadDeals(){if(IS_CLEAN_EMBED){timeDeals=[];return;}try{var a=JSON.parse(localStorage.getItem(DEAL_KEY)||'[]');if(Array.isArray(a))timeDeals=a.filter(function(d){return !(d&&d.seed&&/^dl_\d+$/.test(String(d.id)));});}catch(e){}}
 function saveDeals(){try{localStorage.setItem(DEAL_KEY,JSON.stringify(timeDeals.slice(0,20)));}catch(e){}}
 function dealRemain(d){ // 남은 초
   if(!d)return 0;
@@ -4980,7 +5015,7 @@ function initDealPinClass(){
     el.innerHTML='<span class="dp-circle">⏰</span><span class="dp-pct">'+escHtml(String(this.d.pct))+'%</span>';
     el.title=this.d.title;
     el.addEventListener('click',function(e){e.stopPropagation();openDealSheet(self.d.id);});
-    if(nhBounceIds[this.d.id])el.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
+    if(nhBounceTake(this.d.id))el.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
     this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
   };
   DealPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
@@ -5024,6 +5059,13 @@ function syncDealSheet(){
   var rem=dealRemain(d);
   function set(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
   set('ds-left',dealClock(rem)+' 남음');
+  /* 사진 (v2.12) — 올린 것이 있으면 시트 위에 깔고, 없으면 여태처럼 이모지만 (피드·지면과
+     같은 규칙이다). 이모지는 사진이 있어도 남긴다 — 딜의 표식이라 핀과 짝을 이룬다. */
+  var dsImg=document.getElementById('ds-img');
+  if(dsImg){
+    if(d.img){if(dsImg.src!==d.img)dsImg.src=d.img;dsImg.style.display='';}
+    else{dsImg.removeAttribute('src');dsImg.style.display='none';}
+  }
   set('ds-emoji',d.e);set('ds-title',d.title);
   set('ds-sub',d.shop+' · 내 위치에서 '+dealDistLabel(d));
   set('ds-pct',d.pct+'%');set('ds-now',d.price);set('ds-was',d.was);
@@ -6275,17 +6317,29 @@ function nhEmbedIsolate(){
       return set(k,v);
     };
   }catch(e){}
+  nhWipeWorld();
+  try{
+    if(typeof feedLikes!=='undefined')Object.keys(feedLikes).forEach(function(k){delete feedLikes[k];});
+    if(typeof socMsgs!=='undefined')Object.keys(socMsgs).forEach(function(k){delete socMsgs[k];});
+  }catch(e){}
+}
+
+/* 화면의 컨텐츠를 통째로 비운다 (v2.12, 콘솔 D95).
+   **빈 무대 임베드의 단일 기준**이다 — 기능 데모에 뜨는 것은 컨텐츠 탭이 깐 것과 재생 중
+   만든 것뿐이어야 하는데, 그 약속이 여태 "부팅에서 한 번 비운다" 였다. 부팅 뒤에도 새는
+   길이 있었다: 지도 부팅의 geojson 콜백이 `loadLocalSpotsInto` 로 저장된 글을 다시 깔고
+   (임베드는 실서비스와 같은 오리진이다), 딜은 걷는 사람이 아무도 없어 회차를 넘어 남았다.
+   각 loader 를 막는 것과 **함께** 회차 시작마다 여기서 한 번 더 비운다 — 어느 경로로
+   새어 들어왔든 재생은 늘 빈 화면에서 시작한다. */
+function nhWipeWorld(){
   try{
     if(typeof feedItems!=='undefined')feedItems.length=0;
     if(typeof demoSpots!=='undefined')demoSpots.length=0;
+    // 관리자 스팟도 비운다 — 클라우드 스냅샷이 붙은 채로 임베드가 열릴 수 있다.
+    if(typeof adminSpots!=='undefined')adminSpots.length=0;
     if(typeof fieldRequests!=='undefined')fieldRequests.length=0;
     if(typeof newsItems!=='undefined')newsItems.length=0;
-    /* 딜도 비운다 (v2.2). loadDeals() 가 nowhere_deals 를 localStorage 에서 읽고,
-       임베드는 관리자 콘솔과 **같은 오리진**이라 관리자가 만든 딜이 시연에 새어 든다.
-       initTimeDeals() 는 IIFE 고 이 함수는 startEmbed() 안이라 순서는 이미 맞다. */
     if(typeof timeDeals!=='undefined')timeDeals.length=0;
-    if(typeof feedLikes!=='undefined')Object.keys(feedLikes).forEach(function(k){delete feedLikes[k];});
-    if(typeof socMsgs!=='undefined')Object.keys(socMsgs).forEach(function(k){delete socMsgs[k];});
   }catch(e){}
 }
 
@@ -6317,10 +6371,13 @@ function nhPosSave(kind,i,lat,lng){
   try{localStorage.setItem(NH_POS_KEY,JSON.stringify(all));}catch(e){}
 }
 /* 드래그된 것이 무대 항목이면 그 자리를 남긴다 — id 접미사가 곧 항목 번호다. */
+/** write 로 쓴 글의 id → 그 회차의 write 순번 (v2.12). 그 글은 id 규칙이 달라 표가 필요하다. */
+var nhWriteIds={};
 function nhPosNote(id,lat,lng){
   var m=/^(spn|fdn|rqn|dln)_\d+_(\d+)$/.exec(String(id||''));
-  if(!m)return;
-  nhPosSave({spn:'spot',fdn:'feed',rqn:'req',dln:'deal'}[m[1]],Number(m[2]),lat,lng);
+  if(m){nhPosSave({spn:'spot',fdn:'feed',rqn:'req',dln:'deal'}[m[1]],Number(m[2]),lat,lng);return;}
+  // 사용자가 재생 중 쓴 글(write)도 옮긴 자리를 기억한다 — 무대 항목과 같은 약속이다.
+  if(nhWriteIds[id]!=null)nhPosSave('write',nhWriteIds[id],lat,lng);
 }
 /* 이번 회차가 만든 것들 — 시나리오 seed 와 재생 중 쓴 글, 그리고 전역 카드에 남긴
    좋아요(v1.94 — 회차를 넘어 살아남으면 두 번째 재생에서 하트가 이미 차 있다).
@@ -6443,14 +6500,22 @@ function nhFocus(kind,i,token,ms){
 
 /* 글쓰기: 진짜 컴포저를 열어 보여주고(addSpotContent) 잠시 뒤 커밋한다.
    바로 넣지 않는 이유 — 시연에서 "이 사람이 쓰는 중" 이 보여야 한다. */
-function nhWriteSpot(text,token,ms){
+/** write 로 쓴 글이 몇 번째인가 — 사람이 옮긴 자리를 기억하는 키다 (v2.12). */
+var nhWriteN=0;
+function nhWriteSpot(text,token,ms,emoji){
   if(typeof addSpotContent!=='function')return false;
   // **지도 중심에 기대지 않는다.** addSpotContent 는 중심이 없으면(투영 전·지도 오류)
   // 조용히 아무것도 안 한다 — 시연에서는 "글을 썼는데 아무 일도 없음" 으로 보인다.
   // 시나리오가 서 있는 지역 좌표를 직접 준다: 회차마다 같은 자리에 남는 이점도 있다.
   var c=SEED_AREAS[nhAreaKey]||null;
   var ctr=(typeof phoneMap!=='undefined'&&phoneMap&&phoneMap.getCenter)?phoneMap.getCenter():null;
-  var ll=c?new google.maps.LatLng(c.lat+0.0012,c.lng+0.0012):ctr;
+  /* 사람이 옮긴 자리를 먼저 본다 (v2.12) — 무대 콘텐츠가 v2.3 에 얻은 것과 같은 규칙이다.
+     write 로 쓴 글은 여태 늘 지역 좌표 +0.0012 에 박혀서, 임베드에서 끌어 옮겨도 다음
+     재생에 제자리로 돌아갔다. 키는 이 회차의 write 순번이라 여러 개를 써도 각자 기억한다. */
+  var wi=nhWriteN++;
+  var saved=nhPosGet('write',wi,c||(ctr?{lat:ctr.lat(),lng:ctr.lng()}:null));
+  var ll=saved?new google.maps.LatLng(saved.lat,saved.lng)
+    :(c?new google.maps.LatLng(c.lat+0.0012,c.lng+0.0012):ctr);
   if(!ll)return false;
   addTargetMap=(typeof phoneMap!=='undefined')?phoneMap:null;
   addAtLatLng=ll;
@@ -6458,6 +6523,18 @@ function nhWriteSpot(text,token,ms){
   addAtLatLng=null; // 다음 사용자 조작이 이 좌표를 물려받지 않게 바로 비운다
   var ov=(typeof composerOverlay!=='undefined')?composerOverlay:null;
   if(!ov)return false;
+  /* 이모지도 시나리오가 정한다 (v2.12) — 스팟 메시지·post 와 같은 어휘다. 여태 컴포저의
+     현재 선택(currentSpotEmoji)을 그대로 써서, 앞 회차에 고른 이모지가 따라왔다.
+     비우면 예전대로 컴포저 기본값이다. 픽커도 같이 맞춘다 — 화면에 보이는 것과
+     등록되는 것이 달라지면 시연이 거짓말을 한다. */
+  var em=String(emoji||'').slice(0,4);
+  if(em){
+    ov.emoji=em;
+    if(typeof buildEmojiPicker==='function'&&ov.div){
+      var pick=ov.div.querySelector('.sc-emoji');
+      if(pick)buildEmojiPicker(pick,function(){return ov.emoji;},function(x){ov.emoji=x;});
+    }
+  }
   var typed=String(text||'').slice(0,80);
   var commitAt=Math.max(900,Math.round((ms||2600)*0.55));
   // 글자별 타이핑 (v1.94). 220ms 뒤 통째로 박히는 것이 화면에서 가장 큰 로봇 티였다.
@@ -6483,7 +6560,58 @@ function nhWriteSpot(text,token,ms){
     var before=(typeof demoSpots!=='undefined')?demoSpots.length:0;
     try{ov.commit();}catch(e){}
     if(typeof demoSpots!=='undefined')
-      for(var i=before;i<demoSpots.length;i++)nhTempIds.spot.push(demoSpots[i].id);
+      for(var i=before;i<demoSpots.length;i++){
+        nhTempIds.spot.push(demoSpots[i].id);
+        // 이 글이 몇 번째 write 인지 적어 둔다 — 끌어 옮기면 그 번호로 자리를 남긴다.
+        nhWriteIds[demoSpots[i].id]=wi;
+        nhBounceMark(demoSpots[i].id,2); // 내가 쓴 글도 뿅 하고 앉는다 (v2.12)
+      }
+  },commitAt);
+  return true;
+}
+
+/* 올려둔 Request 에 **답이 쓰이는 모습**을 보여준다 (v2.12, 콘솔 D95).
+   여태 `answer` 는 값을 그냥 꽂았다 — 답은 도착했는데 아무도 답하는 것을 못 봤다.
+   write 와 같은 문법으로 만든다: 팝업을 열고, 답장 칸에 글자를 하나씩 넣고, 보낸다.
+
+   무대가 깐 Request 는 **내 것**이라(nhLayReq 가 myUid 로 적는다) 팝업이 답장 칸을
+   안 그린다 — 그 자리는 "내가 받은 답 목록" 이다. 그래서 없으면 여기서 한 줄을 만든다:
+   시연에서 보여줄 것은 현장의 누군가가 답을 쓰는 장면이다. */
+function nhAnswerTyped(rq,text,token,ms){
+  if(!rq||typeof openContentPop!=='function'||typeof answerRequest!=='function')return false;
+  openContentPop('req',rq);
+  var body=document.getElementById('cpop-body');if(!body)return false;
+  var row=body.querySelector('.cpr-reply');
+  if(!row){
+    row=document.createElement('div');row.className='cpr-reply';
+    row.innerHTML='<input class="cpr-in" type="text" maxlength="120" readonly />'
+      +'<button type="button" class="action-btn accent small cpr-send">보내기</button>';
+    body.appendChild(row);
+  }
+  var inp=row.querySelector('.cpr-in');if(!inp)return false;
+  inp.value='';
+  var typed=String(text||'지금은 여유 있어요').slice(0,120);
+  // 타이밍은 write 와 같은 규칙이다 — 두 곳이 다르면 같은 연출이 다른 속도로 보인다.
+  var commitAt=Math.max(900,Math.round((ms||2600)*0.6));
+  var t0=220,win=Math.max(300,commitAt-t0-150);
+  var per=Math.min(90,Math.max(30,Math.round(win/Math.max(1,typed.length))));
+  var pos=0;
+  setTimeout(function(){
+    if(token!==nhRunToken)return;
+    var iv=setInterval(function(){
+      if(token!==nhRunToken||!inp.isConnected){clearInterval(iv);return;}
+      pos+=(pos%3===2)?2:1;
+      if(pos>=typed.length){pos=typed.length;clearInterval(iv);}
+      inp.value=typed.slice(0,pos);
+    },per);
+  },t0);
+  setTimeout(function(){
+    if(token!==nhRunToken)return;
+    if(inp.isConnected)inp.value=typed;
+    answerRequest(rq.id,typed);
+    // 답이 실린 팝업을 다시 그린다 — 방금 쓴 말이 목록에 앉는 것까지가 이 장면이다.
+    if(typeof openContentPop==='function')openContentPop('req',rq);
+    if(typeof renderDrawerDemo==='function')renderDrawerDemo();
   },commitAt);
   return true;
 }
@@ -6670,12 +6798,12 @@ function nhAct(st,token){
         if(typeof renderFeedMarkers==='function')renderFeedMarkers();
         return true;}
       if(st.a==='write'){if(typeof switchTab==='function')switchTab('map');
-        return nhWriteSpot(st.v||st.say,token,st.ms)!==false;}
+        // e = 이모지 (v2.12) — post 와 같은 자리, 같은 뜻이다.
+        return nhWriteSpot(st.v||st.say,token,st.ms,st.e)!==false;}
       if(st.a==='answer'){var rq=nhPick('req',st.i);
         if(!rq||typeof answerRequest!=='function')return false;
-        answerRequest(rq.id,st.v||'지금 그렇게 안 붐벼요');
-        if(typeof renderDrawerDemo==='function')renderDrawerDemo();
-        return true;}
+        // v2.12: 값만 꽂지 않고 **쓰이는 모습**을 보여준다 (write 와 같은 문법).
+        return nhAnswerTyped(rq,st.v||'지금 그렇게 안 붐벼요',token,st.ms)!==false;}
       if(st.a==='chat')return nhChat(st.v,st.say&&st.v==='send'?st.say:(st.i?st.say:''))!==false;
       if(st.a==='ai')return nhAi(token,st.ms)!==false;
       if(st.a==='scope'){if(typeof switchTab==='function')switchTab('feed');
@@ -6876,6 +7004,8 @@ function nhLayDeal(d,i,c,stamp){
   var was=9900+(i%8)*5000;
   var now=Math.floor(was*(100-pct)/100/100)*100;   // 백 원 단위로 내림
   timeDeals.push({id:id,lat:p.lat,lng:p.lng,
+    // 사진 (v2.12) — 피드·지면과 같은 규칙: 통과한 주소만, 없으면 이모지로 그린다.
+    img:nhImgSrc(d.img),
     e:String(d.e||'⏰').slice(0,4),
     title:String(d.title||'').slice(0,40),
     shop:String(d.shop||'근처 매장').slice(0,30),
@@ -6950,7 +7080,7 @@ function nhPostSpot(v,e){
   var id=nhLaySpot({t:t,emoji:String(e||'').slice(0,4)||'💬'},NH_POST_FROM+(nhPostN++),
                    nhPostCenter(),nhHeld.stamp||Date.now());
   if(!id)return false;
-  nhBounceMark(id); // "방금 올라온 글" 은 뿅 하고 나타난다 (v2.11)
+  nhBounceMark(id,2); // "방금 올라온 글" 은 뿅 하고 나타난다 (v2.11 — PC·폰 두 지도)
   if(typeof rebuildSpots==='function')rebuildSpots();
   return true;
 }
@@ -6962,7 +7092,7 @@ function nhPostFeed(v,e,n){
   var id=nhLayFeed({desc:d,label:d,theme:String(e||'')||'cafe',name:String(n||'')||'동네주민'},
                    NH_POST_FROM+(nhPostN++),nhPostCenter(),nhHeld.stamp||Date.now());
   if(!id)return false;
-  nhBounceMark(id); // "방금 올라온 카드" 는 뿅 하고 나타난다 (v2.11)
+  nhBounceMark(id,2); // "방금 올라온 카드" 는 뿅 하고 나타난다 (v2.11 — PC·폰 두 지도)
   if(typeof renderFeed==='function')renderFeed();
   if(typeof renderFeedMarkers==='function')renderFeedMarkers();
   if(typeof renderNews==='function')renderNews(); // 지도 탭 상단 지면에도 실린다 (v2.10)
@@ -6970,13 +7100,18 @@ function nhPostFeed(v,e,n){
 }
 
 /* ── 엔딩 연출: 줌아웃 + 컨텐츠 쏟아짐 (v2.11, 콘솔 D94 · 액션 `burst`) ──
-   st.v = 종류(spot|feed|deal|mix) · st.i = 개수(1~24) · st.e = 줌(11~16, 비면 13) ·
-   st.ms = 이 단계의 길이 = 쏟아지는 시간.
+   st.v = 종류 — `spot`·`feed`·`deal` 을 **`+` 로 이어 여러 개**를 고를 수 있다
+   ("spot+feed"), `mix`·빈 값은 셋 다 (v2.12) · st.i = 개수(1~50) ·
+   st.e = 줌(11~16, 비면 13) · st.ms = 이 단계의 길이 = 쏟아지는 시간.
 
    **전부 결정적이다** (Math.random 금지, v1.72 와 같은 이유) — 자리·문구·등장 시각이
    순번과 시나리오 키(heatJitter)로 정해져, 같은 데모는 몇 번을 돌려도 같은 그림이다.
    자리는 줌 레벨에 비례해 편다: 줌 13 의 화면은 14 의 두 배라, 고정 반경으로 깔면
-   줌아웃한 화면의 가운데 한 줌에만 몰린다. 깔기는 nhLay* 그대로라 리셋이 걷어 간다. */
+   줌아웃한 화면의 가운데 한 줌에만 몰린다. 깔기는 nhLay* 그대로라 리셋이 걷어 간다.
+
+   **바운스를 안 붙인다** (v2.12) — 하나 깔 때마다 렌더가 전부를 다시 만드는데, 그때
+   먼저 깔린 것들이 같이 튀어 화면이 깜박이는 것으로 보였다. 쏟아지는 장면의 리듬은
+   등장 시각이 만들고, 개별 튀김은 여기서 방해가 된다. */
 var NH_BURST_SPOTS=[['여기 줄 서기 시작했어요','🔥'],['방금 자리 났어요','🪑'],['오늘 분위기 최고','✨'],
   ['골목 안쪽이 진짜예요','👀'],['지금 노을 봐요','🌇'],['여기 신상 오픈했어요','🎉'],
   ['산책하기 딱 좋은 날','🌿'],['웨이팅 없이 들어왔어요','🏃']];
@@ -6985,10 +7120,20 @@ var NH_BURST_FEEDS=[['지금 이 골목','cafe'],['오늘의 발견','food'],['�
 var NH_BURST_NAMES=['동네주민','골목탐험가','산책러','단골손님','뚜벅이','로컬큐레이터'];
 var NH_BURST_DEALS=[['마감 직전 딜','🥐','베이커리',40],['오늘만 이 가격','☕','카페',30],
   ['라스트 오더','🍜','분식집',25],['깜짝 타임딜','🛍️','편집숍',35]];
+/** burst 가 한 번에 만들 수 있는 개수 — 콘솔의 MAX_BURST_COUNT 와 같은 값이어야 한다. */
+var NH_BURST_MAX=50;
+/** `v` 를 종류 목록으로 — "spot+feed" 처럼 이어 붙일 수 있다 (v2.12). */
+function nhBurstKinds(v){
+  var out=[];
+  String(v||'').split(/[+,\s]+/).forEach(function(x){
+    if((x==='spot'||x==='feed'||x==='deal')&&out.indexOf(x)<0)out.push(x);
+  });
+  return out.length?out:['spot','feed','deal']; // mix·빈 값·모르는 값 = 셋 다
+}
 function nhBurst(v,n,e,ms,token){
   var c=nhPostCenter();if(!c)return false;
-  var kinds=(v==='spot'||v==='feed'||v==='deal')?[v]:['spot','feed','deal']; // 그 밖(mix 포함)=섞음
-  n=Math.min(24,Math.max(1,n|0||12));
+  var kinds=nhBurstKinds(v);
+  n=Math.min(NH_BURST_MAX,Math.max(1,n|0||12));
   ms=Math.max(800,ms|0||4000);
   var z=parseInt(e,10);if(!isFinite(z))z=13;z=Math.min(16,Math.max(11,z));
   // 줌아웃부터 — 쏟아지는 것은 넓어진 화면 위의 일이다. area 와 같은 이유로 양쪽 지도.
@@ -7000,31 +7145,35 @@ function nhBurst(v,n,e,ms,token){
   var maxR=0.028*Math.pow(2,13-z); // 줌 13 화면 반폭 기준 — 레벨당 두 배
   var stamp=nhHeld.stamp||Date.now();
   for(var k=0;k<n;k++)(function(k){
-    // 앞 15% 는 카메라가 빠지는 시간, 끝 10% 는 마지막 것이 보일 시간으로 남긴다.
-    var t=Math.round(ms*0.15+ms*0.75*(n>1?k/(n-1):0));
+    /* 등장 시각 (v2.12) — **줌아웃이 도는 동안부터** 마구 생긴다.
+       v2.11 은 앞 15% 를 비우고 등간격으로 놨더니 메트로놈처럼 규칙적이었고, 카메라가
+       다 빠진 뒤에야 시작해 "줌아웃하며 쏟아진다" 가 두 장면으로 갈렸다. 이제 처음부터
+       끝까지 쓰되 자리를 **결정적 흔들기**로 민다 — 몰렸다 뜸했다 하는 리듬이 생긴다. */
+    var base=(n>1?k/(n-1):0);
+    var t=Math.round(ms*Math.min(0.98,Math.max(0,base*0.92+(heatJitter(salt+'t'+k)-0.5)*0.16)));
     setTimeout(function(){
       if(token!==nhRunToken)return;
-      var kind=kinds[k%kinds.length];
+      // 종류도 순번이 아니라 섞기로 고른다 — 둘을 고르면 번갈아 나오는 티가 났다.
+      var kind=kinds[Math.floor(heatJitter(salt+'k'+k)*kinds.length)%kinds.length];
       var a=k*2.399963+heatJitter(salt)*6.283; // 황금각 + 시나리오별 시작각
       var r=maxR*(0.3+0.7*Math.sqrt(heatJitter(salt+'r'+k))); // sqrt = 면적 균등
       var p={lat:at.lat+r*Math.cos(a)*0.8,lng:at.lng+r*Math.sin(a),name:c.name};
       var pick=function(pool){return pool[(k+Math.floor(heatJitter(salt)*pool.length))%pool.length];};
-      var id=null,idx=NH_POST_FROM+(nhPostN++);
+      var idx=NH_POST_FROM+(nhPostN++);
+      // 바운스를 안 붙인다 (v2.12) — 위 주석 참조.
       if(kind==='spot'){
         var sp=pick(NH_BURST_SPOTS);
-        id=nhLaySpot({t:sp[0],emoji:sp[1]},idx,p,stamp);
-        if(id){nhBounceMark(id);if(typeof rebuildSpots==='function')rebuildSpots();}
+        if(nhLaySpot({t:sp[0],emoji:sp[1]},idx,p,stamp)&&typeof rebuildSpots==='function')rebuildSpots();
       }else if(kind==='feed'){
         var fd=pick(NH_BURST_FEEDS);
-        id=nhLayFeed({desc:fd[0],label:fd[0],theme:fd[1],name:pick(NH_BURST_NAMES)},idx,p,stamp);
-        if(id){nhBounceMark(id);
+        if(nhLayFeed({desc:fd[0],label:fd[0],theme:fd[1],name:pick(NH_BURST_NAMES)},idx,p,stamp)){
           if(typeof renderFeedMarkers==='function')renderFeedMarkers();
           if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
           if(typeof renderNews==='function')renderNews();}
       }else{
         var dl=pick(NH_BURST_DEALS);
-        id=nhLayDeal({title:dl[0],e:dl[1],shop:dl[2],pct:dl[3],secs:600+120*(k%5)},idx,p,stamp);
-        if(id){nhBounceMark(id);if(typeof renderDealMarkers==='function')renderDealMarkers();}
+        if(nhLayDeal({title:dl[0],e:dl[1],shop:dl[2],pct:dl[3],secs:600+120*(k%5)},idx,p,stamp)
+           &&typeof renderDealMarkers==='function')renderDealMarkers();
       }
     },t);
   })(k);
@@ -7036,7 +7185,8 @@ function nhBurst(v,n,e,ms,token){
 var nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:0};
 
 function nhSeedScenario(sc,token){
-  nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:token};nhPostN=0;
+  // 회차마다 0 부터 — write 의 "옮긴 자리" 키가 회차를 넘어 같아야 한다 (v2.12).
+  nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:token};nhPostN=0;nhWriteN=0;nhWriteIds={};
   if(!sc||!sc.seed)return;
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
   var stamp=Date.now();
@@ -7104,29 +7254,31 @@ function nhDrop(v,i){
   if(n<0||n>=list.length)return false;
   var item=list.splice(n,1)[0]; // 한 번 깐 것은 다시 깔지 않는다
   var c=nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangnam;
-  var laid; // 지금 깐 것의 id — 등장 바운스 표시용 (v2.11). 렌더 **전에** 적어야 onAdd 가 본다.
+  /* 지금 깐 것의 id — 등장 바운스 표시용 (v2.11). 렌더 **전에** 적어야 onAdd 가 본다.
+     두 번째 인자는 그 종류를 그리는 지도 수다 (스팟·피드는 PC+폰 둘, 나머지는 폰 하나). */
+  var laid;
   if(kind==='spot'){
     laid=nhLaySpot(item.v,item.i,c,nhHeld.stamp);
-    if(!laid)return false;nhBounceMark(laid);
+    if(!laid)return false;nhBounceMark(laid,2);
     if(typeof rebuildSpots==='function')rebuildSpots();
   }else if(kind==='feed'){
     laid=nhLayFeed(item.v,item.i,c,nhHeld.stamp);
-    if(!laid)return false;nhBounceMark(laid);
+    if(!laid)return false;nhBounceMark(laid,2);
     if(typeof renderFeed==='function')renderFeed();
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();
     if(typeof renderNews==='function')renderNews(); // 지도 탭 상단 지면에도 실린다 (v2.10)
   }else if(kind==='deal'){
     laid=nhLayDeal(item.v,item.i,c,nhHeld.stamp);
-    if(!laid)return false;nhBounceMark(laid);
+    if(!laid)return false;nhBounceMark(laid,1);
     if(typeof renderDealMarkers==='function')renderDealMarkers();
   }else if(kind==='req'){
     laid=nhLayReq(item.v,item.i,c,nhHeld.stamp,nhHeld.token);
-    if(!laid)return false;nhBounceMark(laid);
+    if(!laid)return false;nhBounceMark(laid,1);
     if(typeof renderRequestMarkers==='function')renderRequestMarkers();
     if(typeof renderDrawerDemo==='function')renderDrawerDemo();
   }else if(kind==='page'){
     laid=nhLayNews(item.v,item.i,c,nhHeld.stamp);
-    if(!laid)return false;nhBounceMark(laid);
+    if(!laid)return false;nhBounceMark(laid,1);
     if(typeof renderNews==='function')renderNews();
   }else{
     return false;
@@ -7137,6 +7289,19 @@ function nhDrop(v,i){
 function nhReset(){
   try{
     nhSweepTemp();
+    /* 빈 무대는 **매 회차 처음부터 빈다** (v2.12, 콘솔 D95). nhSweepTemp 는 이번 회차가
+       만든 것(nhTempIds)만 걷으므로, 다른 경로로 새어 들어온 것은 걷을 사람이 없었다 —
+       "컨텐츠 탭에 없는 타임딜이 뜨고 안 사라진다" 가 그 자리다. */
+    if(IS_CLEAN_EMBED){
+      nhWipeWorld();
+      if(typeof rebuildSpots==='function')rebuildSpots();
+      if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+      if(typeof renderRequestMarkers==='function')renderRequestMarkers();
+      if(typeof renderDealMarkers==='function')renderDealMarkers();
+      if(typeof closeDealSheet==='function')closeDealSheet();
+      if(typeof renderNews==='function')renderNews();
+      if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
+    }
     // 앞 회차가 방학동에 서 있었으면 다음 회차의 pop 이 조용히 빈손이 된다 —
     // 비워 두지 않고 **기본 무대로 되돌린다** (v1.73). 회차마다 같은 곳에서 시작해야 한다.
     if(typeof nhGoHome==='function')nhGoHome();else nhAreaKey='';
@@ -7245,6 +7410,7 @@ function nhSanitize(raw){
       d=d||{};return {e:String(d.e||'').slice(0,4),
         title:String(d.title||'').slice(0,40),
         shop:String(d.shop||'').slice(0,30),
+        img:nhImgSrc(d.img), // v2.12: 사람이 올린 사진 (없으면 이모지로 그린다)
         pct:Math.min(90,Math.max(5,(d.pct|0)||20)),
         secs:Math.min(7200,Math.max(30,(d.secs|0)||1800)),
         hold:!!d.hold};

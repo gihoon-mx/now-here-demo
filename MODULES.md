@@ -218,6 +218,13 @@ deals:[…] , pages:[…]}`. **깐 것이 하나라도 있으면 `pop`·`like` �
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-11 M16+M17+M07+M04: v2.12.0 — **빈 무대 누수 차단 · 바운스 소비 · burst 재조정 · write 이모지/자리 · Request 답장 연출 · 딜 사진** (콘솔 v0.84.0 D95 와 짝, 사용자 요청 8건).
+  ① **빈 무대(`clean=1`)에 다른 데서 온 컨텐츠가 새던 것** — `nhEmbedIsolate` 는 부팅에서 한 번 비우는데, **지도 부팅의 geojson 콜백이 그 뒤에** `loadLocalSpotsInto` 로 저장된 글을 다시 깔았다(임베드는 실서비스와 같은 오리진). 딜은 걷는 사람이 아무도 없어 회차를 넘어 남았다 — "컨텐츠 탭에 없는 타임딜이 뜨고 안 사라진다" 의 정체. 다섯 loader(`loadLocalSpotsInto`·`loadNews`·`loadFeed`·`loadRequests`·`loadDeals`)를 clean 에서 막고, `nhWipeWorld()` 를 만들어 `nhEmbedIsolate` 와 **`nhReset` 이 함께** 쓴다 — 어느 경로로 새어 들어왔든 재생은 늘 빈 화면에서 시작한다.
+  ② M16: 바운스 표를 **쓰고 버린다**(`nhBounceTake`). 시간(1.6초)으로 지우던 v2.11 은 그 창 안에 다른 항목이 깔리면 전체 재렌더로 **앞 항목까지 다시 튀어** 화면이 깜박였다. `nhBounceMark(id,n)` 의 n = 그 종류를 그리는 지도 수(스팟·피드 2, 나머지 1).
+  ③ M16: `burst` 재조정 — 상한 50(`NH_BURST_MAX`), 종류를 `+` 로 **여럿**(`nhBurstKinds("spot+feed")`), 등장 시각을 결정적 흔들기로 흩어 **줌아웃이 도는 동안부터** 마구 생긴다(v2.11 은 앞 15% 를 비우고 등간격이라 메트로놈이었다), **바운스를 안 붙인다**(깜박임의 원인).
+  ④ M04+M16: `write` 에 `e`(이모지)와 **옮긴 자리 기억** — `nhPosGet('write',n)`. 여태 지역 좌표 +0.0012 에 박혀서 끌어 옮겨도 다음 재생에 제자리로 돌아갔다. id 규칙이 달라(`sp_…`) `nhWriteIds` 표로 잇는다.
+  ⑤ M07+M16: `answer` 가 **쓰이는 모습**을 보여준다(`nhAnswerTyped`) — 팝업의 답장 줄에 글자를 하나씩 넣고 보낸다. 상세 팝업의 `prompt()` 도 인라인 입력으로 바꿨다(그 창은 스크립트를 멈춰 재생이 그 자리에 선다).
+  ⑥ M17: `seed.deals[].img` — 바텀시트 위 히어로 사진(`#ds-img`). 없으면 여태처럼 이모지만.
 - 2026-08-11 M16+M17+M05+M11: v2.11.0 — **임베드가 지면 타입을 받는다 · 딜 점 표시 · 클러스터 중앙값 · 등장 바운스 · `burst` 액션** (콘솔 v0.83.0 D94 와 짝, 사용자 요청 6건 중 앱 몫 5건).
   ① M11+M16: **상단 지면 타입(`newsCardVer`)이 임베드에 영영 기본값이던 것** — 스킨·스타일은 `cloudSave → shared/publicSettings` 로 건너가는데 cardVer 만 `shared/news`(SDK 전용)로 다녀서 REST 로 읽는 persona-vc 임베드가 못 봤다. `settingsSnapshotFull`·`applyExtraSettings` 에 넣고, 지면 타입 변경이 `markCloudDirty` 도 부른다. ⚠️ **배포 후 관리자가 지면 타입(또는 아무 설정)을 한 번 다시 적용해야** 공개 문서에 실린다.
   ② M17: 딜 핀도 축소에서 **점**이 된다 — 스팟·피드와 같은 기준(`spotDotScaleM`), `.dl-dot`(12px·라벨 숨김·중심 앵커). v3 스킨의 3.5px 테두리는 점에서 1.5px 로.
