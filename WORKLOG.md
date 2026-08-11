@@ -47,7 +47,7 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v2.10.0** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
+- **현재 최신: v2.11.0** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
 - ⚠️ v1.65부터 **admin.html도 버전 동기 대상**(check.js가 index/admin의 #app-version·?v= 일치를 강제). index/admin에 **공통 요소**(폰 화면 마크업·모달·설정 섹션)를 수정하면 **두 파일 모두** 반영할 것.
 
 ---
@@ -263,6 +263,44 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ---
 
 ## 📝 변경 이력
+
+### 2026-08-11 (10)
+- **v2.11.0 — 임베드가 지면 타입을 받는다 · 딜 점 표시 · 클러스터 중앙값 · 등장 바운스 · burst (M16+M17+M05+M11)**
+  — 콘솔 v0.83.0(D94)과 짝. 사용자 요청 6건 중 앱 몫 5건.
+
+  ① **관리자 스킨·스타일이 persona-vc 데모 화면에 안 보이던 것 (특히 상단 지면 타입).**
+  스킨·스타일 자체는 `cloudSave → shared/publicSettings` 로 이미 건너간다(실측: 공개 문서에
+  `appSkin:"v3"` 있음). **지면 타입(`newsCardVer`)만** `shared/news`(SDK 전용)로 다녀서
+  REST 로 읽는 임베드가 못 봤다. `settingsSnapshotFull`·`applyExtraSettings` 에 추가 +
+  지면 타입 변경이 `markCloudDirty` 도 부른다.
+  ⚠️ **배포 뒤 관리자 페이지에서 지면 타입(또는 아무 설정)을 한 번 다시 적용해야**
+  공개 문서에 새 필드가 실린다 — 그 전에는 임베드가 여전히 기본(1)로 그린다.
+
+  ② **타임딜 핀 점 전환** — 스팟·피드와 같은 기준(`spotDotScaleM`)으로 축소 시
+  `.dl-dot`(12px 점·% 라벨 숨김·중심 앵커). v3 스킨 3.5px 테두리는 점에서 1.5px.
+
+  ③ **피드 클러스터 핀 = 멤버 중앙값** — 첫 멤버 좌표 고정이라 줌아웃 중 클러스터가
+  합쳐질 때마다 "그때의 첫 멤버" 자리로 널뛰던 것. 그룹핑 기준은 안 바꿈(멤버 구성 유지).
+
+  ④ **등장 바운스** — drop·post·postfeed·burst 로 지금 생긴 컨텐츠가 뿅(스케일 오버슈트)
+  하고 나타난다. 전체 재렌더 구조라 만든 쪽이 `nhBounceMark(id)` 로 적고 오버레이 onAdd 가
+  `.nh-pop-in` 을 붙인다(스팟·피드·딜·Request·지면 슬라이드). 1.6초 시간 만료로 지움 —
+  첫 소비 삭제는 PC 지도가 먼저 먹는다. 자식만 흔든다(루트 transform=지도 배치).
+  reduced-motion 은 애니메이션 없음.
+
+  ⑤ **`burst` 액션 (엔딩 연출)** — 줌아웃하며 무작위 컨텐츠가 쏟아진다.
+  `v`=spot|feed|deal|mix · `i`=개수(1~24) · `e`=줌 11~16(기본 13) · `ms`=쏟아지는 시간
+  (**이 액션만 15초까지** — sanitize 특례, 콘솔 MAX_BURST_MS 와 짝). 자리는 줌 레벨 비례
+  (`0.028°×2^(13-z)`, 황금각+면적 균등), 문구는 종류별 풀 8·8·4벌에서 시나리오 키로 고른다 —
+  전부 결정적. `nhLayDeal` 원가 `%8` 접기(안 접으면 burst 딜 원가 25만 원대).
+
+  검증(로컬 :8767 `?embed=1&clean=1` — 오버레이 onAdd 는 pane 미표시로 컴포지팅이 안 돼
+  합성 DOM·자료구조로): `nhSanitize` 가 burst 통과(ms 3000 유지) · mix 9개 → 스팟 3+피드 3+
+  딜 3, 줌 12 실이동, 원가 19,900~44,900원 · **같은 데모 재실행 = 완전 동일**(문구·좌표·가격
+  JSON 비교) · 합성 `.deal-pin.dl-dot` 12×12px·라벨 display:none·v3 테두리 1.33px ·
+  `.nh-pop-in .fp-im` animationName=nhPopIn · 클러스터 3멤버 → pos=산술 중앙값, 줌 20 에서
+  낱개는 자기 좌표 · `settingsSnapshotFull().newsCardVer` 존재 + `applyExtraSettings({newsCardVer:3})`
+  적용 · `node tools/check.js` PASS.
 
 ### 2026-08-11 (9)
 - **v2.10.0 — 피드 카드에 올린 사진 · 무대가 상단 지면을 깨운다 · 무대 상한 확대 (M16+M05+M10)**

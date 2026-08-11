@@ -654,6 +654,8 @@ body[data-skin="v3"] .ct-foot{
 /* ── 타임딜 (v1.89) ── 기본형이 이미 시안 값이라 v3 에서는 **온도 팔레트만 맞춘다**.
    Basic 에서 핀이 흰색으로 가라앉는 규칙은 사진 핀과 같다. */
 body[data-skin="v3"] .deal-pin .dp-circle{border-width:3.5px;box-shadow:var(--v3-sh-pin);}
+/* 점일 때는 두꺼운 테두리를 물려받지 않는다 (v2.11) — 12px 점에 3.5px 테두리면 도넛이 된다. */
+body[data-skin="v3"] .deal-pin.dl-dot .dp-circle{border-width:1.5px;box-shadow:0 1px 3px rgba(15,23,42,0.25);}
 body[data-skin="v3"]:not(.mode-trend) .deal-pin .dp-circle{background:#fff;border-color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.1);}
 body[data-skin="v3"]:not(.mode-trend) .deal-pin .dp-pct{background:#fff;color:var(--v3-ink3);box-shadow:0 3px 10px rgba(0,0,0,.1);}
 body[data-skin="v3"].mode-trend .deal-pin .dp-circle{background:var(--v3-yellow);border-color:#E8A92B;}

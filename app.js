@@ -413,6 +413,7 @@ function initSpotBubbleClass(){
       if(!handled)openContentPop('spot',self.spot);
     });
     this.div=wrap;this.bubbleEl=bubble;this.emojiEl=emoji;this.dotEl=dot;
+    if(nhBounceIds[this.spot.id])wrap.classList.add('nh-pop-in'); // drop·post 로 지금 생긴 것 (v2.11)
     this._render();
     this.getPanes().overlayMouseTarget.appendChild(wrap);
   };
@@ -570,6 +571,7 @@ function initFeedThumbClass(){
     var ht=0;this.members.forEach(function(m){var f=m.f||m,p=m.pos||{};
       var t2=contentHeatT(f,p.lat,p.lng,feedHeatT(f.id));if(t2>ht)ht=t2;});
     d.style.setProperty('--heat',heatColor(ht));
+    if(nhBounceIds[this.item.id])d.classList.add('nh-pop-in'); // drop·postfeed 로 지금 생긴 것 (v2.11)
     this.div=d;
     if(n>1){ // 클러스터: 대표 사진 + 개수 뱃지, 탭=멤버 범위로 줌인(펼치기)
       d.classList.add('cluster');
@@ -672,9 +674,20 @@ function clusterFeedPins(m){ // 현재 줌의 월드픽셀 기준 근접(56px) �
     var p=px(pos);
     for(var i=0;i<cl.length;i++){
       var dx=p.x-cl[i].x,dy=p.y-cl[i].y;
-      if(dx*dx+dy*dy<TH*TH){cl[i].items.push({f:f,pos:pos});return;} // 핀 위치=첫 멤버(최신) 고정
+      if(dx*dx+dy*dy<TH*TH){cl[i].items.push({f:f,pos:pos});return;} // 그룹핑 기준=첫 멤버 픽셀 (그대로)
     }
     cl.push({x:p.x,y:p.y,pos:pos,items:[{f:f,pos:pos}]});
+  });
+  /* 표시 위치=멤버 중앙값 (v2.11). 첫 멤버 좌표로 두면 줌아웃 중 클러스터가 합쳐질 때마다
+     "그때의 첫 멤버" 자리로 핀이 널뛴다 — 배열 순서가 곧 위치가 되는 셈이라, 합쳐진
+     덩어리를 대표하지도 않는다. 중앙값은 합쳐져도 그 무리의 가운데로 완만하게 움직인다.
+     그룹핑 기준(px)은 안 바꾼다 — 멤버 구성까지 흔들면 다른 문제가 된다. 단일 핀은
+     중앙값=자기 좌표라 그대로다. */
+  cl.forEach(function(c){
+    if(c.items.length<2)return;
+    var lat=0,lng=0;
+    c.items.forEach(function(o){lat+=o.pos.lat;lng+=o.pos.lng;});
+    c.pos={lat:lat/c.items.length,lng:lng/c.items.length};
   });
   return cl;
 }
@@ -1443,7 +1456,10 @@ function initContentPage(){
   if(cv){cv.value=String(newsCardVer);cv.addEventListener('change',function(){
     newsCardVer=parseInt(this.value,10)||1;
     try{localStorage.setItem('nowhere_newsver',String(newsCardVer));}catch(e){}
-    markNewsDirty();renderNews();
+    /* markCloudDirty 도 부른다 (v2.11) — cardVer 는 shared/news 로만 가고 있었는데,
+       persona-vc 임베드는 publicSettings(cloudSave)만 읽는다. 안 부르면 지면 타입만
+       임베드에 영영 기본값이다. */
+    markNewsDirty();markCloudDirty();renderNews();
   });}
   var urlBtn=document.getElementById('news-url-btn'),urlIn=document.getElementById('news-url-input');
   var addUrl=function(){if(currentRole!=='admin'||!urlIn)return;var v=urlIn.value;urlIn.value='';addNewsUrl(v);};
@@ -1502,6 +1518,7 @@ function renderNews(){
   if(frame){frame.classList.remove('cv1','cv2','cv3');frame.classList.add('cv'+newsCardVer);}
   if(track){track.innerHTML='';newsView.forEach(function(it){
     var sl=document.createElement('div');sl.className='cp-slide'+(it.feed?' cp-feed':'');
+    if(typeof nhBounceIds!=='undefined'&&nhBounceIds[it.id])sl.classList.add('nh-pop-in'); // drop 으로 지금 생긴 지면 (v2.11)
     var im=document.createElement('img');im.src=it.src;im.alt='';sl.appendChild(im);
     var grad=document.createElement('div');grad.className='cps-grad';sl.appendChild(grad);
     var body=document.createElement('div');body.className='cps-body';
@@ -3320,7 +3337,11 @@ function settingsSnapshotFull(){
     settings:{styleConfig:snap.styleConfig,hexStyleConfig:snap.hexStyleConfig,localLabelConfig:snap.localLabelConfig,zoneLabelConfig:snap.zoneLabelConfig,smoothEnabled:snap.smoothEnabled,smoothIntensity:snap.smoothIntensity,hexRadiusKm:snap.hexRadiusKm,zoneMergeBlocks:snap.zoneMergeBlocks},
     spotConfig:snap.spotConfig,
     zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,
-    spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},feedIconSize:feedIconSize};
+    spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},feedIconSize:feedIconSize,
+    /* 상단 지면 타입 (v2.11) — cardVer 는 shared/news(SDK 전용)로만 다녀서 persona-vc
+       임베드(REST publicSettings)가 영영 못 봤다. 스킨은 건너가는데 지면 타입만 기본(1)
+       으로 뜨던 원인. */
+    newsCardVer:newsCardVer};
 }
 /* 스냅샷 하나를 통째로 적용한다 — 캐시·공개 문서가 같은 코드를 탄다 (두 벌이면 한쪽만 고쳐진다). */
 function applyFullSettings(c){
@@ -3343,6 +3364,9 @@ function applyExtraSettings(s){
   if(APP_SKINS.indexOf(s.appSkin)>=0){appSkin=s.appSkin;applySkin();} // setAppSkin 은 저장까지 한다 — 여기는 값 적용만
   if(s.spotMapBg&&typeof s.spotMapBg==='object'){spotMapBg.op=Number(s.spotMapBg.op)||0;spotMapBg.scaleM=Number(s.spotMapBg.scaleM)||100;}
   if(s.feedIconSize!=null&&isFinite(Number(s.feedIconSize)))feedIconSize=Math.max(0,Math.round(Number(s.feedIconSize)));
+  // 상단 지면 타입 (v2.11) — 화면 갱신은 부르는 쪽의 renderNews 가 한다 (이 함수의 규칙 그대로).
+  var _ncv=parseInt(s.newsCardVer,10);
+  if(_ncv>=1&&_ncv<=3)newsCardVer=_ncv;
 }
 function saveSettingsCache(){
   try{localStorage.setItem(SETTINGS_CACHE_KEY,JSON.stringify(settingsSnapshotFull()));}catch(e){}
@@ -4797,6 +4821,17 @@ function tickReqRemain(){ // 1초 티커: data-rq-left 요소의 텍스트만 �
   });
   if(expired)renderRequestMarkers(); // 만료 → 지도/드로어 반영
 }
+/* ── 등장 바운스 (v2.11, M16 이 채운다) ──
+   drop·post·burst 로 **지금 생긴** 컨텐츠만 뿅 하고 나타난다. 렌더는 전체를 다시 만드므로
+   (rebuildSpots·renderFeedMarkers…) "새 것" 을 렌더 함수는 모른다 — 만든 쪽이 id 를 여기
+   적어 두면 각 오버레이의 onAdd 가 보고 클래스를 붙인다. 지우는 것은 시간이다(1.6초):
+   첫 소비에서 지우면 PC·폰 두 지도 중 먼저 만든 쪽(임베드에선 안 보이는 PC)이 먹어 버린다. */
+var nhBounceIds={};
+function nhBounceMark(id){
+  if(!id)return;
+  nhBounceIds[id]=1;
+  setTimeout(function(){delete nhBounceIds[id];},1600);
+}
 /* Request 전용 맵 핀: 현장에 질문 신호를 쏘는 특성 — 펄스 링 + ? 티어드롭 (말풍선 없음, 스팟/피드 핀과 구분) */
 function ReqPin(rq,m){this.rq=rq;this.position=new google.maps.LatLng(rq.lat,rq.lng);this.div=null;this.setMap(m);}
 function initReqPinClass(){
@@ -4808,6 +4843,7 @@ function initReqPinClass(){
     d.title=this.rq.place+' · 현장 Request';
     d.style.setProperty('--heat',heatColor(zoneHeatT(this.rq.lat,this.rq.lng))); // 트렌드 모드 온도색(속한 존 열기) — 베이직은 CSS 무채색
     d.addEventListener('click',function(e){e.stopPropagation();openContentPop('req',self.rq);}); // 탭=상세 팝업(질문·남은 시간·답변)
+    if(nhBounceIds[this.rq.id])d.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
     this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);
   };
   ReqPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
@@ -4944,6 +4980,7 @@ function initDealPinClass(){
     el.innerHTML='<span class="dp-circle">⏰</span><span class="dp-pct">'+escHtml(String(this.d.pct))+'%</span>';
     el.title=this.d.title;
     el.addEventListener('click',function(e){e.stopPropagation();openDealSheet(self.d.id);});
+    if(nhBounceIds[this.d.id])el.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
     this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
   };
   DealPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
@@ -4951,7 +4988,15 @@ function initDealPinClass(){
     // v2.9: 겹침 방지가 밀어낸 만큼(_ndx·_ndy)을 얹어 그린다. 앵커는 그대로 둔다.
     this.div.style.left=(pos.x+(this._ndx||0))+'px';this.div.style.top=(pos.y+(this._ndy||0))+'px';
     var m=this.getMap(),z=m?m.getZoom():15,sc=contentScale(z); // v1.95: 컨텐츠 공통 배율
-    this.div.style.transformOrigin='50% 100%';this.div.style.transform='translate(-50%,-100%) scale('+sc+')';
+    /* 점 전환 (v2.11) — 스팟·피드와 **같은 기준**(spotDotScaleM)이다. 딜만 축소에서
+       원래 크기로 남아 지도를 덮었다. 점일 때는 앵커를 중심으로(피드 점과 같은 문법). */
+    var mppD=mapMpp(m),isDot=mppD?((mppD*64)>spotDotScaleM()):(z<13);
+    this.div.classList.toggle('dl-dot',isDot);
+    if(isDot){
+      this.div.style.transformOrigin='50% 50%';this.div.style.transform='translate(-50%,-50%)';
+    }else{
+      this.div.style.transformOrigin='50% 100%';this.div.style.transform='translate(-50%,-100%) scale('+sc+')';
+    }
   }};
   DealPin.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
 }
@@ -6641,6 +6686,7 @@ function nhAct(st,token){
       if(st.a==='drop')return nhDrop(st.v,st.i)!==false;
       if(st.a==='post')return nhPostSpot(st.v,st.e);
       if(st.a==='postfeed')return nhPostFeed(st.v,st.e,st.n);
+      if(st.a==='burst')return nhBurst(st.v,st.i,st.e,st.ms,token);
       if(st.a==='page')return nhPage(st.v);
       if(st.a==='zoom')return nhZoom(st.v)!==false;
       if(st.a==='focus')return nhFocus(st.v,st.i,token,st.ms)!==false;
@@ -6824,7 +6870,10 @@ function nhLayDeal(d,i,c,stamp){
   var id='dln_'+stamp+'_'+i,p=nhPosGet('deal',i,c)||nhSpread(c,NH_BAND.deal+i); // 사람이 옮긴 자리 우선 (v2.3)
   var pct=Math.min(90,Math.max(5,(d.pct|0)||20));
   var secs=Math.min(7200,Math.max(30,(d.secs|0)||1800));
-  var was=9900+i*5000;                             // 순번을 섞는다 — 셋이 다 같으면 지어낸 게 보인다
+  /* 순번을 섞는다 — 셋이 다 같으면 지어낸 게 보인다. **%8 로 접는다** (v2.11):
+     burst 가 NH_POST_FROM(50)+ 순번으로 깔면서, 접지 않으면 원가가 25만 원대로 튄다 —
+     v2.2 에서 hold 딜이 "30만 원짜리 모자" 가 되던 것과 같은 결이다. */
+  var was=9900+(i%8)*5000;
   var now=Math.floor(was*(100-pct)/100/100)*100;   // 백 원 단위로 내림
   timeDeals.push({id:id,lat:p.lat,lng:p.lng,
     e:String(d.e||'⏰').slice(0,4),
@@ -6898,8 +6947,10 @@ function nhPostCenter(){return nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangn
 function nhPostSpot(v,e){
   var t=String(v||'').slice(0,80);if(!t)return false;
   // NH_POST_FROM 에서 세는 이유: 무대가 미리 깐 것(0~)과 자리가 겹치지 않게 한다.
-  if(!nhLaySpot({t:t,emoji:String(e||'').slice(0,4)||'💬'},NH_POST_FROM+(nhPostN++),
-                nhPostCenter(),nhHeld.stamp||Date.now()))return false;
+  var id=nhLaySpot({t:t,emoji:String(e||'').slice(0,4)||'💬'},NH_POST_FROM+(nhPostN++),
+                   nhPostCenter(),nhHeld.stamp||Date.now());
+  if(!id)return false;
+  nhBounceMark(id); // "방금 올라온 글" 은 뿅 하고 나타난다 (v2.11)
   if(typeof rebuildSpots==='function')rebuildSpots();
   return true;
 }
@@ -6908,11 +6959,75 @@ function nhPostSpot(v,e){
    이미지에 기대지 않는다(nhLayFeed 안). e = 테마, n = 올린 사람. */
 function nhPostFeed(v,e,n){
   var d=String(v||'').slice(0,120);if(!d)return false;
-  if(!nhLayFeed({desc:d,label:d,theme:String(e||'')||'cafe',name:String(n||'')||'동네주민'},
-                NH_POST_FROM+(nhPostN++),nhPostCenter(),nhHeld.stamp||Date.now()))return false;
+  var id=nhLayFeed({desc:d,label:d,theme:String(e||'')||'cafe',name:String(n||'')||'동네주민'},
+                   NH_POST_FROM+(nhPostN++),nhPostCenter(),nhHeld.stamp||Date.now());
+  if(!id)return false;
+  nhBounceMark(id); // "방금 올라온 카드" 는 뿅 하고 나타난다 (v2.11)
   if(typeof renderFeed==='function')renderFeed();
   if(typeof renderFeedMarkers==='function')renderFeedMarkers();
   if(typeof renderNews==='function')renderNews(); // 지도 탭 상단 지면에도 실린다 (v2.10)
+  return true;
+}
+
+/* ── 엔딩 연출: 줌아웃 + 컨텐츠 쏟아짐 (v2.11, 콘솔 D94 · 액션 `burst`) ──
+   st.v = 종류(spot|feed|deal|mix) · st.i = 개수(1~24) · st.e = 줌(11~16, 비면 13) ·
+   st.ms = 이 단계의 길이 = 쏟아지는 시간.
+
+   **전부 결정적이다** (Math.random 금지, v1.72 와 같은 이유) — 자리·문구·등장 시각이
+   순번과 시나리오 키(heatJitter)로 정해져, 같은 데모는 몇 번을 돌려도 같은 그림이다.
+   자리는 줌 레벨에 비례해 편다: 줌 13 의 화면은 14 의 두 배라, 고정 반경으로 깔면
+   줌아웃한 화면의 가운데 한 줌에만 몰린다. 깔기는 nhLay* 그대로라 리셋이 걷어 간다. */
+var NH_BURST_SPOTS=[['여기 줄 서기 시작했어요','🔥'],['방금 자리 났어요','🪑'],['오늘 분위기 최고','✨'],
+  ['골목 안쪽이 진짜예요','👀'],['지금 노을 봐요','🌇'],['여기 신상 오픈했어요','🎉'],
+  ['산책하기 딱 좋은 날','🌿'],['웨이팅 없이 들어왔어요','🏃']];
+var NH_BURST_FEEDS=[['지금 이 골목','cafe'],['오늘의 발견','food'],['방금 찍었어요','park'],
+  ['신상 스팟','shop'],['야경 맛집','night'],['운동 끝!','gym'],['전시 보러 왔어요','art'],['독서 한 판','book']];
+var NH_BURST_NAMES=['동네주민','골목탐험가','산책러','단골손님','뚜벅이','로컬큐레이터'];
+var NH_BURST_DEALS=[['마감 직전 딜','🥐','베이커리',40],['오늘만 이 가격','☕','카페',30],
+  ['라스트 오더','🍜','분식집',25],['깜짝 타임딜','🛍️','편집숍',35]];
+function nhBurst(v,n,e,ms,token){
+  var c=nhPostCenter();if(!c)return false;
+  var kinds=(v==='spot'||v==='feed'||v==='deal')?[v]:['spot','feed','deal']; // 그 밖(mix 포함)=섞음
+  n=Math.min(24,Math.max(1,n|0||12));
+  ms=Math.max(800,ms|0||4000);
+  var z=parseInt(e,10);if(!isFinite(z))z=13;z=Math.min(16,Math.max(11,z));
+  // 줌아웃부터 — 쏟아지는 것은 넓어진 화면 위의 일이다. area 와 같은 이유로 양쪽 지도.
+  if(typeof switchTab==='function')switchTab('map');
+  var at=nhCenter()||c;
+  goMapCam(map,at.lat,at.lng,z);
+  if(phoneMap)goMapCam(phoneMap,at.lat,at.lng,z);
+  var salt=String(nhScenarioKey||'burst');
+  var maxR=0.028*Math.pow(2,13-z); // 줌 13 화면 반폭 기준 — 레벨당 두 배
+  var stamp=nhHeld.stamp||Date.now();
+  for(var k=0;k<n;k++)(function(k){
+    // 앞 15% 는 카메라가 빠지는 시간, 끝 10% 는 마지막 것이 보일 시간으로 남긴다.
+    var t=Math.round(ms*0.15+ms*0.75*(n>1?k/(n-1):0));
+    setTimeout(function(){
+      if(token!==nhRunToken)return;
+      var kind=kinds[k%kinds.length];
+      var a=k*2.399963+heatJitter(salt)*6.283; // 황금각 + 시나리오별 시작각
+      var r=maxR*(0.3+0.7*Math.sqrt(heatJitter(salt+'r'+k))); // sqrt = 면적 균등
+      var p={lat:at.lat+r*Math.cos(a)*0.8,lng:at.lng+r*Math.sin(a),name:c.name};
+      var pick=function(pool){return pool[(k+Math.floor(heatJitter(salt)*pool.length))%pool.length];};
+      var id=null,idx=NH_POST_FROM+(nhPostN++);
+      if(kind==='spot'){
+        var sp=pick(NH_BURST_SPOTS);
+        id=nhLaySpot({t:sp[0],emoji:sp[1]},idx,p,stamp);
+        if(id){nhBounceMark(id);if(typeof rebuildSpots==='function')rebuildSpots();}
+      }else if(kind==='feed'){
+        var fd=pick(NH_BURST_FEEDS);
+        id=nhLayFeed({desc:fd[0],label:fd[0],theme:fd[1],name:pick(NH_BURST_NAMES)},idx,p,stamp);
+        if(id){nhBounceMark(id);
+          if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+          if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
+          if(typeof renderNews==='function')renderNews();}
+      }else{
+        var dl=pick(NH_BURST_DEALS);
+        id=nhLayDeal({title:dl[0],e:dl[1],shop:dl[2],pct:dl[3],secs:600+120*(k%5)},idx,p,stamp);
+        if(id){nhBounceMark(id);if(typeof renderDealMarkers==='function')renderDealMarkers();}
+      }
+    },t);
+  })(k);
   return true;
 }
 
@@ -6989,23 +7104,29 @@ function nhDrop(v,i){
   if(n<0||n>=list.length)return false;
   var item=list.splice(n,1)[0]; // 한 번 깐 것은 다시 깔지 않는다
   var c=nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangnam;
+  var laid; // 지금 깐 것의 id — 등장 바운스 표시용 (v2.11). 렌더 **전에** 적어야 onAdd 가 본다.
   if(kind==='spot'){
-    if(!nhLaySpot(item.v,item.i,c,nhHeld.stamp))return false;
+    laid=nhLaySpot(item.v,item.i,c,nhHeld.stamp);
+    if(!laid)return false;nhBounceMark(laid);
     if(typeof rebuildSpots==='function')rebuildSpots();
   }else if(kind==='feed'){
-    if(!nhLayFeed(item.v,item.i,c,nhHeld.stamp))return false;
+    laid=nhLayFeed(item.v,item.i,c,nhHeld.stamp);
+    if(!laid)return false;nhBounceMark(laid);
     if(typeof renderFeed==='function')renderFeed();
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();
     if(typeof renderNews==='function')renderNews(); // 지도 탭 상단 지면에도 실린다 (v2.10)
   }else if(kind==='deal'){
-    if(!nhLayDeal(item.v,item.i,c,nhHeld.stamp))return false;
+    laid=nhLayDeal(item.v,item.i,c,nhHeld.stamp);
+    if(!laid)return false;nhBounceMark(laid);
     if(typeof renderDealMarkers==='function')renderDealMarkers();
   }else if(kind==='req'){
-    if(!nhLayReq(item.v,item.i,c,nhHeld.stamp,nhHeld.token))return false;
+    laid=nhLayReq(item.v,item.i,c,nhHeld.stamp,nhHeld.token);
+    if(!laid)return false;nhBounceMark(laid);
     if(typeof renderRequestMarkers==='function')renderRequestMarkers();
     if(typeof renderDrawerDemo==='function')renderDrawerDemo();
   }else if(kind==='page'){
-    if(!nhLayNews(item.v,item.i,c,nhHeld.stamp))return false;
+    laid=nhLayNews(item.v,item.i,c,nhHeld.stamp);
+    if(!laid)return false;nhBounceMark(laid);
     if(typeof renderNews==='function')renderNews();
   }else{
     return false;
@@ -7035,6 +7156,7 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'zoom','focus', // v1.75: 카메라 연출 — 시연에서 "어디를 보라" 를 화면이 말한다
   'drop', // v1.98: 무대에 보관해 둔 것을 지금 띄운다 ("실시간으로 올라온다" 연출)
   'post','postfeed', // v2.0/v2.1: 남이 방금 올린 글·피드 카드 — 무대 없이 그 자리에서 만든다
+  'burst', // v2.11: 엔딩 연출 — 줌아웃하며 컨텐츠가 쏟아진다 (v=종류·i=개수·e=줌·ms=시간)
   'page']; // v2.2: 상단 지면을 옆으로 넘긴다
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
@@ -7088,8 +7210,10 @@ function nhSanitize(raw){
          "이 단계 화면 보기" 가 앞 단계를 빨리 감아 지나가는 데 그 바닥이 곧 대기시간이라
          여덟 단계짜리는 3초를 기다려야 했다. 사람이 짜는 값은 콘솔이 400 아래로 못 만들고
          (MIN_STEP_MS), 여기 50 은 0·음수를 막는 가드다. 비동기 커밋이 있는 write·ai 는
-         콘솔이 따로 바닥을 지킨다(play-pacing 의 FAST_FLOOR). */
-      ms:Math.min(Math.max(s.ms|0,50),6000)});
+         콘솔이 따로 바닥을 지킨다(play-pacing 의 FAST_FLOOR).
+         burst 만 15초까지 (v2.11) — ms 가 곧 "쏟아지는 시간" 이라 6초에 24개를 접으면
+         등장이 겹쳐 개별 바운스가 안 보인다. 콘솔의 MAX_BURST_MS 와 같은 값. */
+      ms:Math.min(Math.max(s.ms|0,50),s.a==='burst'?15000:6000)});
   }
   if(!steps.length)return null;
   // 콘솔이 보낸 seed 도 받아들이되 모양과 양을 자른다 — 임의의 콘텐츠 주입이 되지 않게.

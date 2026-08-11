@@ -1288,6 +1288,10 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
   font-size:10px;font-weight:800;line-height:1.3;box-shadow:0 1px 5px rgba(15,23,42,0.24);white-space:nowrap;}
 body.mode-trend .deal-pin .dp-circle{background:#f2c33c;border-color:#e8a92b;}
 body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
+/* 축소 시 점 (v2.11) — 피드 .fp-dot 과 같은 문법: 12px 고정, 라벨 숨김. 색은 모드 규칙 그대로. */
+.deal-pin.dl-dot{opacity:.75;gap:0;}
+.deal-pin.dl-dot .dp-pct{display:none;}
+.deal-pin.dl-dot .dp-circle{width:12px;height:12px;font-size:0;border-width:1.5px;box-shadow:0 1px 3px rgba(15,23,42,0.25);}
 
 .deal-sheet{position:absolute;inset:0;z-index:30;}
 .deal-sheet .ds-scrim{position:absolute;inset:0;background:rgba(26,26,26,0.3);}
@@ -1400,3 +1404,25 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sg-mid i{display:block;margin-top:2px;font-style:normal;font-size:.68rem;color:var(--ink3);}
 .sg-acts{display:flex;gap:5px;flex:none;}
+
+/* ── 등장 바운스 (v2.11, M16) — drop·post·burst 로 지금 생긴 컨텐츠가 뿅 하고 나타난다.
+   루트가 아니라 **자식**을 흔든다: 핀 루트의 transform 은 지도 좌표 배치가 쓰고 있어서
+   (translate/scale), 루트에 애니메이션을 걸면 자리가 튄다. */
+@keyframes nhPopIn{
+  0%{transform:scale(0);opacity:0;}
+  55%{transform:scale(1.18);opacity:1;}
+  78%{transform:scale(.94);}
+  100%{transform:scale(1);opacity:1;}
+}
+.nh-pop-in .spot-bubble,.nh-pop-in .spot-emoji,.nh-pop-in .spot-dotmark,
+.nh-pop-in .fp-im,.nh-pop-in .fp-n,
+.nh-pop-in .dp-circle,.nh-pop-in .dp-pct,
+.nh-pop-in .rp-drop,
+.cp-slide.nh-pop-in img{animation:nhPopIn .55s cubic-bezier(.3,1.4,.5,1) both;}
+@media (prefers-reduced-motion:reduce){
+  .nh-pop-in .spot-bubble,.nh-pop-in .spot-emoji,.nh-pop-in .spot-dotmark,
+  .nh-pop-in .fp-im,.nh-pop-in .fp-n,
+  .nh-pop-in .dp-circle,.nh-pop-in .dp-pct,
+  .nh-pop-in .rp-drop,
+  .cp-slide.nh-pop-in img{animation:none;}
+}
