@@ -665,30 +665,34 @@ body.mode-trend .aip-chat button{background:linear-gradient(160deg,#ff8c3c,#ff3d
 body.mode-trend .aip-head{color:#c2410c;}
 body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 
-/* 트렌드 모드: AI 버튼 = 온도색이 **흐르는** 배경 (v2.6).
-   전에는 코랄 한 색이었다 — 트렌드의 언어가 '온도' 인데 정작 AI 버튼만 그 스펙트럼을
-   안 보여줬다. HEAT_STOPS(앰버 #ffc24a → 주황 #ff6a4d → 빨강 #ff2e1f)를 그대로 이어
-   무지개처럼 흐르게 한다. 색 목록은 app.js 의 HEAT_STOPS 와 같은 값이어야 한다. */
+/* 트렌드 모드: AI 버튼 = 온도 팔레트가 **대각선으로 순차 이동** (v2.7).
+
+   효과는 **하나뿐**이다 — 색이 좌상단에서 우하단으로 흐르고 다시 반복. v2.6 의 플리커
+   글로우(밝기가 들썩이던 것)는 뺐다: 두 애니메이션이 겹치면 무엇이 의도인지 안 보인다.
+   글로우는 애니 없는 고정값으로 남긴다.
+
+   ⚠️ 색은 app.js 의 `HEAT_STOPS`(#9dc64c → #f2c53d → #f2862e → #e23b2a)와 같은 값이어야
+   한다. 키프레임 안에는 CSS 변수를 넣어도 보간이 안 돼서 리터럴로 적는다.
+   팔레트를 **두 바퀴** 적고 끝을 시작색으로 맞춘다 — 그래야 한 바퀴 돈 뒤 이어 붙는 자리가
+   안 튄다(대각선 이동은 0%→100% 가 정확히 한 주기가 아니다). */
 .pn-ai.ai-flame{
-  border-color:rgba(255,106,77,0.45);
-  background-image:linear-gradient(115deg,#ffc24a,#ff8a3d,#ff2e1f,#ff6a4d,#ffc24a);
-  background-size:320% 320%;
-  animation:aiFlicker 1.8s ease-in-out infinite,aiHeatFlow 6s linear infinite;
+  border-color:rgba(226,59,42,0.45);
+  background-image:linear-gradient(135deg,
+    #9dc64c,#f2c53d,#f2862e,#e23b2a,
+    #9dc64c,#f2c53d,#f2862e,#e23b2a,#9dc64c);
+  background-size:300% 300%;
+  filter:drop-shadow(0 0 1.6cqw rgba(226,59,42,0.34));
+  animation:aiHeatFlow 5s linear infinite;
 }
 .pn-ai.ai-flame ellipse,.pn-ai.ai-flame path{stroke:#5c1d10;}
 .pn-ai.ai-flame ellipse{fill:#5c1d10;}
-@keyframes aiFlicker{
-  0%,100%{filter:drop-shadow(0 0 1.2cqw rgba(255,106,77,0.35));}
-  35%{filter:drop-shadow(0 0 2.8cqw rgba(255,140,60,0.6));}
-  60%{filter:drop-shadow(0 0 1.8cqw rgba(255,61,46,0.5));}
-}
-@keyframes aiHeatFlow{from{background-position:0% 50%;}to{background-position:300% 50%;}}
-/* 트렌드 전용 클릭(활성): 흐르는 배경은 그대로 두고 테두리만 짙게 — 배경을 덮으면 흐름이 멈춘 것처럼 보인다 */
-.pn-ai.ai-flame.ai-on{border-color:rgba(255,61,46,0.85);box-shadow:0 0 0 0.6cqw rgba(255,61,46,0.18);}
-.pn-ai.ai-flame.spin{animation:aiSpin .62s cubic-bezier(.3,1,.35,1),aiFlicker 1.8s ease-in-out infinite,aiHeatFlow 6s linear infinite;}
-/* 움직임을 줄이라고 한 기기에서는 흐르지 않고 중간 온도색으로 선다 (mapMorph 와 같은 규칙) */
+@keyframes aiHeatFlow{from{background-position:0% 0%;}to{background-position:100% 100%;}}
+/* 트렌드 전용 클릭(활성): 흐르는 배경은 그대로 두고 링만 얹는다 — 배경을 덮으면 흐름이 멈춘 것처럼 보인다 */
+.pn-ai.ai-flame.ai-on{border-color:rgba(226,59,42,0.85);box-shadow:0 0 0 0.6cqw rgba(226,59,42,0.18);}
+.pn-ai.ai-flame.spin{animation:aiSpin .62s cubic-bezier(.3,1,.35,1),aiHeatFlow 5s linear infinite;}
+/* 움직임을 줄이라고 한 기기에서는 흐르지 않고 팔레트 그대로 선다 (mapMorph 와 같은 규칙) */
 @media (prefers-reduced-motion:reduce){
-  .pn-ai.ai-flame,.pn-ai.ai-flame.spin{animation:none;background-image:linear-gradient(115deg,#ffc24a,#ff6a4d);}
+  .pn-ai.ai-flame,.pn-ai.ai-flame.spin{animation:none;background-image:linear-gradient(135deg,#9dc64c,#f2c53d,#f2862e,#e23b2a);}
 }
 .pn-ai.ai-on{background:linear-gradient(135deg,rgba(47,123,255,0.16),rgba(154,119,221,0.16)),var(--frost);border-color:rgba(154,119,221,0.45);}
 
@@ -817,7 +821,7 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
   border:2px solid rgba(120,130,145,0.5);animation:rpPulse 2s ease-out infinite;}
 .req-pin .rp-ring.r2{animation-delay:1s;}
 /* 트렌드 모드 = 온도색(--heat: 속한 존 좋아요 열기, ReqPin이 인라인 주입) */
-body.mode-trend .req-pin .rp-drop{background:linear-gradient(150deg,#ffb37a,var(--heat,#ff3d2e));box-shadow:0 3px 10px rgba(255,80,50,0.4);}
+body.mode-trend .req-pin .rp-drop{background:linear-gradient(150deg,#ffb37a,var(--heat,#e23b2a));box-shadow:0 3px 10px rgba(255,80,50,0.4);}
 body.mode-trend .req-pin .rp-ring{border-color:rgba(255,90,60,0.55);}
 @keyframes rpPulse{0%{transform:scale(.5);opacity:.9;}80%{transform:scale(2.1);opacity:0;}100%{transform:scale(2.1);opacity:0;}}
 
@@ -970,8 +974,8 @@ body.role-user #allowlist-btn{display:none!important;}
 .feed-pin.cluster .fp-im{box-shadow:0 1px 5px rgba(15,23,42,0.28),3.5px 3.5px 0 -1.5px #fff,4px 4.5px 6px rgba(15,23,42,0.22);}
 .feed-pin .fp-n{position:absolute;right:-5px;top:-5px;min-width:16px;height:16px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:0 4px;border-radius:9px;background:#8a919d;border:1.5px solid #fff;color:#fff;font-size:10px;font-weight:800;line-height:1;} /* 베이직=무채색 뱃지 */
 /* 트렌드 모드 = 온도색(--heat: 좋아요 온도, FeedThumb이 인라인 주입 — 클러스터는 멤버 최고 온도) */
-body.mode-trend .feed-pin .fp-im{border-color:var(--heat,#ffc24a);}
-body.mode-trend .feed-pin .fp-n{background:var(--heat,#ff6a4d);}
+body.mode-trend .feed-pin .fp-im{border-color:var(--heat,#f2c53d);}
+body.mode-trend .feed-pin .fp-n{background:var(--heat,#f2862e);}
 /* 자연스러운 하트: 통통 팝 → 잠시 머무름 → 위로 떠오르며 서서히 사라짐 */
 @keyframes heartPop{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.3);}

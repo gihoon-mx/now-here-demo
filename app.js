@@ -4,7 +4,15 @@
 
 var map;
 var currentMode = 'local';
-var PALETTE = ['#DE2F2A','#F2862E','#F2C53D','#9DC64C','#1428A0']; // 기본 색상: 온도 4색 + 브랜드 블루(#1428A0) — 모든 색상 팝업 프리셋의 앞부분(v1.65)
+/* ========== 온도 컬러 팔레트 (v2.7) — 이 앱의 '온도' 를 말하는 단일 기준 ==========
+   식음(연두) → 미지근(노랑) → 따뜻(주황) → 뜨거움(빨강). 순서가 곧 0→1 이다.
+   지도 마커·존·AI 버튼·색상 팝업 프리셋이 **전부 이 배열 하나**를 본다.
+   ⚠️ CSS 에도 같은 값이 박혀 있다 (style.css 의 `--heat` 폴백·`aiHeatFlow` 그라디언트,
+   skin-v3.css 의 핀 링). 여기를 바꾸면 그쪽도 같이 바꾼다 — 색은 CSS 변수로 못 넘기는
+   자리(그라디언트 키프레임)가 있어서 한 벌로 못 모은다. */
+var HEAT_STOPS = ['#9dc64c','#f2c53d','#f2862e','#e23b2a'];
+// 색상 팝업 프리셋(v1.65) = 온도 4색(뜨거운 쪽부터) + 브랜드 블루. 온도색을 두 번 적지 않는다.
+var PALETTE = HEAT_STOPS.slice().reverse().concat(['#1428A0']);
 /* ========== [M09/M14] 페이지 모드 (v1.65 서비스/관리자 분리) ==========
    index.html=서비스(폰 앱, PAGE_MODE 'app') · admin.html=관리자(PC 지도+설정, 'admin').
    미지정(구버전 캐시 등)=app으로 폴백. */
@@ -746,19 +754,23 @@ function initTwemoji(){
 }
 initTwemoji(); // 즉시 실행(스크립트가 body 끝에서 로드) — 인증 스플래시부터 통일 렌더링
 
-/* ========== [M00] 온도 컬러 팔레트 (지도 컨텐츠 모드별 색 규칙) ========== */
-// 베이직 모드=무채색 통일 / 트렌드 모드=좋아요 기반 '온도'로 화염 그라디언트(AI_PALETTE 화염 톤과 같은 계열).
+/* ========== [M00] 온도 색 규칙 (지도 컨텐츠 모드별) ========== */
+// 베이직 모드=무채색 통일 / 트렌드 모드=온도색. 팔레트(HEAT_STOPS)는 이 파일 맨 위에 있다.
 // 사진 컨텐츠 자체는 컬러 유지 — 크롬(버블·핀·뱃지·링)만 모드 색 규칙을 따름.
-var HEAT_STOPS=['#ffc24a','#ff6a4d','#ff2e1f']; // 식음(앰버) → 중간(주황) → 뜨거움(빨강)
 var MONO_PIN='#aab2bf', MONO_INK='#2a3140';      // 베이직 무채색: 핀/점 그레이 · 텍스트 잉크
 function lerpHex(a,b,t){
   function h(x){return parseInt(x,16);}
   var A=[h(a.slice(1,3)),h(a.slice(3,5)),h(a.slice(5,7))],B=[h(b.slice(1,3)),h(b.slice(3,5)),h(b.slice(5,7))];
   return '#'+A.map(function(v,i){var o=Math.round(v+(B[i]-v)*t);return ('0'+o.toString(16)).slice(-2);}).join('');
 }
-function heatColor(t){ // t: 0(식음)~1(뜨거움)
+/* t(0=식음 ~ 1=뜨거움) → 팔레트 위의 색. **정거장 개수와 무관하게** 돈다 (v2.7: 3색 → 4색).
+   전에는 0.5 를 기준으로 두 구간을 하드코딩해서, 색을 하나 더하면 가운데 색이 통째로 빠졌다. */
+function heatColor(t){
   t=Math.max(0,Math.min(1,Number(t)||0));
-  return t<0.5?lerpHex(HEAT_STOPS[0],HEAT_STOPS[1],t*2):lerpHex(HEAT_STOPS[1],HEAT_STOPS[2],(t-0.5)*2);
+  var n=HEAT_STOPS.length;
+  if(n===1)return HEAT_STOPS[0];
+  var seg=t*(n-1),i=Math.min(n-2,Math.floor(seg));
+  return lerpHex(HEAT_STOPS[i],HEAT_STOPS[i+1],seg-i);
 }
 function feedHeatT(id){ // 피드 온도 = 좋아요 / 현재 최다 좋아요 (읽기 전용: M05 feedItems·likeInfo)
   var max=0;feedItems.forEach(function(f){var n=likeInfo(f.id).n;if(n>max)max=n;});
