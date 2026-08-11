@@ -18,11 +18,11 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here</title>
-  <link rel="stylesheet" href="style.css?v=2.3.0" />
+  <link rel="stylesheet" href="style.css?v=2.3.1" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.3.0" />
+  <link rel="stylesheet" href="skin-new.css?v=2.3.1" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.3.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.3.1" />
   <script>window.PAGE_MODE='app';</script><!-- v1.65 서비스 페이지(폰 앱). 관리자 지도·설정은 admin.html -->
 </head>
 <body class="page-app">
@@ -66,7 +66,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v2.3.0</span>
+        <span id="app-version">v2.3.1</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -179,7 +179,7 @@
       <p class="section-hint">설정 변경은 각 블록의 <b>미리보기 타일에만</b> 반영돼요. 블록의 <b>적용</b>(또는 위 <b>전체 적용</b>)을 눌러야 실제 지도와 모든 사용자에게 저장됩니다.</p>
       <div class="setting-row" id="settings-export-row">
         <button id="settings-export" class="action-btn small" type="button" title="현재 적용된 설정 전체를 JSON으로 복사">📋 설정 JSON 복사</button>
-        <span class="section-hint" style="margin:0;">repo <b>settings-default.json</b>에 붙여넣으면 배포 기본값 백업이 돼요</span>
+        <span class="section-hint" style="margin:0;">repo <b>settings-default.json</b>에 붙여넣으면 배포 기본값이 돼요 — <b>이 사이트를 처음 여는 기기·데모 임베드</b>가 이 값으로 뜹니다 (스킨·스타일·피드 옵션 전부 포함)</span>
       </div>
       <div class="settings-section">
         <h4>폰 미리보기 (관리자)</h4>
@@ -485,7 +485,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.3.0"></script>
-  <script src="app.js?v=2.3.0"></script>
+  <script src="config.js?v=2.3.1"></script>
+  <script src="app.js?v=2.3.1"></script>
 </body>
 </html>

@@ -3155,6 +3155,20 @@ function applySettingsData(s){ // 스타일 설정 병합 (클라우드·파일 
    ⚠️ 이 브라우저에서 앱(로그인)을 한 번도 안 연 기기는 캐시가 없다 — 그때는 파일 백스톱이 기준. */
 var SETTINGS_CACHE_KEY='nowhere_settings_cache';
 var settingsCacheOn=false; // 임베드가 캐시를 적용했나 — 뒤늦게 오는 파일 백스톱이 덮지 않게
+/* 스타일 밖의 설정 다섯 — 스킨·존 카드·피드 시간·스팟 지도배경·피드 아이콘 크기 (v2.3.1).
+   **값만 읽는다** (화면 갱신은 부르는 쪽 몫 — 임베드는 부팅 전이라 갱신할 컨트롤이 없다).
+
+   클라우드·로컬 캐시·repo 파일이 **같은 범위**를 적용해야 한다. 파일 백스톱만 이 다섯을
+   몰라서, 설정 JSON 을 settings-default.json 에 붙여 넣어도 스킨은 안 따라갔다 —
+   "내 브라우저에서는 되는데 처음 보는 기기에서는 안 되는" 설정이 그래서 생겼다. */
+function applyExtraSettings(s){
+  if(!s||typeof s!=='object')return;
+  if(s.zoneCardStyle==='glass'||s.zoneCardStyle==='list')zoneCardStyle=s.zoneCardStyle;
+  if(s.feedTimeMode==='ago'||s.feedTimeMode==='clock'||s.feedTimeMode==='off')feedTimeMode=s.feedTimeMode;
+  if(APP_SKINS.indexOf(s.appSkin)>=0){appSkin=s.appSkin;applySkin();} // setAppSkin 은 저장까지 한다 — 여기는 값 적용만
+  if(s.spotMapBg&&typeof s.spotMapBg==='object'){spotMapBg.op=Number(s.spotMapBg.op)||0;spotMapBg.scaleM=Number(s.spotMapBg.scaleM)||100;}
+  if(s.feedIconSize!=null&&isFinite(Number(s.feedIconSize)))feedIconSize=Math.max(0,Math.round(Number(s.feedIconSize)));
+}
 function saveSettingsCache(){
   try{
     var snap=snapshotSettings();
@@ -3172,11 +3186,7 @@ function loadSettingsCache(){ // 임베드 부팅 전용 — applyCloudData 의 
     if(!c||typeof c!=='object')return;
     applySettingsData(c.settings);
     if(c.spotConfig)mergeInto(spotConfig,c.spotConfig);
-    if(c.zoneCardStyle==='glass'||c.zoneCardStyle==='list')zoneCardStyle=c.zoneCardStyle;
-    if(c.feedTimeMode==='ago'||c.feedTimeMode==='clock'||c.feedTimeMode==='off')feedTimeMode=c.feedTimeMode;
-    if(APP_SKINS.indexOf(c.appSkin)>=0){appSkin=c.appSkin;applySkin();} // setAppSkin 은 저장까지 하는데 임베드는 저장이 무음이라 직접 적용
-    if(c.spotMapBg&&typeof c.spotMapBg==='object'){spotMapBg.op=Number(c.spotMapBg.op)||0;spotMapBg.scaleM=Number(c.spotMapBg.scaleM)||100;}
-    if(c.feedIconSize!=null&&isFinite(Number(c.feedIconSize)))feedIconSize=Math.max(0,Math.round(Number(c.feedIconSize)));
+    applyExtraSettings(c);
     settingsCacheOn=true;
   }catch(e){}
 }
@@ -3187,8 +3197,20 @@ function loadFileDefaults(){ // repo 백스톱(settings-default.json): 코드 �
     if(settingsCacheOn)return; // 임베드가 관리자 캐시를 적용함 — 캐시가 파일보다 최신이다 (v2.3)
     applySettingsData(s);
     if(s.spotConfig)mergeInto(spotConfig,s.spotConfig);
+    applyExtraSettings(s); // 스킨·존 카드·피드 시간·지도배경·아이콘 크기도 파일이 정한다 (v2.3.1)
     initDraft();syncSettingsUI();renderMiniPreviews();
+    // 컨트롤은 이 다섯을 DRAFT 로 읽지 않으므로(syncSettingsUI 밖이다) 여기서 직접 맞춘다
+    var _sks=document.getElementById('app-skin');if(_sks)_sks.value=appSkin;
+    var _zcs=document.getElementById('zone-card-style');if(_zcs)_zcs.value=zoneCardStyle;
+    var _ftm=document.getElementById('feed-time');if(_ftm)_ftm.value=feedTimeMode;
+    var _mo=document.getElementById('spotmap-op');if(_mo)_mo.value=String(spotMapBg.op);
+    var _ms=document.getElementById('spotmap-scale');if(_ms)_ms.value=String(spotMapBg.scaleM);
+    var _fis=document.getElementById('feed-icon-size');if(_fis)_fis.value=feedIconSize>0?String(feedIconSize):'';
     if(mapReady){refreshMapStyles();refreshHexStyles();refreshSpotStyles();refreshZoneLabels();updateLocalLabelStyle();}
+    // 스킨은 마크업까지 가른다(v1.84) — 속성만 바꾸면 다음 렌더까지 옛 구조가 남는다
+    if(typeof renderNews==='function')renderNews();
+    if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
+    if(typeof renderFeedMarkers==='function')renderFeedMarkers();
   }).catch(function(e){});
 }
 function applyCloudData(d){
@@ -3455,7 +3477,13 @@ function markCloudDirty(){
 function initSettingsExport(){ // 현재 적용 설정 → JSON 복사 (repo settings-default.json 백업용)
   var btn=document.getElementById('settings-export');if(!btn)return;
   btn.addEventListener('click',function(){
-    var json=JSON.stringify(snapshotSettings(),null,1);
+    /* 스타일 밖 다섯도 함께 담는다 (v2.3.1) — 이 JSON 의 쓸모는 **처음 보는 기기의 기본값**이고
+       (settings-default.json 은 배포에 실려 모두가 받는다), 스킨이 빠지면 그 기기만 다른
+       화면으로 뜬다. 평평하게 얹는다 — 파일을 읽는 쪽(loadFileDefaults)의 형식 그대로다. */
+    var snap=snapshotSettings();
+    snap.appSkin=appSkin;snap.zoneCardStyle=zoneCardStyle;snap.feedTimeMode=feedTimeMode;
+    snap.spotMapBg={op:spotMapBg.op,scaleM:spotMapBg.scaleM};snap.feedIconSize=feedIconSize;
+    var json=JSON.stringify(snap,null,1);
     function done(){btn.textContent='✅ 복사됨';setTimeout(function(){btn.textContent='📋 설정 JSON 복사';},1600);}
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(json).then(done,function(){prompt('아래 JSON을 복사하세요',json);});
     else prompt('아래 JSON을 복사하세요',json);

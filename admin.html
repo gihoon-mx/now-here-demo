@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=2.3.0" />
+  <link rel="stylesheet" href="style.css?v=2.3.1" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.3.0" />
+  <link rel="stylesheet" href="skin-new.css?v=2.3.1" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.3.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.3.1" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -36,7 +36,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.3.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.3.1</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -511,7 +511,7 @@
               <p class="section-hint">우측 폰 미리보기가 보는 범위를 PC 지도 위에 사각형으로 표시해요.</p>
               <div class="setting-row" id="settings-export-row">
                 <button id="settings-export" class="action-btn small" type="button" title="현재 적용된 설정 전체를 JSON으로 복사">📋 설정 JSON 복사</button>
-                <span class="section-hint" style="margin:0;">repo <b>settings-default.json</b>에 붙여넣으면 배포 기본값 백업이 돼요</span>
+                <span class="section-hint" style="margin:0;">repo <b>settings-default.json</b>에 붙여넣으면 배포 기본값이 돼요 — <b>이 사이트를 처음 여는 기기·데모 임베드</b>가 이 값으로 뜹니다 (스킨·스타일·피드 옵션 전부 포함)</span>
               </div>
             </div>
           </div>
@@ -592,7 +592,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.3.0"></script>
-  <script src="app.js?v=2.3.0"></script>
+  <script src="config.js?v=2.3.1"></script>
+  <script src="app.js?v=2.3.1"></script>
 </body>
 </html>
