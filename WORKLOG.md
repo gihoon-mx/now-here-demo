@@ -262,6 +262,9 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
   (`nhEmbedIsolate`, NH_POS_KEY 만 예외). 캐시를 심어 시험할 때는 임베드 밖 페이지
   (dev.html·admin.html)에서 써야 한다 — 임베드에서 쓰면 조용히 삼켜진다.
 
+  ✅ **v2.3.1 배포·검증 완료 (2026-08-11).** 배포본에서 `v2.3.1` · `applyExtraSettings`
+  존재 · 내보내기 키 14개(다섯 전부 포함) · 딜 0개 확인.
+
 ### 2026-08-11
 - **v2.3.0 — 딜 자동 시드 폐지 · 옮긴 무대 자리 기억 · 피드 아이콘 크기 · 관리자 설정이 임베드 기본값 (M17+M16+M05+M15)**:
 
