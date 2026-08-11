@@ -18,11 +18,11 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here</title>
-  <link rel="stylesheet" href="style.css?v=2.3.1" />
+  <link rel="stylesheet" href="style.css?v=2.4.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.3.1" />
+  <link rel="stylesheet" href="skin-new.css?v=2.4.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.3.1" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.4.0" />
   <script>window.PAGE_MODE='app';</script><!-- v1.65 서비스 페이지(폰 앱). 관리자 지도·설정은 admin.html -->
 </head>
 <body class="page-app">
@@ -66,7 +66,7 @@
     <div id="panel-header">
       <span id="app-title">Now Here</span>
       <div class="panel-header-right">
-        <span id="app-version">v2.3.1</span>
+        <span id="app-version">v2.4.0</span>
         <button id="panel-collapse" class="panel-collapse-btn" aria-label="패널 접기" title="패널 접기" aria-expanded="true"></button>
       </div>
     </div>
@@ -138,13 +138,12 @@
         <div class="news-url-row"><input type="url" id="feed-url-input" placeholder="또는 이미지 링크(https://...) 붙여넣기" /><button id="feed-url-btn" class="action-btn accent small" type="button">링크</button></div>
         <div id="feedcol-list"></div>
         <p class="section-hint">사진을 올리면 피드 탭에 노출돼요. 각 사진의 트렌드존을 지정하면 동(구역)이 자동으로 채워져요.</p>
-        <div class="setting-row" style="margin-top:8px;"><label>그리드 열</label><select id="feed-cols" class="mini-select"><option value="1">1개 (전체폭)</option><option value="2">2개</option><option value="3">3개</option></select></div>
+        <div class="setting-row" style="margin-top:8px;"><label>지도 아이콘 크기</label><input type="number" id="feed-icon-size" min="8" max="120" step="1" placeholder="스팟과 동일" style="width:110px;" /><span class="section-hint" style="margin:0;">지도 위 사진 핀(px)</span></div>
+        <div class="setting-row"><label>그리드 열</label><select id="feed-cols" class="mini-select"><option value="1">1개 (전체폭)</option><option value="2">2개</option><option value="3">3개</option></select></div>
         <div class="setting-row"><label>사진 간격</label><select id="feed-gap" class="mini-select"><option value="0">없음</option><option value="0.6">최소</option><option value="1.2">좁게</option><option value="2.4">보통</option></select></div>
         <div class="setting-row"><label>올린 시간</label><select id="feed-time" class="mini-select"><option value="ago">상대 (n분 전)</option><option value="clock">시각 (월/일 시:분)</option><option value="off">숨김</option></select></div>
         <div class="setting-row"><label>스팟 지도 배경</label><select id="spotmap-op" class="mini-select"><option value="0">끔</option><option value="0.2">옅게</option><option value="0.35">보통</option><option value="0.55">진하게</option></select><select id="spotmap-scale" class="mini-select"><option value="50">50 m</option><option value="100">100 m</option><option value="200">200 m</option></select></div>
         <p class="section-hint">피드 탭의 스팟 메시지 카드 배경에 해당 위치 지도를 연하게 깔아요. 축척=카드 128px 기준. ⚠️ API 키에 Maps Static API 허용 필요(미허용 시 배경 없이 표시).</p>
-        <div class="setting-row"><label>지도 아이콘 크기</label><input type="number" id="feed-icon-size" min="8" max="120" step="1" placeholder="스팟과 동일" style="width:110px;" /></div>
-        <p class="section-hint">지도 위 피드 썸네일 핀의 기준 크기(px, 기준 줌 16). 비우면 스팟 이모지 크기를 따라가요.</p>
       </div>
       <div class="settings-section">
         <h4>소셜 컨텐츠 (채팅방)</h4>
@@ -485,7 +484,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.3.1"></script>
-  <script src="app.js?v=2.3.1"></script>
+  <script src="config.js?v=2.4.0"></script>
+  <script src="app.js?v=2.4.0"></script>
 </body>
 </html>

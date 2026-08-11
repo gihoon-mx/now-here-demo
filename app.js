@@ -6388,6 +6388,34 @@ function nhSpread(c,i){
   var a=i*2.399963,r=0.0015+0.0008*(i%3);
   return {lat:c.lat+r*Math.cos(a),lng:c.lng+r*Math.sin(a)*1.25};
 }
+/* 트렌드 온도 (v2.4) — 사람이 적은 값을 0~100 으로 자르고, 안 적었으면 null 이다.
+   빈 문자열과 0 을 가른다: 0 은 "가장 식은" 이라는 **선택**이고 빈 값은 "안 정했다" 다. */
+function nhTemp(v){
+  if(v===null||v===undefined||v==='')return null;
+  var n=Number(v);
+  return isFinite(n)?Math.max(0,Math.min(100,Math.round(n))):null;
+}
+/* 안 정했을 때의 온도 — **결정적 랜덤**이다 (Math.random 금지, v1.72 와 같은 이유:
+   시연은 몇 번을 돌려도 같은 화면이어야 한다). 22~92 사이로 편다 — 0 근처만 나오면
+   전부 식은 색이라 트렌드 모드를 켠 뜻이 화면에 안 보인다.
+
+   ⚠️ **id 를 넣지 않는다.** id 에는 회차마다 달라지는 stamp 가 박혀 있어서, 그걸 섞으면
+   같은 데모를 두 번 재생할 때 색이 달라진다 — 결정적이라는 말이 무색해진다.
+   대신 그 항목의 **글과 순번**을 섞는다: 시나리오가 같으면 늘 같고, 항목마다 다르다. */
+function nhAutoTemp(key){
+  var h=0,s=String(key||'');
+  for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0;}
+  return 22+(h%71);
+}
+/* 사람이 올린 사진 주소만 통과시킨다 (v2.4) — `javascript:` 같은 것이 img src 로 들어가지
+   않게. data: 는 이미지 한정. 못 믿을 값이면 빈 문자열이고, 그러면 테마 색으로 그린다. */
+function nhImgSrc(v){
+  var s=String(v||'').trim();
+  if(!s)return '';
+  if(/^https:\/\//i.test(s))return s.slice(0,2000);
+  if(/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(s))return s.slice(0,2000000);
+  return '';
+}
 /* 무대에 넣을 것을 **재생 중에도** 깔 수 있어야 한다 (v1.98, 콘솔 D86 "뿅뿅").
    그래서 항목 하나를 깔는 일을 seed 시점에서 떼어냈다 — nhSeedScenario 와 nhDrop 이
    같은 코드를 쓴다. 두 벌로 두면 한쪽만 고쳐져 "처음부터 깐 것" 과 "중간에 뜬 것" 이
@@ -6413,7 +6441,12 @@ function nhLaySpot(s,i,c,stamp){
   if(typeof demoSpots==='undefined')return null;
   var id='spn_'+stamp+'_'+i,p=nhPosGet('spot',i,c)||nhSpread(c,10+i); // 사람이 옮긴 자리 우선 (v2.3)
   demoSpots.push({id:id,lat:p.lat,lng:p.lng,
-    text:String(s.t||'').slice(0,80),emoji:s.emoji||'💬',live:true});
+    text:String(s.t||'').slice(0,80),emoji:s.emoji||'💬',
+    /* 트렌드 온도 (v2.4) — heatTOf 가 이 값을 자동 계산보다 먼저 본다. 안 정했으면
+       id 로 편 결정적 값이다: 무대 콘텐츠는 좋아요가 0 이라 자동 계산이 전부 같은
+       색을 내고, 그러면 트렌드 모드가 아무것도 구분해 보여주지 못한다. */
+    temp:(s.temp!=null?s.temp:nhAutoTemp('spot'+i+(s.t||''))),
+    live:true});
   nhTempIds.spot.push(id);
   return id;
 }
@@ -6426,6 +6459,7 @@ function nhLayFeed(f,i,c,stamp){
     lat:p.lat,lng:p.lng,kind:'post',
     desc:String(f.desc||f.label||'').slice(0,120),
     name:String(f.name||'동네주민').slice(0,20),
+    temp:(f.temp!=null?f.temp:nhAutoTemp('feed'+i+(f.desc||f.label||''))), // 트렌드 온도 (v2.4) — nhLaySpot 과 같은 이유
     by:'nh_tmp',ts:Date.now()-(i+1)*3600e3,likes:{},seed:false,type:'photo'});
   nhTempIds.feed.push(id);
   return id;
@@ -6468,8 +6502,11 @@ function nhLayNews(p,i,c,stamp){
   var tab=(p.tab==='feed'||p.tab==='social')?p.tab:'map';
   var region=String(p.place||'').slice(0,20);
   if(!region)region=((typeof dongAt==='function'?dongAt(c.lat,c.lng):'')||c.name||'');
+  /* 사진: 사람이 올린 것이 있으면 그것, 없으면 테마 색으로 그린다 (v2.4).
+     올린 사진은 콘솔이 Storage 에 두고 주소만 실어 보낸다 — 시나리오 문서에 이미지를
+     통째로 담으면 Firestore 문서 상한(1MB)에 금세 닿는다. */
   newsItems.push({id:id,tab:tab,stage:true,
-    src:(typeof seedImg==='function'?seedImg(p.theme||'cafe',''):''),
+    src:(p.img||(typeof seedImg==='function'?seedImg(p.theme||'cafe',''):'')),
     region:region,title:String(p.title||'').slice(0,60)});
   nhTempIds.page.push(id);
   return id;
@@ -6707,11 +6744,13 @@ function nhSanitize(raw){
     }).filter(function(r){return r.q;});
     var sps=(Array.isArray(rs.spots)?rs.spots:[]).slice(0,10).map(function(s){
       s=s||{};return {t:String(s.t||'').slice(0,80),emoji:String(s.emoji||'💬').slice(0,4),
+        temp:nhTemp(s.temp), // v2.4: 트렌드 온도 (빈 값이면 null → 깔 때 결정적 랜덤)
         hold:!!s.hold};
     }).filter(function(s){return s.t;});
     var fds=(Array.isArray(rs.feeds)?rs.feeds:[]).slice(0,10).map(function(f){
       f=f||{};return {label:String(f.label||'').slice(0,40),desc:String(f.desc||'').slice(0,120),
         theme:String(f.theme||'').slice(0,16),name:String(f.name||'').slice(0,20),
+        temp:nhTemp(f.temp), // v2.4
         hold:!!f.hold};
     }).filter(function(f){return f.desc||f.label;});
     /* 타임딜 (v2.2) — 사람은 5칸만 적고 가격 3칸은 nhLayDeal 이 만든다.
@@ -6731,6 +6770,7 @@ function nhSanitize(raw){
         theme:String(p.theme||'').slice(0,16),
         place:String(p.place||'').slice(0,20),
         title:String(p.title||'').slice(0,60),
+        img:nhImgSrc(p.img), // v2.4: 사람이 올린 사진 (https/data 만 — 없으면 테마 색으로 그린다)
         hold:!!p.hold};
     });
     if(reqs.length||sps.length||fds.length||dls.length||pgs.length)
