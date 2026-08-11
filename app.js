@@ -5642,13 +5642,16 @@ function sgAfterPlaces(f,o,picked){
       ' 설명 없이 JSON 배열만 출력하세요. 형식:'+
       ' [{"spot":"지도 위 한 줄(20자 내외)","feed":"사진 설명(25자 내외)","req":"주변에 물어볼 질문(20자 내외)","deal":"타임딜 제목(20자 내외)"}]'+
       ' 배열 길이는 '+picked.length+'개여야 합니다.';
+  /* 왜 템플릿으로 떨어졌는지 구분해 둔다 (v2.8) — 전에는 파싱 실패까지 "응답을 못
+     받았어요" 로 뭉쳐서, 실제로는 200 이 오는데 형식만 안 맞던 상황을 못 알아봤다. */
   sgAskAgent(prompt,function(text){
-    sgCommit(f,o,picked,sgParseLines(text));
-  },function(){
-    sgCommit(f,o,picked,null); // 에이전트가 없어도 템플릿으로 만든다
+    var lines=sgParseLines(text);
+    sgCommit(f,o,picked,lines,lines?'':'형식이 안 맞아 못 썼어요');
+  },function(why){
+    sgCommit(f,o,picked,null,'응답을 못 받았어요 ('+String(why||'').slice(0,40)+')');
   });
 }
-function sgCommit(focus,o,places,ai){
+function sgCommit(focus,o,places,ai,aiWhy){
   var gid='g'+Date.now().toString(36);
   var now=Date.now(), counts={spot:0,feed:0,req:0,deal:0};
   places.forEach(function(p,i){
@@ -5701,7 +5704,7 @@ function sgCommit(focus,o,places,ai){
   renderSeedGroups();
   alert('🌱 ‘'+focus.name+'’에 '+places.length+'곳 기준으로 만들었어요.\n'+
         '스팟 '+counts.spot+' · 사진 '+counts.feed+' · Request '+counts.req+' · 타임딜 '+counts.deal+
-        (ai?'\n(문구: AI 생성)':'\n(문구: 기본 템플릿 — AI 에이전트 응답을 못 받았어요)'));
+        (ai?'\n(문구: AI 생성)':'\n(문구: 기본 템플릿 — AI '+(aiWhy||'응답을 못 받았어요')+')'));
 }
 function sgGroupSetHidden(gid,v){
   var g=seedGroups.filter(function(x){return x.id===gid;})[0];if(!g)return;
