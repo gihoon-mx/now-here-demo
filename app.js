@@ -7180,24 +7180,52 @@ function nhBurst(v,n,e,ms,token){
   var at=nhCenter()||c;
   var salt=String(nhScenarioKey||'burst');
   var stamp=nhHeld.stamp||Date.now();
-  /* 줌아웃을 **듀레이션에 걸쳐** 돈다 (v2.13). v2.12 는 시작하자마자 목표 줌으로 한 번에
-     갔다 — Maps 의 줌 애니메이션은 0.3초쯤이라, 나머지 시간은 이미 다 빠진 화면 위에서
-     흐르고 "줌아웃하며 쏟아진다" 가 두 장면으로 갈렸다. 앞 80% 를 열두 걸음으로 나눈다.
-     (mapId 지도라 소수 줌이 그대로 먹는다 — 걸음이 계단으로 안 보인다.)
-     ⚠️ 여기서 목표 줌으로 **먼저 가지 않는다.** 처음 한 번은 지금 줌 그대로 자리만 잡고,
-     줌은 아래 걸음이 전부 맡는다 — 한 번이라도 목표로 튀면 걸음이 도로 줌인이 된다. */
+  /* 줌아웃을 **한 번의 매끄러운 움직임**으로 (v2.14). v2.13 은 setZoom 을 열두 번 나눠
+     불렀는데, `setZoom` 은 부를 때마다 Maps **자체 애니메이션**(0.3초쯤)을 시작한다 —
+     다음 걸음이 그 애니메이션을 중간에 자르고 새로 시작하니 끊기고 튀었다.
+     그래서 걸음이 아니라 **프레임**으로 돈다: `moveCamera` 는 애니메이션 없이 카메라를
+     그 값에 바로 놓으므로, rAF 로 매 프레임 조금씩 옮기면 그것이 곧 부드러운 줌아웃이다.
+     이징은 easeInOutSine — 시작과 끝이 느려져 "빠져나가는" 느낌이 난다.
+     `moveCamera` 가 없는 지도(래스터)면 setZoom 한 번으로 떨어진다(끊김 없음). */
   var z0=(phoneMap&&phoneMap.getZoom&&phoneMap.getZoom())||(map&&map.getZoom&&map.getZoom())||NH_AREA_ZOOM;
-  goMapCam(map,at.lat,at.lng,z0);
-  if(phoneMap)goMapCam(phoneMap,at.lat,at.lng,z0);
-  var zoomWin=Math.round(ms*0.8),ZSTEPS=12;
-  for(var s=1;s<=ZSTEPS;s++)(function(s){
+  var zoomWin=Math.max(300,Math.round(ms*0.85));
+  /* 지금 카메라가 어느 줌에 있나 — 컨텐츠 자리를 그 순간의 화면에 맞추는 데 쓴다.
+     프레임 루프가 갱신하고, 깔기 콜백이 읽는다(둘이 같은 값을 봐야 화면 안에 앉는다). */
+  var zNow=z0;
+  function camLand(){ // 마지막에 PC 지도를 목표 줌에 앉힌다 — 미러(map idle → phoneMap)와
+    goMapCam(map,at.lat,at.lng,z);   // 뒤따르는 단계(zoom·area)가 같은 값을 보게.
+    if(phoneMap)goMapCam(phoneMap,at.lat,at.lng,z);
+    zNow=z;
+  }
+  if(phoneMap&&phoneMap.moveCamera&&typeof requestAnimationFrame==='function'){
+    var camT0=(window.performance&&performance.now)?performance.now():Date.now();
+    var camDone=false;
+    /* 안전망 — rAF 는 탭이 화면에 없으면 아예 안 돈다(백그라운드·숨은 iframe).
+       그대로 두면 카메라가 z0 에 멈춘 채 컨텐츠만 쌓인다. 시간이 지나면 목표에 앉힌다. */
     setTimeout(function(){
-      if(token!==nhRunToken)return;
-      var zz=z0+(z-z0)*(s/ZSTEPS);
-      goMapCam(map,at.lat,at.lng,zz);
-      if(phoneMap)goMapCam(phoneMap,at.lat,at.lng,zz);
-    },Math.round(zoomWin*s/ZSTEPS));
-  })(s);
+      if(camDone||token!==nhRunToken)return;
+      camDone=true;camLand();
+    },zoomWin+400);
+    (function frame(){
+      if(token!==nhRunToken||camDone)return;
+      var now=(window.performance&&performance.now)?performance.now():Date.now();
+      var p=Math.min(1,(now-camT0)/zoomWin);
+      var eased=0.5-Math.cos(Math.PI*p)/2; // easeInOutSine — 시작·끝이 느려 "빠져나가는" 느낌
+      var zz=z0+(z-z0)*eased;
+      try{
+        /* **폰 지도만 매 프레임 움직인다.** PC 지도는 임베드에서 display:none 이라
+           카메라 호출이 조용히 무시될 수 있는데, 그 상태로 PC 가 idle 을 쏘면 미러
+           (map → phoneMap)가 폰을 z0 로 되돌려 버린다 — 끊김의 근원이다.
+           PC 는 끝에서 한 번만 맞춘다(camLand). */
+        phoneMap.moveCamera({center:{lat:at.lat,lng:at.lng},zoom:zz});
+        zNow=zz;
+      }catch(err){ camDone=true;camLand(); return; } // 벡터가 아니면 한 번에 (끊기느니 즉시가 낫다)
+      if(p<1)requestAnimationFrame(frame);
+      else{camDone=true;camLand();}
+    })();
+  }else{
+    camLand();
+  }
   for(var k=0;k<n;k++)(function(k){
     /* 등장 시각 (v2.12) — **줌아웃이 도는 동안부터** 마구 생긴다.
        v2.11 은 앞 15% 를 비우고 등간격으로 놨더니 메트로놈처럼 규칙적이었고, 카메라가
@@ -7213,9 +7241,9 @@ function nhBurst(v,n,e,ms,token){
       /* 반경은 **그 순간 보이는 화면**을 따라 넓어진다 (v2.13).
          목표 줌 기준으로 한 번에 정하면, 카메라가 아직 안 빠진 초반에 깔린 것들이 화면
          밖에 떨어져서 "줌아웃이 끝난 뒤에야 뜬다" 로 보였다 — 실제로는 이미 있었다.
-         지금 줌(zAt)에서의 화면 반폭을 쓰면 처음부터 눈앞에 하나씩 앉는다. */
-      var prog=Math.min(1,(t/Math.max(1,zoomWin)));
-      var zAt=z0+(z-z0)*prog;
+         v2.14: 계산 대신 **카메라가 실제로 있는 줌**(zNow)을 읽는다 — 이징이 붙어
+         진행이 시간에 비례하지 않으므로, 예측값을 쓰면 다시 어긋난다. */
+      var zAt=zNow;
       var rVis=0.028*Math.pow(2,13-zAt); // 줌 13 화면 반폭 기준 — 레벨당 두 배
       var r=rVis*(0.25+0.7*Math.sqrt(heatJitter(salt+'r'+k))); // sqrt = 면적 균등
       var p={lat:at.lat+r*Math.cos(a)*0.8,lng:at.lng+r*Math.sin(a),name:c.name};
