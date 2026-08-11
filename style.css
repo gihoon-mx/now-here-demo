@@ -321,6 +321,10 @@ button:focus:not(:focus-visible){outline:none;}
 /* 입력 주의(정수/소수·범위) 문구 — 숫자칸 왼쪽, 우측 정렬 */
 .num-hint{margin-left:auto;font-size:.6rem;color:var(--ink3);flex-shrink:0;white-space:nowrap;font-variant-numeric:tabular-nums;}
 .toggle-switch{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;}
+/* .toggle-switch 도 label 이라 위 `.setting-row label{min-width:48px}`(선택자 특정성이 더 높다)를
+   물려받았다 — 36px 트랙이 48px 로 늘어나 손잡이 오른쪽에 빈 칸이 남는 채로 보였다. (v2.16)
+   skin-v3 가 #adm-panels 안에서만 같은 보정을 하고 있었는데, 여기서 전 페이지·전 스킨에 건다. */
+.setting-row label.toggle-switch{min-width:0;}
 .toggle-switch input{opacity:0;width:0;height:0;}
 .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.18);border-radius:20px;transition:all .3s ease;}
 .toggle-slider::before{content:'';position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;box-shadow:var(--sh-s);transition:all .3s ease;}
@@ -1149,6 +1153,17 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 .feed-pin.fp-dot{opacity:.75;}
 .feed-pin.fp-dot .fp-im{border-width:1.5px;box-shadow:0 1px 3px rgba(15,23,42,0.25);}
 .feed-pin.fp-dot .fp-n{display:none;}
+/* v2.16 점 전환을 이어서 — 크기는 contentDot 이 점 크기에서 멈추게 하고, 남는 모양 변화
+   (테두리·불투명도)와 관리자 축척 임계값으로 일찍 점이 될 때의 크기 차이를 여기서 받는다.
+   left/top 은 뺀다 — 팬할 때마다 핀이 지도를 쫓아오며 미끄러진다. */
+.feed-pin{transition:width .22s cubic-bezier(.22,1,.36,1),height .22s cubic-bezier(.22,1,.36,1),opacity .22s ease;}
+.feed-pin .fp-im{transition:border-width .22s ease;}
+.deal-pin{transition:opacity .22s ease;}
+.deal-pin .dp-circle{transition:width .22s cubic-bezier(.22,1,.36,1),height .22s cubic-bezier(.22,1,.36,1),border-width .22s ease;}
+.spot-marker{transition:opacity .22s ease;}
+@media (prefers-reduced-motion:reduce){
+  .feed-pin,.feed-pin .fp-im,.deal-pin,.deal-pin .dp-circle,.spot-marker{transition:none;}
+}
 
 /* ── v1.63 베이직↔트렌드 전환 트랜스폼(지도 펄스 — AI 아이콘은 기존 aiSpin 재사용) ── */
 #map.mode-morph,#phone-map.mode-morph{animation:mapMorph .55s cubic-bezier(.22,1,.36,1);}

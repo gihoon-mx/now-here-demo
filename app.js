@@ -102,18 +102,55 @@ var SPOT_REF_ZOOM = 16;
 var SPOT_SCALE_MIN = 0.02, SPOT_SCALE_MAX = 40;
 function spotDotScaleM(){var v=Number(spotConfig.dotScaleM);return isNaN(v)?1000:v;} // 축척(축척자 m)이 이 값 초과로 축소되면 점으로
 function spotScale(z){var s=Math.pow(2,z-SPOT_REF_ZOOM);if(s<SPOT_SCALE_MIN)s=SPOT_SCALE_MIN;if(s>SPOT_SCALE_MAX)s=SPOT_SCALE_MAX;return s;}
-/* 지도 위 **컨텐츠**(스팟 말풍선·이모지·피드 썸네일·Request 핀·딜 핀·지역 라벨)가 쓰는 단일 배율 (v1.95).
-   전에는 같은 spotScale 곡선에 **세 가지 다른 클램프**가 걸려 있었다 —
-   라벨 0.7~1.6 · Request/딜 핀 0.34~1.3 · 스팟과 피드 썸네일은 **클램프 없음**.
-   그래서 줌 한 단계에 스팟은 2배로 뛰는데 핀은 거의 그대로라, 컨텐츠끼리의 크기 관계가
-   줌마다 달라졌다(줌13→18 실측: 말풍선 14.6→260px, 이모지 3.7→118.5px, 핀은 3.8배가 상한).
-   한 곡선·한 클램프로 모으면 전부 같은 비율로 커지고 작아진다. 범위는 이미 쓰이던 것 중
-   가장 보수적인 라벨 값을 그대로 쓴다 — 양 끝에서 읽히는 것이 확인된 폭이다.
-   ※ 멀리서 스팟이 점이 되는 것은 이 배율과 무관하다 (mapMpp 기준 isDot 이 따로 판단한다). */
-var CONTENT_SCALE_MIN = 0.7, CONTENT_SCALE_MAX = 1.6;
+/* 지도 위 **컨텐츠**(스팟 말풍선·이모지·피드 썸네일·Request 핀·딜 핀)가 쓰는 단일 배율.
+
+   v1.95 는 이 곡선에 0.7~1.6 클램프를 걸었다. 그 클램프가 곧 "줌아웃하면 컨텐츠가
+   지면 대비 커진다"의 정체다 — 지도는 절반으로 줄어드는데 컨텐츠는 0.7 에서 멈추니
+   같은 컨텐츠가 건물 하나에서 블록 하나를 덮는 크기로 자란다.
+
+   v2.16 부터는 클램프를 걷어내고 **지면 고정**으로 돌린다. `2^(z-16)` 순수 배율이라
+   설정한 px 가 어느 줌에서도 같은 미터 범위를 덮는다 — 줌 16 에서 건물 하나였으면
+   줌 12 에서도 건물 하나다. 남은 0.02~40 은 안전 한계일 뿐 실질 무제한이다.
+
+   ※ 지역·존 **라벨은 이 곡선을 안 쓴다** (labelScale). 라벨은 지면 위에 놓인 컨텐츠가
+     아니라 지도 자체의 이름표라, 지면에 고정하면 시 단위 줌에서 0.4px 로 사라진다.
+   ※ 멀리서 점이 되는 것은 contentDot 이 따로 판단한다. */
 function contentScale(z){
   if(z==null||!isFinite(z))return 1;
-  return Math.max(CONTENT_SCALE_MIN,Math.min(CONTENT_SCALE_MAX,spotScale(z)));
+  return spotScale(z);
+}
+/* 지역·존 이름표 배율 — 지면 고정이 아니라 **읽히는 범위**가 기준이다 (v1.62 의 0.7~1.6). */
+var LABEL_SCALE_MIN = 0.7, LABEL_SCALE_MAX = 1.6;
+function labelScale(z){
+  if(z==null||!isFinite(z))return 1;
+  return Math.max(LABEL_SCALE_MIN,Math.min(LABEL_SCALE_MAX,spotScale(z)));
+}
+/* 점 전환 — **크기가 점까지 미끄러져 간다** (v2.16).
+
+   점이 되는 시점은 예나 지금이나 관리자 설정(spotDotScaleM: 축척자 64px 이 몇 m 를
+   덮으면 점인가)이다. 문제는 그 시점에 크기가 **툭 끊겼다**는 것이다 — 실제 설정값
+   (dotScaleM=100)에서 줌 17 의 50px 짜리 사진이 줌 16 에서 12px 점이 됐다. 4배 점프다.
+
+   그래서 임계값 **한 줌 전부터** 배율을 점 크기 쪽으로 당긴다(t=0→1). 임계값에 닿는
+   순간의 크기가 정확히 점 크기라, 크기는 안 바뀌고 모양만 바뀐다. 그 구간(한 줌)
+   밖에서는 순수 지면 고정 배율이다.
+
+   지면 고정이라 아주 멀리서는 설정과 무관하게 컨텐츠가 점보다 작아지는데, 그때도
+   점 크기에서 멈추고 점이 된다(s<=floor).
+
+   반환 {dot, scale} — scale 은 점이 아닐 때 쓰는 배율(점 크기 아래로는 안 내려간다). */
+var SPOT_DOT_PX = 8;   // .spot-dotmark
+var FEED_DOT_PX = 12;  // .feed-pin.fp-dot
+var PIN_DOT_PX  = 12;  // .deal-pin.dl-dot .dp-circle / Request 드롭 하한
+var DOT_RAMP = 0.5;    // 임계값 대비 이 비율(=한 줌 레벨)부터 점 크기로 당기기 시작
+function contentDot(m,z,basePx,dotPx){
+  var s=contentScale(z),floor=(basePx>0?dotPx/basePx:0);
+  var mpp=mapMpp(m),far,t;
+  if(mpp){
+    var r=(mpp*64)/spotDotScaleM(); // 1 = 딱 임계값, >1 = 점
+    far=r>1;t=Math.max(0,Math.min(1,(r-DOT_RAMP)/(1-DOT_RAMP)));
+  }else{far=(z<13);t=far?1:0;}
+  return {dot:far||s<=floor,scale:Math.max(floor,s*(1-t)+floor*t)};
 }
 var spotOverlays = [];          // 메인 지도 SpotBubble
 var phoneSpotOverlays = [];     // 폰 지도 SpotBubble
@@ -370,8 +407,8 @@ function initMapLabelClass(){
   MapLabel.prototype.updateStyle=function(style){this.style=style||{};if(this.div)this._apply(this.div);};
   MapLabel.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);
     if(this.div&&pos){
-      // v1.62 라벨 크기 안정화: 스팟과 동일한 spotScale 곡선으로 줌 연동(클램프 0.7~1.6) — 고정 px는 줌마다 지면 대비 상대 크기가 들쭉날쭉해 보였음
-      var m=this.getMap(),z=m&&m.getZoom&&m.getZoom(),s=contentScale(z); // v1.95: 컨텐츠 공통 배율
+      // v1.62 라벨 크기 안정화: spotScale 곡선으로 줌 연동(클램프 0.7~1.6) — 고정 px는 줌마다 지면 대비 상대 크기가 들쭉날쭉해 보였음
+      var m=this.getMap(),z=m&&m.getZoom&&m.getZoom(),s=labelScale(z); // v2.16: 이름표는 지면 고정이 아니라 '읽히는 범위' 기준
       if(CSS_ZOOM_OK){
         // v1.64 버그픽스: CSS zoom은 크기뿐 아니라 left/top 오프셋까지 s배로 곱해 렌더 → 앵커가 pos*s로 밀려 줌마다 라벨이 흔들렸음. 좌표를 s로 나눠 보정(렌더 위치=pos, 중심 정렬은 CSS translate(-50%,-50%))
         this.div.style.zoom=s;this.div.style.left=(pos.x/s)+'px';this.div.style.top=(pos.y/s)+'px';
@@ -503,10 +540,12 @@ function initSpotBubbleClass(){
     var pos=p.fromLatLngToDivPixel(this.position);
     if(pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';this._ax=pos.x;this._ay=pos.y;} // 앵커 픽셀(declutter 참조)
     var m=this.getMap();if(!m)return;var z=m.getZoom();if(z==null)return;
-    var mpp=mapMpp(m);var isDot=mpp?((mpp*64)>spotDotScaleM()):(z<13); // 축척자(64px) 거리가 임계값 초과 = 축소 → 점
+    // v2.16: 이모지가 점(8px) 크기로 줄면 그때부터 점 — 크기가 이어져 전환이 안 튄다.
+    // 관리자 축척 임계값(spotConfig.dotScaleM)으로 더 일찍 점이 될 수도 있다.
     // (강조 구역 축척과 독립적: spotConfig.dotScaleM ↔ styleConfig.highlight.spotScaleM)
+    var cd=contentDot(m,z,Number(this.cfg.emojiSize)||26,SPOT_DOT_PX),isDot=cd.dot;
     var emojiDot=isDot&&(spotConfig.dotStyle==='emoji'); // 작을 때 이모지로 표시 옵션
-    var s=contentScale(z); // v1.95: 컨텐츠 공통 배율 (전엔 클램프 없이 줌 1단계당 2배로 뛰었다)
+    var s=cd.scale; // 지면 고정 배율 (점 크기 아래로는 안 내려간다)
     this.div.classList.toggle('spot-dot',isDot);
     this.div.classList.toggle('spot-dot-emoji',emojiDot);
     // 스케일은 CSS zoom(레이아웃)으로 — transform scale은 1배 래스터를 GPU 확대해 줌인 시 글자/이모지가 흐릿해짐
@@ -566,13 +605,8 @@ function initFeedThumbClass(){
     var im=document.createElement('div');im.className='fp-im';
     var img=document.createElement('img');img.src=this.item.src;img.alt='';im.appendChild(img);
     d.appendChild(im);
-    // 온도색(트렌드 모드에서만 CSS body.mode-trend 스코프로 발현): 개별 수동 온도(temp) 우선, 자동=좋아요 온도. 클러스터=멤버 중 최고
-    // v2.6: 존 온도를 중심으로 항목마다 흩는다 (존 밖이면 좋아요 온도가 중심). 클러스터=멤버 최고
-    var ht=0;this.members.forEach(function(m){var f=m.f||m,p=m.pos||{};
-      var t2=contentHeatT(f,p.lat,p.lng,feedHeatT(f.id));if(t2>ht)ht=t2;});
-    d.style.setProperty('--heat',heatColor(ht));
     if(nhBounceTake(this.item.id))d.classList.add('nh-pop-in'); // drop·postfeed 로 지금 생긴 것 (v2.11)
-    this.div=d;
+    this.div=d;this._paintHeat();
     if(n>1){ // 클러스터: 대표 사진 + 개수 뱃지, 탭=멤버 범위로 줌인(펼치기)
       d.classList.add('cluster');
       var b=document.createElement('span');b.className='fp-n';b.textContent=n;d.appendChild(b);
@@ -585,6 +619,27 @@ function initFeedThumbClass(){
       });
     }
     this.getPanes().overlayMouseTarget.appendChild(d); // 전 핀 탭 가능 (v1.60 상세 팝업)
+  };
+  // 온도색(트렌드 모드에서만 CSS body.mode-trend 스코프로 발현): 개별 수동 온도(temp) 우선, 자동=좋아요 온도. 클러스터=멤버 중 최고
+  // v2.6: 존 온도를 중심으로 항목마다 흩는다 (존 밖이면 좋아요 온도가 중심). 클러스터=멤버 최고
+  FeedThumb.prototype._paintHeat=function(){
+    if(!this.div)return;
+    var ht=0;this.members.forEach(function(m){var f=m.f||m,p=m.pos||{};
+      var t2=contentHeatT(f,p.lat,p.lng,feedHeatT(f.id));if(t2>ht)ht=t2;});
+    this.div.style.setProperty('--heat',heatColor(ht));
+  };
+  /* 같은 멤버 구성의 핀을 **그대로 이어 쓴다** (v2.16).
+     줌마다 renderFeedMarkers 가 전부 지우고 새로 만들면 `<img>` 도 새로 붙는다 —
+     디코딩이 끝나기 전 한 프레임이 빈 원으로 그려지는 것이 "줌할 때 사진이 깜박임"의
+     정체였다. DOM 을 살려 두고 바뀐 값(좌표·사진·온도·개수)만 덮어쓴다. */
+  FeedThumb.prototype._adopt=function(cluster){
+    this.members=cluster.items;this.item=cluster.items[0].f;
+    this.position=new google.maps.LatLng(cluster.pos.lat,cluster.pos.lng);
+    if(!this.div)return;
+    var img=this.div.querySelector('img'); // getAttribute — .src 는 절대경로로 정규화돼 매번 달라 보인다
+    if(img&&img.getAttribute('src')!==this.item.src)img.setAttribute('src',this.item.src);
+    var b=this.div.querySelector('.fp-n');if(b)b.textContent=this.members.length;
+    this._paintHeat();this.draw();
   };
   FeedThumb.prototype._expand=function(){ // 클러스터 탭 → 멤버가 펼쳐지는 줌으로
     var m=this.getMap();if(!m)return;
@@ -647,19 +702,14 @@ function initFeedThumbClass(){
     this.div.style.left=(px.x+(this._ndx||0))+'px';this.div.style.top=(px.y+(this._ndy||0))+'px';
     var m=this.getMap(),z=m?m.getZoom():15;
     // v1.63: 스팟 이모지와 동일한 크기 곡선 — 점 전환 기준도 동일
-    // v1.95: 곡선을 contentScale 로 (전엔 클램프가 없어 줌18 에서 104px 까지 커졌다)
     // v2.3: 기준 크기만 분리 옵션(feedIconSize, 0=스팟 이모지 크기 따름)
-    var mpp2=mapMpp(m),isDot=mpp2?((mpp2*64)>spotDotScaleM()):(z<13);
-    var base=feedIconBase();
-    var px2=isDot?12:Math.max(10,Math.round(base*contentScale(z)));
+    // v2.16: 지면 고정 배율 + 점 크기에서 이어지는 전환 (contentDot)
+    var base=feedIconBase(),cd=contentDot(m,z,base,FEED_DOT_PX);
+    var px2=cd.dot?FEED_DOT_PX:Math.round(base*cd.scale);
     this.div.style.width=px2+'px';this.div.style.height=px2+'px';
-    this.div.classList.toggle('fp-dot',isDot);
+    this.div.classList.toggle('fp-dot',cd.dot);
   };
   FeedThumb.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
-}
-function clearFeedMarkers(){
-  feedThumbOverlays.forEach(function(o){o.setMap(null);});feedThumbOverlays=[];
-  phoneFeedThumbOverlays.forEach(function(o){o.setMap(null);});phoneFeedThumbOverlays=[];
 }
 function clusterFeedPins(m){ // 현재 줌의 월드픽셀 기준 근접(56px) 그룹핑 — 줌인하면 자연히 낱개로 펼쳐짐
   var z=m.getZoom();if(z==null)z=15; // v1.88: 숨김 컨텐츠는 아래 루프에서 제외된다
@@ -691,12 +741,29 @@ function clusterFeedPins(m){ // 현재 줌의 월드픽셀 기준 근접(56px) �
   });
   return cl;
 }
+function feedPinKey(c){ // 핀의 신원 = 멤버 id 집합. 같으면 같은 핀이다(클러스터도 포함)
+  return c.items.map(function(o){return o.f.id;}).sort().join('|');
+}
+/* 한 지도의 피드 핀을 **맞춰 놓는다** — 지우고 새로 만드는 대신 있는 것을 이어 쓴다 (v2.16).
+   줌아웃으로 클러스터가 합쳐질 때처럼 구성이 실제로 바뀐 핀만 새로 만들어진다. */
+function syncFeedPins(m,cur){
+  if(!m||!mapPinView.feed.show){cur.forEach(function(o){o.setMap(null);});return [];} // v2.15 표시 끔
+  var prev={};
+  cur.forEach(function(o){if(o._key&&!prev[o._key])prev[o._key]=o;else o.setMap(null);});
+  var out=[];
+  clusterFeedPins(m).forEach(function(c){
+    var k=feedPinKey(c),o=prev[k];
+    if(o){delete prev[k];o._adopt(c);}
+    else{o=new FeedThumb(c,m);o._key=k;}
+    out.push(o);
+  });
+  Object.keys(prev).forEach(function(k){prev[k].setMap(null);}); // 남은 것 = 사라진 핀
+  return out;
+}
 function renderFeedMarkers(){ // 피드 사진 = 지도 위 원형 썸네일 핀 (메인+폰 동시, 근접 핀=클러스터)
   if(typeof google==='undefined'||!google.maps||(!map&&!phoneMap))return;
-  clearFeedMarkers();
-  if(!mapPinView.feed.show)return; // v2.15 컨텐츠별 표시 설정 — 끄면 걷기만 하고 안 만든다
-  if(map)clusterFeedPins(map).forEach(function(c){feedThumbOverlays.push(new FeedThumb(c,map));});
-  if(phoneMap)clusterFeedPins(phoneMap).forEach(function(c){phoneFeedThumbOverlays.push(new FeedThumb(c,phoneMap));});
+  feedThumbOverlays=syncFeedPins(map,feedThumbOverlays);
+  phoneFeedThumbOverlays=syncFeedPins(phoneMap,phoneFeedThumbOverlays);
 }
 var _fmZoom={m:null,p:null};
 function reclusterFeedMarkers(){ // 줌 변경 시에만 재클러스터 (팬은 월드픽셀 기준이라 불변)
@@ -4986,7 +5053,8 @@ function initReqPinClass(){
     // v2.9: 겹침 방지가 밀어낸 만큼을 얹어 그린다
     this.div.style.left=(pos.x+(this._ndx||0))+'px';this.div.style.top=(pos.y+(this._ndy||0))+'px';
     // v1.95 컨텐츠 공통 배율 × v2.15 종류별 배율(관리자 s-pins, 곡선은 공통 유지)
-    var m=this.getMap(),z=m?m.getZoom():15,sc=contentScale(z)*pinScale('req');
+    // v2.16 지면 고정 — 점 모양은 없지만 점 크기(12px) 아래로는 안 줄어든다(멀리서 사라지지 않게)
+    var m=this.getMap(),z=m?m.getZoom():15,sc=contentDot(m,z,34,PIN_DOT_PX).scale*pinScale('req');
     this.div.style.transformOrigin='50% 100%';this.div.style.transform='translate(-50%,-100%) scale('+sc+')';
   }};
   ReqPin.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
@@ -5126,11 +5194,11 @@ function initDealPinClass(){
     this._ax=pos.x;this._ay=pos.y; // 앵커=원래 좌표 (declutter 규약 v1.59)
     // v2.9: 겹침 방지가 밀어낸 만큼(_ndx·_ndy)을 얹어 그린다. 앵커는 그대로 둔다.
     this.div.style.left=(pos.x+(this._ndx||0))+'px';this.div.style.top=(pos.y+(this._ndy||0))+'px';
-    // v1.95 컨텐츠 공통 배율 × v2.15 종류별 배율(관리자 s-pins, 곡선은 공통 유지)
-    var m=this.getMap(),z=m?m.getZoom():15,sc=contentScale(z)*pinScale('deal');
-    /* 점 전환 (v2.11) — 스팟·피드와 **같은 기준**(spotDotScaleM)이다. 딜만 축소에서
+    /* 점 전환 (v2.11) — 스팟·피드와 **같은 기준**(contentDot)이다. 딜만 축소에서
        원래 크기로 남아 지도를 덮었다. 점일 때는 앵커를 중심으로(피드 점과 같은 문법). */
-    var mppD=mapMpp(m),isDot=mppD?((mppD*64)>spotDotScaleM()):(z<13);
+    // v1.95 컨텐츠 공통 배율 × v2.15 종류별 배율(관리자 s-pins, 곡선은 공통 유지)
+    var m=this.getMap(),z=m?m.getZoom():15,cdD=contentDot(m,z,34,PIN_DOT_PX);
+    var sc=cdD.scale*pinScale('deal'),isDot=cdD.dot;
     this.div.classList.toggle('dl-dot',isDot);
     if(isDot){
       this.div.style.transformOrigin='50% 50%';this.div.style.transform='translate(-50%,-50%)';
