@@ -706,9 +706,9 @@ body.mode-trend .aip-chat button{background:linear-gradient(160deg,#ff8c3c,#ff3d
 body.mode-trend .aip-head{color:#c2410c;}
 body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 
-/* 트렌드 모드: AI 버튼 색은 베이직과 같다 (v2.15) — v2.7 의 온도 팔레트 대각선 흐름
-   (aiHeatFlow)·웜톤 재도색은 삭제. 트렌드 구분은 선글라스 무지개 발광 하나
-   (아래 v1.61 선글라스 블록의 aiLensRainbow/aiShadeGlow)가 담당한다. */
+/* 트렌드 모드 AI 버튼 (v2.21): 온도 팔레트 붉은 두 색의 **사선 흐름 배경**이 담당한다
+   (아래 v1.61 선글라스 블록의 .pn-ai.ai-flame — 선글라스는 정지한 다크 렌즈).
+   v2.15 가 담당시켰던 렌즈 무지개 발광은 걷었다 — 색이 계속 바뀌는 것이 산만하다는 피드백. */
 .pn-ai.ai-on{background:linear-gradient(135deg,rgba(47,123,255,0.16),rgba(154,119,221,0.16)),var(--frost);border-color:rgba(154,119,221,0.45);}
 
 /* 스팟 편집 모달 행 */
@@ -1135,33 +1135,31 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 .feed-card .fc-mapbg{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:cover;border-radius:inherit;pointer-events:none;z-index:0;}
 .feed-card.txt .fc-emoji,.feed-card.txt .fc-text{position:relative;z-index:1;}
 
-/* ── 트렌드 모드 AI 캐릭터 = 선글라스 (v1.61) + 렌즈 무지개 발광 (v2.15) ──
-   렌즈(rect.sh-lens)의 fill 이 무지개를 돌고, 그룹(.ai-shades)의 drop-shadow 가
-   같은 색으로 함께 돈다. 두 키프레임은 같은 6s 주기 — 어긋나면 발광색과 렌즈색이
-   따로 논다. SVG rect 의 fill 은 CSS 애니가 presentation attribute 를 이긴다. */
+/* ── 트렌드 모드 AI 캐릭터 = 선글라스 (v1.61) + 온도색 사선 흐름 배경 (v2.21) ──
+   v2.15 의 렌즈 무지개(aiLensRainbow)·발광(aiShadeGlow)은 걷었다 — 색이 계속 바뀌는
+   선글라스가 산만하다는 피드백. 선글라스는 **정지한 다크 렌즈**로 남고, 트렌드 구분은
+   버튼 배경이 한다: 온도 팔레트(HEAT_STOPS)의 붉은 두 색(#f2862e·#e23b2a)만 이어
+   사선(115deg)으로 흐른다. 색 목록은 app.js 의 HEAT_STOPS 끝 두 값과 같아야 한다.
+   그라디언트를 [A,B,A,B] 로 닫아 두면 background-position 이 한 바퀴 돌 때 이음매가 없다. */
 .pn-ai .ai-shades{display:none;}
-.pn-ai.ai-flame .ai-shades{display:block;animation:aiShadeGlow 6s linear infinite;}
+.pn-ai.ai-flame .ai-shades{display:block;}
 .pn-ai.ai-flame svg ellipse{display:none;} /* 눈은 선글라스 뒤로 */
 .pn-ai.ai-flame .ai-shades path{stroke:#1d222b;}
 .pn-ai.ai-flame .ai-shades .sh-hi{stroke:rgba(255,255,255,0.65);} /* 렌즈 하이라이트 */
-.pn-ai.ai-flame .sh-lens{animation:aiLensRainbow 6s linear infinite;}
-@keyframes aiLensRainbow{
-  0%,100%{fill:#ff3b5c;}17%{fill:#ff9d2e;}33%{fill:#f2c53d;}
-  50%{fill:#34c26e;}67%{fill:#3a8dff;}83%{fill:#8a5cff;}
+.pn-ai.ai-flame .sh-lens{fill:#1d222b;}
+.pn-ai.ai-flame{
+  border-color:rgba(226,59,42,0.5);
+  background-image:linear-gradient(115deg,#f2862e,#e23b2a,#f2862e,#e23b2a);
+  background-size:300% 300%;
+  animation:aiHeatFlow 5s linear infinite;
 }
-@keyframes aiShadeGlow{
-  0%,100%{filter:drop-shadow(0 0 1.4cqw rgba(255,59,92,0.75));}
-  17%{filter:drop-shadow(0 0 1.4cqw rgba(255,157,46,0.75));}
-  33%{filter:drop-shadow(0 0 1.4cqw rgba(242,197,61,0.75));}
-  50%{filter:drop-shadow(0 0 1.4cqw rgba(52,194,110,0.75));}
-  67%{filter:drop-shadow(0 0 1.4cqw rgba(58,141,255,0.75));}
-  83%{filter:drop-shadow(0 0 1.4cqw rgba(138,92,255,0.75));}
-}
-/* 움직임을 줄이라고 한 기기에서는 보라 한 색으로 선다 (mapMorph 와 같은 규칙) */
+@keyframes aiHeatFlow{from{background-position:0% 50%;}to{background-position:300% 50%;}}
+/* 트렌드 전용 클릭(활성): 흐르는 배경은 그대로 두고 테두리만 짙게 — 배경을 덮으면 흐름이 멈춘 것처럼 보인다 */
+.pn-ai.ai-flame.ai-on{background-image:linear-gradient(115deg,#f2862e,#e23b2a,#f2862e,#e23b2a);border-color:rgba(226,59,42,0.9);box-shadow:0 0 0 0.6cqw rgba(226,59,42,0.18);}
+.pn-ai.ai-flame.spin{animation:aiSpin .62s cubic-bezier(.3,1,.35,1),aiHeatFlow 5s linear infinite;}
+/* 움직임을 줄이라고 한 기기에서는 흐르지 않고 두 색 사선으로 선다 (mapMorph 와 같은 규칙) */
 @media (prefers-reduced-motion:reduce){
-  .pn-ai.ai-flame .ai-shades,.pn-ai.ai-flame .sh-lens{animation:none;}
-  .pn-ai.ai-flame .sh-lens{fill:#8a5cff;}
-  .pn-ai.ai-flame .ai-shades{filter:drop-shadow(0 0 1.4cqw rgba(138,92,255,0.55));}
+  .pn-ai.ai-flame,.pn-ai.ai-flame.spin{animation:none;background-image:linear-gradient(115deg,#f2862e,#e23b2a);}
 }
 
 /* ── 스팟 의견: 메시지 버블 리스트 + 입력 (상세 팝업 내부) ── */

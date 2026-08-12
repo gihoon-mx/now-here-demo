@@ -241,9 +241,13 @@ body[data-skin="v3"] .pn-ai{padding:3.3cqw;}
 /* 캐릭터 얼굴을 흰 계열로 — 회색 유리 위에서 선이 죽는다 */
 body[data-skin="v3"] .pn-ai svg g[fill]{fill:rgba(255,255,255,.94);}
 body[data-skin="v3"] .pn-ai.ai-on{background:var(--v3-glass-on);}
-/* Trend 재도색 없음 (v2.15) — v2.6 의 온도 흐름 재선언은 삭제. 트렌드 구분은
-   style.css 의 선글라스 무지개 발광(aiLensRainbow/aiShadeGlow)이 그대로 v3 에서도 돈다
-   (배경이 아니라 SVG fill/filter 애니라 이 스킨의 background 축약과 충돌하지 않는다). */
+/* 트렌드 = 온도 팔레트 붉은 두 색의 사선 흐름 (v2.21 — style.css .pn-ai.ai-flame 과 같은 값).
+   이 스킨의 .pn-ai 배경 축약이 style.css 의 흐름 배경을 지우므로 여기서 다시 선언한다 —
+   애니메이션(aiHeatFlow)·정지 렌즈는 style.css 것이 그대로 돈다 (무지개 발광은 v2.21 에서 삭제). */
+body[data-skin="v3"] .pn-ai.ai-flame{
+  background-image:linear-gradient(115deg,#f2862e,#e23b2a,#f2862e,#e23b2a);
+  background-size:300% 300%;
+}
 
 /* ══ ② 지도 오버레이 ═══════════════════════════════════════════════════════
    **여기부터 `cqw` 를 쓰지 않는다.** 스팟 버블·핀은 PC 지도(admin.html `#map`)에도

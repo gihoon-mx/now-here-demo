@@ -451,6 +451,7 @@ function initSpotBubbleClass(){
     });
     this.div=wrap;this.bubbleEl=bubble;this.emojiEl=emoji;this.dotEl=dot;
     if(nhBounceTake(this.spot.id))wrap.classList.add('nh-pop-in'); // drop·post 로 지금 생긴 것 (v2.11)
+    if(typeof nhDimEl==='function')nhDimEl(wrap,this.spot.id); // dim 액션의 흐림 유지 (v2.21 — 재렌더가 DOM 을 새로 만든다)
     this._render();
     this.getPanes().overlayMouseTarget.appendChild(wrap);
   };
@@ -607,6 +608,7 @@ function initFeedThumbClass(){
     d.appendChild(im);
     if(nhBounceTake(this.item.id))d.classList.add('nh-pop-in'); // drop·postfeed 로 지금 생긴 것 (v2.11)
     this.div=d;this._paintHeat();
+    if(typeof nhDimFeed==='function')nhDimFeed(d,this.members); // dim 액션의 흐림 유지 (v2.21)
     if(n>1){ // 클러스터: 대표 사진 + 개수 뱃지, 탭=멤버 범위로 줌인(펼치기)
       d.classList.add('cluster');
       var b=document.createElement('span');b.className='fp-n';b.textContent=n;d.appendChild(b);
@@ -636,6 +638,7 @@ function initFeedThumbClass(){
     this.members=cluster.items;this.item=cluster.items[0].f;
     this.position=new google.maps.LatLng(cluster.pos.lat,cluster.pos.lng);
     if(!this.div)return;
+    if(typeof nhDimFeed==='function')nhDimFeed(this.div,this.members); // 멤버가 바뀌면 흐림도 다시 판정 (v2.21)
     var img=this.div.querySelector('img'); // getAttribute — .src 는 절대경로로 정규화돼 매번 달라 보인다
     if(img&&img.getAttribute('src')!==this.item.src)img.setAttribute('src',this.item.src);
     var b=this.div.querySelector('.fp-n');if(b)b.textContent=this.members.length;
@@ -1635,7 +1638,8 @@ var newsView=[]; // 현재 탭에 보이는 지면 카드 (관리자 지면 이�
 function feedSummaryItems(){ // 지역 컨텐츠 지면용: 현 위치 연관성 높은 피드 (스팟 메시지 제외 — 사진 컨텐츠만)
   var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());
   var clat=c?c.lat():null,clng=c?c.lng():null;
-  var arr=feedItems.filter(function(f){return !!f.src&&!f.hidden;}).map(function(f){
+  // nonews (v2.21): drop e:'keep' 으로 깐 카드 — 지도에는 있되 지면에는 안 얹는다.
+  var arr=feedItems.filter(function(f){return !!f.src&&!f.hidden&&!f.nonews;}).map(function(f){
     var pc=feedItemLatLng(f);
     var d=(pc&&clat!=null)?((pc.lat-clat)*(pc.lat-clat)+(pc.lng-clng)*(pc.lng-clng)):9e9;
     return {f:f,d:d,pc:pc};
@@ -1655,7 +1659,10 @@ function renderNews(){
   if(frame){frame.classList.remove('cv1','cv2','cv3');frame.classList.add('cv'+newsCardVer);}
   if(track){track.innerHTML='';newsView.forEach(function(it){
     var sl=document.createElement('div');sl.className='cp-slide'+(it.feed?' cp-feed':'');
-    if(typeof nhBounceTake==='function'&&nhBounceTake(it.id))sl.classList.add('nh-pop-in'); // drop 으로 지금 생긴 지면 (v2.11)
+    /* 등장 바운스는 **지면 카드(page)에만** 붙인다 (v2.21). 피드에서 파생된 카드(it.feed)까지
+       바운스 표를 떼면 ①지면 사진이 지도 핀과 같이 튀고 ②표(스팟·피드는 2장 — PC·폰 지도
+       몫)를 여기서 한 장 훔쳐 가서 정작 지도 핀 하나가 안 튀었다. 지도 위 컨텐츠만 튄다. */
+    if(!it.feed&&typeof nhBounceTake==='function'&&nhBounceTake(it.id))sl.classList.add('nh-pop-in'); // drop 으로 지금 생긴 지면 (v2.11)
     var im=document.createElement('img');im.src=it.src;im.alt='';sl.appendChild(im);
     var grad=document.createElement('div');grad.className='cps-grad';sl.appendChild(grad);
     var body=document.createElement('div');body.className='cps-body';
@@ -5082,6 +5089,50 @@ function nhBounceTake(id){
   if(--nhBounceIds[id]<=0)delete nhBounceIds[id];
   return true;
 }
+/* ── 투명도 연출 (v2.21, M16 이 채운다 — 콘솔 D117 · 액션 dim/undim) ──
+   dim 을 부른 **그 순간 깔려 있던** 지도 컨텐츠(스팟·피드 핀·Request·딜)의 id 를 적어 두고
+   그 오버레이만 흐린다 — 이후 뜨는 것은 표에 없어 제 불투명도로 온다("이 다음 것만 봐 달라").
+   렌더는 전부를 다시 만들므로(rebuildSpots…) 각 오버레이의 onAdd 가 이 표를 다시 본다
+   (바운스 표와 같은 구조). opacity 대신 filter 를 쓴다 — 핀들의 기존 opacity 전환(.fp-dot 등)과
+   섞이지 않는다. undim·nhReset 이 표를 비운다. */
+var nhDimIds=null,nhDimA=0.22;
+function nhDimEl(el,id){
+  if(!el)return;
+  el.style.filter=(nhDimIds&&nhDimIds[id])?('opacity('+nhDimA+')'):'';
+}
+/** 피드 핀은 클러스터가 있다 — 멤버 전부가 표에 있어야 흐린다 (하나라도 새 것이면 강조 대상). */
+function nhDimFeed(el,members){
+  if(!el)return;
+  var all=!!nhDimIds&&!!members&&members.length>0&&members.every(function(m){var f=m.f||m;return !!nhDimIds[f.id];});
+  el.style.filter=all?('opacity('+nhDimA+')'):'';
+}
+function nhDimApply(){
+  try{
+    (typeof spotOverlays!=='undefined'?spotOverlays:[])
+      .concat(typeof phoneSpotOverlays!=='undefined'?phoneSpotOverlays:[])
+      .forEach(function(o){if(o&&o.div&&o.spot)nhDimEl(o.div,o.spot.id);});
+    (typeof feedThumbOverlays!=='undefined'?feedThumbOverlays:[])
+      .concat(typeof phoneFeedThumbOverlays!=='undefined'?phoneFeedThumbOverlays:[])
+      .forEach(function(o){if(o&&o.div)nhDimFeed(o.div,o.members);});
+    (typeof reqMarkers!=='undefined'?reqMarkers:[]).forEach(function(o){if(o&&o.div&&o.rq)nhDimEl(o.div,o.rq.id);});
+    (typeof dealMarkers!=='undefined'?dealMarkers:[]).forEach(function(o){if(o&&o.div&&o.d)nhDimEl(o.div,o.d.id);});
+  }catch(e){}
+}
+function nhDim(v){
+  var n=parseFloat(String(v==null?'':v));
+  nhDimA=isFinite(n)?Math.min(0.8,Math.max(0.05,n/100)):0.22; // v = 남길 불투명도 % (5~80, 빈 값 22)
+  var ids={};
+  try{
+    (typeof spotMessages!=='undefined'?spotMessages:[]).forEach(function(s){if(s&&s.id)ids[s.id]=1;});
+    (typeof feedItems!=='undefined'?feedItems:[]).forEach(function(f){if(f&&f.id)ids[f.id]=1;});
+    (typeof fieldRequests!=='undefined'?fieldRequests:[]).forEach(function(r){if(r&&r.id)ids[r.id]=1;});
+    (typeof timeDeals!=='undefined'?timeDeals:[]).forEach(function(d){if(d&&d.id)ids[d.id]=1;});
+  }catch(e){}
+  nhDimIds=ids;
+  nhDimApply();
+  return true;
+}
+function nhUndim(){nhDimIds=null;nhDimApply();return true;}
 /* Request 전용 맵 핀: 현장에 질문 신호를 쏘는 특성 — 펄스 링 + ? 티어드롭 (말풍선 없음, 스팟/피드 핀과 구분) */
 function ReqPin(rq,m){this.rq=rq;this.position=new google.maps.LatLng(rq.lat,rq.lng);this.div=null;this.setMap(m);}
 function initReqPinClass(){
@@ -5102,6 +5153,7 @@ function initReqPinClass(){
        (rqw·nhReqIds)은 v2.3·v2.18 에 이미 적혀 있었는데 정작 끄는 손이 없어 죽어 있었다. */
     d.addEventListener('pointerdown',function(e){self._onDown(e);});
     if(nhBounceTake(this.rq.id))d.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
+    if(typeof nhDimEl==='function')nhDimEl(d,this.rq.id); // dim 액션의 흐림 유지 (v2.21)
     this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);
   };
   // 이동: 터치=롱프레스 후 드래그 / 마우스=즉시 (스팟 말풍선과 같은 문법)
@@ -5362,6 +5414,7 @@ function initDealPinClass(){
     // v2.15: 핀 탭=매장 전용 페이지. 쿠폰 시트는 그 페이지의 '타임딜 쿠폰받기'가 연다.
     el.addEventListener('click',function(e){e.stopPropagation();openStorePage(self.d.id);});
     if(nhBounceTake(this.d.id))el.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
+    if(typeof nhDimEl==='function')nhDimEl(el,this.d.id); // dim 액션의 흐림 유지 (v2.21)
     this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
   };
   DealPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
@@ -6863,7 +6916,7 @@ function nhPosNote(id,lat,lng){
 /* 이번 회차가 만든 것들 — 시나리오 seed 와 재생 중 쓴 글, 그리고 전역 카드에 남긴
    좋아요(v1.94 — 회차를 넘어 살아남으면 두 번째 재생에서 하트가 이미 차 있다).
    nhReset 이 전부 걷어낸다. */
-var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],deal:[],page:[]};
+var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],deal:[],page:[],zone:[]};
 /* 무대에서 받은 코인은 회차가 끝나면 돌려놓는다 (v2.19) — 잔액은 이 기기에 남는 값이라
    재생할 때마다 500 씩 쌓여서, 두 번째 회차의 프로필이 첫 회차와 다른 숫자로 시작했다.
    시연은 몇 번을 돌려도 같은 곳에서 시작해야 한다 (nhReset 의 규칙 그대로). */
@@ -6994,7 +7047,7 @@ function nhFocus(kind,i,token,ms){
    바로 넣지 않는 이유 — 시연에서 "이 사람이 쓰는 중" 이 보여야 한다. */
 /** write 로 쓴 글이 몇 번째인가 — 사람이 옮긴 자리를 기억하는 키다 (v2.12). */
 var nhWriteN=0;
-function nhWriteSpot(text,token,ms,emoji){
+function nhWriteSpot(text,token,ms,emoji,fast){
   if(typeof addSpotContent!=='function')return false;
   // **지도 중심에 기대지 않는다.** addSpotContent 는 중심이 없으면(투영 전·지도 오류)
   // 조용히 아무것도 안 한다 — 시연에서는 "글을 썼는데 아무 일도 없음" 으로 보인다.
@@ -7009,6 +7062,23 @@ function nhWriteSpot(text,token,ms,emoji){
   var ll=saved?new google.maps.LatLng(saved.lat,saved.lng)
     :(c?new google.maps.LatLng(c.lat+0.0012,c.lng+0.0012):ctr);
   if(!ll)return false;
+  /* fast (v2.21, 콘솔 D117) — 컴포저를 아예 안 연다. 컴포저의 textEl 은 onAdd(다음
+     프레임)에서 생겨서, 그 자리에서 commit() 하면 빈 글이 등록된다. 대신 컴포저의
+     commit 이 하는 일(비관리자 갈래)을 그대로 한다 — 조립 결과가 같아야 한다.
+     바운스도 안 붙인다: 조립 중에 깔린 것이 튀면 화면이 깜박인다. */
+  if(fast){
+    if(typeof demoSpots==='undefined')return false;
+    var spF={id:'sp_'+Date.now(),lat:ll.lat(),lng:ll.lng(),
+      text:String(text||'').slice(0,80),
+      emoji:String(emoji||'').slice(0,4)||currentSpotEmoji||'💬',
+      live:true,by:(typeof myUid==='function'?myUid():'anon'),
+      byEmail:(typeof myEmail==='function'?myEmail():'')};
+    demoSpots.push(spF);
+    nhTempIds.spot.push(spF.id);
+    nhWriteIds[spF.id]=wi;
+    if(typeof rebuildSpots==='function')rebuildSpots();
+    return true;
+  }
   addTargetMap=(typeof phoneMap!=='undefined')?phoneMap:null;
   addAtLatLng=ll;
   addSpotContent();
@@ -7067,7 +7137,7 @@ function nhWriteSpot(text,token,ms,emoji){
    "묻는 사람" 이 화면에 없었다. write 와 같은 문법으로 만든다: 지도를 꾹 누르는 링,
    컴포저 카드, 글자별 타이핑, 등록, 핀 등장 바운스까지가 한 장면이다. */
 var nhReqN=0;
-function nhRequestTyped(text,token,ms){
+function nhRequestTyped(text,token,ms,fast){
   if(typeof ReqComposer!=='function'||typeof google==='undefined')return false;
   if(typeof switchTab==='function')switchTab('map');
   var c=SEED_AREAS[nhAreaKey]||null;
@@ -7079,9 +7149,20 @@ function nhRequestTyped(text,token,ms){
   var ll=saved?new google.maps.LatLng(saved.lat,saved.lng)
     :(c?new google.maps.LatLng(c.lat-0.0012,c.lng+0.0016):ctr);
   if(!ll)return false;
+  var typed=String(text||'지금 여기 사람 많나요?').slice(0,120);
+  /* fast (v2.21) — 링·컴포저·타이핑을 접고 그 자리에서 등록한다 (write 의 fast 와 같은 이유). */
+  if(fast){
+    var rqF=null;
+    try{rqF=commitFieldRequest(ll,typed,{stage:true,quiet:true});}catch(e){}
+    if(!rqF)return false;
+    nhTempIds.req.push(rqF.id);
+    nhReqIds[rqF.id]=wi;
+    if(typeof renderRequestMarkers==='function')renderRequestMarkers();
+    if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+    return true;
+  }
   closeReqComposer();
   var ov=reqComposer=new ReqComposer(ll,(typeof phoneMap!=='undefined'&&phoneMap)||map,{press:true,auto:true,stage:true});
-  var typed=String(text||'지금 여기 사람 많나요?').slice(0,120);
   /* 커밋 바닥 1200: 롱프레스 링(560)이 차오른 뒤에야 타이핑 창이 열린다 —
      write 의 900 을 그대로 쓰면 링과 타이핑이 겹쳐 둘 다 안 보인다.
      단 **이 스텝 안에서는 반드시 커밋한다** (v2.19): nhRun 은 st.ms 뒤에 다음 스텝을
@@ -7124,8 +7205,16 @@ function nhRequestTyped(text,token,ms){
    남의 Request(mine:false)면 사용자가 답하는 장면 — 답장 칸이 이미 있고, 보내면
    answerRequest 가 코인을 적립한다. 내 Request 면 현장 유저가 답해 주는 장면 —
    팝업이 답장 칸을 안 그리므로(그 자리는 "내가 받은 답 목록") 여기서 한 줄을 만든다. */
-function nhAnswerTyped(rq,text,token,ms){
+function nhAnswerTyped(rq,text,token,ms,fast){
   if(!rq||typeof openContentPop!=='function'||typeof answerRequest!=='function')return false;
+  /* fast (v2.21) — 타이핑을 접고 답을 그 자리에서 싣는다. 팝업은 연다: 보통 재생도
+     이 스텝이 끝나면 답이 실린 팝업이 열려 있는 상태라, 조립 결과가 같아야 한다. */
+  if(fast){
+    answerRequest(rq.id,String(text||'지금은 여유 있어요').slice(0,120));
+    openContentPop('req',rq);
+    if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+    return true;
+  }
   openContentPop('req',rq);
   var body=document.getElementById('cpop-body');if(!body)return false;
   var row=body.querySelector('.cpr-reply');
@@ -7177,11 +7266,18 @@ function nhCouponMs(e){
   if(!isFinite(n)||n<0)return 4000;
   return Math.min(20000,Math.round(n*1000)); // 0 = 안 띄움 (claimDeal 이 판단)
 }
-function nhCoupon(i,say,e,token,ms){
+function nhCoupon(i,say,e,token,ms,fast){
   if(typeof claimDeal!=='function')return false;
   var d=nhPick('deal',i);
   if(!d)return false;
   if(typeof dealActive==='function'&&!dealActive(d))return false; // 끝난 딜의 쿠폰은 못 받는다 (v2.2 유령 방지)
+  /* fast (v2.21) — 시트도 리워드 문구도 없이 받기만 한다. 문구는 시간이 지나면 사라지는
+     연출이라 조립 결과에 안 남는다 — ms 0 은 claimDeal 이 "안 띄움" 으로 읽는 값이다. */
+  if(fast){
+    if(typeof closeDealSheet==='function')closeDealSheet();
+    claimDeal(d,{ms:0,say:say});
+    return true;
+  }
   if(typeof dealSheetId==='undefined'||dealSheetId!==d.id){
     if(typeof openDealSheet!=='function')return false;
     openDealSheet(d.id);
@@ -7222,10 +7318,16 @@ function nhChat(kind,say){
 }
 
 /* AI 에이전트: 실제 버튼을 눌러 패널을 열고, 프리셋 하나를 고른다. */
-function nhAi(token,ms){
+function nhAi(token,ms,fast){
   var btn=document.querySelector('#phone-mirror .pn-ai')||document.querySelector('.pn-ai');
   if(!btn)return false;
   btn.click();
+  /* fast (v2.21) — 한 박자 기다리지 않고 바로 프리셋을 고른다 (조립 결과는 같다). */
+  if(fast){
+    var itF=document.querySelector('#aip-list .aip-item');
+    if(itF)itF.click();
+    return true;
+  }
   setTimeout(function(){
     if(token!==nhRunToken)return;
     var item=document.querySelector('#aip-list .aip-item');
@@ -7378,7 +7480,7 @@ function nhAct(st,token){
         if(typeof closeContentPop==='function'){closeContentPop();did=true;}
         return did;}
       // 꾹 누르기 → 컴포저 → 타이핑 → 등록 — 묻는 손이 화면에 보인다 (v2.18).
-      if(st.a==='request')return nhRequestTyped(st.v||st.say,token,st.ms)!==false;
+      if(st.a==='request')return nhRequestTyped(st.v||st.say,token,st.ms,st.fast)!==false;
       if(st.a==='drawer'){if(typeof openPhoneDrawer!=='function')return false;
         openPhoneDrawer();return true;}
       if(st.a==='wait')return true; // 화면은 그대로 — 그것이 이 스텝의 전부다
@@ -7393,23 +7495,28 @@ function nhAct(st,token){
         return true;}
       if(st.a==='write'){if(typeof switchTab==='function')switchTab('map');
         // e = 이모지 (v2.12) — post 와 같은 자리, 같은 뜻이다.
-        return nhWriteSpot(st.v||st.say,token,st.ms,st.e)!==false;}
+        return nhWriteSpot(st.v||st.say,token,st.ms,st.e,st.fast)!==false;}
       if(st.a==='answer'){var rq=nhPick('req',st.i);
         if(!rq||typeof answerRequest!=='function')return false;
         // v2.12: 값만 꽂지 않고 **쓰이는 모습**을 보여준다 (write 와 같은 문법).
-        return nhAnswerTyped(rq,st.v||'지금 그렇게 안 붐벼요',token,st.ms)!==false;}
+        return nhAnswerTyped(rq,st.v||'지금 그렇게 안 붐벼요',token,st.ms,st.fast)!==false;}
       // 쿠폰 받기 (v2.20) — v=리워드 문구 · e=문구 표시 초('0'=안 띄움) · i=어느 딜
-      if(st.a==='coupon')return nhCoupon(st.i,st.v,st.e,token,st.ms)!==false;
+      if(st.a==='coupon')return nhCoupon(st.i,st.v,st.e,token,st.ms,st.fast)!==false;
       if(st.a==='chat')return nhChat(st.v,st.say&&st.v==='send'?st.say:(st.i?st.say:''))!==false;
-      if(st.a==='ai')return nhAi(token,st.ms)!==false;
+      if(st.a==='ai')return nhAi(token,st.ms,st.fast)!==false;
+      // 투명도 연출 (v2.21, 콘솔 D117) — 지금 깔린 지도 컨텐츠를 흐리게 / 원복.
+      // dim 이후에 뜨는 것은 제 불투명도로 온다 — "이 다음 것만 봐 달라" 는 연출이다.
+      if(st.a==='dim')return nhDim(st.v)!==false;
+      if(st.a==='undim')return nhUndim()!==false;
       if(st.a==='scope'){if(typeof switchTab==='function')switchTab('feed');
         return nhScope(st.v)!==false;}
       // ── v1.75 카메라 연출 ──
       // 자체 지도 조작을 만들지 않고 goMapCam(동결 앵커)만 부른다. **양쪽 지도를 같이 움직인다** —
       // 카메라는 PC → 폰 단방향 미러라 폰만 움직이면 다음 idle 이 되돌린다 (area 와 같은 이유).
-      if(st.a==='drop')return nhDrop(st.v,st.i)!==false;
-      if(st.a==='post')return nhPostSpot(st.v,st.e);
-      if(st.a==='postfeed')return nhPostFeed(st.v,st.e,st.n);
+      // e (v2.21): drop v:feed 만 본다 — 'keep' 이면 상단 지면에 카드를 얹지 않는다.
+      if(st.a==='drop')return nhDrop(st.v,st.i,st.e,st.fast)!==false;
+      if(st.a==='post')return nhPostSpot(st.v,st.e,st.fast);
+      if(st.a==='postfeed')return nhPostFeed(st.v,st.e,st.n,st.fast);
       if(st.a==='burst')return nhBurst(st.v,st.i,st.e,st.ms,token);
       if(st.a==='page')return nhPage(st.v);
       if(st.a==='zoom')return nhZoom(st.v)!==false;
@@ -7422,7 +7529,8 @@ function nhAct(st,token){
       return false; // 모르는 액션 — nhSanitize 가 걸렀어야 하지만, 오면 실패다
     }catch(e){console.warn('[M16] step fail',st,e);return false;}
   }
-  var tapEl=nhTouchTarget(st);
+  // fast 스텝은 표식도 박자도 없다 (v2.21) — 화면 조립이지 연출이 아니다.
+  var tapEl=st.fast?null:nhTouchTarget(st);
   if(tapEl){
     nhTouch(tapEl);
     setTimeout(function(){if(token!==nhRunToken)return;exec();},170);
@@ -7468,6 +7576,15 @@ function nhSweepTemp(){
     }
     if(nhTempIds.chat.length&&typeof socMsgs!=='undefined')
       nhTempIds.chat.forEach(function(k){delete socMsgs[k];});
+    /* 무대 트렌드 존을 걷는다 (v2.21) — 지도 폴리곤·라벨을 먼저 떼고 배열에서 뺀다.
+       폰 지도 오버레이는 syncPhoneZones 가 배열 기준으로 다시 만든다. */
+    if(nhTempIds.zone.length&&typeof trendZones!=='undefined'){
+      trendZones.filter(function(z){return nhTempIds.zone.indexOf(z.id)>=0;})
+        .forEach(function(z){if(typeof removeZoneFromMap==='function')try{removeZoneFromMap(z);}catch(e){}});
+      trendZones=trendZones.filter(function(z){return nhTempIds.zone.indexOf(z.id)<0;});
+      if(typeof syncPhoneZones==='function')syncPhoneZones();
+      if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+    }
     // 전역 시드 카드에 남긴 좋아요를 되돌린다 (v1.94) — 자기 seed 카드는 회차마다
     // 새 id 라 상관없지만, 전역 카드는 살아남아서 두 번째 재생부터 하트가 이미
     // 차 있었다 (toggleLike 는 토글이라 "채워지는" 장면이 "꺼지는" 장면이 된다).
@@ -7479,7 +7596,7 @@ function nhSweepTemp(){
       if(typeof renderFeedMarkers==='function')renderFeedMarkers();
     }
   }catch(e){console.warn('[M16] sweep',e);}
-  nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],deal:[],page:[]};
+  nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],deal:[],page:[],zone:[]};
 }
 
 /* 시나리오가 선언한 seed 를 깐다 — "이 시나리오가 성립하려면 화면에 무엇이 있어야 하나".
@@ -7497,7 +7614,8 @@ function nhSpread(c,i){
    동네를 채우는 자리가 됐다. */
 /* dealPhoto: 딜 하나의 매장 페이지 사진 그리드 상한 (v2.17) — 시안이 3열이라 9장이면
    세 줄로 꽉 찬다. 콘솔의 MAX_DEAL_PHOTOS 와 같은 값이다. */
-var NH_MAX={req:10,spot:40,feed:40,deal:10,page:12,dealPhoto:9};
+/* zone (v2.21): 무대 트렌드 존 상한 — 콘솔의 MAX_SEED_ZONES 와 같은 값. */
+var NH_MAX={req:10,spot:40,feed:40,deal:10,page:12,dealPhoto:9,zone:6};
 /* 자리 대역 (v2.10) — `nhSpread` 는 번호 하나로 자리를 정하므로, 종류가 겹치지 않게
    하는 유일한 길이 대역이다. 상한이 10 이던 시절에는 10 칸(스팟 10+i · 피드 20+i)이면
    충분했지만 40 이 되면 다른 종류가 **같은 자리에** 깔린다. 종류마다 100 칸을 준다:
@@ -7651,6 +7769,38 @@ function nhLayNews(p,i,c,stamp){
   nhTempIds.page.push(id);
   return id;
 }
+/* 무대에 트렌드 존 하나 (v2.21, 콘솔 D117) — 이름·설명·사진·색·온도를 시나리오가 정한다.
+   기하는 앱이 만든다: 지역 좌표 둘레의 결정적 자리에 헥사 클러스터(r:1=7칸 · r:2=19칸)를
+   편다 — 사람이 관리자 화면에서 셀을 골라 그리는 존과 같은 모양(trendZones 항목)이라,
+   드로어 카드·존 리스트·온도(heatTOf 의 존 온도)·포커스가 전부 그대로 동작한다.
+   **트렌드 모드에서만 보인다** (renderZoneOnMap/syncPhoneZones 의 기존 게이트).
+   saveZonesToStorage 는 부르지 않는다 — 무대는 회차가 깔았다 걷는 것이다 (nhSweepTemp). */
+var NH_ZONE_COLORS=['#e23b2a','#f2862e','#f2c53d','#9dc64c','#1428A0'];
+function nhLayZone(z,i,c,stamp){
+  if(typeof trendZones==='undefined'||typeof getHexGridParams!=='function')return null;
+  var id='tzn_'+stamp+'_'+i;
+  // 자리: 지역 중심 둘레 황금각 — 컨텐츠 핀 대역(nhSpread ~0.002)보다 넓게 편다 (존은 면이다).
+  var a=i*2.399963+0.9,dd=0.006+0.004*(i%3);
+  var ctr={lat:c.lat+dd*Math.cos(a),lng:c.lng+dd*Math.sin(a)*1.25};
+  var gp=getHexGridParams(hexRadiusKm),x=gp.colSpacing,y=gp.rowSpacing;
+  var offs=[[0,0],[0,y],[0,-y],[x,y/2],[x,-y/2],[-x,y/2],[-x,-y/2]];
+  if(z.r===2)offs=offs.concat([[0,2*y],[0,-2*y],[x,1.5*y],[x,-1.5*y],[-x,1.5*y],[-x,-1.5*y],
+    [2*x,0],[2*x,y],[2*x,-y],[-2*x,0],[-2*x,y],[-2*x,-y]]);
+  var centers=offs.map(function(o){return {lat:ctr.lat+o[1],lng:ctr.lng+o[0]};});
+  var zone={id:id,name:String(z.name||'').slice(0,20),
+    color:z.color||NH_ZONE_COLORS[i%NH_ZONE_COLORS.length],
+    fillA:null,desc:String(z.desc||'').slice(0,80),
+    temp:(z.temp!=null?z.temp:null),
+    photo:z.img||null,radiusKm:hexRadiusKm,
+    hexCenters:centers,
+    originalCenters:JSON.parse(JSON.stringify(centers)),
+    originalRadiusKm:hexRadiusKm,
+    polygons:[],label:null,stage:true};
+  trendZones.push(zone);
+  nhTempIds.zone.push(id);
+  return id;
+}
+
 /* 상단 지면을 한 칸 옆으로 (v2.2, 콘솔 D90 · 액션 `page`).
    스와이프가 쓰는 .28s 전환을 그대로 타므로 미끄러지는 그림이 공짜로 나온다.
 
@@ -7686,25 +7836,25 @@ function nhPage(v){
    함수**(nhLaySpot)를 쓴다 — 뒤늦게 뜬 글만 모양이나 정리 대상이 달라지면 안 된다. */
 var nhPostN=0;
 function nhPostCenter(){return nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangnam;}
-function nhPostSpot(v,e){
+function nhPostSpot(v,e,fast){
   var t=String(v||'').slice(0,80);if(!t)return false;
   // NH_POST_FROM 에서 세는 이유: 무대가 미리 깐 것(0~)과 자리가 겹치지 않게 한다.
   var id=nhLaySpot({t:t,emoji:String(e||'').slice(0,4)||'💬'},NH_POST_FROM+(nhPostN++),
                    nhPostCenter(),nhHeld.stamp||Date.now());
   if(!id)return false;
-  nhBounceMark(id,2); // "방금 올라온 글" 은 뿅 하고 나타난다 (v2.11 — PC·폰 두 지도)
+  if(!fast)nhBounceMark(id,2); // "방금 올라온 글" 은 뿅 하고 나타난다 (v2.11 — PC·폰 두 지도)
   if(typeof rebuildSpots==='function')rebuildSpots();
   return true;
 }
 /* 남이 방금 올린 **피드 카드** (v2.1). post 와 같은 이유로 있다 — 무대에 적고 hold 를
    켜고 번호를 맞추는 세 손을 없앤다. 사진은 seedImg(테마 색 + 라벨)로 그려서 외부
    이미지에 기대지 않는다(nhLayFeed 안). e = 테마, n = 올린 사람. */
-function nhPostFeed(v,e,n){
+function nhPostFeed(v,e,n,fast){
   var d=String(v||'').slice(0,120);if(!d)return false;
   var id=nhLayFeed({desc:d,label:d,theme:String(e||'')||'cafe',name:String(n||'')||'동네주민'},
                    NH_POST_FROM+(nhPostN++),nhPostCenter(),nhHeld.stamp||Date.now());
   if(!id)return false;
-  nhBounceMark(id,2); // "방금 올라온 카드" 는 뿅 하고 나타난다 (v2.11 — PC·폰 두 지도)
+  if(!fast)nhBounceMark(id,2); // "방금 올라온 카드" 는 뿅 하고 나타난다 (v2.11 — PC·폰 두 지도)
   if(typeof renderFeed==='function')renderFeed();
   if(typeof renderFeedMarkers==='function')renderFeedMarkers();
   if(typeof renderNews==='function')renderNews(); // 지도 탭 상단 지면에도 실린다 (v2.10)
@@ -7887,6 +8037,14 @@ function nhSeedScenario(sc,token){
     if(p&&p.hold){nhHeld.page.push({v:p,i:i});return;}
     nhLayNews(p,i,c,stamp);
   });
+  /* 무대 트렌드 존 (v2.21) — hold 가 없다: 존은 면이라 "뿅 하고 뜨는" 연출 대상이 아니고,
+     mode:trend 로 넘어가는 순간 기존 게이트가 한꺼번에 그린다. */
+  var zoneN=(sc.seed.zones||[]).slice(0,NH_MAX.zone);
+  zoneN.forEach(function(z,i){nhLayZone(z,i,c,stamp);});
+  if(zoneN.length){
+    if(typeof rerenderZones==='function')rerenderZones(); // 트렌드 모드였다면 즉시, 아니면 전환 때 그려진다
+    if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+  }
   if(typeof rebuildSpots==='function')rebuildSpots();
   if(typeof renderRequestMarkers==='function')renderRequestMarkers();
   if((sc.seed.feeds||[]).length){
@@ -7906,7 +8064,7 @@ function nhSeedScenario(sc,token){
    무대에 미리 깔지 않고 그 단계에서 화면에 나타나야 한다.
    못 깔면 false 를 돌려준다 — 콘솔이 그 단계를 "화면이 따라오지 못함" 으로 표시한다.
    조용히 성공으로 넘기면 자막만 흐르고 아무 일도 안 일어난 채 시연이 끝난다. */
-function nhDrop(v,i){
+function nhDrop(v,i,e,fast){
   /* 모르는 종류를 spot 으로 떨어뜨리지 않는다 (v2.2) — 전에는 삼항의 else 가 spot 이라
      `drop:deal` 이 조용히 스팟을 집었다. 아는 것만 받고 나머지는 실패다. */
   var kind=(v==='feed'||v==='req'||v==='deal'||v==='page')?v:(v==='spot'?'spot':'');
@@ -7916,25 +8074,34 @@ function nhDrop(v,i){
   var item=list.splice(n,1)[0]; // 한 번 깐 것은 다시 깔지 않는다
   var c=nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangnam;
   /* 지금 깐 것의 id — 등장 바운스 표시용 (v2.11). 렌더 **전에** 적어야 onAdd 가 본다.
-     두 번째 인자는 그 종류를 그리는 지도 수다 (스팟·피드는 PC+폰 둘, 나머지는 폰 하나). */
+     두 번째 인자는 그 종류를 그리는 지도 수다 (스팟·피드는 PC+폰 둘, 나머지는 폰 하나).
+     fast(v2.21)면 바운스를 안 붙인다 — 화면 조립이지 연출이 아니다. */
   var laid;
   if(kind==='spot'){
     laid=nhLaySpot(item.v,item.i,c,nhHeld.stamp);
-    if(!laid)return false;nhBounceMark(laid,2);
+    if(!laid)return false;if(!fast)nhBounceMark(laid,2);
     if(typeof rebuildSpots==='function')rebuildSpots();
   }else if(kind==='feed'){
     laid=nhLayFeed(item.v,item.i,c,nhHeld.stamp);
-    if(!laid)return false;nhBounceMark(laid,2);
+    if(!laid)return false;
+    /* e:'keep' (v2.21, 콘솔 D117) — 이 카드는 **상단 지면에 얹지 않는다.** 지면은
+       feedSummaryItems 가 사진 있는 가까운 피드를 매 렌더마다 다시 고르므로, 한 번
+       건너뛰는 것으로는 안 되고 항목 자체에 표시가 남아야 한다 (nonews). */
+    if(String(e||'')==='keep'&&typeof feedItems!=='undefined'){
+      var fKeep=feedItems.find(function(x){return x.id===laid;});
+      if(fKeep)fKeep.nonews=true;
+    }
+    if(!fast)nhBounceMark(laid,2);
     if(typeof renderFeed==='function')renderFeed();
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();
     if(typeof renderNews==='function')renderNews(); // 지도 탭 상단 지면에도 실린다 (v2.10)
   }else if(kind==='deal'){
     laid=nhLayDeal(item.v,item.i,c,nhHeld.stamp);
-    if(!laid)return false;nhBounceMark(laid,1);
+    if(!laid)return false;if(!fast)nhBounceMark(laid,1);
     if(typeof renderDealMarkers==='function')renderDealMarkers();
   }else if(kind==='req'){
     laid=nhLayReq(item.v,item.i,c,nhHeld.stamp,nhHeld.token);
-    if(!laid)return false;nhBounceMark(laid,1);
+    if(!laid)return false;if(!fast)nhBounceMark(laid,1);
     if(typeof renderRequestMarkers==='function')renderRequestMarkers();
     if(typeof renderDrawerDemo==='function')renderDrawerDemo();
     /* 남의 Request 가 지금 도착했다 — 하단 AI Agent 카드가 그 소식을 말한다 (v2.18).
@@ -7944,7 +8111,7 @@ function nhDrop(v,i){
     if(drq&&!isMyReq(drq)&&typeof showReqBubble==='function')showReqBubble(drq,true);
   }else if(kind==='page'){
     laid=nhLayNews(item.v,item.i,c,nhHeld.stamp);
-    if(!laid)return false;nhBounceMark(laid,1);
+    if(!laid)return false;if(!fast)nhBounceMark(laid,1);
     if(typeof renderNews==='function')renderNews();
   }else{
     return false;
@@ -7956,6 +8123,7 @@ function nhReset(){
   try{
     nhSweepTemp();
     nhCoinsRestore(); // 이 회차가 적립한 코인도 되돌린다 (v2.19)
+    if(typeof nhUndim==='function')nhUndim(); // dim 액션의 흐림도 회차와 함께 걷는다 (v2.21)
     /* 빈 무대는 **매 회차 처음부터 빈다** (v2.12, 콘솔 D95). nhSweepTemp 는 이번 회차가
        만든 것(nhTempIds)만 걷으므로, 다른 경로로 새어 들어온 것은 걷을 사람이 없었다 —
        "컨텐츠 탭에 없는 타임딜이 뜨고 안 사라진다" 가 그 자리다. */
@@ -7999,6 +8167,7 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'post','postfeed', // v2.0/v2.1: 남이 방금 올린 글·피드 카드 — 무대 없이 그 자리에서 만든다
   'burst', // v2.11: 엔딩 연출 — 줌아웃하며 컨텐츠가 쏟아진다 (v=종류·i=개수·e=줌·ms=시간)
   'coupon', // v2.20: 타임딜 쿠폰을 받는다 (v=리워드 문구·e=문구 표시 초·i=어느 딜)
+  'dim','undim', // v2.21: 깔린 지도 컨텐츠를 흐리게/원복 — 이후 뜨는 것만 강조하는 연출 (v=남길 불투명도 %)
   'page']; // v2.2: 상단 지면을 옆으로 넘긴다
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
@@ -8047,6 +8216,10 @@ function nhSanitize(raw){
       say:String(s.say||'').slice(0,300),
       // e = 이모지(post) 또는 테마(postfeed) · n = 올린 사람 이름 (v2.1). 옛 콘솔은 안 보낸다.
       e:String(s.e||'').slice(0,12),n:String(s.n||'').slice(0,20),
+      /* fast (v2.21, 콘솔 D117) — 콘솔의 "이 단계만 보기" 가 앞 단계를 화면 조립용으로
+         지나갈 때 붙인다. 연출(터치 표식·타이핑·바운스)을 접고 **그 자리에서 커밋**한다 —
+         ms 바닥을 기다리지 않아도 사슬(i:-1)이 안 끊긴다. 옛 콘솔은 안 보낸다. */
+      fast:!!s.fast,
       concern:!!s.concern,key:!!s.key,
       /* 상·하한 (시연이 멈춰 보이지 않게). **하한은 50 이다** — 400 이었는데, 콘솔의
          "이 단계 화면 보기" 가 앞 단계를 빨리 감아 지나가는 데 그 바닥이 곧 대기시간이라
@@ -8112,8 +8285,19 @@ function nhSanitize(raw){
         img:nhImgSrc(p.img), // v2.4: 사람이 올린 사진 (https/data 만 — 없으면 테마 색으로 그린다)
         hold:!!p.hold};
     });
-    if(reqs.length||sps.length||fds.length||dls.length||pgs.length)
-      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs};
+    /* 무대 트렌드 존 (v2.21, 콘솔 D117) — 이름은 필수, 색은 #rrggbb 만, r 은 1(7칸)·2(19칸).
+       상한·자르기는 콘솔의 toSeed 와 같은 값이어야 한다. */
+    var zns=(Array.isArray(rs.zones)?rs.zones:[]).slice(0,NH_MAX.zone).map(function(z){
+      z=z||{};
+      return {name:String(z.name||'').slice(0,20),
+        desc:String(z.desc||'').slice(0,80),
+        color:(/^#[0-9a-f]{6}$/i.test(String(z.color||''))?String(z.color):''),
+        img:nhImgSrc(z.img),
+        temp:nhTemp(z.temp),
+        r:((z.r|0)===2?2:1)};
+    }).filter(function(z){return z.name;});
+    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length)
+      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns};
   }
   /* 사람이 옮긴 자리 (v2.20) — 콘솔이 들고 있다가 재생마다 실어 보낸다. 여태 이 값은
      localStorage 뿐이라 **다른 PC 에서는 없는 값**이었다(같은 데모인데 자리가 달랐다).

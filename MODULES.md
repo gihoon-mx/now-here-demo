@@ -116,7 +116,8 @@ additive 필드라 옛 콘솔은 무시하고, 옛 앱(필드 없음)을 새 콘
 
 **시나리오별 무대** (v1.72): 시나리오는 `seed` 로 자기 화면을 깐다 —
 `{reqs:[{q,answer,answerIn,mine}] , spots:[{t,emoji}] , feeds:[{theme,label,desc,name,img}] ,
-deals:[…] , pages:[…]}`. **깐 것이 하나라도 있으면 `pop`·`like` 는 그 안에서만 고른다**(`nhOwn`).
+deals:[…] , pages:[…] , zones:[{name,desc,img,color,temp,r}]}` (`zones` 는 v2.21 — 무대
+트렌드 존, 최대 6. 기하는 앱이 결정적으로 편다 · `r` 1=7칸 · 2=19칸 · 트렌드 모드에서만 보인다). **깐 것이 하나라도 있으면 `pop`·`like` 는 그 안에서만 고른다**(`nhOwn`).
 `reqs[].mine:false` (v2.18) = **남이 올린 Request** — 팝업이 답장 칸을 그리고 `answer` 가
 "사용자가 답하는" 장면이 되어 🪙 코인이 적립되며, `drop v:req` 로 띄우면 하단 AI Agent
 수신 카드도 같이 뜬다. 키가 없으면 여태처럼 내 Request(답이 도착하는 쪽)다.
@@ -181,8 +182,10 @@ deals:[…] , pages:[…]}`. **깐 것이 하나라도 있으면 `pop`·`like` �
 - 명령은 `EMBED_ORIGINS` 에 있는 오리진에서 온 것만 받는다. 새 콘솔 주소가 생기면 여기에 추가.
 - 시나리오 추가는 `NH_SCENARIOS` 에 항목을 넣는 것으로 끝난다. 스텝의 `a` 는
   `tab·mode·pop·popclose·request·drawer·wait·area·like·write·answer·chat·ai·scope·scroll·
-  zoom·focus·drop·post·postfeed·page`(v2.2, `page` 신설) 뿐이고, **새 액션을 만들 때도
-  기존 앵커만 부른다.** `pop`·`focus`(`nhPick`/`nhStore` 경유)·`drop` 은 이제 `v:'deal'` 도
+  zoom·focus·drop·post·postfeed·burst·coupon·dim·undim·page`(v2.21, `dim`/`undim` 신설 —
+  깔린 지도 컨텐츠를 흐리게/원복, v=남길 불투명도 %) 뿐이고, **새 액션을 만들 때도
+  기존 앵커만 부른다.** 스텝의 `fast:true`(v2.21, additive)는 연출을 접고 그 자리에서
+  커밋한다 — 콘솔 "이 단계만 보기" 의 조립 구간이 쓴다. `pop`·`focus`(`nhPick`/`nhStore` 경유)·`drop` 은 이제 `v:'deal'` 도
   받는다 — 딜은 `#content-pop` 이 아니라 `#deal-sheet` 라 `pop`/`popclose` 안에서 따로 갈린다.
   `drop` 은 `v:'page'` 도 받아 보관해 둔 지면 카드를 하나 깐다(모르는 종류는 더 이상 `spot`
   으로 새지 않는다 — v2.2 전에는 삼항의 else 가 `spot` 이라 `drop:deal` 같은 것이 조용히
@@ -223,6 +226,14 @@ deals:[…] , pages:[…]}`. **깐 것이 하나라도 있으면 `pop`·`like` �
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-12 M16+M08+M03: v2.21.0 — **dim/undim 액션 · fast 스텝 · 무대 트렌드 존 · 드랍의 지면 옵션 · 지면 바운스 제외 · AI 버튼 사선 흐름** (콘솔 v0.94.0 과 짝, 사용자 요청 7건 중 앱 몫).
+  ① **M16 `dim`/`undim` 액션 신설** (어휘 3중 동기화: 앱 `NH_ACTIONS` · 콘솔 `PLAY_ACTIONS` · 프롬프트 `ACTION_LIST`) — `dim`(v=남길 불투명도 %, 5~80 · 빈 값 22)이 **그 순간 깔려 있던** 지도 컨텐츠(스팟·피드 핀·Request·딜)의 id 를 `nhDimIds` 에 적고 그 오버레이만 `filter:opacity()` 로 흐린다. 이후 뜨는 것은 표에 없어 제 불투명도 — "이 다음 것만 봐 달라". 렌더가 DOM 을 새로 만들므로 각 오버레이 `onAdd` 가 표를 다시 본다(바운스 표와 같은 구조, 클러스터는 멤버 전원이 표에 있을 때만). `undim`·`nhReset` 이 되돌린다.
+  ② **M16 스텝 `fast:true`** (additive) — 연출(터치 표식·타이핑·바운스·시트)을 접고 **그 자리에서 동기 커밋**한다(write 는 컴포저 없이 직접 — 컴포저 textEl 은 onAdd 다음 프레임에 생겨 그 자리 commit 이 빈 글을 등록한다). 콘솔의 "단계 클릭 = 그 단계만 재생" 이 앞 단계를 60ms 로 조립하는 길 — 여태는 write 1.7초·request 2.1초 바닥 때문에 앞 단계들이 눈앞에서 순차 재생됐다.
+  ③ **M16+M03 무대 트렌드 존** — `seed.zones`(최대 `NH_MAX.zone` 6, 이름 필수 · 설명 80자 · 사진 `img` · 색 `#rrggbb` · 온도 · `r` 1=7칸·2=19칸). `nhLayZone` 이 지역 둘레 결정적 자리에 헥사 클러스터를 펴 `trendZones` 에 넣는다 — 드로어 카드·존 리스트·온도(`heatTOf`)·포커스가 전부 기존 게이트로 동작하고, 트렌드 모드에서만 그려진다. `nhSweepTemp` 가 회차마다 걷는다. 색을 안 주면 `NH_ZONE_COLORS`(온도 팔레트+블루)에서 순번으로.
+  ④ **M16 `drop v:feed` 에 `e`** — `'keep'` 이면 그 카드를 **상단 지면에 얹지 않는다**(`feedItems[].nonews`, `feedSummaryItems` 가 거른다). 지면은 매 렌더마다 다시 고르므로 항목에 표시가 남아야 한다. 빈 값 = 여태처럼 지면에도 실린다.
+  ⑤ **M16 지면의 피드 파생 카드는 등장 바운스를 안 탄다** — `renderNews` 가 `it.feed` 카드에서도 바운스 표를 떼 가서 ①상단 지면 사진이 지도 핀과 **같이 튀고** ②표 2장(PC·폰 지도 몫)에서 한 장을 훔쳐 지도 핀 하나가 안 튀었다. 이제 지면 카드(`page` 드랍)만 튄다 — 지도 위 컨텐츠만 바운스.
+  ⑥ **M08 트렌드 AI 버튼 = 붉은 두 색 사선 흐름** — v2.15 의 렌즈 무지개(`aiLensRainbow`)·발광(`aiShadeGlow`)을 걷었다(색이 계속 바뀌어 산만하다는 피드백). 선글라스는 **정지한 다크 렌즈**로 남고, 배경이 온도 팔레트 붉은 두 색(`#f2862e`·`#e23b2a`)의 115° 사선 흐름(`aiHeatFlow` 5s)이 된다. ⚠️ new·v3 스킨이 `.pn-ai` 배경을 축약형으로 덮으므로 **스킨 두 벌에도 흐름 배경을 재선언**했다 (v2.15 가 "재선언 삭제" 로 뒤집었던 자리를 다시 뒤집은 것 — 이번엔 배경이 곧 트렌드 구분이라 필수다).
+  검증(로컬 :8765, `?embed=1&clean=1`): nhSanitize 가 fast·e:keep·zones 를 통과시키고 빈 이름·엉터리 색을 버림 · fast write/request 가 스텝 안에서 동기 커밋(demoSpots·fieldRequests 즉시 증가) · dim 5건 표시→drop 항목은 제외→undim 원복 · drop e:keep 이 nonews 를 남기고 feedSummaryItems 가 거름 · 존 3개(7·19·7칸, 지정 색/온도·자동 색) 깔리고 nhReset 이 전부 걷음 · 2회차 동일 · v3 스킨 트렌드에서 두 색 그라디언트+aiHeatFlow, 베이직 원상, 렌즈/선글라스 애니 없음 · 콘솔 에러 0.
 - 2026-08-12 M17+M07+M16: v2.20.0 — **딜을 어떻게 열지 단계가 정한다 · 쿠폰 받기 액션 · Request 핀이 똑바로 서고 끌린다 · 옮긴 자리가 PC 를 넘는다** (콘솔 v0.93.0 과 짝, 사용자 요청 5건).
   ① **M16+M17 `pop v:deal` 에 `e` 가 붙는다** — `'sheet'` 면 쿠폰 시트, 빈 값·`'page'` 면 매장 전용 페이지(v2.15 기본 그대로). 같은 딜이라도 매장을 소개하는 장면과 쿠폰을 받는 장면은 화면이 달라야 한다.
   ② **M17+M16 `coupon` 액션 신설** — 시트의 '쿠폰 받기' 를 실제로 누르는 장면(터치 표식 → 한 박자 → 받기). 리워드 문구는 **따로 정한다**: `v`=문구 · `e`=표시 초(`'0'` 이면 안 띄운다). 받는 일과 말하는 일을 갈라 놔야 "쿠폰만 받고 말은 다음 장면이" 같은 연출이 된다. 시트의 `alert()` 도 함께 걷었다(`claimDeal`) — 그 창은 **자바스크립트를 멈춰** 재생이 그 자리에 섰다(v2.18 의 `prompt()` 와 같은 이유).
