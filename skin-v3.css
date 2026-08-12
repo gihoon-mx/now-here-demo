@@ -759,33 +759,33 @@ body[data-skin="v3"] .ov-panel .ov-tour{color:var(--v3-ink2);font-weight:700;}
    링 색과 온도는 `makeZoneCard` 가 `--zone-c`·`data-temp` 로 실어 보낸다.
    시안의 `Hot Rising`/`Mission` 배지 자리에는 **실제로 있는 값(°C)** 을 넣는다 —
    등급 라벨은 이 앱에 데이터가 없다(v1.81 교훈). */
-body[data-skin="v3"] #cp-zones:not(.list) .tz-scroll{gap:3.1cqw;align-items:flex-start;}
-body[data-skin="v3"] #cp-zones:not(.list) .tz-card{
+body[data-skin="v3"] #cp-zones:not(.list):not(.page) .tz-scroll{gap:3.1cqw;align-items:flex-start;}
+body[data-skin="v3"] #cp-zones:not(.list):not(.page) .tz-card{
   width:26.5cqw;height:26.5cqw;flex:none;
   border-radius:50%;overflow:visible;
   border:.9cqw solid var(--zone-c,#F4A15C);
   background:transparent;box-shadow:none;padding:0;
   position:relative;
 }
-body[data-skin="v3"] #cp-zones:not(.list) .tz-card .tz-photo{
+body[data-skin="v3"] #cp-zones:not(.list):not(.page) .tz-card .tz-photo{
   position:absolute;inset:0;width:100%;height:100%;
   border-radius:50%;object-fit:cover;
   filter:brightness(.82);
 }
 /* 이름은 사진 위 흰 글씨 한가운데 — 시안의 서클은 캡션이 아니라 **이름이 곧 얼굴**이다 */
-body[data-skin="v3"] #cp-zones:not(.list) .tz-card .tz-bubble{
+body[data-skin="v3"] #cp-zones:not(.list):not(.page) .tz-card .tz-bubble{
   position:absolute;inset:0;z-index:1;
   display:flex;align-items:center;justify-content:center;
   background:none;backdrop-filter:none;-webkit-backdrop-filter:none;
   border:none;box-shadow:none;padding:0;
 }
-body[data-skin="v3"] #cp-zones:not(.list) .tz-card .tz-bubble b{
+body[data-skin="v3"] #cp-zones:not(.list):not(.page) .tz-card .tz-bubble b{
   font-size:5.1cqw;font-weight:800;letter-spacing:-.03em;
   color:rgba(255,255,255,.96);text-shadow:0 1px 6px rgba(0,0,0,.45);
 }
-body[data-skin="v3"] #cp-zones:not(.list) .tz-card .tz-bubble i{display:none;}
+body[data-skin="v3"] #cp-zones:not(.list):not(.page) .tz-card .tz-bubble i{display:none;}
 /* 온도 배지 — 서클 하단 중앙, 링과 같은 색 */
-body[data-skin="v3"] #cp-zones:not(.list) .tz-card[data-temp]::after{
+body[data-skin="v3"] #cp-zones:not(.list):not(.page) .tz-card[data-temp]::after{
   content:attr(data-temp);
   position:absolute;left:50%;bottom:-1.5cqw;transform:translateX(-50%);
   padding:.8cqw 2.6cqw;border-radius:9999px;
@@ -793,8 +793,8 @@ body[data-skin="v3"] #cp-zones:not(.list) .tz-card[data-temp]::after{
   font-size:2.6cqw;font-weight:800;white-space:nowrap;
   box-shadow:0 .5cqw 2cqw rgba(0,0,0,.18);
 }
-body[data-skin="v3"] #cp-zones:not(.list) .tz-card.focus{box-shadow:0 0 0 .8cqw rgba(232,87,74,.28);}
-body[data-skin="v3"] #cp-zones:not(.list) .tz-card .tzf-check{top:-.5cqw;right:-.5cqw;}
+body[data-skin="v3"] #cp-zones:not(.list):not(.page) .tz-card.focus{box-shadow:0 0 0 .8cqw rgba(232,87,74,.28);}
+body[data-skin="v3"] #cp-zones:not(.list):not(.page) .tz-card .tzf-check{top:-.5cqw;right:-.5cqw;}
 
 /* ── Our/My Talk (v1.91) ── 세그먼트는 회색 트랙 위 검정 알약, 방 카드는 흰 카드 */
 body[data-skin="v3"] .soc-tabs{

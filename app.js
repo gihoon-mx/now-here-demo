@@ -1593,7 +1593,7 @@ function initContentPage(){
   // 이미지 링크(URL)로 추가 — URL만 저장(저장부담 거의 0)
   var zcs=document.getElementById('zone-card-style');
   if(zcs){zcs.value=zoneCardStyle;zcs.addEventListener('change',function(){
-    zoneCardStyle=this.value==='list'?'list':'glass';
+    zoneCardStyle=(ZONE_CARD_STYLES.indexOf(this.value)>=0)?this.value:'glass';
     try{localStorage.setItem('nowhere_zonecard',zoneCardStyle);}catch(e){}
     renderDrawerDemo();renderSummaryZones();markCloudDirty();
   });}
@@ -2030,7 +2030,7 @@ function renderSummaryZones(){
   var col=document.getElementById('sum-collapse');if(col)col.style.display=show?'none':''; // 존 요약은 접기 없음
   if(!show){box.innerHTML='';return;}
   box.innerHTML='';
-  box.className='cp-zones'+(zoneCardStyle==='list'?' list':'');
+  box.className='cp-zones'+(zoneCardStyle==='list'?' list':(zoneCardStyle==='page'?' page':''));
   if(!trendZones.length){var e=document.createElement('div');e.className='cpz-empty';e.textContent='등록된 트렌드 존이 없어요.';box.appendChild(e);return;}
   box.appendChild(buildZoneScroll());
 }
@@ -4407,8 +4407,13 @@ function toggleLike(id){ // 더블탭 좋아요 (계정당 1개 토글)
   try{localStorage.setItem('nowhere_likes',JSON.stringify(feedLikes));}catch(e){}
   return L;
 }
-var zoneCardStyle='glass'; // 'glass'=글래스 캡션 · 'list'=리스트(하트합산·거리)
-try{var _zc=localStorage.getItem('nowhere_zonecard');if(_zc==='glass'||_zc==='list')zoneCardStyle=_zc;}catch(e){}
+/* 존 목록 카드 모양 (v2.26 에 'page' 추가):
+   'glass'=글래스 캡션 — **스킨이 재해석한다**(v3 는 원형 서클) · 'list'=리스트(하트합산·거리)
+   'page'=**지면형** — 상단 지면 3번과 같은 문법이다(사진이 카드를 꽉 채우고 이름이 유리 캡션).
+   지면형은 스킨의 재해석을 안 탄다: 어느 스킨에서도 같은 모양이라 시연이 고를 수 있는 값이다. */
+var ZONE_CARD_STYLES=['glass','list','page'];
+var zoneCardStyle='glass';
+try{var _zc=localStorage.getItem('nowhere_zonecard');if(ZONE_CARD_STYLES.indexOf(_zc)>=0)zoneCardStyle=_zc;}catch(e){}
 function haversineM(la1,ln1,la2,ln2){ // 직선거리(m)
   var R=6371000,d2r=Math.PI/180;
   var dla=(la2-la1)*d2r,dln=(ln2-ln1)*d2r;
@@ -7098,6 +7103,27 @@ var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],deal:[],page:[],zone:[]};
 /* 무대에서 받은 코인은 회차가 끝나면 돌려놓는다 (v2.19) — 잔액은 이 기기에 남는 값이라
    재생할 때마다 500 씩 쌓여서, 두 번째 회차의 프로필이 첫 회차와 다른 숫자로 시작했다.
    시연은 몇 번을 돌려도 같은 곳에서 시작해야 한다 (nhReset 의 규칙 그대로). */
+/* 회차가 고른 존 카드 모양 (v2.26) — 코인·소리와 같은 규칙이다: **되돌릴 값을 적어 두고**
+   회차가 끝나면(nhReset) 원래대로 돌린다. 시연이 이 기기의 관리자 설정을 영구히 바꾸면 안 된다.
+   저장(localStorage)은 안 건드린다 — 화면에 걸리는 값만 바꾼다. */
+var nhZoneCard0=null;
+function nhZoneCardSet(v){
+  var want=String(v||'');
+  if(!want||typeof ZONE_CARD_STYLES==='undefined'||ZONE_CARD_STYLES.indexOf(want)<0)return;
+  if(nhZoneCard0===null)nhZoneCard0=zoneCardStyle;
+  if(zoneCardStyle===want)return;
+  zoneCardStyle=want;
+  if(typeof renderSummaryZones==='function')renderSummaryZones();
+  if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+}
+function nhZoneCardRestore(){
+  if(nhZoneCard0===null)return;
+  var back=nhZoneCard0;nhZoneCard0=null;
+  if(zoneCardStyle===back)return;
+  zoneCardStyle=back;
+  if(typeof renderSummaryZones==='function')renderSummaryZones();
+  if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+}
 var nhCoins0=null;
 function nhCoinsMark(){if(typeof myCoins!=='undefined')nhCoins0=myCoins;}
 function nhCoinsRestore(){
@@ -7826,13 +7852,16 @@ function nhLatLng(v){
   if(Math.abs(la)>90||Math.abs(ln)>180)return null;
   return {lat:la,lng:ln};
 }
-/* 존이 그려진 칸 좌표 — [[lat,lng],…]. 키를 반복하지 않으려고 납작하게 온다. */
+/* 존이 그려진 칸 좌표. **두 모양을 다 받는다** (v2.25.1):
+   공개 목록(zoneBook)은 `[[lat,lng],…]` 로 납작하게 싣고(키를 반복하면 문서가 두 배다),
+   콘솔은 그것을 `{lat,lng}` 로 풀어서 무대에 넣는다. 쌍만 받던 v2.24 는 콘솔이 보낸
+   모양을 통째로 버렸고, 그래서 중심만 살아 **칸 수·배열이 앱과 달랐다**(로제트로 새로 폄). */
 function nhShape(v){
   if(!Array.isArray(v))return null;
   var out=[];
   for(var i=0;i<v.length&&out.length<NH_ZONE_CELLS_MAX;i++){
-    var p=v[i];if(!Array.isArray(p))continue;
-    var q=nhLatLng({lat:p[0],lng:p[1]});
+    var p=v[i];if(!p)continue;
+    var q=Array.isArray(p)?nhLatLng({lat:p[0],lng:p[1]}):nhLatLng(p);
     if(q)out.push(q);
   }
   return out.length?out:null;
@@ -8229,6 +8258,9 @@ function nhSeedScenario(sc,token){
      것들은 바운스 표를 안 찍기 때문이다(재생 시작 전에 이미 있던 화면이라 등장이 아니다).
      소리는 drop·post·write 처럼 **재생 중에 생기는 것**에만 붙는다. */
   nhSfxSet(sc&&sc.seed&&sc.seed.sfx);
+  /* 존 카드 모양 (v2.26) — 회차가 정한 값을 걸고, 원래 값은 되돌리려고 적어 둔다.
+     이 기기의 관리자 설정을 시연이 영구히 바꾸면 안 된다(소리·코인과 같은 규칙). */
+  nhZoneCardSet(sc&&sc.seed&&sc.seed.zoneCard);
   if(!sc||!sc.seed)return;
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
   var stamp=Date.now();
@@ -8356,6 +8388,7 @@ function nhReset(){
        연출이 아니라 청소인데, 앞 회차의 소리가 아직 걸려 있으면 회차를 시작할 때마다
        "삐-" 하고 한 번 운다. 다음 회차의 소리는 nhSeedScenario 가 다시 건다. */
     if(typeof nhSfxSet==='function')nhSfxSet(null);
+    if(typeof nhZoneCardRestore==='function')nhZoneCardRestore(); // 회차가 바꾼 카드 모양도 되돌린다 (v2.26)
     nhSweepTemp();
     nhCoinsRestore(); // 이 회차가 적립한 코인도 되돌린다 (v2.19)
     if(typeof nhUndim==='function')nhUndim(); // dim 액션의 흐림도 회차와 함께 걷는다 (v2.21)
@@ -8552,8 +8585,12 @@ function nhSanitize(raw){
       var one=nhSfxSrc(rs.sfx);
       if(one)sfxBank={pop:one};
     }
-    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length||sfxBank)
-      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns,sfx:sfxBank};
+    /* 존 목록 카드 모양을 **이 데모가 고른다** (v2.26) — 트렌드 모드 지도 탭의 상단은
+       지면 캐러셀이 아니라 존 카드 자리다(renderSummaryZones). 그 모양은 여태 관리자
+       설정이라 시연마다 바꿀 수 없었다. 안 주면 앱 설정 그대로다. */
+    var zcard=(ZONE_CARD_STYLES.indexOf(String(rs.zoneCard||''))>=0)?String(rs.zoneCard):'';
+    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length||sfxBank||zcard)
+      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns,sfx:sfxBank,zoneCard:zcard};
   }
   /* 사람이 옮긴 자리 (v2.20) — 콘솔이 들고 있다가 재생마다 실어 보낸다. 여태 이 값은
      localStorage 뿐이라 **다른 PC 에서는 없는 값**이었다(같은 데모인데 자리가 달랐다).

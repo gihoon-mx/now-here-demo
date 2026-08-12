@@ -804,6 +804,15 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 #cp-zones .tz-scroll{height:100%;align-items:stretch;padding:0;gap:2.4cqw;overflow-x:auto;overflow-y:hidden;}
 /* 글래스 카드: 프레임 높이에 맞춰 세로로 채움 */
 #cp-zones:not(.list) .tz-card{height:100%;width:34cqw;}
+/* 지면형 (v2.26) — **상단 지면 3번(글라스 캡션)과 같은 문법**이다: 사진이 카드를 꽉 채우고
+   이름이 유리 캡션으로 얹힌다. 기본 `.tz-card` 가 이미 그 모양이라 스킨의 재해석(v3 원형)만
+   비켜 가면 된다(skin-v3 의 `:not(.page)`).
+   카드를 얇게 둔다 — 리스트 카드(40cqw)는 흰 여백까지 안고 있어 한 화면에 두 개뿐이었다. */
+#cp-zones.page .tz-card{height:100%;width:30cqw;}
+#cp-zones.page .tz-scroll{gap:2cqw;}
+#cp-zones.page .tz-bubble{left:1.6cqw;right:1.6cqw;bottom:1.6cqw;padding:1.4cqw 1.8cqw;border-radius:2.4cqw;}
+#cp-zones.page .tz-bubble b{font-size:2.9cqw;}
+#cp-zones.page .tz-bubble i{font-size:2.2cqw;}
 /* 리스트 카드: 프레임 높이에 맞춰 컴팩트하게 */
 #cp-zones.list .tz-scroll{align-items:stretch;}
 #cp-zones.list .tz-card.tzl{height:100%;width:40cqw;justify-content:flex-start;}
