@@ -5117,7 +5117,52 @@ var nhBounceIds={};
 function nhBounceMark(id,n){
   if(!id)return;
   nhBounceIds[id]=Math.max(1,n|0||1);
+  nhSfxPlay(); // 컨텐츠가 뜨는 그 순간 (v2.23) — 표를 찍는 자리가 곧 "지금 생긴 것" 이다
   setTimeout(function(){delete nhBounceIds[id];},2000);
+}
+/* ── 컨텐츠 등장 효과음 (v2.23, 콘솔 D120) ──
+   무대가 `seed.sfx` 로 소리 하나를 준다 (사람이 콘솔에서 올린 파일의 주소).
+   **바운스 표를 찍는 자리에서 운다** — 그 자리가 이미 "지금 화면에 생겼다" 의 단일 기준이라
+   drop·post·postfeed·write·request 가 각자 부르지 않아도 한 번씩 정확히 난다.
+
+   ⚠️ **소리는 재생이 아니라 브라우저가 허락해야 난다.** 임베드는 교차 오리진 iframe 이라
+   부모의 클릭이 이 문서의 사용자 활성으로 넘어오지 않는다 — 콘솔이 iframe 에
+   `allow="autoplay"` 를 줘야 이 play() 가 산다. 막히면 조용히 넘어간다(재생을 막지 않는다).
+
+   같은 소리가 겹쳐 울지 않게 **최소 간격**을 둔다. burst 는 50개를 쏟으므로 간격이 없으면
+   기관총이 된다 — 간격이 그것을 성긴 빗소리로 만든다. */
+var nhSfxEl=null,nhSfxAt=0;
+var NH_SFX_GAP=120;
+function nhSfxSet(url){
+  nhSfxEl=null;
+  var u=nhSfxSrc(url);
+  if(!u)return;
+  try{
+    nhSfxEl=new Audio(u);
+    nhSfxEl.preload='auto';
+    // 여러 개가 겹쳐 울 수 있게 재생할 때마다 복제한다 — 원본은 미리 받아 두는 몫이다.
+    nhSfxEl.load();
+  }catch(e){nhSfxEl=null;}
+}
+/* 소리 주소도 사진과 같은 규칙으로 거른다 (nhImgSrc 와 같은 이유 — `javascript:` 를 막는다). */
+function nhSfxSrc(v){
+  var s=String(v||'').trim();
+  if(!s)return '';
+  if(/^https:\/\//i.test(s))return s.slice(0,2000);
+  if(/^data:audio\/[a-z0-9.+-]+;base64,/i.test(s))return s.slice(0,2000000);
+  return '';
+}
+function nhSfxPlay(){
+  if(!nhSfxEl)return;
+  var now=Date.now();
+  if(now-nhSfxAt<NH_SFX_GAP)return;
+  nhSfxAt=now;
+  try{
+    var a=nhSfxEl.cloneNode();
+    var p=a.play();
+    // 자동재생이 막히면 거부된 약속이 온다 — 재생을 세우지 않고 조용히 지나간다.
+    if(p&&p.catch)p.catch(function(){});
+  }catch(e){}
 }
 /** 이 항목이 지금 막 생긴 것인가 — **묻는 순간 한 장을 뗀다.** */
 function nhBounceTake(id){
@@ -8007,6 +8052,9 @@ function nhBurst(v,n,e,ms,token){
       var p={lat:at.lat+r*Math.cos(a)*0.8,lng:at.lng+r*Math.sin(a),name:c.name};
       var pick=function(pool){return pool[(k+Math.floor(heatJitter(salt)*pool.length))%pool.length];};
       var idx=NH_POST_FROM+(nhPostN++);
+      /* 소리는 burst 도 낸다 (v2.23) — 바운스는 안 붙이지만(깜박임) 컨텐츠가 쏟아지는
+         것은 등장이다. nhSfxPlay 의 최소 간격이 50개를 기관총이 아니라 성긴 빗소리로 만든다. */
+      nhSfxPlay();
       // 바운스를 안 붙인다 (v2.12) — 위 주석 참조.
       if(kind==='spot'){
         var sp=pick(NH_BURST_SPOTS);
@@ -8034,6 +8082,11 @@ var nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:0};
 function nhSeedScenario(sc,token){
   // 회차마다 0 부터 — write 의 "옮긴 자리" 키가 회차를 넘어 같아야 한다 (v2.12).
   nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:token};nhPostN=0;nhWriteN=0;nhWriteIds={};nhReqN=0;nhReqIds={};
+  /* 등장 효과음 (v2.23) — 회차를 시작할 때 건다(소리가 없는 시나리오면 빈 값으로 꺼서
+     앞 회차의 소리가 따라오지 않게). **무대를 까는 동안에는 안 운다** — 여기서 깔리는
+     것들은 바운스 표를 안 찍기 때문이다(재생 시작 전에 이미 있던 화면이라 등장이 아니다).
+     소리는 drop·post·write 처럼 **재생 중에 생기는 것**에만 붙는다. */
+  nhSfxSet(sc&&sc.seed&&sc.seed.sfx);
   if(!sc||!sc.seed)return;
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
   var stamp=Date.now();
@@ -8332,8 +8385,12 @@ function nhSanitize(raw){
         temp:nhTemp(z.temp),
         r:((z.r|0)===2?2:1)};
     }).filter(function(z){return z.name;});
-    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length)
-      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns};
+    /* 소리만 있고 깐 것이 하나도 없을 수 있다 (v2.23) — `post`·`postfeed` 는 무대 없이
+       그 자리에서 컨텐츠를 만드는 액션이라, 그것만 쓰는 데모는 seed 가 소리 하나뿐이다.
+       여기서 조건에 안 넣으면 그 데모의 소리가 조용히 사라진다. */
+    var sfxUrl=nhSfxSrc(rs.sfx);
+    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length||sfxUrl)
+      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns,sfx:sfxUrl};
   }
   /* 사람이 옮긴 자리 (v2.20) — 콘솔이 들고 있다가 재생마다 실어 보낸다. 여태 이 값은
      localStorage 뿐이라 **다른 PC 에서는 없는 값**이었다(같은 데모인데 자리가 달랐다).
