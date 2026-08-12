@@ -1093,7 +1093,11 @@ function addSpotComment(id,t){
   (socMsgs[k]=socMsgs[k]||[]).push({me:true,who:chatName(),t:t});saveChat();
   if(typeof refreshSpotStyles==='function')refreshSpotStyles(); // 로컬 폴백: 버블 뱃지 즉시 갱신
 }
-function closeContentPop(){var m=document.getElementById('content-pop');if(m)m.style.display='none';cpopRefresh=null;}
+/* 닫는 소리는 **열려 있던 것을 닫을 때만** 운다 (v2.25) — popclose·nhReset 은 열렸든 아니든
+   부르므로, 그냥 울리면 아무 일도 없는 자리에서 소리가 난다. */
+function closeContentPop(){var m=document.getElementById('content-pop');
+  if(m&&m.style.display!=='none'&&typeof nhSfxPlay==='function')nhSfxPlay('close');
+  if(m)m.style.display='none';cpopRefresh=null;}
 function cpopGoMap(kind,data,zoom){ // 팝업 '📍 지도에서 보기' — 컨텐츠 탭=팝업 통일 규칙에서 위치 이동은 이 버튼으로
   // zoom: optional. 안 주면 종전대로(줌<15 일 때만 16). 동네 전체를 보여줘야 하는
   // 호출(M16 area)이 14 처럼 넓은 값을 준다 — 16 은 "이 항목 하나" 용이라 동네가 안 보인다.
@@ -1225,6 +1229,7 @@ function openContentPop(kind,data){
       ar3.appendChild(ph);body.appendChild(ar3);
     }
   } // 지도 보기 버튼은 헤더 공통(headAct)
+  if(m.style.display==='none'&&typeof nhSfxPlay==='function')nhSfxPlay('open'); // v2.25 — 닫혀 있던 것이 설 때만
   m.style.display='flex';
 }
 function initContentPop(){
@@ -2906,6 +2911,7 @@ function loadZonesFromStorage(){
 /* ========== [M01] 모드 전환 ========== */
 function switchMode(mode,opts){
   if(mode===currentMode) return; if(editingZoneId) finishEditZone();
+  if(typeof nhSfxPlay==='function')nhSfxPlay('mode'); // 렌즈가 바뀌는 순간 (v2.25) — 실제로 바뀔 때만
   var noNearby=opts&&opts.noNearby;
   currentMode=mode;
   removeLocalLabel(); selectedFeatureName=null; selectedFeatureId=null;
@@ -5198,18 +5204,34 @@ function nhBounceMark(id,n){
 
    같은 소리가 겹쳐 울지 않게 **최소 간격**을 둔다. burst 는 50개를 쏟으므로 간격이 없으면
    기관총이 된다 — 간격이 그것을 성긴 빗소리로 만든다. */
-var nhSfxEl=null,nhSfxAt=0;
-var NH_SFX_GAP=120;
-function nhSfxSet(url){
-  nhSfxEl=null;
-  var u=nhSfxSrc(url);
-  if(!u)return;
-  try{
-    nhSfxEl=new Audio(u);
-    nhSfxEl.preload='auto';
-    // 여러 개가 겹쳐 울 수 있게 재생할 때마다 복제한다 — 원본은 미리 받아 두는 몫이다.
-    nhSfxEl.load();
-  }catch(e){nhSfxEl=null;}
+/* v2.25: 소리가 **여섯 자리**다 (콘솔 D122). 여태는 등장음 하나였는데, 시연에서 소리가
+   필요한 순간은 등장만이 아니다 — 누르는 손(tap)·팝업이 열리고 닫히는 순간(open·close)·
+   렌즈가 바뀌는 순간(mode)·글자가 박히는 소리(type).
+   **자리마다 다른 소리를 걸 수 있고, 안 건 자리는 조용하다** (한 소리를 여섯 곳에 돌려
+   쓰면 시연이 시끄러워진다). 옛 계약(문자열 하나)은 등장음으로 읽는다 — 옛 콘솔이 보낸
+   시나리오가 소리를 잃지 않는다.
+   최소 간격도 자리마다 다르다: 타이핑은 글자마다 나므로 촘촘하고(55ms), 모드 전환은
+   한 번 크게 난다(150ms). */
+var NH_SFX_KEYS=['pop','tap','open','close','mode','type'];
+var NH_SFX_GAP={pop:120,tap:90,open:140,close:140,mode:150,type:55};
+var nhSfxBank={},nhSfxAt={};
+function nhSfxSet(v){
+  nhSfxBank={};nhSfxAt={};
+  if(!v)return;
+  // 옛 계약: 문자열 하나 = 등장음 (v2.23)
+  var map=(typeof v==='string')?{pop:v}:(v&&typeof v==='object'?v:null);
+  if(!map)return;
+  NH_SFX_KEYS.forEach(function(k){
+    var u=nhSfxSrc(map[k]);
+    if(!u)return;
+    try{
+      var a=new Audio(u);
+      a.preload='auto';
+      // 여러 개가 겹쳐 울 수 있게 재생할 때마다 복제한다 — 원본은 미리 받아 두는 몫이다.
+      a.load();
+      nhSfxBank[k]=a;
+    }catch(e){}
+  });
 }
 /* 소리 주소도 사진과 같은 규칙으로 거른다 (nhImgSrc 와 같은 이유 — `javascript:` 를 막는다). */
 function nhSfxSrc(v){
@@ -5219,13 +5241,15 @@ function nhSfxSrc(v){
   if(/^data:audio\/[a-z0-9.+-]+;base64,/i.test(s))return s.slice(0,2000000);
   return '';
 }
-function nhSfxPlay(){
-  if(!nhSfxEl)return;
+function nhSfxPlay(key){
+  key=key||'pop'; // 자리를 안 적으면 등장음 (v2.23 호출부가 그대로 산다)
+  var el=nhSfxBank[key];
+  if(!el)return;
   var now=Date.now();
-  if(now-nhSfxAt<NH_SFX_GAP)return;
-  nhSfxAt=now;
+  if(now-(nhSfxAt[key]||0)<(NH_SFX_GAP[key]||120))return;
+  nhSfxAt[key]=now;
   try{
-    var a=nhSfxEl.cloneNode();
+    var a=el.cloneNode();
     var p=a.play();
     // 자동재생이 막히면 거부된 약속이 온다 — 재생을 세우지 않고 조용히 지나간다.
     if(p&&p.catch)p.catch(function(){});
@@ -5593,13 +5617,16 @@ function renderDealMarkers(){
 function openDealSheet(id){
   var sheet=document.getElementById('deal-sheet'),d=dealById(id);
   if(!sheet||!d)return;
+  if(sheet.style.display==='none'&&typeof nhSfxPlay==='function')nhSfxPlay('open'); // v2.25
   dealSheetId=id;
   sheet.style.display='';
   syncDealSheet();
   if(!dealTicker)dealTicker=setInterval(syncDealSheet,1000); // 1초 티커 — 열려 있을 때만 돈다
 }
 function closeDealSheet(){
-  var sheet=document.getElementById('deal-sheet');if(sheet)sheet.style.display='none';
+  var sheet=document.getElementById('deal-sheet');
+  if(sheet&&sheet.style.display!=='none'&&typeof nhSfxPlay==='function')nhSfxPlay('close'); // v2.25
+  if(sheet)sheet.style.display='none';
   dealSheetId=null;
   if(dealTicker){clearInterval(dealTicker);dealTicker=null;}
 }
@@ -5721,12 +5748,15 @@ function openStorePage(id){
     var im=document.createElement('img');im.src=f.src;im.alt='';im.loading='lazy';cell.appendChild(im);
     grid.appendChild(cell);});}
   var sc=document.getElementById('stp-scroll');if(sc)sc.scrollTop=0;
+  if(pg.style.display==='none'&&typeof nhSfxPlay==='function')nhSfxPlay('open'); // v2.25
   pg.style.display='';
   syncStorePage();
   if(!storeTicker)storeTicker=setInterval(syncStorePage,1000); // 열려 있을 때만 도는 1초 티커(시트와 동일)
 }
 function closeStorePage(){
-  var pg=document.getElementById('store-page');if(pg)pg.style.display='none';
+  var pg=document.getElementById('store-page');
+  if(pg&&pg.style.display!=='none'&&typeof nhSfxPlay==='function')nhSfxPlay('close'); // v2.25
+  if(pg)pg.style.display='none';
   storePageId=null;
   if(storeTicker){clearInterval(storeTicker);storeTicker=null;}
 }
@@ -7260,6 +7290,7 @@ function nhWriteSpot(text,token,ms,emoji,fast){
       // 한 틱에 1~2자 — 등속 타자기가 아니라 사람의 몰아치는 손이다.
       pos+=(pos%3===2)?2:1;
       if(pos>=typed.length){pos=typed.length;clearInterval(iv);}
+      nhSfxPlay('type'); // 글자가 박히는 소리 (v2.25) — 최소 간격이 촘촘한 자리다
       ov.textEl.value=typed.slice(0,pos);
     },per);
   },t0);
@@ -7326,6 +7357,7 @@ function nhRequestTyped(text,token,ms,fast){
       if(token!==nhRunToken||!ov.textEl){clearInterval(iv);return;}
       pos+=(pos%3===2)?2:1;
       if(pos>=typed.length){pos=typed.length;clearInterval(iv);}
+      nhSfxPlay('type'); // 글자가 박히는 소리 (v2.25) — 최소 간격이 촘촘한 자리다
       ov.textEl.value=typed.slice(0,pos);
     },per);
   },t0);
@@ -7388,6 +7420,7 @@ function nhAnswerTyped(rq,text,token,ms,fast){
       if(token!==nhRunToken||!inp.isConnected){clearInterval(iv);return;}
       pos+=(pos%3===2)?2:1;
       if(pos>=typed.length){pos=typed.length;clearInterval(iv);}
+      nhSfxPlay('type'); // 글자가 박히는 소리 (v2.25) — 최소 간격이 촘촘한 자리다
       inp.value=typed.slice(0,pos);
     },per);
   },t0);
@@ -7532,6 +7565,7 @@ function nhTouch(el){
     d.style.left=(r.left+r.width/2-s.left)+'px';
     d.style.top=(r.top+r.height/2-s.top)+'px';
     scr.appendChild(d);
+    nhSfxPlay('tap'); // 누르는 손이 나는 소리 (v2.25) — 표식이 뜨는 자리가 곧 "지금 눌렀다" 다
     setTimeout(function(){try{d.remove();}catch(e){}},600);
   }catch(e){}
 }
@@ -8318,6 +8352,10 @@ function nhDrop(v,i,e,fast){
 
 function nhReset(){
   try{
+    /* **되돌리는 동안은 무음이다** (v2.25). 여기서 부르는 것들(모드 되돌리기·팝업 닫기)은
+       연출이 아니라 청소인데, 앞 회차의 소리가 아직 걸려 있으면 회차를 시작할 때마다
+       "삐-" 하고 한 번 운다. 다음 회차의 소리는 nhSeedScenario 가 다시 건다. */
+    if(typeof nhSfxSet==='function')nhSfxSet(null);
     nhSweepTemp();
     nhCoinsRestore(); // 이 회차가 적립한 코인도 되돌린다 (v2.19)
     if(typeof nhUndim==='function')nhUndim(); // dim 액션의 흐림도 회차와 함께 걷는다 (v2.21)
@@ -8503,9 +8541,19 @@ function nhSanitize(raw){
     /* 소리만 있고 깐 것이 하나도 없을 수 있다 (v2.23) — `post`·`postfeed` 는 무대 없이
        그 자리에서 컨텐츠를 만드는 액션이라, 그것만 쓰는 데모는 seed 가 소리 하나뿐이다.
        여기서 조건에 안 넣으면 그 데모의 소리가 조용히 사라진다. */
-    var sfxUrl=nhSfxSrc(rs.sfx);
-    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length||sfxUrl)
-      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns,sfx:sfxUrl};
+    /* 효과음 (v2.23 하나 → v2.25 여섯 자리, 콘솔 D122).
+       문자열 하나로 오면 등장음이다 — 옛 콘솔이 보낸 시나리오가 소리를 잃지 않는다. */
+    var sfxBank=null;
+    if(rs.sfx&&typeof rs.sfx==='object'){
+      var bank={};
+      NH_SFX_KEYS.forEach(function(k){var u=nhSfxSrc(rs.sfx[k]);if(u)bank[k]=u;});
+      if(Object.keys(bank).length)sfxBank=bank;
+    }else{
+      var one=nhSfxSrc(rs.sfx);
+      if(one)sfxBank={pop:one};
+    }
+    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length||sfxBank)
+      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns,sfx:sfxBank};
   }
   /* 사람이 옮긴 자리 (v2.20) — 콘솔이 들고 있다가 재생마다 실어 보낸다. 여태 이 값은
      localStorage 뿐이라 **다른 PC 에서는 없는 값**이었다(같은 데모인데 자리가 달랐다).
