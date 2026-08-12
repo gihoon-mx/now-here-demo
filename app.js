@@ -1408,6 +1408,15 @@ function attachAddGestures(el,mapObj){
   el.addEventListener('touchmove',function(e){if(!e.touches.length)return;lx=e.touches[0].clientX;ly=e.touches[0].clientY;if(Math.abs(lx-sx)>12||Math.abs(ly-sy)>12)clearTimeout(t);},{passive:true});
   el.addEventListener('touchend',function(){clearTimeout(t);},{passive:true});
   el.addEventListener('touchcancel',function(){clearTimeout(t);},{passive:true});
+  /* 마우스 롱프레스 (v2.27) — 터치·우클릭만 있던 것을 마우스 꾹 누름에도 연다.
+     데스크톱 서비스 페이지·persona-vc 임베드 시연은 마우스라 이 길이 없으면
+     "꾹 누르면 추가"가 없는 기능처럼 보였다. 규칙은 터치와 동일(520ms·이동 12px 취소). */
+  var mt=null,msx=0,msy=0;
+  el.addEventListener('mousedown',function(e){if(e.button!==0||onContent(e))return;msx=e.clientX;msy=e.clientY;clearTimeout(mt);
+    mt=setTimeout(function(){openAddMenu(mapObj,el,clientToLatLng(mapObj,el,msx,msy),msx,msy);},520);});
+  el.addEventListener('mousemove',function(e){if(mt!=null&&(Math.abs(e.clientX-msx)>12||Math.abs(e.clientY-msy)>12)){clearTimeout(mt);mt=null;}});
+  el.addEventListener('mouseup',function(){clearTimeout(mt);mt=null;});
+  el.addEventListener('mouseleave',function(){clearTimeout(mt);mt=null;});
 }
 function removeSpot(id){
   var inAdmin=adminSpots.some(function(s){return s.id===id;});
@@ -1906,40 +1915,46 @@ function syncCoinUI(){
   var el=document.getElementById('ppm-coins');
   if(el)el.textContent='🪙 '+myCoins.toLocaleString();
 }
-/* 적립의 순간을 화면이 말한다 (v2.18) — 코인이 프로필(코인이 사는 곳)로 날아가고
-   +500 이 떠오른다. 문구(ai-bubble)만으로는 "받았다" 가 눈에 안 남았다. */
-function coinFly(){
+/* 리워드 지급 (v2.27) — v2.18 의 coinFly(답변 즉시 코인이 프로필로 날아가는 연출)를
+   대체한다. 컨셉이 바뀌었다: 답을 적으면 팝업이 닫히고, **어느 정도 시간이 지나**
+   리워드가 따로 지급된다. 그 순간을 우하단 agent 말풍선(ai-bubble)이 말하고, 말풍선
+   위에서 코인이 터진다. 실사용은 answerRequest 가 REQ_REWARD_MS 뒤에 부르고,
+   시나리오(M16)는 'reward' 액션으로 시점과 문구를 직접 정한다. */
+var REQ_REWARD_MS=6000; // 답변 → 지급까지의 연출 지연 (실사용 경로)
+function coinBurst(anchor){ // anchor(말풍선) 위에서 🪙 12개가 부채꼴로 터진다
   try{
-    var scr=document.querySelector('.phone-screen');if(!scr)return;
-    var r=scr.getBoundingClientRect();if(!r.width)return;
-    /* 답을 보내는 자리는 대개 **상세 팝업 안**이다 (v2.19). 팝업은 화면 전체를 덮는
-       fixed 스크림(z-index 100001)이라, 폰 화면에 붙인 코인은 그 뒤에서 날아가 아무도
-       못 봤다 — 적립의 순간을 만드는 바로 그 경로에서 안 보였다. 팝업이 열려 있으면
-       팝업 안에 붙이고, 자리는 폰 화면 기준으로 계산한 값을 그대로 옮겨 쓴다. */
-    var pop=document.getElementById('content-pop');
-    var host=(pop&&pop.style.display!=='none')?pop:scr;
-    var hr=host.getBoundingClientRect(),ox=r.left-hr.left,oy=r.top-hr.top;
-    // 폰 밖(팝업)에는 cqw 를 재어 줄 컨테이너가 없다 — 크기를 폰 폭으로 직접 정한다.
-    var fs=Math.max(12,Math.round(r.width*0.05));
-    var tgt=document.getElementById('phone-profile'),tr=tgt?tgt.getBoundingClientRect():null;
-    var tx=tr?(tr.left+tr.width/2-r.left):(r.width-34),ty=tr?(tr.top+tr.height/2-r.top):34;
-    for(var i=0;i<7;i++){
-      (function(i){
-        var c=document.createElement('span');c.className='coin-fly';c.textContent='🪙';
-        var sx=r.width*0.5+(i-3)*16,sy=r.height*0.62+((i%3)-1)*10;
-        c.style.left=(ox+sx)+'px';c.style.top=(oy+sy)+'px';c.style.fontSize=fs+'px';
-        c.style.setProperty('--dx',(tx-sx)+'px');c.style.setProperty('--dy',(ty-sy)+'px');
-        c.style.animationDelay=(i*70)+'ms';
-        host.appendChild(c);
-        setTimeout(function(){if(c.parentNode)c.parentNode.removeChild(c);},1500+i*70);
-      })(i);
+    var scr=anchor&&anchor.closest?anchor.closest('.phone-screen'):null;
+    if(!scr)scr=document.querySelector('.phone-screen');
+    if(!scr||!anchor)return;
+    var host=document.createElement('div');host.className='coin-burst';
+    var sr=scr.getBoundingClientRect(),ar=anchor.getBoundingClientRect();
+    if(!sr.width)return;
+    // 말풍선 중심을 앵커로 (자리만 px — 비산 거리는 CSS cqw 가 폰 폭에 맞춘다)
+    host.style.left=(ar.left-sr.left+ar.width/2)+'px';
+    host.style.top=(ar.top-sr.top+ar.height/2)+'px';
+    for(var i=0;i<12;i++){
+      var c=document.createElement('span');c.className='cb-coin';c.textContent='🪙';
+      var ang=(-90+(i-5.5)*16)*Math.PI/180, d=14+Math.random()*10; // 위쪽 부채꼴
+      c.style.setProperty('--dx',(Math.cos(ang)*d).toFixed(1)+'cqw');
+      c.style.setProperty('--dy',(Math.sin(ang)*d).toFixed(1)+'cqw');
+      c.style.setProperty('--rot',Math.round(Math.random()*520-260)+'deg');
+      c.style.animationDelay=(Math.random()*0.12)+'s';
+      host.appendChild(c);
     }
-    var amt=document.createElement('span');amt.className='coin-amt';amt.textContent='+'+REQ_COIN;
-    amt.style.left=(ox+r.width*0.5)+'px';amt.style.top=(oy+r.height*0.56)+'px';
-    amt.style.fontSize=Math.round(fs*1.08)+'px';
-    host.appendChild(amt);
-    setTimeout(function(){if(amt.parentNode)amt.parentNode.removeChild(amt);},1600);
+    scr.appendChild(host);
+    setTimeout(function(){if(host.parentNode)host.parentNode.removeChild(host);},1400);
   }catch(e){}
+}
+var rewardBubbleTimer=null;
+function showRewardBubble(msg){ // msg 비우면 기본 문구 — 시나리오('reward' 액션의 v)가 바꾼다
+  addCoins(REQ_COIN);
+  var ab=document.getElementById('ai-bubble');if(!ab)return true;
+  ab.textContent=(msg&&String(msg).trim().slice(0,120))||('🪙 '+REQ_COIN+' 코인 리워드가 지급됐어요! 현장 답변 감사해요.');
+  ab.classList.add('show');
+  coinBurst(ab);
+  clearTimeout(rewardBubbleTimer);
+  rewardBubbleTimer=setTimeout(function(){ab.classList.remove('show');},5000);
+  return true;
 }
 function closeDrawer(){var p=document.getElementById('phone-drawer');if(p)p.classList.remove('open');var c=document.getElementById('pc-drawer');if(c)c.classList.remove('open');}
 // 드로어 데모 리스트(트렌드 존/스팟) 렌더 — 데모·관리자 모두 데이터로 채움
@@ -2030,7 +2045,7 @@ function renderSummaryZones(){
   var col=document.getElementById('sum-collapse');if(col)col.style.display=show?'none':''; // 존 요약은 접기 없음
   if(!show){box.innerHTML='';return;}
   box.innerHTML='';
-  box.className='cp-zones'+(zoneCardStyle==='list'?' list':(zoneCardStyle==='page'?' page':''));
+  box.className='cp-zones'+(zoneCardStyle==='list'?' list':zoneCardStyle==='page'?' page':zoneCardStyle==='circle'?' circle':''); // v2.27 circle=원형 썸네일
   if(!trendZones.length){var e=document.createElement('div');e.className='cpz-empty';e.textContent='등록된 트렌드 존이 없어요.';box.appendChild(e);return;}
   box.appendChild(buildZoneScroll());
 }
@@ -3626,6 +3641,7 @@ function settingsSnapshotFull(){
     zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,
     spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},feedIconSize:feedIconSize,
     mapPinView:mapPinView, // v2.15 지도 컨텐츠별 표시 — 임베드(REST)·캐시·파일도 같은 범위
+    uiScale:uiScale, // v2.27 폰 셸 UI 크기 (additive)
     /* 상단 지면 타입 (v2.11) — cardVer 는 shared/news(SDK 전용)로만 다녀서 persona-vc
        임베드(REST publicSettings)가 영영 못 봤다. 스킨은 건너가는데 지면 타입만 기본(1)
        으로 뜨던 원인. */
@@ -3650,12 +3666,13 @@ function applyFullSettings(c){
    "내 브라우저에서는 되는데 처음 보는 기기에서는 안 되는" 설정이 그래서 생겼다. */
 function applyExtraSettings(s){
   if(!s||typeof s!=='object')return;
-  if(s.zoneCardStyle==='glass'||s.zoneCardStyle==='list')zoneCardStyle=s.zoneCardStyle;
+  if(ZONE_CARD_STYLES.indexOf(s.zoneCardStyle)>=0)zoneCardStyle=s.zoneCardStyle; // v2.27 — 'page'(v2.26)·'circle' 이 클라우드로도 다니게 목록 하나로
   if(s.feedTimeMode==='ago'||s.feedTimeMode==='clock'||s.feedTimeMode==='off')feedTimeMode=s.feedTimeMode;
   if(APP_SKINS.indexOf(s.appSkin)>=0){appSkin=s.appSkin;applySkin();} // setAppSkin 은 저장까지 한다 — 여기는 값 적용만
   if(s.spotMapBg&&typeof s.spotMapBg==='object'){spotMapBg.op=Number(s.spotMapBg.op)||0;spotMapBg.scaleM=Number(s.spotMapBg.scaleM)||100;}
   if(s.feedIconSize!=null&&isFinite(Number(s.feedIconSize)))feedIconSize=Math.max(0,Math.round(Number(s.feedIconSize)));
   if(s.mapPinView&&typeof s.mapPinView==='object')mergePinView(s.mapPinView); // v2.15 — 값만, 갱신은 부르는 쪽
+  if(s.uiScale&&typeof s.uiScale==='object'){mergeUiScale(s.uiScale);applyUiScale();} // v2.27 — CSS 변수라 즉시 적용해도 안전(재렌더 없음)
   // 상단 지면 타입 (v2.11) — 화면 갱신은 부르는 쪽의 renderNews 가 한다 (이 함수의 규칙 그대로).
   var _ncv=parseInt(s.newsCardVer,10);
   if(_ncv>=1&&_ncv<=3)newsCardVer=_ncv;
@@ -3718,6 +3735,7 @@ function loadFileDefaults(){ // repo 백스톱(settings-default.json): 코드 �
     var _ms=document.getElementById('spotmap-scale');if(_ms)_ms.value=String(spotMapBg.scaleM);
     var _fis=document.getElementById('feed-icon-size');if(_fis)_fis.value=feedIconSize>0?String(feedIconSize):'';
     syncPinViewUI(); // v2.15 지도 컨텐츠별 표시 컨트롤도 파일 값으로
+    syncUiScaleUI();applyUiScale(); // v2.27 UI 크기도 파일 값으로
     if(mapReady){refreshMapStyles();refreshHexStyles();refreshSpotStyles();refreshZoneLabels();updateLocalLabelStyle();}
     // 스킨은 마크업까지 가른다(v1.84) — 속성만 바꾸면 다음 렌더까지 옛 구조가 남는다
     if(typeof renderNews==='function')renderNews();
@@ -3743,7 +3761,7 @@ function applyCloudData(d){
   renderSpots();   // 모드 무관 항상 스팟 표시
   renderZoneList();refreshZoneLabels();updateLocalLabelStyle();
   if(d.social){if(Array.isArray(d.social.rooms))socRoomList=d.social.rooms.slice();if(Array.isArray(d.social.seedLocal))socSeedLocal=d.social.seedLocal.slice();saveChat();renderRoomManager();}
-  if(d.zoneCardStyle==='glass'||d.zoneCardStyle==='list'){zoneCardStyle=d.zoneCardStyle;var _zcs=document.getElementById('zone-card-style');if(_zcs)_zcs.value=zoneCardStyle;}
+  if(ZONE_CARD_STYLES.indexOf(d.zoneCardStyle)>=0){zoneCardStyle=d.zoneCardStyle;var _zcs=document.getElementById('zone-card-style');if(_zcs)_zcs.value=zoneCardStyle;} // v2.27 — 목록 하나로('page'·'circle' 포함)
   if(d.feedTimeMode==='ago'||d.feedTimeMode==='clock'||d.feedTimeMode==='off'){feedTimeMode=d.feedTimeMode;var _ftm=document.getElementById('feed-time');if(_ftm)_ftm.value=feedTimeMode;if(currentTab==='feed')renderFeed();}
   if(APP_SKINS.indexOf(d.appSkin)>=0){setAppSkin(d.appSkin);var _sks=document.getElementById('app-skin');if(_sks)_sks.value=appSkin;} // [M15] 디자인 스킨(관리자가 정하면 모두에게)
   if(d.spotMapBg&&typeof d.spotMapBg==='object'){spotMapBg.op=Number(d.spotMapBg.op)||0;spotMapBg.scaleM=Number(d.spotMapBg.scaleM)||100;saveSpotMapBg();
@@ -3756,6 +3774,8 @@ function applyCloudData(d){
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();}
   if(d.mapPinView&&typeof d.mapPinView==='object'){ // v2.15 지도 컨텐츠별 표시 (additive)
     mergePinView(d.mapPinView);savePinView();syncPinViewUI();renderAllPins();}
+  if(d.uiScale&&typeof d.uiScale==='object'){ // v2.27 폰 셸 UI 크기 (additive)
+    mergeUiScale(d.uiScale);saveUiScale();syncUiScaleUI();applyUiScale();}
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   blockDirty={};updateApplyBar();updateBlockBars(); // 클라우드본 = 적용 기준선
 }
@@ -3999,6 +4019,7 @@ function initSettingsExport(){ // 현재 적용 설정 → JSON 복사 (repo set
     snap.appSkin=appSkin;snap.zoneCardStyle=zoneCardStyle;snap.feedTimeMode=feedTimeMode;
     snap.spotMapBg={op:spotMapBg.op,scaleM:spotMapBg.scaleM};snap.feedIconSize=feedIconSize;
     snap.mapPinView=mapPinView; // v2.15 지도 컨텐츠별 표시
+    snap.uiScale=uiScale; // v2.27 폰 셸 UI 크기
     var json=JSON.stringify(snap,null,1);
     function done(){btn.textContent='✅ 복사됨';setTimeout(function(){btn.textContent='📋 설정 JSON 복사';},1600);}
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(json).then(done,function(){prompt('아래 JSON을 복사하세요',json);});
@@ -4016,7 +4037,8 @@ function cloudSave(){
     social:{rooms:socRoomList,seedLocal:socSeedLocal},
     zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},
     feedIconSize:feedIconSize, // v2.3 — additive(옛 클라이언트는 모르고 지나간다)
-    mapPinView:mapPinView};    // v2.15 — 지도 컨텐츠별 표시 방식 (additive)
+    mapPinView:mapPinView,     // v2.15 — 지도 컨텐츠별 표시 방식 (additive)
+    uiScale:uiScale};          // v2.27 — 폰 셸 UI 크기 (additive)
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
   /* 공개 설정 문서 (v2.5) — persona-vc 임베드가 비로그인 REST 로 읽는다. json 문자열
@@ -4407,11 +4429,14 @@ function toggleLike(id){ // 더블탭 좋아요 (계정당 1개 토글)
   try{localStorage.setItem('nowhere_likes',JSON.stringify(feedLikes));}catch(e){}
   return L;
 }
-/* 존 목록 카드 모양 (v2.26 에 'page' 추가):
-   'glass'=글래스 캡션 — **스킨이 재해석한다**(v3 는 원형 서클) · 'list'=리스트(하트합산·거리)
+/* 존 목록 카드 모양 (v2.26 에 'page' · v2.27 에 'circle' 추가):
+   'glass'=글래스 캡션 · 'list'=리스트(하트합산·거리)
    'page'=**지면형** — 상단 지면 3번과 같은 문법이다(사진이 카드를 꽉 채우고 이름이 유리 캡션).
-   지면형은 스킨의 재해석을 안 탄다: 어느 스킨에서도 같은 모양이라 시연이 고를 수 있는 값이다. */
-var ZONE_CARD_STYLES=['glass','list','page'];
+   'circle'=**원형 썸네일(스토리 서클)** — 석촌동 시안의 서클(사진 원 + 이름 + 하단 °C 배지).
+   v2.26 까지 v3 스킨이 glass 를 통째로 서클로 재해석했는데, 그 규칙을 명시적 선택지로
+   옮겼다(style.css `#cp-zones.circle`, 전 스킨 공용) — 이제 **네 값 모두 스킨의 재해석을
+   안 탄다**: 어느 스킨에서도 같은 모양이라 시연·설정이 고르는 그대로 나온다. */
+var ZONE_CARD_STYLES=['glass','list','page','circle'];
 var zoneCardStyle='glass';
 try{var _zc=localStorage.getItem('nowhere_zonecard');if(ZONE_CARD_STYLES.indexOf(_zc)>=0)zoneCardStyle=_zc;}catch(e){}
 function haversineM(la1,ln1,la2,ln2){ // 직선거리(m)
@@ -4527,6 +4552,39 @@ function mergePinView(v){ // additive 병합 — 모르는 키 무시, 빠진 �
 }
 try{var _mpv=JSON.parse(localStorage.getItem('nowhere_pinview')||'null');if(_mpv)mergePinView(_mpv);}catch(e){}
 function savePinView(){try{localStorage.setItem('nowhere_pinview',JSON.stringify(mapPinView));}catch(e){}}
+/* v2.27 [M09/M11] 폰 셸 UI 크기 — 모드 토글(.pa-mode)·하단 네비(.phone-navbar) 배율(%).
+   기본을 100 아래로 둔 것이 곧 "살짝 줄여 달라"는 요청의 값이다. mapPinView 와 같은
+   즉시 적용·additive 클라우드 동기 패턴. 적용은 CSS 변수(transform scale)라 재렌더가 없다. */
+var uiScale={mode:88,nav:90};
+function mergeUiScale(v){
+  if(!v||typeof v!=='object')return;
+  ['mode','nav'].forEach(function(k){
+    if(v[k]!=null&&isFinite(Number(v[k])))uiScale[k]=Math.max(60,Math.min(120,Math.round(Number(v[k]))));
+  });
+}
+try{var _uis=JSON.parse(localStorage.getItem('nowhere_uiscale')||'null');if(_uis)mergeUiScale(_uis);}catch(e){}
+function saveUiScale(){try{localStorage.setItem('nowhere_uiscale',JSON.stringify(uiScale));}catch(e){}}
+function applyUiScale(){ // body 의 CSS 변수 하나로 index·admin 폰 미러가 같이 줄어든다
+  if(!document.body)return;
+  document.body.style.setProperty('--ui-mode-s',String(uiScale.mode/100));
+  document.body.style.setProperty('--ui-nav-s',String(uiScale.nav/100));
+}
+function syncUiScaleUI(){
+  var m=document.getElementById('ui-mode-scale');if(m)m.value=String(uiScale.mode);
+  var n=document.getElementById('ui-nav-scale');if(n)n.value=String(uiScale.nav);
+}
+function initUiScaleUI(){ // 표시 옵션(s-view) 컨트롤 — admin.html 에만 있다(없으면 조용히 통과)
+  applyUiScale();
+  if(!document.getElementById('ui-mode-scale'))return;
+  syncUiScaleUI();
+  function on(id,key){var el=document.getElementById(id);if(!el)return;
+    el.addEventListener('change',function(){
+      var o={};o[key]=parseInt(el.value,10)||100;mergeUiScale(o);el.value=String(uiScale[key]);
+      saveUiScale();applyUiScale();
+      if(typeof markCloudDirty==='function')markCloudDirty();
+    });}
+  on('ui-mode-scale','mode');on('ui-nav-scale','nav');
+}
 function pinScale(kind){var s=mapPinView[kind];return s&&s.size?s.size/100:1;}
 function renderAllPins(){ // 표시 설정 변경 후 4종 재렌더 — Request 가 끝에서 딜·declutter 까지 연쇄한다
   if(typeof renderSpots==='function')renderSpots();       // (renderSpots 는 피드 핀도 같이 부른다)
@@ -5492,16 +5550,19 @@ function answerRequest(id,text,img){ // img: 사진 답변(dataURL, 선택)
   else{rq.answers.push(ans);saveRequests();renderRequestMarkers();}
   hideReqBubble();
   var earned=!isMyReq(rq); // v1.92 남의 Request 에 답하면 적립 (내 것에 답하는 건 적립 대상이 아니다)
-  if(earned){addCoins(REQ_COIN);coinFly();}
   var ab=document.getElementById('ai-bubble');
   /* 말의 주인을 가른다 (v2.18). 남의 Request 에 답한 것은 **내가 보낸** 것이라
-     "도착" 이 아니라 "적립·전달" 이고, 내 Request 의 답은 **도착한** 것이다 —
+     "도착" 이 아니라 "전달" 이고, 내 Request 의 답은 **도착한** 것이다 —
      여태는 무대 Request 가 전부 내 것이라 한 문장이 두 장면을 겸했다. */
   if(ab){ab.textContent=earned
-    ?'🪙 '+REQ_COIN+' 적립! 현장 답변이 요청자에게 전달됐어요.'
+    ?'📨 현장 답변이 요청자에게 전달됐어요. 리워드는 잠시 뒤 지급됩니다.'
     :(hasLive()?'📍 답변 전송! 요청자에게 실시간으로 전달했어요.'
                :'📍 '+rq.place+' 현장 답변 도착: '+(img?'📷 ':'')+text);
     ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},5000);}
+  /* v2.27 지급은 즉시가 아니다 — v2.18 의 addCoins+coinFly 는 삭제. 답이 전달되고
+     시간이 지나 리워드 말풍선(코인 버스트)이 따로 뜬다. 임베드(시나리오)는 지급 시점을
+     'reward' 액션이 정하므로 자동 지연 지급을 걸지 않는다 — 걸면 두 번 지급된다. */
+  if(earned&&!IS_EMBED)setTimeout(function(){showRewardBubble();},REQ_REWARD_MS);
 }
 /* 옮긴 자리를 저장소에 남긴다 (v2.20) — 라이브면 문서를, 아니면 로컬 배열을.
    place 는 좌표를 따라간다: 자리를 옮겨 놓고 옛 동 이름이 남으면 카드가 거짓말을 한다. */
@@ -7710,6 +7771,12 @@ function nhAct(st,token){
         return nhAnswerTyped(rq,st.v||'지금 그렇게 안 붐벼요',token,st.ms,st.fast)!==false;}
       // 쿠폰 받기 (v2.20) — v=리워드 문구 · e=문구 표시 초('0'=안 띄움) · i=어느 딜
       if(st.a==='coupon')return nhCoupon(st.i,st.v,st.e,token,st.ms,st.fast)!==false;
+      /* 리워드 지급 (v2.27) — answer(답 작성)와 **분리된** 액션이다. 답을 쓰면 팝업이
+         닫히고, 시간이 지나 이 스텝이 오면 우하단 agent 말풍선 + 코인 버스트로 지급을
+         보여준다. v = 말풍선 문구 (콘솔 편집기에서 수정, 비우면 앱 기본 문구). */
+      if(st.a==='reward'){if(typeof showRewardBubble!=='function')return false;
+        if(typeof hideReqBubble==='function')hideReqBubble();
+        return showRewardBubble(st.v)!==false;}
       if(st.a==='chat')return nhChat(st.v,st.say&&st.v==='send'?st.say:(st.i?st.say:''))!==false;
       if(st.a==='ai')return nhAi(token,st.ms,st.fast)!==false;
       // 투명도 연출 (v2.21, 콘솔 D117) — 지금 깔린 지도 컨텐츠를 흐리게 / 원복.
@@ -8436,7 +8503,8 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'burst', // v2.11: 엔딩 연출 — 줌아웃하며 컨텐츠가 쏟아진다 (v=종류·i=개수·e=줌·ms=시간)
   'coupon', // v2.20: 타임딜 쿠폰을 받는다 (v=리워드 문구·e=문구 표시 초·i=어느 딜)
   'dim','undim', // v2.21: 깔린 지도 컨텐츠를 흐리게/원복 — 이후 뜨는 것만 강조하는 연출 (v=남길 불투명도 %)
-  'page']; // v2.2: 상단 지면을 옆으로 넘긴다
+  'page', // v2.2: 상단 지면을 옆으로 넘긴다
+  'reward']; // v2.27: 현장 답변 리워드 지급 — answer 와 분리. 우하단 agent 말풍선 + 코인 버스트 (v=문구)
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
@@ -8709,7 +8777,7 @@ function startEmbed(){
   loadFileDefaults(); // repo 백스톱 설정(settings-default.json) — 공장값 캡처 후 비동기 적용, 클라우드가 오면 그쪽 우선
   initSettingsExport();
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();syncCoinUI();initSeedGen();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();initUiScaleUI();syncCoinUI();initSeedGen();
   window.addEventListener('resize',layoutTabPages);
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)
   setInterval(function(){try{tickReqRemain();}catch(e){}},1000); // Request 남은 시간(분/초) 1초 갱신 — 텍스트만(경량)

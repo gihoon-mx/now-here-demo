@@ -236,14 +236,18 @@ button:focus:not(:focus-visible){outline:none;}
 .req-composer.pressing .rc-press{display:block;animation:rcPress .56s ease-out both;}
 @keyframes rcPress{0%{transform:translate(-50%,50%) scale(.35);opacity:.35;}70%{opacity:1;}100%{transform:translate(-50%,50%) scale(1);opacity:1;}}
 
-/* 코인 적립 효과 (v2.18) — 답변 보상이 프로필(코인이 사는 곳)로 날아간다 */
-.coin-fly{position:absolute;z-index:200;font-size:5cqw;line-height:1;pointer-events:none;
-  transform:translate(-50%,-50%);animation:coinFly 1.15s cubic-bezier(.3,.1,.35,1) both;}
-@keyframes coinFly{0%{opacity:0;transform:translate(-50%,-50%) scale(.4);}12%{opacity:1;transform:translate(-50%,-50%) scale(1.2);}
-  28%{transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.45);}}
-.coin-amt{position:absolute;z-index:200;font-size:5.4cqw;font-weight:800;color:#f5a623;letter-spacing:-0.01em;
-  text-shadow:0 1px 2px rgba(0,0,0,0.28);pointer-events:none;transform:translate(-50%,-30%);animation:coinAmt 1.5s ease-out both;}
-@keyframes coinAmt{0%{opacity:0;transform:translate(-50%,-30%);}18%{opacity:1;}100%{opacity:0;transform:translate(-50%,-170%);}}
+/* 리워드 지급 코인 버스트 (v2.27) — v2.18 의 coinFly(프로필로 날아가는 연출)를 대체한다.
+   지급은 답변 즉시가 아니라 **따로, 나중에** 우하단 agent 말풍선으로 오고(showRewardBubble),
+   그 말풍선 위에서 코인이 사방으로 터진다. 각 코인은 --dx/--dy(비산)·--rot 을 인라인으로 받는다. */
+.coin-burst{position:absolute;z-index:200;pointer-events:none;width:0;height:0;}
+.coin-burst .cb-coin{position:absolute;left:0;top:0;font-size:5cqw;line-height:1;
+  animation:coinPop .95s cubic-bezier(.16,.84,.44,1) both;}
+.coin-burst .cb-coin img{width:5cqw;height:5cqw;vertical-align:top;} /* Twemoji 치환 대비 */
+@keyframes coinPop{
+  0%{opacity:0;transform:translate(0,0) scale(.3) rotate(0);}
+  12%{opacity:1;transform:translate(calc(var(--dx,0cqw)*.35),calc(var(--dy,-10cqw)*.5)) scale(1.15) rotate(calc(var(--rot,180deg)*.4));}
+  100%{opacity:0;transform:translate(var(--dx,0cqw),calc(var(--dy,-10cqw) + 16cqw)) scale(.9) rotate(var(--rot,180deg));}
+}
 
 /* 스팟 추가 폼 */
 .spot-add-row{margin-top:4px;}
@@ -603,7 +607,9 @@ button:focus:not(:focus-visible){outline:none;}
 .pa-loc{justify-self:center;min-width:0;max-width:46cqw;font-size:3.8cqw;font-weight:800;letter-spacing:-0.01em;color:#20242c;pointer-events:none;}
 .pa-loc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
 /* 모드 토글: 헤더 아래 프로스트 오버레이(위치 텍스트와 자리 스왑) — 모든 탭에서 접근 가능 */
-.pa-mode{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3.4cqw;z-index:5;display:flex;gap:0.5cqw;padding:0.7cqw;border-radius:5cqw;
+/* v2.27 크기 배율(--ui-mode-s): 관리자 '표시 옵션 › UI 크기'(uiScale, 기본 88%).
+   CSS zoom 은 left/top 을 곱해 앵커가 밀린다(v1.64 교훈) — transform scale 로만 줄인다. */
+.pa-mode{position:absolute;top:100%;left:50%;transform:translateX(-50%) scale(var(--ui-mode-s,1));transform-origin:top center;margin-top:3.4cqw;z-index:5;display:flex;gap:0.5cqw;padding:0.7cqw;border-radius:5cqw;
   background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-line);box-shadow:0 1cqw 3cqw rgba(16,24,40,0.14),var(--glass-hi);}
 .pm-btn{display:inline-flex;align-items:center;gap:1cqw;border:none;background:transparent;color:#646b76;font-family:inherit;font-weight:700;font-size:2.9cqw;letter-spacing:-0.01em;padding:1cqw 3cqw;border-radius:4cqw;cursor:pointer;white-space:nowrap;transition:background .22s ease,color .22s ease,box-shadow .22s ease;}
 .pm-btn.active[data-mode="local"]{background:linear-gradient(160deg,#4a8bff,#2b6ff0);color:#fff;box-shadow:0 0.6cqw 2cqw rgba(47,123,255,0.4),inset 0 1px 0 rgba(255,255,255,0.28);}
@@ -616,8 +622,8 @@ button:focus:not(:focus-visible){outline:none;}
 
 /* 프로필 메뉴 (우상단 P 클릭 → 계정/로그아웃) */
 #phone-profile-menu{position:absolute;top:calc(env(safe-area-inset-top,0px) + 15.5cqw);right:4cqw;z-index:22;width:60cqw;max-width:74cqw;
-  background:var(--frost-strong);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-  border:1px solid var(--glass-line);border-radius:3.4cqw;box-shadow:var(--sh-l),var(--glass-hi);
+  background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur); /* v2.27 팝업 문법 통일 (req-bubble) */
+  border:1px solid var(--glass-line);border-radius:5cqw;box-shadow:0 1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);
   padding:3cqw 3.2cqw;display:none;flex-direction:column;gap:2.6cqw;}
 #phone-profile-menu.open{display:flex;}
 #phone-profile-menu .ppm-top{display:flex;align-items:center;gap:2cqw;}
@@ -628,7 +634,8 @@ button:focus:not(:focus-visible){outline:none;}
 
 /* 하단 네비: 프로스트 화이트 통일(흰 헤더와 한 몸) — 알약 그룹 + 원형 버튼 2개 */
 /* [그룹+AI] 통째로 가운데. 그룹은 고정폭 → 메뉴 바꿔도 크기 불변(팝핑 방지) */
-.phone-navbar{position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:2.6cqw;padding:0 3cqw 2.75cqw;}
+/* v2.27 크기 배율(--ui-nav-s): uiScale.nav (기본 90%) — 바닥 중앙 기준으로 줄어든다 */
+.phone-navbar{position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:2.6cqw;padding:0 3cqw 2.75cqw;transform:scale(var(--ui-nav-s,1));transform-origin:50% 100%;}
 /* 컨텐츠 추가 버튼(네비 왼쪽, AI 버튼과 동일한 원형 칩) */
 .pn-add{width:13.4cqw;height:13.4cqw;flex-shrink:0;border:1px solid var(--glass-line);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:3.1cqw;color:#3c434e;
   background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:0 1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);transition:transform .18s ease,background .2s ease,border-color .2s ease,color .2s ease;}
@@ -637,8 +644,9 @@ button:focus:not(:focus-visible){outline:none;}
 .pn-add:active{transform:scale(.9);}
 .pn-add.open{background:var(--acc);border-color:transparent;color:#fff;transform:rotate(45deg);}
 /* 컨텐츠 추가 팝업 (스팟 메시지 / 사진 — 화이트 카드) */
-.content-add-menu{position:absolute;left:3cqw;bottom:calc(21cqw + env(safe-area-inset-bottom,0px));z-index:7;display:none;flex-direction:column;gap:1.2cqw;padding:2cqw;border-radius:3.6cqw;
-  background:var(--frost-strong);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-line);box-shadow:var(--sh-l),var(--glass-hi);}
+/* v2.27 팝업 문법 통일: 현장 Request 버블(.req-bubble)과 같은 프로스트·라운드 5cqw·그림자 */
+.content-add-menu{position:absolute;left:3cqw;bottom:calc(21cqw + env(safe-area-inset-bottom,0px));z-index:7;display:none;flex-direction:column;gap:1.2cqw;padding:2cqw;border-radius:5cqw;
+  background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-line);box-shadow:0 1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);}
 .content-add-menu.open{display:flex;animation:aiPop .34s cubic-bezier(.2,1.5,.4,1) both;transform-origin:14% bottom;}
 .cam-item{display:flex;align-items:center;gap:2cqw;padding:2.4cqw 3.2cqw;border:none;border-radius:2.4cqw;background:transparent;color:var(--ink);font-family:inherit;font-size:3.2cqw;font-weight:600;white-space:nowrap;cursor:pointer;text-align:left;transition:background .15s ease;}
 .cam-item:hover,.cam-item:active{background:var(--hover);}
@@ -817,6 +825,44 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 #cp-zones.list .tz-scroll{align-items:stretch;}
 #cp-zones.list .tz-card.tzl{height:100%;width:40cqw;justify-content:flex-start;}
 #cp-zones.list .tzl-thumb{height:20cqw;flex-shrink:0;}
+/* ── 원형 썸네일 (v2.27, 존 카드 스타일 'circle') — 석촌동 시안의 스토리 서클.
+   v1.90 의 v3 전용 서클을 **명시적 선택지**로 옮겨 왔다(전 스킨 공용 — v3 의 해당 규칙은
+   삭제됐고, glass 는 v3 에서도 이제 글래스 캡션 그대로다). 마크업은 글래스와 같고
+   makeZoneCard 가 --zone-c(링 색)·data-temp(°C)를 실어 보낸다.
+   ⚠️ 기본 .tz-card::after(inset:0 그라디언트)를 온도 배지로 재활용하므로 네 변을 전부
+   다시 정한다 — top/right 를 안 지우면 배지가 카드 높이만큼 늘어난다(v2.26 까지 v3 서클의 버그). */
+#cp-zones.circle{overflow:visible;height:auto;} /* 서클은 44cqw 프레임 높이가 필요 없다 — 지도를 더 보여준다 */
+#cp-zones.circle .tz-scroll{gap:3.1cqw;align-items:flex-start;overflow-y:visible;height:auto;padding-top:.5cqw;padding-bottom:3.5cqw;}
+#cp-zones.circle .tz-card{
+  width:26.5cqw;height:26.5cqw;flex:none;
+  border-radius:50%;overflow:visible;
+  border:.9cqw solid var(--zone-c,#F4A15C);
+  background:transparent;box-shadow:none;padding:0;position:relative;}
+#cp-zones.circle .tz-card .tz-photo{
+  position:absolute;inset:0;width:100%;height:100%;
+  border-radius:50%;object-fit:cover;filter:brightness(.82);}
+/* 이름은 사진 위 흰 글씨 한가운데 — 서클은 캡션이 아니라 이름이 곧 얼굴이다 */
+#cp-zones.circle .tz-card .tz-bubble{
+  position:absolute;inset:0;z-index:1;
+  display:flex;align-items:center;justify-content:center;
+  background:none;backdrop-filter:none;-webkit-backdrop-filter:none;
+  border:none;box-shadow:none;padding:0;}
+#cp-zones.circle .tz-card .tz-bubble b{
+  font-size:5.1cqw;font-weight:800;letter-spacing:-.03em;
+  color:rgba(255,255,255,.96);text-shadow:0 1px 6px rgba(0,0,0,.45);}
+#cp-zones.circle .tz-card .tz-bubble i{display:none;}
+#cp-zones.circle .tz-card::after{content:none;} /* 기본 그라디언트 오버레이 끔 */
+/* 온도 배지 — 서클 하단 중앙, 링과 같은 색 */
+#cp-zones.circle .tz-card[data-temp]::after{
+  content:attr(data-temp);
+  position:absolute;top:auto;right:auto;left:50%;bottom:-1.5cqw;transform:translateX(-50%);
+  width:auto;height:auto;
+  padding:.8cqw 2.6cqw;border-radius:9999px;
+  background:var(--zone-c,#F4A15C);color:#fff;
+  font-size:2.6cqw;font-weight:800;white-space:nowrap;line-height:1.4;
+  box-shadow:0 .5cqw 2cqw rgba(0,0,0,.18);}
+#cp-zones.circle .tz-card.focus{box-shadow:0 0 0 .8cqw rgba(232,87,74,.28);}
+#cp-zones.circle .tz-card .tzf-check{top:-.5cqw;right:-.5cqw;}
 .cpz-empty{display:flex;align-items:center;justify-content:center;height:100%;font-size:3cqw;font-weight:600;color:#9aa1ad;}
 /* 현장 Request 카드 · 가로 스크롤 */
 .rq-scroll{display:flex;gap:2.4cqw;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none;}
@@ -1188,7 +1234,9 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 .cpop-hbtn{border:none;background:none;font-family:inherit;font-size:.74rem;font-weight:800;color:var(--ink2);padding:5px 7px;border-radius:9px;cursor:pointer;white-space:nowrap;transition:background .15s ease;}
 .cpop-hbtn:hover{background:rgba(15,23,42,0.06);}
 .cpop-hbtn.accent{color:var(--acc,#2f7bff);}
-.cpop-card{background:rgba(255,255,255,0.72);backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));-webkit-backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));} /* 네비바와 같은 프로스트 유리 */
+/* v2.27 팝업 문법 통일: req-bubble 과 같은 프로스트·라운드(폰 밖 fixed 라 px — 5cqw≈20px)·그림자 */
+.cpop-card{background:var(--frost);backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));-webkit-backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));
+  border:1px solid var(--glass-line);border-radius:20px;box-shadow:0 6px 18px rgba(16,24,40,0.18),var(--glass-hi);}
 
 /* ── v1.63 스팟 의견 수 뱃지 (버블 우상단, 색=모드 규칙) ── */
 .spot-cmt{position:absolute;right:-8px;top:-9px;font-size:9px;font-weight:800;color:#fff;border-radius:999px;padding:2px 5px;line-height:1;box-shadow:0 0 0 1.5px #fff;white-space:nowrap;}

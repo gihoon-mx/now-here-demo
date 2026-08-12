@@ -47,7 +47,7 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v2.26.0** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
+- **현재 최신: v2.27.0** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
 - ⚠️ v1.65부터 **admin.html도 버전 동기 대상**(check.js가 index/admin의 #app-version·?v= 일치를 강제). index/admin에 **공통 요소**(폰 화면 마크업·모달·설정 섹션)를 수정하면 **두 파일 모두** 반영할 것.
 
 ---
@@ -263,6 +263,62 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ---
 
 ## 📝 변경 이력
+
+### 2026-08-13 (2)
+- **v2.27.0 — 폰 셸 UI 크기 · 롱프레스 마우스 · 캐러셀 여백/원형 썸네일 · 팝업 통일 · 리워드 지급 분리 (M03/M07/M09/M11/M15/M16, 콘솔 v0.101.0 짝)**
+  — 사용자 8건 (now-here 6 + persona-vc 기능데모 연동 2).
+
+  ① **모드 토글·하단 네비 축소 + 크기 옵션 (M09+M11)** — `.pa-mode`/`.phone-navbar` 에
+  `transform:scale(var(--ui-mode-s/--ui-nav-s))` (CSS `zoom` 은 left/top 을 곱해 앵커가
+  밀린다 — v1.64 교훈 그대로 transform 만). 기본 88%/90% = "살짝 줄여 달라"의 값.
+  관리자 표시 옵션(s-view)에 `ui-mode-scale`/`ui-nav-scale`(60~120%) — `uiScale` 즉시
+  적용·additive 클라우드 동기(mapPinView 와 같은 왕복 배선: cloudSave·applyCloudData·
+  settingsSnapshotFull·applyExtraSettings·설정 JSON 복사·파일 백스톱).
+
+  ② **지도 꾹 누르면 그 지점에 컨텐츠 추가 팝업 — 마우스 지원 (M09)** — 터치(520ms)·
+  우클릭은 이미 있었는데(`attachAddGestures`) **마우스 길이 없었다**. 데스크톱 서비스·
+  persona-vc 임베드 시연은 마우스라 "없는 기능"으로 보였다. mousedown 520ms(이동 12px
+  취소) 같은 규칙. (v2.18 의 `request` 꾹 누름 링과는 다른 자리 — 그쪽은 컴포저 연출이다.)
+
+  ③ **지면 접기 버튼이 카드 밖으로 삐져나옴 (M15/v3)** — `#sum-collapse` 의
+  `right:2.6cqw` 는 `#phone-content-page` 기준인데 v3 가 그 안에 패딩 4.1cqw 를 더해
+  버튼이 카드 우측 밖으로 1.5cqw 나갔다 → v3 에서 `right:6.7cqw`(카드 안쪽 2.6cqw).
+  실측 버튼 right 349.9 < 카드 right 359.6 PASS.
+
+  ④ **트렌드 캐러셀 좌우 여백 = 지면과 동일 (M03/v3)** — `#cp-zones` 가 부모 패딩
+  4.1cqw 위에 자기 패딩 4.1cqw 를 **또** 얹어 여백이 배였다. 음수 마진으로 부모 패딩을
+  되돌리고 스크롤러(.tz-scroll) 안쪽 패딩으로 시작선을 지면과 같게 — 스크롤 중 카드는
+  화면 끝까지 흘러가 잘린다(블리드). 실측 첫 카드 left=15.375px=cp-frame left PASS.
+
+  ⑤ **존 카드 스타일 '원형 썸네일'(circle) 신설 (M03+M15)** — v3 전용이던 v1.90 스토리
+  서클을 **명시적 선택지**로: `ZONE_CARD_STYLES` 에 'circle'(관리자 고르개 4번째 옵션,
+  클라우드 동기, 무대 `seed.zoneCard` 도 그대로 받는다), CSS 는 `#cp-zones.circle` 로
+  style.css 이관(전 스킨 공용 — v3 의 glass 는 이제 글래스 캡션 그대로). 이관하며
+  **온도 배지가 카드 높이만큼 세로로 늘어나던 버그 수정** — 기본 `.tz-card::after` 의
+  `inset:0` 을 물려받아 top 이 살아 있었다(네 변 전부 재선언). 서클 모드는 높이도 auto.
+  ⚠️교차: `applyExtraSettings`/`applyCloudData` 의 존 카드 검증을 `ZONE_CARD_STYLES`
+  하나로 — v2.26 의 'page' 가 클라우드로 안 다니던 틈도 함께 봉합.
+
+  ⑥ **팝업 문법 통일 (M15)** — 컨텐츠 추가 메뉴·프로필 메뉴·상세 팝업(cpop)을 현장
+  Request 버블(.req-bubble)과 같은 프로스트(`--frost`)·라운드 5cqw(폰 밖 fixed 는
+  20px — v1.82 cqw 규칙)·그림자 한 벌로. ai-presets 는 원래 같은 문법이라 무수정.
+
+  ⑦ **리워드 지급 분리 (M07)** — 답변 즉시 `addCoins`+`coinFly`(v2.18~19, 프로필로
+  날아가는 연출)를 **삭제**. 답변 → "전달됐어요. 리워드는 잠시 뒤 지급됩니다" →
+  `REQ_REWARD_MS`(6s) 뒤 **agent 말풍선**(`showRewardBubble`, ai-bubble 자리)이 따로
+  뜨며 **코인 버스트**(`coinBurst` — 🪙 12개 부채꼴 비산, CSS `coinPop`)와 함께 적립.
+  내 Request 에 답하는 건 여전히 적립 없음. 회차 코인 복원(nhCoinsMark, v2.19)은 그대로 유효.
+
+  ⑧ **시나리오 reward 액션 (M16 ⚠️교차: persona-vc)** — `NH_ACTIONS` 에 `'reward'`
+  (v=말풍선 문구, 비우면 앱 기본·120자). answer(답 작성)와 **분리된 스텝**이라 콘솔이
+  지급 시점·문구를 정한다. **임베드는 자동 지연 지급을 걸지 않는다**(`!IS_EMBED` 가드) —
+  걸면 reward 스텝과 두 번 지급된다. persona-vc `PLAY_ACTIONS`/`ACTION_INFO` 도 같이
+  올렸다(v0.101.0) — 옛 앱은 reward 스텝을 nhSanitize 가 버리고 ok:false 로 남긴다.
+
+  검증: `node tools/check.js` PASS · 임베드(?embed=1) 콘솔 에러 0 · 서클/여백/접기 버튼
+  실측 PASS(카드 left=frame left=15.375px) · 마우스 롱프레스 → at-point 팝업 ·
+  `showRewardBubble('문구')` 코인 12개+잔액 +500 · nhSanitize 가 reward 스텝을 나름 ·
+  ⚠️ cloudSave 왕복(uiScale·circle)·라이브 답변 경로는 로그인 게이트 뒤라 라이브에서 확인.
 
 ### 2026-08-13 (1)
 - **v2.26.0 — 가져온 존이 그린 모양 그대로 · 존 카드 지면형 (M03+M16, 콘솔 v0.100.0 짝)**
