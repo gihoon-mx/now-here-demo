@@ -5278,7 +5278,12 @@ function initTimeDeals(){
    사진=같은 매장(shop===feed.name, 시드 생성기 연결고리)·근처 피드.
    '타임딜 쿠폰받기'는 기존 딜 시트(z-30)를 다시 연다 — 페이지(z-29) 위로 올라온다. */
 var storePageId=null, storeTicker=null;
-function storeFeedPhotos(d){ // 같은 매장 사진 우선, 모자라면 근처 — 하나도 없으면 결정적 대체 타일
+function storeFeedPhotos(d){ // 콘솔이 올린 사진 우선 → 같은 매장 → 근처 → 결정적 대체 타일
+  /* 사람이 이 딜에 붙인 사진이 있으면 **그것만** 쓴다 (v2.17). 근처 피드를 섞으면
+     "내가 올린 것" 과 "앱이 주워온 것" 이 한 그리드에 뒤섞여, 무엇을 고쳐야 그 칸이
+     바뀌는지 알 수 없다. */
+  if(Array.isArray(d.photos)&&d.photos.length)
+    return d.photos.slice(0,NH_MAX.dealPhoto).map(function(src){return {src:src};});
   var same=feedItems.filter(function(f){return !f.hidden&&f.src&&f.name===d.shop;});
   var near=feedItems.filter(function(f){
     return !f.hidden&&f.src&&f.name!==d.shop&&f.lat!=null&&haversineM(f.lat,f.lng,d.lat,d.lng)<=400;});
@@ -7166,7 +7171,9 @@ function nhSpread(c,i){
    화면이 허용한 것을 앱이 조용히 버리면 시연이 설명과 어긋난다. 10 이던 시절에는
    "무대 = 여는 장면의 전제" 였는데, 콘솔이 컨텐츠 탭을 따로 내면서(콘솔 D93) 여기가
    동네를 채우는 자리가 됐다. */
-var NH_MAX={req:10,spot:40,feed:40,deal:10,page:12};
+/* dealPhoto: 딜 하나의 매장 페이지 사진 그리드 상한 (v2.17) — 시안이 3열이라 9장이면
+   세 줄로 꽉 찬다. 콘솔의 MAX_DEAL_PHOTOS 와 같은 값이다. */
+var NH_MAX={req:10,spot:40,feed:40,deal:10,page:12,dealPhoto:9};
 /* 자리 대역 (v2.10) — `nhSpread` 는 번호 하나로 자리를 정하므로, 종류가 겹치지 않게
    하는 유일한 길이 대역이다. 상한이 10 이던 시절에는 10 칸(스팟 10+i · 피드 20+i)이면
    충분했지만 40 이 되면 다른 종류가 **같은 자리에** 깔린다. 종류마다 100 칸을 준다:
@@ -7278,9 +7285,12 @@ function nhLayDeal(d,i,c,stamp){
     e:String(d.e||'⏰').slice(0,4),
     title:String(d.title||'').slice(0,40),
     shop:String(d.shop||'근처 매장').slice(0,30),
-    // 매장 페이지(v2.15)용 optional 두 칸 — 콘솔이 안 주면 페이지가 파생값(동네·템플릿)으로 채운다
+    // 매장 페이지(v2.15)용 optional 칸 — 콘솔이 안 주면 페이지가 파생값(동네·템플릿·근처 사진)으로 채운다.
+    // desc 는 300자까지 받는다 (v2.17) — 매장 소개는 한 문장으로 안 끝나는 일이 잦다.
     addr:d.addr?String(d.addr).slice(0,60):undefined,
-    desc:d.desc?String(d.desc).slice(0,120):undefined,
+    desc:d.desc?String(d.desc).slice(0,300):undefined,
+    // 사진 그리드 (v2.17) — 통과한 주소만, 없으면 storeFeedPhotos 가 근처 피드에서 모은다.
+    photos:Array.isArray(d.photos)?d.photos.slice(0,NH_MAX.dealPhoto).map(nhImgSrc).filter(Boolean):undefined,
     pct:pct,
     price:now.toLocaleString('ko-KR')+'원',
     was:was.toLocaleString('ko-KR')+'원',
@@ -7737,6 +7747,14 @@ function nhSanitize(raw){
         title:String(d.title||'').slice(0,40),
         shop:String(d.shop||'').slice(0,30),
         img:nhImgSrc(d.img), // v2.12: 사람이 올린 사진 (없으면 이모지로 그린다)
+        /* 매장 페이지(v2.15)의 글·사진을 **콘솔이 정한다** (v2.17). 세 칸이 다 optional 이라
+           안 주면 여태처럼 파생값(동네 이름·템플릿 문장·근처 피드 사진)으로 그린다.
+           v2.15 는 nhLayDeal 에만 addr/desc 를 뚫어 놓고 여기서 걷어내고 있었다 —
+           콘솔이 보내도 도착하지 않았다. */
+        addr:String(d.addr||'').slice(0,60),
+        desc:String(d.desc||'').slice(0,300),
+        photos:(Array.isArray(d.photos)?d.photos:[]).slice(0,NH_MAX.dealPhoto)
+          .map(nhImgSrc).filter(Boolean),
         pct:Math.min(90,Math.max(5,(d.pct|0)||20)),
         secs:Math.min(7200,Math.max(30,(d.secs|0)||1800)),
         hold:!!d.hold};

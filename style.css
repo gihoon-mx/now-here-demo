@@ -1373,11 +1373,19 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
 .store-page .stp-name{margin:3cqw 0 0;font-size:8.2cqw;font-weight:900;letter-spacing:-0.04em;line-height:1.2;color:#111;}
 .store-page .stp-addr{margin:1.3cqw 0 0;font-size:3.1cqw;color:#9c9c9c;}
 .store-page .stp-desc{margin:2.6cqw 0 0;font-size:3.6cqw;line-height:1.6;color:#2a2a2a;}
-/* 액션 줄 — 보조 3개는 흰 알약, CTA(쿠폰받기)만 보라 솔리드 (시안 그대로) */
-.store-page .stp-acts{display:flex;flex-wrap:wrap;gap:2cqw;margin-top:3.6cqw;}
-.store-page .stp-act{padding:2.4cqw 3.8cqw;border:1px solid #d8d6d2;border-radius:9999px;background:#fff;
-  color:#1a1a1a;font-family:inherit;font-size:3.1cqw;font-weight:700;cursor:pointer;}
-.store-page .stp-act.stp-cta{border:none;background:#7b61ff;color:#fff;}
+/* 액션 줄 — 보조 3개는 흰 알약, CTA(쿠폰받기)만 잉크 솔리드.
+   **네 개가 언제나 한 줄이다** (v2.17): wrap 이면 폰 폭에서 '타임딜 쿠폰받기'가 둘째 줄로
+   내려가 CTA 가 접힌 곳에 숨었다. 줄바꿈을 막고 알약을 그만큼 좁게 조인다(글자 2.9cqw ·
+   좌우 2.8cqw) — 네 개가 컨테이너 폭 안에 든다. 넘칠 때(글자를 더 키운 스킨 등)는
+   잘리지 않고 옆으로 밀린다: 스크롤바는 숨기고 줄은 지킨다. */
+.store-page .stp-acts{display:flex;flex-wrap:nowrap;gap:1.6cqw;margin-top:3.6cqw;
+  overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;}
+.store-page .stp-acts::-webkit-scrollbar{display:none;}
+.store-page .stp-act{flex:none;white-space:nowrap;
+  padding:2.4cqw 2.8cqw;border:1px solid #d8d6d2;border-radius:9999px;background:#fff;
+  color:#1a1a1a;font-family:inherit;font-size:2.9cqw;font-weight:700;cursor:pointer;}
+/* 하이라이트는 잉크다 — 보라(#7b61ff)는 이 앱의 다른 어떤 강조와도 짝이 안 맞았다 (v2.17). */
+.store-page .stp-act.stp-cta{border:none;background:#1a1a1a;color:#fff;}
 .store-page .stp-act:disabled{opacity:.45;cursor:default;}
 /* 타임딜 배너 — 사진이 있으면 배경으로 깔고 본문을 반투명 카드로 띄운다 */
 .store-page .stp-promo{position:relative;display:flex;align-items:center;gap:3cqw;margin-top:4.1cqw;

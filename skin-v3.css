@@ -737,7 +737,8 @@ body[data-skin="v3"] .store-page .stp-name{color:var(--v3-ink);}
 body[data-skin="v3"] .store-page .stp-addr{color:var(--v3-ink5);}
 body[data-skin="v3"] .store-page .stp-desc{color:var(--v3-ink2);}
 body[data-skin="v3"] .store-page .stp-act{background:var(--v3-surface);border-color:var(--v3-line);color:var(--v3-ink);}
-body[data-skin="v3"] .store-page .stp-act.stp-cta{background:#7b61ff;color:#fff;border:none;}
+/* CTA 하이라이트는 잉크 (v2.17) — 딜 시트의 '쿠폰 받기'(ds-claim)와 같은 색이다. */
+body[data-skin="v3"] .store-page .stp-act.stp-cta{background:var(--v3-ink);color:#fff;border:none;}
 body[data-skin="v3"] .store-page .stp-pr-time{color:var(--v3-red);}
 body[data-skin="v3"] .store-page .stp-pr-price em{background:var(--v3-red);}
 body[data-skin="v3"] .store-page .stp-ph{background:var(--v3-fill);}
