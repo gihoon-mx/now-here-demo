@@ -3528,6 +3528,42 @@ var settingsRemoteOn=false; // 임베드가 공개 설정 문서를 적용했나
    이 값은 **내보내기 전용**이다 — `applyExtraSettings` 가 이것을 적용하지 않는다.
    앱 자신의 존은 여전히 shared/mapContent 에서 온다. */
 var ZONE_BOOK_MAX=20;
+/* 존 하나가 나르는 것의 상한 (v2.24) — 이 문서는 **한 벌**이고 Firestore 상한이 있다.
+   칸(shape)은 그린 모양 그대로, 컨텐츠는 "그 존이 어떤 동네인가" 가 보일 만큼만. */
+var ZONE_BOOK_CELLS=30, ZONE_BOOK_SPOTS=10, ZONE_BOOK_FEEDS=6;
+function zbNum(v){return Math.round(Number(v)*1e5)/1e5;} // 좌표는 소수 5자리(≈1m)면 충분하다
+/* 그 존 **안에 있는** 컨텐츠 (v2.24) — 콘솔이 존을 가져올 때 같이 가져갈 수 있게.
+   판정은 화면이 쓰는 것과 같다: 스팟은 좌표(ptInZone), 피드는 태깅(zone) 또는 좌표. */
+function zoneBookContents(z){
+  var out={spots:[],feeds:[]};
+  try{
+    if(typeof demoSpots!=='undefined'&&typeof ptInZone==='function'){
+      for(var i=0;i<demoSpots.length&&out.spots.length<ZONE_BOOK_SPOTS;i++){
+        var s=demoSpots[i];
+        if(!s||s.hidden||s.lat==null||s.lng==null)continue;
+        if(!ptInZone(z,s.lat,s.lng))continue;
+        var t=String(s.text||'').trim();if(!t)continue;
+        out.spots.push({t:t.slice(0,80),emoji:String(s.emoji||'💬').slice(0,4),
+          temp:(s.temp!=null?s.temp:null),lat:zbNum(s.lat),lng:zbNum(s.lng)});
+      }
+    }
+    if(typeof feedItems!=='undefined'){
+      for(var j=0;j<feedItems.length&&out.feeds.length<ZONE_BOOK_FEEDS;j++){
+        var f=feedItems[j];
+        if(!f||f.hidden)continue;
+        var mine=(f.zone===z.id)||(f.lat!=null&&f.lng!=null&&typeof ptInZone==='function'&&ptInZone(z,f.lat,f.lng));
+        if(!mine)continue;
+        var d=String(f.desc||'').trim();if(!d)continue; // 글 없는 카드는 안 싣는다 — 콘솔 무대는 글이 있어야 카드가 선다
+        // 사진은 **주소만** (올린 사진은 data URI 라 문서에 담으면 상한에 닿는다)
+        var img=String(f.src||'');if(!/^https:\/\//i.test(img)||img.length>500)img='';
+        out.feeds.push({desc:d.slice(0,120),name:String(f.name||'').slice(0,20),img:img,
+          temp:(f.temp!=null?f.temp:null),
+          lat:(f.lat!=null?zbNum(f.lat):null),lng:(f.lng!=null?zbNum(f.lng):null)});
+      }
+    }
+  }catch(e){}
+  return out;
+}
 function zoneBookSnapshot(){
   if(typeof trendZones==='undefined')return [];
   return trendZones.slice(0,ZONE_BOOK_MAX).map(function(z){
@@ -3535,13 +3571,25 @@ function zoneBookSnapshot(){
     if(!/^https:\/\//i.test(photo)||photo.length>500)photo='';
     var where='';
     try{where=zoneRegionName(z.id)||'';}catch(e){}
+    var cs=(z.hexCenters&&z.hexCenters.length)?z.hexCenters:[];
+    /* 자리와 모양 (v2.24) — 여태 이름·색·크기만 나르고 **자리는 콘솔 무대가 새로 폈다**.
+       그래서 가져온 존이 실제 지도의 그 자리가 아니었다. 중심(at)과 칸 좌표(shape)를
+       같이 실으면 무대가 그린 대로 편다. shape 는 [[lat,lng],…] 로 납작하게 — 키 이름이
+       칸마다 반복되면 문서가 두 배가 된다. */
+    var ce=null;
+    try{ce=cs.length?zoneCentroid(z):null;}catch(e){}
+    var body=zoneBookContents(z);
     return {name:String(z.name||'').slice(0,20),
       desc:String(z.desc||'').slice(0,80),
       color:String(z.color||''),
       temp:(z.temp!=null?z.temp:null),
       photo:photo,
       where:String(where).slice(0,20),
-      cells:(z.hexCenters&&z.hexCenters.length)||0};
+      cells:cs.length,
+      at:(ce?{lat:zbNum(ce.lat),lng:zbNum(ce.lng)}:null),
+      radiusKm:(z.radiusKm!=null?Number(z.radiusKm):null),
+      shape:cs.slice(0,ZONE_BOOK_CELLS).map(function(h){return [zbNum(h.lat),zbNum(h.lng)];}),
+      spots:body.spots,feeds:body.feeds};
   }).filter(function(z){return z.name;});
 }
 /* 관리자 적용 설정의 통째 스냅샷 — 캐시(localStorage)·공개 문서(publicSettings)가 같은 것을 나른다. */
@@ -7697,6 +7745,8 @@ function nhSpread(c,i){
    세 줄로 꽉 찬다. 콘솔의 MAX_DEAL_PHOTOS 와 같은 값이다. */
 /* zone (v2.21): 무대 트렌드 존 상한 — 콘솔의 MAX_SEED_ZONES 와 같은 값. */
 var NH_MAX={req:10,spot:40,feed:40,deal:10,page:12,dealPhoto:9,zone:6};
+/* 존 하나가 들고 올 수 있는 칸 수 (v2.24) — 앱 zoneBookSnapshot 의 상한과 같은 값이다. */
+var NH_ZONE_CELLS_MAX=30;
 /* 자리 대역 (v2.10) — `nhSpread` 는 번호 하나로 자리를 정하므로, 종류가 겹치지 않게
    하는 유일한 길이 대역이다. 상한이 10 이던 시절에는 10 칸(스팟 10+i · 피드 20+i)이면
    충분했지만 40 이 되면 다른 종류가 **같은 자리에** 깔린다. 종류마다 100 칸을 준다:
@@ -7712,6 +7762,33 @@ function nhTemp(v){
   if(v===null||v===undefined||v==='')return null;
   var n=Number(v);
   return isFinite(n)?Math.max(0,Math.min(100,Math.round(n))):null;
+}
+/* 콘솔이 실어 보낸 좌표 (v2.24) — 무대 항목이 **제 자리**를 들고 올 수 있다.
+   앱에서 가져온 트렌드 존과 그 안의 컨텐츠가 실제 지도의 그 자리에 서야 뜻이 있다.
+   못 믿을 값은 null 이고, 그러면 여태처럼 무대가 자리를 편다(nhSpread). */
+function nhLatLng(v){
+  if(!v)return null;
+  var la=Number(v.lat),ln=Number(v.lng);
+  if(!isFinite(la)||!isFinite(ln))return null;
+  if(Math.abs(la)>90||Math.abs(ln)>180)return null;
+  return {lat:la,lng:ln};
+}
+/* 존이 그려진 칸 좌표 — [[lat,lng],…]. 키를 반복하지 않으려고 납작하게 온다. */
+function nhShape(v){
+  if(!Array.isArray(v))return null;
+  var out=[];
+  for(var i=0;i<v.length&&out.length<NH_ZONE_CELLS_MAX;i++){
+    var p=v[i];if(!Array.isArray(p))continue;
+    var q=nhLatLng({lat:p[0],lng:p[1]});
+    if(q)out.push(q);
+  }
+  return out.length?out:null;
+}
+/* 헥사 반경(km) — 앱의 그리드 설정과 같은 범위 안에서만 받는다. */
+function nhZoneRadius(v){
+  var n=Number(v);
+  if(!isFinite(n)||n<=0)return null;
+  return Math.min(2,Math.max(0.05,n));
 }
 /* 안 정했을 때의 온도 — **결정적 랜덤**이다 (Math.random 금지, v1.72 와 같은 이유:
    시연은 몇 번을 돌려도 같은 화면이어야 한다). 22~92 사이로 편다 — 0 근처만 나오면
@@ -7764,7 +7841,8 @@ function nhLayReq(r,i,c,stamp,token){
 }
 function nhLaySpot(s,i,c,stamp){
   if(typeof demoSpots==='undefined')return null;
-  var id='spn_'+stamp+'_'+i,p=nhPosGet('spot',i,c)||nhSpread(c,NH_BAND.spot+i); // 사람이 옮긴 자리 우선 (v2.3)
+  // 자리: 사람이 옮긴 것(v2.3) → 항목이 들고 온 제 자리(v2.24, 앱에서 가져온 존의 컨텐츠) → 무대가 편 자리
+  var id='spn_'+stamp+'_'+i,p=nhPosGet('spot',i,c)||nhLatLng(s.at)||nhSpread(c,NH_BAND.spot+i);
   demoSpots.push({id:id,lat:p.lat,lng:p.lng,
     text:String(s.t||'').slice(0,80),emoji:s.emoji||'💬',
     /* 트렌드 온도 (v2.4) — heatTOf 가 이 값을 자동 계산보다 먼저 본다. 안 정했으면
@@ -7777,7 +7855,8 @@ function nhLaySpot(s,i,c,stamp){
 }
 function nhLayFeed(f,i,c,stamp){
   if(typeof feedItems==='undefined')return null;
-  var id='fdn_'+stamp+'_'+i,p=nhPosGet('feed',i,c)||nhSpread(c,NH_BAND.feed+i); // 사람이 옮긴 자리 우선 (v2.3)
+  // 자리: 사람이 옮긴 것(v2.3) → 항목이 들고 온 제 자리(v2.24) → 무대가 편 자리
+  var id='fdn_'+stamp+'_'+i,p=nhPosGet('feed',i,c)||nhLatLng(f.at)||nhSpread(c,NH_BAND.feed+i);
   feedItems.push({id:id,
     /* 사진: 사람이 올린 것이 있으면 그것, 없으면 테마 색으로 그린다 (v2.10 — 지면
        카드가 v2.4 에 얻은 길을 피드 카드도 갖는다). 콘솔이 Storage 에 두고 주소만
@@ -7860,22 +7939,32 @@ var NH_ZONE_COLORS=['#e23b2a','#f2862e','#f2c53d','#9dc64c','#1428A0'];
 function nhLayZone(z,i,c,stamp){
   if(typeof trendZones==='undefined'||typeof getHexGridParams!=='function')return null;
   var id='tzn_'+stamp+'_'+i;
-  // 자리: 지역 중심 둘레 황금각 — 컨텐츠 핀 대역(nhSpread ~0.002)보다 넓게 편다 (존은 면이다).
-  var a=i*2.399963+0.9,dd=0.006+0.004*(i%3);
-  var ctr={lat:c.lat+dd*Math.cos(a),lng:c.lng+dd*Math.sin(a)*1.25};
-  var gp=getHexGridParams(hexRadiusKm),x=gp.colSpacing,y=gp.rowSpacing;
-  var offs=[[0,0],[0,y],[0,-y],[x,y/2],[x,-y/2],[-x,y/2],[-x,-y/2]];
-  if(z.r===2)offs=offs.concat([[0,2*y],[0,-2*y],[x,1.5*y],[x,-1.5*y],[-x,1.5*y],[-x,-1.5*y],
-    [2*x,0],[2*x,y],[2*x,-y],[-2*x,0],[-2*x,y],[-2*x,-y]]);
-  var centers=offs.map(function(o){return {lat:ctr.lat+o[1],lng:ctr.lng+o[0]};});
+  /* 자리 (v2.24): 앱에서 가져온 존은 **제 자리와 모양을 들고 온다** — 그러면 지도의 그
+     자리에 그대로 편다. 손으로 적은 존은 여태처럼 무대가 편다: 지역 중심 둘레 황금각
+     — 컨텐츠 핀 대역(nhSpread ~0.002)보다 넓게 (존은 면이다). */
+  var rad=(z.radiusKm!=null?z.radiusKm:hexRadiusKm);
+  var centers=null;
+  if(z.shape&&z.shape.length)centers=z.shape.map(function(p){return {lat:p.lat,lng:p.lng};});
+  if(!centers){
+    var ctr=z.at||null;
+    if(!ctr){
+      var a=i*2.399963+0.9,dd=0.006+0.004*(i%3);
+      ctr={lat:c.lat+dd*Math.cos(a),lng:c.lng+dd*Math.sin(a)*1.25};
+    }
+    var gp=getHexGridParams(rad),x=gp.colSpacing,y=gp.rowSpacing;
+    var offs=[[0,0],[0,y],[0,-y],[x,y/2],[x,-y/2],[-x,y/2],[-x,-y/2]];
+    if(z.r===2)offs=offs.concat([[0,2*y],[0,-2*y],[x,1.5*y],[x,-1.5*y],[-x,1.5*y],[-x,-1.5*y],
+      [2*x,0],[2*x,y],[2*x,-y],[-2*x,0],[-2*x,y],[-2*x,-y]]);
+    centers=offs.map(function(o){return {lat:ctr.lat+o[1],lng:ctr.lng+o[0]};});
+  }
   var zone={id:id,name:String(z.name||'').slice(0,20),
     color:z.color||NH_ZONE_COLORS[i%NH_ZONE_COLORS.length],
     fillA:null,desc:String(z.desc||'').slice(0,80),
     temp:(z.temp!=null?z.temp:null),
-    photo:z.img||null,radiusKm:hexRadiusKm,
+    photo:z.img||null,radiusKm:rad,
     hexCenters:centers,
     originalCenters:JSON.parse(JSON.stringify(centers)),
-    originalRadiusKm:hexRadiusKm,
+    originalRadiusKm:rad,
     polygons:[],label:null,stage:true};
   trendZones.push(zone);
   nhTempIds.zone.push(id);
@@ -8335,6 +8424,7 @@ function nhSanitize(raw){
     var sps=(Array.isArray(rs.spots)?rs.spots:[]).slice(0,NH_MAX.spot).map(function(s){
       s=s||{};return {t:String(s.t||'').slice(0,80),emoji:String(s.emoji||'💬').slice(0,4),
         temp:nhTemp(s.temp), // v2.4: 트렌드 온도 (빈 값이면 null → 깔 때 결정적 랜덤)
+        at:nhLatLng(s.at),   // v2.24: 항목이 들고 온 제 자리 (앱에서 가져온 존의 컨텐츠)
         hold:!!s.hold};
     }).filter(function(s){return s.t;});
     var fds=(Array.isArray(rs.feeds)?rs.feeds:[]).slice(0,NH_MAX.feed).map(function(f){
@@ -8342,6 +8432,7 @@ function nhSanitize(raw){
         theme:String(f.theme||'').slice(0,16),name:String(f.name||'').slice(0,20),
         temp:nhTemp(f.temp), // v2.4
         img:nhImgSrc(f.img), // v2.10: 사람이 올린 사진 (없으면 테마 색으로 그린다 — 지면 카드와 같은 규칙)
+        at:nhLatLng(f.at),   // v2.24: 항목이 들고 온 제 자리
         hold:!!f.hold};
     // 사진만 올리고 글은 안 적을 수 있다 (v2.10) — 카드가 곧 사진인 피드다.
     }).filter(function(f){return f.desc||f.label||f.img;});
@@ -8383,7 +8474,12 @@ function nhSanitize(raw){
         color:(/^#[0-9a-f]{6}$/i.test(String(z.color||''))?String(z.color):''),
         img:nhImgSrc(z.img),
         temp:nhTemp(z.temp),
-        r:((z.r|0)===2?2:1)};
+        r:((z.r|0)===2?2:1),
+        /* 앱에서 가져온 존은 **제 자리를 들고 온다** (v2.24) — 없으면 여태처럼 무대가 편다.
+           shape 는 그린 칸 좌표 그대로라, 있으면 모양까지 그대로 선다. */
+        at:nhLatLng(z.at),
+        radiusKm:nhZoneRadius(z.radiusKm),
+        shape:nhShape(z.shape)};
     }).filter(function(z){return z.name;});
     /* 소리만 있고 깐 것이 하나도 없을 수 있다 (v2.23) — `post`·`postfeed` 는 무대 없이
        그 자리에서 컨텐츠를 만드는 액션이라, 그것만 쓰는 데모는 seed 가 소리 하나뿐이다.

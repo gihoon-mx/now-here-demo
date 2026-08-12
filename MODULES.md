@@ -87,7 +87,7 @@
 
 | 방향 | 메시지 |
 |---|---|
-| 콘솔 → 앱 | `{source:'persona-vc', type:'nh:list'}` · `{type:'nh:run', id}` · `{type:'nh:run', scenario:{...,seed,pos}}` · `{type:'nh:stop'}` |
+| 콘솔 → 앱 | `{source:'persona-vc', type:'nh:list'}` · `{type:'nh:run', id}` · `{type:'nh:run', scenario:{...,seed,pos}}` (seed 의 zones 는 `at`·`shape`·`radiusKm`, spots·feeds 는 `at` 을 들 수 있다 — v2.24) · `{type:'nh:stop'}` |
 | 앱 → 콘솔 | `nh:ready{version,scenarios[],actions[],areas[]}` · `nh:begin{id,name,total,concern}` · `nh:step{i,total,say,concern,key,action,v,ok}` · `nh:done{id}` · `nh:error{message}` · `nh:pos{scenario,key,lat,lng}`(v2.20 — 사람이 핀을 옮겼다. 저장은 콘솔이 한다) |
 
 **프레임 비율은 콘솔이 책임진다** (v1.70): 앱은 `?embed=1` 에서 받은 프레임을 그냥 꽉 채운다
@@ -225,6 +225,12 @@ deals:[…] , pages:[…] , zones:[{name,desc,img,color,temp,r}]}` (`zones` 는 
   403 이 오고 앱은 조용히 템플릿으로 답한다 — 화면만 보면 원인을 알 수 없으니 여기를 볼 것.
 
 ## 📝 모듈 변경 로그 (최근)
+
+- 2026-08-12 M03+M16: v2.24.0 — **가져온 트렌드 존이 제 자리에 선다 · 존 안 컨텐츠도 나른다** (콘솔 v0.98.0 과 짝, 사용자 요청 2건).
+  ① **M03 `zoneBook` 에 자리·모양** — `at`(중심)·`radiusKm`·`shape`(그린 칸 좌표 [[lat,lng],…] 30칸까지). v2.22 는 이름·색·칸 수만 날라서 콘솔이 가져온 존이 **실제 지도의 그 자리가 아니었다**.
+  ② **M03 `zoneBook` 에 존 안 컨텐츠** — `spots`(10) · `feeds`(6). 소속 판정은 화면과 같다(스팟=`ptInZone` 좌표 · 피드=`zone` 태깅 또는 좌표). 각 항목이 제 좌표를 들고 가고, 사진은 https 주소만 싣는다(data URI 는 1MB 상한).
+  ③ **M16 무대 항목이 제 자리를 들 수 있다** — `nhLayZone` 은 `at`·`shape`·`radiusKm` 을, `nhLaySpot`·`nhLayFeed` 는 `at` 을 본다. 우선순위는 **사람이 옮긴 자리(v2.20 `pos`) → 항목의 `at` → 무대가 편 자리**. 값이 없으면 v2.23 과 한 픽셀도 다르지 않다(손으로 적은 무대는 그대로).
+  검증(로컬 :8766): 존 안팎 컨텐츠를 만들어 `zoneBook` 이 존 안 것만(태깅 포함) 싣는 것 · 자리를 든 존이 그 좌표에 3칸 그대로, 자리 없는 존은 7칸 로제트 · 자리를 든 스팟도 그 좌표에.
 
 - 2026-08-12 M16+M08+M03: v2.21.0 — **dim/undim 액션 · fast 스텝 · 무대 트렌드 존 · 드랍의 지면 옵션 · 지면 바운스 제외 · AI 버튼 사선 흐름** (콘솔 v0.94.0 과 짝, 사용자 요청 7건 중 앱 몫).
   ① **M16 `dim`/`undim` 액션 신설** (어휘 3중 동기화: 앱 `NH_ACTIONS` · 콘솔 `PLAY_ACTIONS` · 프롬프트 `ACTION_LIST`) — `dim`(v=남길 불투명도 %, 5~80 · 빈 값 22)이 **그 순간 깔려 있던** 지도 컨텐츠(스팟·피드 핀·Request·딜)의 id 를 `nhDimIds` 에 적고 그 오버레이만 `filter:opacity()` 로 흐린다. 이후 뜨는 것은 표에 없어 제 불투명도 — "이 다음 것만 봐 달라". 렌더가 DOM 을 새로 만들므로 각 오버레이 `onAdd` 가 표를 다시 본다(바운스 표와 같은 구조, 클러스터는 멤버 전원이 표에 있을 때만). `undim`·`nhReset` 이 되돌린다.
