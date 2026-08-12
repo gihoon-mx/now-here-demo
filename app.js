@@ -1120,6 +1120,7 @@ function openContentPop(kind,data){
   var m=document.getElementById('content-pop'),body=document.getElementById('cpop-body'),tt=document.getElementById('cpop-title');
   if(!m||!body||!data)return;
   body.innerHTML='';
+  cpopRefresh=null; // 앞 팝업의 갱신 훅이 남으면 없어진 DOM 을 다시 그린다 (v2.19)
   // 헤더 액션(v1.63): 제목과 얼라인 — [📍 지도보기][✏️ 수정(권한자)] ... [닫기]
   var ha=document.getElementById('cpop-head-actions');if(ha)ha.innerHTML='';
   function headAct(label,fn,accent){if(!ha)return;var b=document.createElement('button');b.type='button';b.className='cpop-hbtn'+(accent?' accent':'');b.textContent=label;b.addEventListener('click',fn);ha.appendChild(b);}
@@ -1190,6 +1191,10 @@ function openContentPop(kind,data){
       });
       body.appendChild(ansBox);
     }
+    /* 라이브는 쓰기가 스냅샷으로 돌아온다 (v2.19) — 그때 이 팝업을 다시 그려야 답이
+       목록에 앉는다. 답한 사람 쪽에서는 빈 입력칸이 다시 서서 "안 갔나?" 하고 한 번 더
+       보내는 일(답변 중복)을 막고, 요청자 쪽에서는 도착한 답이 열린 팝업에 실린다. */
+    cpopRefresh=function(){var f=reqById(data.id);if(f)openContentPop('req',f);};
     if(act&&!mineR){
       /* 현장 유저: 응답 (v2.12 — 팝업 안에서 답한다).
          여태는 네이티브 `prompt()` 였다. 그 창은 **자바스크립트를 멈춰서** 시연에서는
@@ -1203,7 +1208,10 @@ function openContentPop(kind,data){
       function sendAns(){
         var t=(rin.value||'').trim();if(!t)return;
         rin.value='';answerRequest(data.id,t);
-        openContentPop('req',data); // 방금 쓴 답이 목록에 앉는 것까지 이 화면의 일이다 (v2.18)
+        /* 방금 쓴 답이 목록에 앉는 것까지 이 화면의 일이다 (v2.18). 다시 그릴 때는
+           **지금 저장소에 있는 것**을 본다 (v2.19) — 라이브는 답이 스냅샷으로 돌아오고
+           그때 fieldRequests 가 통째로 새 객체가 되므로, 손에 든 data 는 고아가 된다. */
+        openContentPop('req',reqById(data.id)||data);
       }
       ar2.querySelector('.cpr-send').addEventListener('click',sendAns);
       rin.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();sendAns();}});
@@ -1464,7 +1472,8 @@ function initSpotEditor(){
 function initSpotUI(){
   var addBtn=document.getElementById('spot-add-btn');if(addBtn)addBtn.addEventListener('click',function(){addTargetMap=primaryMap();addTargetDiv=null;addAtLatLng=null;addSpotContent();}); // 사이드바: 바로 센터 추가
   initSpotEditor();
-  document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeComposer();closeAddMenu();}});
+  // Request 컴포저도 같이 닫는다 (v2.19) — 제 입력칸에도 Escape 가 있지만 포커스가 빠지면 그 길이 없다
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeComposer();closeAddMenu();if(typeof closeReqComposer==='function')closeReqComposer();}});
   // 스팟 설정 (디자인 메뉴)
   bindInput('spot-max-chars','range',DRAFT.spotConfig,'maxChars',mpNoop);
   bindInput('spot-font-size','range',DRAFT.spotConfig,'fontSize',mpNoop);
@@ -1891,22 +1900,32 @@ function coinFly(){
   try{
     var scr=document.querySelector('.phone-screen');if(!scr)return;
     var r=scr.getBoundingClientRect();if(!r.width)return;
+    /* 답을 보내는 자리는 대개 **상세 팝업 안**이다 (v2.19). 팝업은 화면 전체를 덮는
+       fixed 스크림(z-index 100001)이라, 폰 화면에 붙인 코인은 그 뒤에서 날아가 아무도
+       못 봤다 — 적립의 순간을 만드는 바로 그 경로에서 안 보였다. 팝업이 열려 있으면
+       팝업 안에 붙이고, 자리는 폰 화면 기준으로 계산한 값을 그대로 옮겨 쓴다. */
+    var pop=document.getElementById('content-pop');
+    var host=(pop&&pop.style.display!=='none')?pop:scr;
+    var hr=host.getBoundingClientRect(),ox=r.left-hr.left,oy=r.top-hr.top;
+    // 폰 밖(팝업)에는 cqw 를 재어 줄 컨테이너가 없다 — 크기를 폰 폭으로 직접 정한다.
+    var fs=Math.max(12,Math.round(r.width*0.05));
     var tgt=document.getElementById('phone-profile'),tr=tgt?tgt.getBoundingClientRect():null;
     var tx=tr?(tr.left+tr.width/2-r.left):(r.width-34),ty=tr?(tr.top+tr.height/2-r.top):34;
     for(var i=0;i<7;i++){
       (function(i){
         var c=document.createElement('span');c.className='coin-fly';c.textContent='🪙';
         var sx=r.width*0.5+(i-3)*16,sy=r.height*0.62+((i%3)-1)*10;
-        c.style.left=sx+'px';c.style.top=sy+'px';
+        c.style.left=(ox+sx)+'px';c.style.top=(oy+sy)+'px';c.style.fontSize=fs+'px';
         c.style.setProperty('--dx',(tx-sx)+'px');c.style.setProperty('--dy',(ty-sy)+'px');
         c.style.animationDelay=(i*70)+'ms';
-        scr.appendChild(c);
+        host.appendChild(c);
         setTimeout(function(){if(c.parentNode)c.parentNode.removeChild(c);},1500+i*70);
       })(i);
     }
     var amt=document.createElement('span');amt.className='coin-amt';amt.textContent='+'+REQ_COIN;
-    amt.style.left=(r.width*0.5)+'px';amt.style.top=(r.height*0.56)+'px';
-    scr.appendChild(amt);
+    amt.style.left=(ox+r.width*0.5)+'px';amt.style.top=(oy+r.height*0.56)+'px';
+    amt.style.fontSize=Math.round(fs*1.08)+'px';
+    host.appendChild(amt);
     setTimeout(function(){if(amt.parentNode)amt.parentNode.removeChild(amt);},1600);
   }catch(e){}
 }
@@ -3424,6 +3443,7 @@ function liveOn(){
     var changes=snap.docChanges();
     fieldRequests=[];snap.forEach(function(dc){var v=dc.data();fieldRequests.push({id:dc.id,lat:v.lat,lng:v.lng,q:v.q,place:v.place,answers:v.answers||[],by:v.by||'',seed:!!v.seed,ts:v.ts||0});});
     renderRequestMarkers();
+    if(typeof cpopRefresh==='function')cpopRefresh(); // 열려 있는 Request 팝업에 새 답변을 앉힌다 (v2.19)
     if(!reqsPrimed){reqsPrimed=true;snap.forEach(function(dc){reqAnsSeen[dc.id]=(dc.data().answers||[]).length;});return;} // 첫 스냅샷=기존 데이터, 알림 없음
     changes.forEach(function(ch){
       var v=ch.doc.data(),id=ch.doc.id;
@@ -5136,7 +5156,8 @@ function initReqComposerClass(){
     var ll=this.position;this.close();
     commitFieldRequest(ll,q,this.opts.stage?{stage:true,quiet:true}:null);
   };
-  ReqComposer.prototype.close=function(){this.setMap(null);if(reqComposer===this)reqComposer=null;};
+  // closed: 이 카드는 이미 끝났다 — 무대의 등록 타이머가 이것을 보고 물러난다 (v2.19).
+  ReqComposer.prototype.close=function(){this.closed=true;this.setMap(null);if(reqComposer===this)reqComposer=null;};
   ReqComposer.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
 }
 function closeReqComposer(){if(reqComposer)reqComposer.close();}
@@ -5154,8 +5175,10 @@ function openRequestComposer(presetQ){
   if(preset)setTimeout(function(){if(reqComposer&&reqComposer.textEl)reqComposer.textEl.value=preset.slice(0,120);},50);
   return true;
 }
-function showReqBubble(rq){ // AI Agent 수신 카드: 현장 Request 필 + 🪙 리워드 + 질문 + 응답 버튼 2개 (시안 v2.18)
-  if(!reqCardShown)return; // v1.92 드로어 '보기'에서 끌 수 있다
+function reqById(id){return (typeof fieldRequests!=='undefined'?fieldRequests:[]).find(function(r){return r.id===id;})||null;}
+function showReqBubble(rq,force){ // AI Agent 수신 카드: 현장 Request 필 + 🪙 리워드 + 질문 + 응답 버튼 2개 (시안 v2.18)
+  // force = 무대(M16)가 띄우는 장면 — 이 기기의 '보기' 취향이 시연의 한 장면을 지우면 안 된다 (v2.19)
+  if(!reqCardShown&&!force)return; // v1.92 드로어 '보기'에서 끌 수 있다
   var b=document.getElementById('req-bubble');if(!b)return;
   document.getElementById('rq-place').textContent=rq.place;
   document.getElementById('rq-text').textContent='"'+rq.q+'"';
@@ -5166,7 +5189,10 @@ function showReqBubble(rq){ // AI Agent 수신 카드: 현장 Request 필 + 🪙
   var ph=document.createElement('button');ph.type='button';ph.className='rq-btn';ph.textContent='📷 사진 제출';
   ph.addEventListener('click',function(){hideReqBubble();answerRequestPhoto(rq.id);});
   var cm=document.createElement('button');cm.type='button';cm.className='rq-btn primary';cm.textContent='💬 Chat 참여';
-  cm.addEventListener('click',function(){hideReqBubble();openContentPop('req',rq);});
+  /* 팝업에는 **전체 객체**를 넘긴다 (v2.19). 라이브 리스너가 주는 rq 는 카드에 필요한
+     최소 필드(id·q·place·좌표)뿐이라, 그대로 열면 ts 가 없어 reqActive 가 false 가 되고
+     "⏱ 종료" 에 답장 칸도 안 그려졌다 — 답할 수 없는 팝업이었다. */
+  cm.addEventListener('click',function(){hideReqBubble();openContentPop('req',reqById(rq.id)||rq);});
   ac.appendChild(ph);ac.appendChild(cm);
   b.classList.add('show');
   clearTimeout(reqBubbleTimer);reqBubbleTimer=setTimeout(hideReqBubble,12000);
@@ -6743,6 +6769,17 @@ function nhPosNote(id,lat,lng){
    좋아요(v1.94 — 회차를 넘어 살아남으면 두 번째 재생에서 하트가 이미 차 있다).
    nhReset 이 전부 걷어낸다. */
 var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],deal:[],page:[]};
+/* 무대에서 받은 코인은 회차가 끝나면 돌려놓는다 (v2.19) — 잔액은 이 기기에 남는 값이라
+   재생할 때마다 500 씩 쌓여서, 두 번째 회차의 프로필이 첫 회차와 다른 숫자로 시작했다.
+   시연은 몇 번을 돌려도 같은 곳에서 시작해야 한다 (nhReset 의 규칙 그대로). */
+var nhCoins0=null;
+function nhCoinsMark(){if(typeof myCoins!=='undefined')nhCoins0=myCoins;}
+function nhCoinsRestore(){
+  if(nhCoins0==null||typeof myCoins==='undefined'||myCoins===nhCoins0)return;
+  myCoins=nhCoins0;
+  try{localStorage.setItem('nowhere_coins',String(myCoins));}catch(e){}
+  if(typeof syncCoinUI==='function')syncCoinUI();
+}
 /* 지역 이동 줌 — "동네 전체" 가 보이는 값. 시연은 매번 같은 그림이어야 하므로 고정한다. */
 var NH_AREA_ZOOM=14;
 /* 임베드가 처음 서는 곳 — 시나리오가 area 로 옮기기 전까지 시연 세계의 기본값이다.
@@ -6951,8 +6988,11 @@ function nhRequestTyped(text,token,ms){
   var ov=reqComposer=new ReqComposer(ll,(typeof phoneMap!=='undefined'&&phoneMap)||map,{press:true,auto:true,stage:true});
   var typed=String(text||'지금 여기 사람 많나요?').slice(0,120);
   /* 커밋 바닥 1200: 롱프레스 링(560)이 차오른 뒤에야 타이핑 창이 열린다 —
-     write 의 900 을 그대로 쓰면 링과 타이핑이 겹쳐 둘 다 안 보인다. */
-  var commitAt=Math.max(1200,Math.round((ms||2600)*0.6));
+     write 의 900 을 그대로 쓰면 링과 타이핑이 겹쳐 둘 다 안 보인다.
+     단 **이 스텝 안에서는 반드시 커밋한다** (v2.19): nhRun 은 st.ms 뒤에 다음 스텝을
+     시작하므로, 바닥이 스텝보다 길면 뒤따르는 answer/pop 의 i:-1 이 아직 없는 Request 를
+     집는다(빈손이거나 남의 것). 짧게 적힌 스텝은 연출이 접힐 뿐 사슬은 안 끊긴다. */
+  var commitAt=Math.min(Math.max(1200,Math.round((ms||2600)*0.6)),Math.max(300,(ms||2600)-120));
   var t0=760,win=Math.max(300,commitAt-t0-150);
   var per=Math.min(90,Math.max(30,Math.round(win/Math.max(1,typed.length))));
   var pos=0;
@@ -6967,6 +7007,7 @@ function nhRequestTyped(text,token,ms){
   },t0);
   setTimeout(function(){
     if(token!==nhRunToken){try{ov.close();}catch(e){}return;}
+    if(ov.closed)return; // 사람이 취소했거나 이미 등록했다 (v2.19) — 타이머가 한 번 더 올리지 않는다
     var rq=null;
     try{rq=commitFieldRequest(ll,typed,{stage:true,quiet:true});}catch(e){}
     try{ov.close();}catch(e){}
@@ -7003,7 +7044,9 @@ function nhAnswerTyped(rq,text,token,ms){
   inp.value='';
   var typed=String(text||'지금은 여유 있어요').slice(0,120);
   // 타이밍은 write 와 같은 규칙이다 — 두 곳이 다르면 같은 연출이 다른 속도로 보인다.
-  var commitAt=Math.max(900,Math.round((ms||2600)*0.6));
+  // 바닥이 스텝보다 길면 안 된다 (v2.19, nhRequestTyped 와 같은 이유) — 답 전송이
+  // 다음 스텝(예: 팝업 닫기) 뒤로 밀리면 닫은 팝업이 되살아난다.
+  var commitAt=Math.min(Math.max(900,Math.round((ms||2600)*0.6)),Math.max(260,(ms||2600)-100));
   var t0=220,win=Math.max(300,commitAt-t0-150);
   var per=Math.min(90,Math.max(30,Math.round(win/Math.max(1,typed.length))));
   var pos=0;
@@ -7764,7 +7807,7 @@ function nhDrop(v,i){
        실서비스에서 근처 사용자에게 뜨는 그 카드(실시간 리스너)의 무대판이다.
        내 Request 는 안 띄운다: 요청자 본인에게는 원래 안 가는 알림이다. */
     var drq=fieldRequests.find(function(x){return x.id===laid;});
-    if(drq&&!isMyReq(drq)&&typeof showReqBubble==='function')showReqBubble(drq);
+    if(drq&&!isMyReq(drq)&&typeof showReqBubble==='function')showReqBubble(drq,true);
   }else if(kind==='page'){
     laid=nhLayNews(item.v,item.i,c,nhHeld.stamp);
     if(!laid)return false;nhBounceMark(laid,1);
@@ -7778,6 +7821,7 @@ function nhDrop(v,i){
 function nhReset(){
   try{
     nhSweepTemp();
+    nhCoinsRestore(); // 이 회차가 적립한 코인도 되돌린다 (v2.19)
     /* 빈 무대는 **매 회차 처음부터 빈다** (v2.12, 콘솔 D95). nhSweepTemp 는 이번 회차가
        만든 것(nhTempIds)만 걷으므로, 다른 경로로 새어 들어온 것은 걷을 사람이 없었다 —
        "컨텐츠 탭에 없는 타임딜이 뜨고 안 사라진다" 가 그 자리다. */
@@ -7946,6 +7990,7 @@ function nhRun(id,reply,inline){
   if(!sc){nhPost(reply,{type:'nh:error',message:inline?'시나리오 형식이 올바르지 않습니다.':'없는 시나리오: '+id});return;}
   nhScenarioKey=String(sc.id||id||''); // 사람이 옮긴 무대 자리의 저장 단위 (v2.3)
   nhStop();nhReset();
+  nhCoinsMark(); // 이 회차가 시작하는 잔액 — 끝나면(다음 nhReset) 여기로 돌아온다 (v2.19)
   var token=++nhRunToken, i=0;
   nhSeedScenario(sc,token); // 이 시나리오가 성립하려면 화면에 있어야 하는 것부터 깐다
   nhPost(reply,{type:'nh:begin',id:sc.id,name:sc.name,total:sc.steps.length,concern:!!sc.concern});

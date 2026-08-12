@@ -1107,7 +1107,13 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 #cpop-body .cpf-time{color:var(--ink3);}
 #cpop-body .cpr-q{font-size:.98rem;font-weight:800;line-height:1.5;color:var(--ink);word-break:break-word;}
 #cpop-body .cpr-state{margin-top:8px;font-size:.78rem;font-weight:700;color:var(--ink2);}
-#cpop-body .rqc-answers{margin-top:10px;}
+/* 답변 목록은 두 곳에 산다 — 폰 안(드로어 카드)은 cqw, 팝업은 px 다 (v2.19).
+   #content-pop 은 폰 컨테이너 밖이라 cqw 가 뷰포트로 떨어져 데스크톱에서 초대형이 됐다. */
+#cpop-body .rqc-answers{margin-top:10px;gap:8px;padding-top:10px;}
+#cpop-body .rqa-item{gap:4px;border-radius:12px;padding:8px 10px;}
+#cpop-body .rqa-t{font-size:.86rem;}
+#cpop-body .rqa-img{height:auto;max-height:180px;border-radius:10px;}
+#cpop-body .rqa-time{font-size:.7rem;}
 .cpop-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
 /* Request 답장 줄 (v2.12) — 스팟 컴포저와 같은 문법. 네이티브 prompt 를 대신한다:
    그 창은 스크립트를 멈춰 시연이 그 자리에 서고, 답하는 모습도 화면에 안 남았다. */
