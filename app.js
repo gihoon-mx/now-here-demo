@@ -2870,6 +2870,25 @@ function saveZonesToStorage(){
   });
   try{localStorage.setItem('nowhere_trendZones',JSON.stringify(data));}catch(e){}
   markCloudDirty();
+  publishZoneBook(); // 콘솔이 읽는 공개 목록도 따라 올린다 (v2.24.1)
+}
+/* 공개 설정 문서만 다시 쓴다 (v2.24.1).
+   여태 이 문서는 **설정 적용 버튼**(cloudSave)에서만 쓰였다. 그런데 콘솔이 읽어 가는
+   `zoneBook` 은 존을 그리고 고치는 화면에서 바뀐다 — 존을 만들고 콘솔에서 가져오면
+   옛 목록이 와서 "자리가 엉망" 이 된다(사용자 보고). 존이 바뀔 때마다 이 문서를 올린다.
+   묶어서 한 번만 쓴다: 칸 하나 옮길 때마다 쓰면 드래그 한 번에 수십 번이 된다. */
+var zoneBookTimer=null;
+function publishZoneBook(){
+  if(!fbDb||!currentUser||currentRole!=='admin')return; // 관리자만 — 규칙도 같은 것을 본다
+  clearTimeout(zoneBookTimer);
+  zoneBookTimer=setTimeout(function(){
+    try{
+      fbDb.collection('shared').doc('publicSettings').set({
+        json:JSON.stringify(settingsSnapshotFull()),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true}).catch(function(e){console.warn('zoneBook publish fail',e);});
+    }catch(e){console.warn('zoneBook publish',e);}
+  },1500);
 }
 function loadZonesFromStorage(){
   try{
