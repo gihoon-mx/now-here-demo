@@ -218,6 +218,33 @@ button:focus:not(:focus-visible){outline:none;}
 .spot-composer .sc-text:focus{border-color:var(--acc);}
 .spot-composer .sc-actions{display:flex;justify-content:flex-end;gap:6px;}
 
+/* 현장 Request 컴포저 (v2.18) — 스팟 컴포저와 같은 유리 카드. 점·꼬리는 주황(Request 정체성),
+   pressing 동안은 카드가 숨고 롱프레스 링이 차오른다 ("꾹 눌러서 연다" 의 손). */
+.req-composer{position:absolute;z-index:90;width:214px;animation:scFade .14s ease both;-webkit-user-select:none;user-select:none;}
+.req-composer .rc-card{padding:11px;border-radius:13px;background:rgba(255,255,255,0.88);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid var(--glass-line);box-shadow:var(--sh-l),var(--glass-hi);color:var(--ink);}
+.req-composer .rc-arrow{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);border:8px solid transparent;border-top-color:rgba(255,255,255,0.88);border-bottom:0;}
+.req-composer .rc-dot{position:absolute;left:50%;bottom:-24px;transform:translate(-50%,50%);width:15px;height:15px;border-radius:50%;background:#ff8a3d;box-shadow:0 0 0 4px rgba(255,138,61,0.25),0 1px 5px rgba(0,0,0,0.35);z-index:1;}
+.req-composer .rc-dot::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(255,138,61,0.7);animation:scPulse 1.4s ease-out infinite;}
+.req-composer .rc-head{font-size:.72rem;font-weight:800;letter-spacing:-0.01em;color:var(--ink2);margin-bottom:7px;}
+.req-composer .rc-text{width:100%;margin-bottom:9px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);font-family:inherit;font-size:.8rem;outline:none;}
+.req-composer .rc-text:focus{border-color:#ff8a3d;}
+.req-composer .rc-actions{display:flex;justify-content:flex-end;gap:6px;}
+.req-composer .rc-press{display:none;position:absolute;left:50%;bottom:-24px;transform:translate(-50%,50%);width:34px;height:34px;border-radius:50%;
+  border:3px solid rgba(255,138,61,0.85);background:rgba(255,138,61,0.18);box-shadow:0 0 0 6px rgba(255,138,61,0.12);}
+.req-composer.pressing .rc-card,.req-composer.pressing .rc-arrow{visibility:hidden;}
+.req-composer.pressing .rc-press{display:block;animation:rcPress .56s ease-out both;}
+@keyframes rcPress{0%{transform:translate(-50%,50%) scale(.35);opacity:.35;}70%{opacity:1;}100%{transform:translate(-50%,50%) scale(1);opacity:1;}}
+
+/* 코인 적립 효과 (v2.18) — 답변 보상이 프로필(코인이 사는 곳)로 날아간다 */
+.coin-fly{position:absolute;z-index:200;font-size:5cqw;line-height:1;pointer-events:none;
+  transform:translate(-50%,-50%);animation:coinFly 1.15s cubic-bezier(.3,.1,.35,1) both;}
+@keyframes coinFly{0%{opacity:0;transform:translate(-50%,-50%) scale(.4);}12%{opacity:1;transform:translate(-50%,-50%) scale(1.2);}
+  28%{transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.45);}}
+.coin-amt{position:absolute;z-index:200;font-size:5.4cqw;font-weight:800;color:#f5a623;letter-spacing:-0.01em;
+  text-shadow:0 1px 2px rgba(0,0,0,0.28);pointer-events:none;transform:translate(-50%,-30%);animation:coinAmt 1.5s ease-out both;}
+@keyframes coinAmt{0%{opacity:0;transform:translate(-50%,-30%);}18%{opacity:1;}100%{opacity:0;transform:translate(-50%,-170%);}}
+
 /* 스팟 추가 폼 */
 .spot-add-row{margin-top:4px;}
 #spot-add-btn{width:100%;}
@@ -1004,11 +1031,10 @@ body.mode-trend .feed-pin .fp-n{background:var(--heat,#f2862e);}
   background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   border:1px solid var(--glass-line);box-shadow:0 1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);transform-origin:88% bottom;display:none;}
 .req-bubble.show{display:block;animation:aiPop .5s cubic-bezier(.2,1.6,.35,1) both;}
-/* AI Agent 수신 팝업 — 하단 네비바와 같은 프로스트 유리 문법 */
-.req-bubble .rq-agent{display:flex;align-items:center;gap:1.6cqw;font-size:2.7cqw;font-weight:800;letter-spacing:-0.01em;color:var(--ink2);margin-bottom:1.8cqw;}
-.req-bubble .rq-ai{display:inline-flex;align-items:center;justify-content:center;width:5.4cqw;height:5.4cqw;border-radius:50%;font-size:2.9cqw;color:#fff;
-  background:linear-gradient(135deg,#8ed0ff,#a78bfa);box-shadow:0 0.6cqw 2cqw rgba(154,119,221,0.4);}
-body.mode-trend .req-bubble .rq-ai{background:linear-gradient(135deg,#ffb37a,#ff3d2e);box-shadow:0 0.6cqw 2cqw rgba(255,90,60,0.4);}
+/* 머리줄 (v2.18 시안) — 검정 필 "현장 Request" + 🪙 리워드 */
+.req-bubble .rq-head{display:flex;align-items:center;justify-content:space-between;gap:2cqw;margin-bottom:2cqw;}
+.req-bubble .rq-tag{display:inline-flex;align-items:center;padding:1.3cqw 3.2cqw;border-radius:99px;background:#1a1a1a;color:#fff;font-size:2.9cqw;font-weight:800;letter-spacing:-0.01em;}
+.req-bubble .rq-coin{font-size:3.3cqw;font-weight:800;color:#f5a623;letter-spacing:-0.01em;}
 .req-bubble .rq-text{font-size:3.3cqw;font-weight:700;color:var(--ink);line-height:1.4;margin-bottom:1cqw;}
 .req-bubble .rq-place{font-size:2.7cqw;font-weight:700;color:var(--acc-deep);margin-bottom:2.4cqw;}
 .req-bubble .rq-actions{display:flex;gap:2cqw;}

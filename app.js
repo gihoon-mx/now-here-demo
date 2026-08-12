@@ -1179,6 +1179,17 @@ function openContentPop(kind,data){
     body.querySelector('.cpr-state').textContent=(act?'⏳ 답변 받는 중':'⏱ 종료')+' · 답변 '+n+'개';
     var lf=body.querySelector('[data-rq-left]');lf.setAttribute('data-rq-left',data.id); // 1초 티커(tickReqRemain)가 갱신
     var rl=reqRemainLabel(data);lf.textContent=rl?('⏱ '+rl):'';
+    if(n){ // 도착한 답변 목록 — 요청자만 보던 것을 푼다 (v2.18): 답을 쓴 사람도 제 답이 앉는 것을 본다
+      var ansBox=document.createElement('div');ansBox.className='rqc-answers';
+      (data.answers||[]).forEach(function(a){
+        var it=document.createElement('div');it.className='rqa-item';
+        if(a.t){var tx=document.createElement('span');tx.className='rqa-t';tx.textContent=a.t;it.appendChild(tx);}
+        if(a.img){var im2=document.createElement('img');im2.className='rqa-img';im2.src=a.img;im2.alt='';it.appendChild(im2);}
+        var tm=document.createElement('i');tm.className='rqa-time';tm.textContent=timeAgo(a.ts||0);it.appendChild(tm);
+        ansBox.appendChild(it);
+      });
+      body.appendChild(ansBox);
+    }
     if(act&&!mineR){
       /* 현장 유저: 응답 (v2.12 — 팝업 안에서 답한다).
          여태는 네이티브 `prompt()` 였다. 그 창은 **자바스크립트를 멈춰서** 시연에서는
@@ -1191,7 +1202,8 @@ function openContentPop(kind,data){
       var rin=ar2.querySelector('.cpr-in');
       function sendAns(){
         var t=(rin.value||'').trim();if(!t)return;
-        rin.value='';answerRequest(data.id,t);closeContentPop();
+        rin.value='';answerRequest(data.id,t);
+        openContentPop('req',data); // 방금 쓴 답이 목록에 앉는 것까지 이 화면의 일이다 (v2.18)
       }
       ar2.querySelector('.cpr-send').addEventListener('click',sendAns);
       rin.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();sendAns();}});
@@ -1200,16 +1212,6 @@ function openContentPop(kind,data){
       var ph=document.createElement('button');ph.type='button';ph.className='action-btn small';ph.textContent='📷 사진 올리기';
       ph.addEventListener('click',function(){closeContentPop();answerRequestPhoto(data.id);});
       ar3.appendChild(ph);body.appendChild(ar3);
-    }else if(mineR&&n){ // 요청자: 도착한 답변 목록
-      var ansBox=document.createElement('div');ansBox.className='rqc-answers';
-      (data.answers||[]).forEach(function(a){
-        var it=document.createElement('div');it.className='rqa-item';
-        if(a.t){var tx=document.createElement('span');tx.className='rqa-t';tx.textContent=a.t;it.appendChild(tx);}
-        if(a.img){var im2=document.createElement('img');im2.className='rqa-img';im2.src=a.img;im2.alt='';it.appendChild(im2);}
-        var tm=document.createElement('i');tm.className='rqa-time';tm.textContent=timeAgo(a.ts||0);it.appendChild(tm);
-        ansBox.appendChild(it);
-      });
-      body.appendChild(ansBox);
     }
   } // 지도 보기 버튼은 헤더 공통(headAct)
   m.style.display='flex';
@@ -1882,6 +1884,31 @@ function addCoins(n){
 function syncCoinUI(){
   var el=document.getElementById('ppm-coins');
   if(el)el.textContent='🪙 '+myCoins.toLocaleString();
+}
+/* 적립의 순간을 화면이 말한다 (v2.18) — 코인이 프로필(코인이 사는 곳)로 날아가고
+   +500 이 떠오른다. 문구(ai-bubble)만으로는 "받았다" 가 눈에 안 남았다. */
+function coinFly(){
+  try{
+    var scr=document.querySelector('.phone-screen');if(!scr)return;
+    var r=scr.getBoundingClientRect();if(!r.width)return;
+    var tgt=document.getElementById('phone-profile'),tr=tgt?tgt.getBoundingClientRect():null;
+    var tx=tr?(tr.left+tr.width/2-r.left):(r.width-34),ty=tr?(tr.top+tr.height/2-r.top):34;
+    for(var i=0;i<7;i++){
+      (function(i){
+        var c=document.createElement('span');c.className='coin-fly';c.textContent='🪙';
+        var sx=r.width*0.5+(i-3)*16,sy=r.height*0.62+((i%3)-1)*10;
+        c.style.left=sx+'px';c.style.top=sy+'px';
+        c.style.setProperty('--dx',(tx-sx)+'px');c.style.setProperty('--dy',(ty-sy)+'px');
+        c.style.animationDelay=(i*70)+'ms';
+        scr.appendChild(c);
+        setTimeout(function(){if(c.parentNode)c.parentNode.removeChild(c);},1500+i*70);
+      })(i);
+    }
+    var amt=document.createElement('span');amt.className='coin-amt';amt.textContent='+'+REQ_COIN;
+    amt.style.left=(r.width*0.5)+'px';amt.style.top=(r.height*0.56)+'px';
+    scr.appendChild(amt);
+    setTimeout(function(){if(amt.parentNode)amt.parentNode.removeChild(amt);},1600);
+  }catch(e){}
 }
 function closeDrawer(){var p=document.getElementById('phone-drawer');if(p)p.classList.remove('open');var c=document.getElementById('pc-drawer');if(c)c.classList.remove('open');}
 // 드로어 데모 리스트(트렌드 존/스팟) 렌더 — 데모·관리자 모두 데이터로 채움
@@ -2873,6 +2900,7 @@ function initMap(){
   initSpotBubbleClass();
   initFeedThumbClass();
   initSpotComposerClass();
+  initReqComposerClass();
   initProjHelperClass();
   var opts={center:{lat:CONFIG.MAP_CENTER_LAT,lng:CONFIG.MAP_CENTER_LNG},zoom:CONFIG.MAP_ZOOM,disableDefaultUI:false,zoomControl:true,mapTypeControl:false,streetViewControl:false,fullscreenControl:true};
   if(CONFIG.MAP_ID&&CONFIG.MAP_ID.length>0) opts.mapId=CONFIG.MAP_ID; else opts.styles=mapStyles();
@@ -5061,36 +5089,85 @@ function initReqPinClass(){
 }
 function loadRequests(){if(IS_CLEAN_EMBED){fieldRequests=[];return;}try{var a=JSON.parse(localStorage.getItem(REQ_KEY)||'[]');if(Array.isArray(a))fieldRequests=a;}catch(e){}}
 function saveRequests(){try{localStorage.setItem(REQ_KEY,JSON.stringify(fieldRequests.slice(0,30)));}catch(e){}}
-/* presetQ (optional, v1.95): 질문을 이미 알고 있으면 네이티브 prompt 를 띄우지 않는다.
-   임베드 시연이 이 인자를 쓴다 — prompt 는 iframe 위에 브라우저 대화상자를 세워
-   재생을 멈추고, 그 순간만 앱이 아닌 것이 보인다. 게다가 진행자가 취소하면
-   Request 가 안 생기는데 스텝은 성공으로 기록됐다. 사람이 직접 누르는 길은 그대로다. */
+/* Request 등록의 한 길 (v2.18) — 컴포저(사람·무대)와 옛 경로가 전부 여기로 온다.
+   stage: 무대(M16)가 만든 것 — 10분 만료를 안 타고(reqActive), 걷는 것은 부르는 쪽 몫.
+   quiet: 렌더를 미룬다 — 무대가 바운스 표시를 먼저 적고 스스로 렌더한다 (v2.11 규칙). */
+function commitFieldRequest(ll,q,opts){
+  opts=opts||{};
+  var d=regionAt(ll.lat(),ll.lng());
+  var rq={id:'rq_'+Date.now(),lat:ll.lat(),lng:ll.lng(),q:String(q).trim().slice(0,120),place:d?d.name:'지정 위치',answers:[],by:myUid(),ts:Date.now()};
+  if(opts.stage)rq.stage=true;
+  if(hasLive()){fbDb.collection('liveRequests').doc(rq.id).set({id:rq.id,lat:rq.lat,lng:rq.lng,q:rq.q,place:rq.place,answers:[],by:myUid(),ts:rq.ts}).catch(liveWriteErr);}
+  else{fieldRequests.unshift(rq);saveRequests();if(!opts.quiet)renderRequestMarkers();}
+  var ab=document.getElementById('ai-bubble'); // 수신 팝업은 타겟 지역의 '다른' 사용자에게만(실시간 리스너) — 요청자 본인에겐 안 띄움
+  if(ab){ab.textContent='📍 Request 전송! 근처 현장 유저에게 알림이 갑니다. (10분간 답변 수신)';ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},2600);}
+  return rq;
+}
+/* ── Request 컴포저 오버레이 (v2.18) ──
+   여태 이 자리는 네이티브 prompt() 였다. 그 창은 브라우저 것이라 화면 밖이고(시연에
+   안 남는다), 자바스크립트를 멈춰 재생도 세웠다. 스팟 컴포저와 같은 문법의 카드를
+   지도 위 그 자리에 세운다 — 사람이 + 메뉴에서 열어도, 무대(request 액션)가 열어도
+   같은 것이 보인다. press 옵션은 "꾹 눌러서 연다" 의 롱프레스 링 연출이다(무대 전용). */
+var reqComposer=null;
+function ReqComposer(latLng,targetMap,opts){this.position=latLng;this.opts=opts||{};this.div=null;this.textEl=null;this.setMap(targetMap||primaryMap());}
+function initReqComposerClass(){
+  ReqComposer.prototype=new google.maps.OverlayView();
+  ReqComposer.prototype.onAdd=function(){
+    var self=this;
+    var wrap=document.createElement('div');wrap.className='req-composer'+(this.opts.press?' pressing':'');
+    wrap.innerHTML='<div class="rc-press" aria-hidden="true"></div>'
+      +'<div class="rc-dot"></div><div class="rc-arrow"></div>'
+      +'<div class="rc-card"><div class="rc-head">📍 현장 Request</div>'
+      +'<input class="rc-text" type="text" maxlength="120" placeholder="이 위치의 무엇이 궁금하세요?" />'
+      +'<div class="rc-actions"><button type="button" class="action-btn small rc-cancel">취소</button><button type="button" class="action-btn accent small rc-ok">질문 올리기</button></div></div>';
+    ['mousedown','click','dblclick','touchstart','wheel','contextmenu'].forEach(function(ev){wrap.addEventListener(ev,function(e){e.stopPropagation();});});
+    this.div=wrap;this.textEl=wrap.querySelector('.rc-text');
+    wrap.querySelector('.rc-ok').addEventListener('click',function(){self.commit();});
+    wrap.querySelector('.rc-cancel').addEventListener('click',function(){self.close();});
+    this.textEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();self.commit();}else if(e.key==='Escape'){e.preventDefault();self.close();}});
+    this.getMap().getDiv().appendChild(wrap);
+    // 링이 차오른 뒤 카드가 선다 — 손가락이 떨어지는 박자다.
+    if(this.opts.press)setTimeout(function(){if(wrap.parentNode)wrap.classList.remove('pressing');},560);
+    if(!this.opts.auto)setTimeout(function(){if(self.textEl)self.textEl.focus();},this.opts.press?600:30);
+  };
+  ReqComposer.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;var px=p.fromLatLngToContainerPixel(this.position);if(!px)return;var w=this.div.offsetWidth||214,h=this.div.offsetHeight||150;this.div.style.left=(px.x-w/2)+'px';this.div.style.top=(px.y-h-24)+'px';};
+  ReqComposer.prototype.commit=function(){
+    var q=(this.textEl?this.textEl.value:'').trim();if(!q)return;
+    var ll=this.position;this.close();
+    commitFieldRequest(ll,q,this.opts.stage?{stage:true,quiet:true}:null);
+  };
+  ReqComposer.prototype.close=function(){this.setMap(null);if(reqComposer===this)reqComposer=null;};
+  ReqComposer.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
+}
+function closeReqComposer(){if(reqComposer)reqComposer.close();}
+/* 사람 경로 (+ 메뉴) — 컴포저 카드를 그 자리에 세운다. presetQ 는 옛 계약(v1.95)의
+   흔적인데, 무대는 이제 nhRequestTyped 가 직접 컴포저를 몰므로 여기로 안 온다 —
+   그래도 값이 오면 입력에 미리 채워 둔다 (조용히 버리지 않는다). */
 function openRequestComposer(presetQ){
   var m=addTargetMap||primaryMap();var ll=addAtLatLng||(m&&m.getCenter());
   closeAddMenu();
-  var preset=(presetQ==null)?null:String(presetQ).trim();
-  if(!ll){if(!preset)alert('지도를 불러온 뒤 이용해 주세요.');return false;}
-  var q=preset||prompt('📍 현장 Request\n이 위치의 무엇이 궁금하세요?\n(예: 파이브가이즈 대기줄 얼마나 되나요?)');
-  if(q==null||!q.trim())return false;
-  var d=regionAt(ll.lat(),ll.lng());
-  var rq={id:'rq_'+Date.now(),lat:ll.lat(),lng:ll.lng(),q:q.trim(),place:d?d.name:'지정 위치',answers:[],by:myUid(),ts:Date.now()};
-  if(hasLive()){fbDb.collection('liveRequests').doc(rq.id).set({id:rq.id,lat:rq.lat,lng:rq.lng,q:rq.q,place:rq.place,answers:[],by:myUid(),ts:rq.ts}).catch(liveWriteErr);}
-  else{fieldRequests.unshift(rq);saveRequests();renderRequestMarkers();}
-  var ab=document.getElementById('ai-bubble'); // 수신 팝업은 타겟 지역의 '다른' 사용자에게만(실시간 리스너) — 요청자 본인에겐 안 띄움
-  if(ab){ab.textContent='📍 Request 전송! 근처 현장 유저에게 알림이 갑니다. (10분간 답변 수신)';ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},2600);}
+  if(!ll){alert('지도를 불러온 뒤 이용해 주세요.');return false;}
+  if(typeof ReqComposer.prototype.onAdd!=='function')return false;
+  closeReqComposer();
+  reqComposer=new ReqComposer(ll,m,{});
+  var preset=(presetQ==null)?'':String(presetQ).trim();
+  if(preset)setTimeout(function(){if(reqComposer&&reqComposer.textEl)reqComposer.textEl.value=preset.slice(0,120);},50);
   return true;
 }
-function showReqBubble(rq){ // AI Agent 수신 팝업: 질문 + 위치 + 응답 버튼 2개 (네비바와 같은 프로스트 톤)
+function showReqBubble(rq){ // AI Agent 수신 카드: 현장 Request 필 + 🪙 리워드 + 질문 + 응답 버튼 2개 (시안 v2.18)
   if(!reqCardShown)return; // v1.92 드로어 '보기'에서 끌 수 있다
   var b=document.getElementById('req-bubble');if(!b)return;
   document.getElementById('rq-place').textContent=rq.place;
   document.getElementById('rq-text').textContent='"'+rq.q+'"';
+  var cn=document.getElementById('rq-coin');if(cn)cn.textContent='🪙 '+REQ_COIN; // 리워드는 상수 하나가 정한다
   var ac=document.getElementById('rq-actions');ac.innerHTML='';
-  var cm=document.createElement('button');cm.type='button';cm.className='rq-btn primary';cm.textContent='💬 답하기';
-  cm.addEventListener('click',function(){var t=prompt('현장 답변을 입력하세요\n"'+rq.q+'"');if(t&&t.trim())answerRequest(rq.id,t.trim());});
-  var ph=document.createElement('button');ph.type='button';ph.className='rq-btn';ph.textContent='📷 사진 올리기';
+  /* 답하기가 prompt() 였다 — 상세 팝업의 답장 칸(v2.12)이 이미 같은 일을 화면 안에서
+     하므로 그리 보낸다. 시안의 이름을 그대로 쓴다: 사진 제출 · Chat 참여. */
+  var ph=document.createElement('button');ph.type='button';ph.className='rq-btn';ph.textContent='📷 사진 제출';
   ph.addEventListener('click',function(){hideReqBubble();answerRequestPhoto(rq.id);});
-  ac.appendChild(cm);ac.appendChild(ph);
+  var cm=document.createElement('button');cm.type='button';cm.className='rq-btn primary';cm.textContent='💬 Chat 참여';
+  cm.addEventListener('click',function(){hideReqBubble();openContentPop('req',rq);});
+  ac.appendChild(ph);ac.appendChild(cm);
   b.classList.add('show');
   clearTimeout(reqBubbleTimer);reqBubbleTimer=setTimeout(hideReqBubble,12000);
 }
@@ -5108,9 +5185,17 @@ function answerRequest(id,text,img){ // img: 사진 답변(dataURL, 선택)
   if(hasLive()){fbDb.collection('liveRequests').doc(id).update({answers:firebase.firestore.FieldValue.arrayUnion(ans)}).catch(liveWriteErr);}
   else{rq.answers.push(ans);saveRequests();renderRequestMarkers();}
   hideReqBubble();
-  if(!isMyReq(rq))addCoins(REQ_COIN); // v1.92 남의 Request 에 답하면 적립 (내 것에 답하는 건 적립 대상이 아니다)
-  var ab=document.getElementById('ai-bubble'); // 라이브=전송 확인(도착 알림은 요청자 기기에 실시간) / 폴백=도착 시뮬레이션
-  if(ab){ab.textContent=(hasLive()?'📍 답변 전송! 요청자에게 실시간으로 전달했어요.':'📍 '+rq.place+' 현장 답변 도착: '+(img?'📷 ':'')+text)+(isMyReq(rq)?'':'  🪙 '+REQ_COIN+' 적립');ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},5000);}
+  var earned=!isMyReq(rq); // v1.92 남의 Request 에 답하면 적립 (내 것에 답하는 건 적립 대상이 아니다)
+  if(earned){addCoins(REQ_COIN);coinFly();}
+  var ab=document.getElementById('ai-bubble');
+  /* 말의 주인을 가른다 (v2.18). 남의 Request 에 답한 것은 **내가 보낸** 것이라
+     "도착" 이 아니라 "적립·전달" 이고, 내 Request 의 답은 **도착한** 것이다 —
+     여태는 무대 Request 가 전부 내 것이라 한 문장이 두 장면을 겸했다. */
+  if(ab){ab.textContent=earned
+    ?'🪙 '+REQ_COIN+' 적립! 현장 답변이 요청자에게 전달됐어요.'
+    :(hasLive()?'📍 답변 전송! 요청자에게 실시간으로 전달했어요.'
+               :'📍 '+rq.place+' 현장 답변 도착: '+(img?'📷 ':'')+text);
+    ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},5000);}
 }
 function deleteRequest(id){ // 본인·관리자만 (드로어 카드 🗑)
   if(!confirm('이 Request를 삭제할까요?'))return;
@@ -6302,7 +6387,7 @@ var FEATURES=[
  {id:'spot',icon:'💬',name:'스팟 메시지',st:'live',grp:'컨텐츠',desc:'지도 위 말풍선 일상 공유 — 관리자+유저 모두 작성, 유저 스팟은 계정 간 실시간 공유(liveSpots). 본인이 올린 스팟은 데모도 길게 눌러(터치) 이동·수정·삭제 가능. 드로어=현재 지역 워드 클라우드. 렌즈 포커스 밖은 옅게.',rel:['lens','feed'],prev:'spot'},
  {id:'cam',icon:'📸',name:'라이브 카메라',st:'live',grp:'컨텐츠',desc:'찍으면 바로 피드 업로드(실시간 공유) — 현 위치의 동+트렌드존 자동 태깅. 관리자는 사이드바에서 업로드/링크로도 추가.',rel:['feed','like']},
  {id:'like',icon:'❤️',name:'좋아요',st:'live',grp:'컨텐츠',desc:'피드 더블탭 하트 — 계정당 1개, 실시간 합산. 존 하트 합산·베스트 썸네일의 원천 데이터.',rel:['feed','zone']},
- {id:'req',icon:'📍',name:'현장 Request',st:'live',grp:'컨텐츠',desc:'원격 질문 등록(10분 타임아웃) → 타겟 지역(1.5km/같은 동) 사용자에게 AI Agent 실시간 응답 팝업(💬 답하기·📷 사진, 요청자 제외). 요청자는 도착 알림+드로어 내 Request에서 답변 확인.',rel:['map','ai']},
+ {id:'req',icon:'📍',name:'현장 Request',st:'live',grp:'컨텐츠',desc:'원격 질문 등록(지도 위 컴포저·10분 타임아웃) → 타겟 지역(1.5km/같은 동) 사용자에게 AI Agent 수신 카드(💬 Chat 참여·📷 사진 제출, 요청자 제외) → 답하면 🪙 코인 적립. 요청자는 도착 알림+드로어 내 Request에서 답변 확인.',rel:['map','ai']},
  {id:'news',icon:'📰',name:'요약 지면 이미지',st:'live',grp:'컨텐츠',desc:'관리자 UI 목업 지면(탭별) — 제목·위치 카드, 보는 동과 태그가 맞으면 자동 슬라이드.',rel:['lens','sum']},
  {id:'map',icon:'🧭',name:'지도 탭',st:'live',grp:'서비스 탭',desc:'지도 기반 컨텐츠 노출 — 스팟·Request 마커, 포커스 렌즈, 요약 공간.',rel:['sum','spot','req']},
  {id:'feed',icon:'🖼️',name:'피드 탭',st:'live',grp:'서비스 탭',desc:'그리드 피드(1:1) — view 버튼으로 가로 배열(1~3)과 컨텐츠 종류(피드 작성/라이브/스팟/지면) 필터, 핀치·간격 옵션. 컨텐츠 속성: 종류·만든이·위치·존·설명·좋아요·올린시간. 범위 필터가 모드를 따라감. 지도 썸네일 핀은 근접 시 클러스터(개수 뱃지)로 묶이고 탭/줌인 시 펼쳐짐, 만든이·관리자는 길게 눌러 이동(동/존 자동 재태깅). 지역 컨텐츠 지면에 연관 피드 자동 노출(스팟 제외).',rel:['cam','like','mode','sum']},
@@ -6363,7 +6448,8 @@ function initFeaturePage(){
 /* ========== [M09] 웹앱 설치 유도 (모바일 브라우저): Android=네이티브 프롬프트 · iOS=홈 화면 추가 안내 ========== */
 function initInstallPrompt(){
   if(window.matchMedia('(display-mode: standalone)').matches||navigator.standalone)return; // 이미 앱으로 실행 중
-  if(!window.matchMedia('(max-width:768px)').matches||IS_ADMIN_PAGE)return;                // 모바일 브라우저 · 서비스 페이지만
+  // 임베드(시연 무대)에서는 안 띄운다 (v2.18) — iframe 에선 원래 안 오지만, 직접 연 임베드에서도 무대 위 배너는 앱이 아닌 것이다.
+  if(!window.matchMedia('(max-width:768px)').matches||IS_ADMIN_PAGE||IS_EMBED)return;      // 모바일 브라우저 · 서비스 페이지만
   var KEY='nowhere_a2hs_dismiss';
   try{if(localStorage.getItem(KEY))return;}catch(e){}
   var deferred=null;
@@ -6644,11 +6730,14 @@ function nhPosSave(kind,i,lat,lng){
 /* 드래그된 것이 무대 항목이면 그 자리를 남긴다 — id 접미사가 곧 항목 번호다. */
 /** write 로 쓴 글의 id → 그 회차의 write 순번 (v2.12). 그 글은 id 규칙이 달라 표가 필요하다. */
 var nhWriteIds={};
+/** request 액션으로 올린 Request 의 id → 그 회차의 순번 (v2.18) — write 와 같은 약속이다. */
+var nhReqIds={};
 function nhPosNote(id,lat,lng){
   var m=/^(spn|fdn|rqn|dln)_\d+_(\d+)$/.exec(String(id||''));
   if(m){nhPosSave({spn:'spot',fdn:'feed',rqn:'req',dln:'deal'}[m[1]],Number(m[2]),lat,lng);return;}
   // 사용자가 재생 중 쓴 글(write)도 옮긴 자리를 기억한다 — 무대 항목과 같은 약속이다.
-  if(nhWriteIds[id]!=null)nhPosSave('write',nhWriteIds[id],lat,lng);
+  if(nhWriteIds[id]!=null){nhPosSave('write',nhWriteIds[id],lat,lng);return;}
+  if(nhReqIds[id]!=null)nhPosSave('rqw',nhReqIds[id],lat,lng);
 }
 /* 이번 회차가 만든 것들 — 시나리오 seed 와 재생 중 쓴 글, 그리고 전역 카드에 남긴
    좋아요(v1.94 — 회차를 넘어 살아남으면 두 번째 재생에서 하트가 이미 차 있다).
@@ -6841,13 +6930,64 @@ function nhWriteSpot(text,token,ms,emoji){
   return true;
 }
 
-/* 올려둔 Request 에 **답이 쓰이는 모습**을 보여준다 (v2.12, 콘솔 D95).
+/* 사용자가 Request 를 **올리는 모습**을 보여준다 (v2.18, 콘솔 D114).
+   여태 request 액션은 openRequestComposer(preset) 이 그 자리에서 등록해 버렸다 —
+   "묻는 사람" 이 화면에 없었다. write 와 같은 문법으로 만든다: 지도를 꾹 누르는 링,
+   컴포저 카드, 글자별 타이핑, 등록, 핀 등장 바운스까지가 한 장면이다. */
+var nhReqN=0;
+function nhRequestTyped(text,token,ms){
+  if(typeof ReqComposer!=='function'||typeof google==='undefined')return false;
+  if(typeof switchTab==='function')switchTab('map');
+  var c=SEED_AREAS[nhAreaKey]||null;
+  var ctr=(typeof phoneMap!=='undefined'&&phoneMap&&phoneMap.getCenter)?phoneMap.getCenter():null;
+  /* 자리는 write 와 같은 규칙이다 (v2.12) — 사람이 끌어 옮긴 자리가 있으면 거기,
+     없으면 지역 좌표에서 살짝 비껴 놓는다 (write 의 +0.0012 와 다른 쪽 — 겹치지 않게). */
+  var wi=nhReqN++;
+  var saved=nhPosGet('rqw',wi,c||(ctr?{lat:ctr.lat(),lng:ctr.lng()}:null));
+  var ll=saved?new google.maps.LatLng(saved.lat,saved.lng)
+    :(c?new google.maps.LatLng(c.lat-0.0012,c.lng+0.0016):ctr);
+  if(!ll)return false;
+  closeReqComposer();
+  var ov=reqComposer=new ReqComposer(ll,(typeof phoneMap!=='undefined'&&phoneMap)||map,{press:true,auto:true,stage:true});
+  var typed=String(text||'지금 여기 사람 많나요?').slice(0,120);
+  /* 커밋 바닥 1200: 롱프레스 링(560)이 차오른 뒤에야 타이핑 창이 열린다 —
+     write 의 900 을 그대로 쓰면 링과 타이핑이 겹쳐 둘 다 안 보인다. */
+  var commitAt=Math.max(1200,Math.round((ms||2600)*0.6));
+  var t0=760,win=Math.max(300,commitAt-t0-150);
+  var per=Math.min(90,Math.max(30,Math.round(win/Math.max(1,typed.length))));
+  var pos=0;
+  setTimeout(function(){
+    if(token!==nhRunToken||!ov.textEl)return;
+    var iv=setInterval(function(){
+      if(token!==nhRunToken||!ov.textEl){clearInterval(iv);return;}
+      pos+=(pos%3===2)?2:1;
+      if(pos>=typed.length){pos=typed.length;clearInterval(iv);}
+      ov.textEl.value=typed.slice(0,pos);
+    },per);
+  },t0);
+  setTimeout(function(){
+    if(token!==nhRunToken){try{ov.close();}catch(e){}return;}
+    var rq=null;
+    try{rq=commitFieldRequest(ll,typed,{stage:true,quiet:true});}catch(e){}
+    try{ov.close();}catch(e){}
+    if(!rq)return;
+    nhTempIds.req.push(rq.id); // 회차가 걷는다 — 두 번째 재생에 내 Request 가 이미 있으면 안 된다
+    nhReqIds[rq.id]=wi;
+    nhBounceMark(rq.id,1); // 렌더 **전에** 적어야 onAdd 가 본다 (v2.11)
+    if(typeof renderRequestMarkers==='function')renderRequestMarkers();
+    if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+  },commitAt);
+  return true;
+}
+
+/* Request 에 **답이 쓰이는 모습**을 보여준다 (v2.12, 콘솔 D95).
    여태 `answer` 는 값을 그냥 꽂았다 — 답은 도착했는데 아무도 답하는 것을 못 봤다.
    write 와 같은 문법으로 만든다: 팝업을 열고, 답장 칸에 글자를 하나씩 넣고, 보낸다.
 
-   무대가 깐 Request 는 **내 것**이라(nhLayReq 가 myUid 로 적는다) 팝업이 답장 칸을
-   안 그린다 — 그 자리는 "내가 받은 답 목록" 이다. 그래서 없으면 여기서 한 줄을 만든다:
-   시연에서 보여줄 것은 현장의 누군가가 답을 쓰는 장면이다. */
+   누가 답하는가는 **그 Request 가 누구 것인가**가 정한다 (v2.18, 콘솔 D114):
+   남의 Request(mine:false)면 사용자가 답하는 장면 — 답장 칸이 이미 있고, 보내면
+   answerRequest 가 코인을 적립한다. 내 Request 면 현장 유저가 답해 주는 장면 —
+   팝업이 답장 칸을 안 그리므로(그 자리는 "내가 받은 답 목록") 여기서 한 줄을 만든다. */
 function nhAnswerTyped(rq,text,token,ms){
   if(!rq||typeof openContentPop!=='function'||typeof answerRequest!=='function')return false;
   openContentPop('req',rq);
@@ -6988,6 +7128,14 @@ function nhTouchTarget(st){
       if(dsSheet&&dsSheet.style.display!=='none')return document.getElementById('ds-close');
       return document.getElementById('cpop-close');
     }
+    /* Request 를 여는 것은 핀을 고르는 손이다 (v2.18) — "사용자가 그 Request 를 눌러
+       연다" 가 시나리오의 장면이라, 표식이 핀 위에 서야 화면이 그 말을 한다. */
+    if(st.a==='pop'&&st.v==='req'){
+      var rd=nhPick('req',st.i);
+      if(rd&&typeof reqMarkers!=='undefined')
+        for(var ri=0;ri<reqMarkers.length;ri++)
+          if(reqMarkers[ri]&&reqMarkers[ri].rq&&reqMarkers[ri].rq.id===rd.id)return reqMarkers[ri].div;
+    }
   }catch(e){}
   return null;
 }
@@ -7054,9 +7202,8 @@ function nhAct(st,token){
         if(typeof closeStorePage==='function'){closeStorePage();did=true;}
         if(typeof closeContentPop==='function'){closeContentPop();did=true;}
         return did;}
-      // 시나리오가 준 질문을 그대로 넘긴다 — 안 넘기면 네이티브 prompt 가 재생을 멈춘다 (v1.95).
-      if(st.a==='request'){if(typeof openRequestComposer!=='function')return false;
-        return openRequestComposer(st.v||st.say||'지금 여기 사람 많나요?')!==false;}
+      // 꾹 누르기 → 컴포저 → 타이핑 → 등록 — 묻는 손이 화면에 보인다 (v2.18).
+      if(st.a==='request')return nhRequestTyped(st.v||st.say,token,st.ms)!==false;
       if(st.a==='drawer'){if(typeof openPhoneDrawer!=='function')return false;
         openPhoneDrawer();return true;}
       if(st.a==='wait')return true; // 화면은 그대로 — 그것이 이 스텝의 전부다
@@ -7219,10 +7366,14 @@ function nhLayReq(r,i,c,stamp,token){
   if(typeof fieldRequests==='undefined')return null;
   var id='rqn_'+stamp+'_'+i,p=nhPosGet('req',i,c)||nhSpread(c,NH_BAND.req+i); // 사람이 옮긴 자리 우선 (v2.3)
   var lat=p.lat,lng=p.lng;
+  /* mine:false = **다른 사용자가 올린** Request (v2.18, 콘솔 D114). by 를 남으로 적으면
+     팝업이 답장 칸을 그리고(1182), answer 가 "내가 답하는" 장면이 되며 코인이 적립된다.
+     여태는 전부 myUid 라 남의 Request 를 무대에 깔 길이 없었다. */
   fieldRequests.push({id:id,q:String(r.q||'').slice(0,120),lat:lat,lng:lng,
     place:(typeof dongAt==='function'?dongAt(lat,lng):'')||c.name,
     // stage: 무대가 깐 것 — 10분 만료를 안 탄다 (v2.13, reqActive 참조).
-    answers:[],ts:Date.now(),stage:true,by:(typeof myUid==='function'?myUid():'anon'),seed:false});
+    answers:[],ts:Date.now(),stage:true,
+    by:(r.mine===false?'nh_other':(typeof myUid==='function'?myUid():'anon')),seed:false});
   nhTempIds.req.push(id);
   if(r.answerIn){ // 재생 도중에 답이 도착한다 — 이 시연의 핵심 장면
     setTimeout(function(){
@@ -7517,7 +7668,7 @@ var nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:0};
 
 function nhSeedScenario(sc,token){
   // 회차마다 0 부터 — write 의 "옮긴 자리" 키가 회차를 넘어 같아야 한다 (v2.12).
-  nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:token};nhPostN=0;nhWriteN=0;nhWriteIds={};
+  nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:token};nhPostN=0;nhWriteN=0;nhWriteIds={};nhReqN=0;nhReqIds={};
   if(!sc||!sc.seed)return;
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
   var stamp=Date.now();
@@ -7607,6 +7758,11 @@ function nhDrop(v,i){
     if(!laid)return false;nhBounceMark(laid,1);
     if(typeof renderRequestMarkers==='function')renderRequestMarkers();
     if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+    /* 남의 Request 가 지금 도착했다 — 하단 AI Agent 카드가 그 소식을 말한다 (v2.18).
+       실서비스에서 근처 사용자에게 뜨는 그 카드(실시간 리스너)의 무대판이다.
+       내 Request 는 안 띄운다: 요청자 본인에게는 원래 안 가는 알림이다. */
+    var drq=fieldRequests.find(function(x){return x.id===laid;});
+    if(drq&&!isMyReq(drq)&&typeof showReqBubble==='function')showReqBubble(drq);
   }else if(kind==='page'){
     laid=nhLayNews(item.v,item.i,c,nhHeld.stamp);
     if(!laid)return false;nhBounceMark(laid,1);
@@ -7637,6 +7793,10 @@ function nhReset(){
     // 비워 두지 않고 **기본 무대로 되돌린다** (v1.73). 회차마다 같은 곳에서 시작해야 한다.
     if(typeof nhGoHome==='function')nhGoHome();else nhAreaKey='';
     if(typeof closeComposer==='function')closeComposer();
+    /* Request 컴포저·도착 카드도 걷는다 (v2.18) — 앞 회차가 열어 둔 채 끊기면
+       다음 회차가 그 카드 뒤에서 재생된다 (매장 페이지와 같은 이유). */
+    if(typeof closeReqComposer==='function')closeReqComposer();
+    if(typeof hideReqBubble==='function')hideReqBubble();
     if(typeof closeContentPop==='function')closeContentPop();
     /* 매장 페이지·딜 시트는 **무조건** 닫는다 (v2.15 리뷰) — sweep 은 이번 회차가 깐
        임시 딜이 있을 때만 닫으므로, 전역 시드 딜을 열어 둔 채(재생 중단·수동 탭) 다음
@@ -7725,7 +7885,9 @@ function nhSanitize(raw){
     var reqs=(Array.isArray(rs.reqs)?rs.reqs:[]).slice(0,NH_MAX.req).map(function(r){
       r=r||{};
       return {q:String(r.q||'').slice(0,120),answer:String(r.answer||'').slice(0,120),
-        answerIn:Math.min(Math.max(r.answerIn|0,0),20000),hold:!!r.hold};
+        answerIn:Math.min(Math.max(r.answerIn|0,0),20000),hold:!!r.hold,
+        // mine:false = 남이 올린 Request (v2.18) — 키가 없으면 여태처럼 내 것이다.
+        mine:r.mine!==false};
     }).filter(function(r){return r.q;});
     var sps=(Array.isArray(rs.spots)?rs.spots:[]).slice(0,NH_MAX.spot).map(function(s){
       s=s||{};return {t:String(s.t||'').slice(0,80),emoji:String(s.emoji||'💬').slice(0,4),

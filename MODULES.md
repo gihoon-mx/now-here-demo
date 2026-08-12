@@ -55,7 +55,7 @@
 | M04 | spots 스팟 메시지 | 안정 | 스팟 버블(자유 방향·겹침 방지)·컴포저·편집/드래그·워드클라우드 (모드 컬러: 베이직 무채색/트렌드 온도)·개별 색 투명도 | `SpotBubble` `SpotComposer` `renderSpots` `spotsInFocusedRegion` `canEditSpot` `declutterMarkers` `openSpotEditor` `spotComments(뱃지)` | app.js | v1.65 |
 | M05 | feed 피드 | 활성 | 피드 탭·그리드·썸네일 핀(스팟과 동일 줌 스케일·온도 링/뱃지)·클러스터·좋아요·업로드 · **지도 아이콘 크기 분리 옵션**(v2.3 — `feedIconSize` 0=스팟 크기 따름, 클라우드 동기) | `renderFeed` `feedEntriesScoped` `FeedThumb` `clusterFeedPins` `toggleLike` `feedAdd` `initFeedTools` `staticMapUrl` `fc-body`(새 스킨 본문) `hidden`(v1.88 숨김 필드) `feedIconBase` `feedPinKey`/`syncFeedPins`/`FeedThumb._adopt`(v2.16 핀 재사용 — 지우고 새로 만들지 않는다) | app.js | v2.16 |
 | M06 | social 소셜 | 활성 | 소셜 탭 **Our/My Talk 2세그먼트**(목록→대화 2단)·방 카드·liveChat — 방 저장 키(`local:`/`topic:`/`private:`)는 불변 | `renderSocial` `socRoomsFor` `socRoomLast` `renderRoomList` `socRoomList` `roomMsgs` `initSocialManager` | app.js | v1.91 |
-| M07 | request 현장 Request | 활성 | Request 등록(10분 타임아웃)·AI Agent 실시간 응답 팝업·내 Request 답변 보기·전용 핀(ReqPin)·삭제 | `openRequestComposer` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` `ReqPin` `deleteRequest`·핀 줌 스케일(스팟 동일) `reqRemainLabel` · **코인**(`REQ_COIN` `myCoins` `addCoins` `syncCoinUI`) | app.js | v1.92 |
+| M07 | request 현장 Request | 활성 | Request 등록(**v2.18: 지도 위 컴포저 카드** — prompt() 제거)·AI Agent 수신 카드(**v2.18 시안: 검정 필+🪙500 · 📷사진 제출·💬Chat 참여**)·내 Request 답변 보기·전용 핀(ReqPin)·삭제·**남의 Request 에 답하면 코인 적립 연출** | `openRequestComposer` `ReqComposer` `commitFieldRequest` `showReqBubble` `reqNearMe` `reqActive` `isMyReq` `answerRequest` `liveRequests` `ReqPin` `deleteRequest`·핀 줌 스케일(스팟 동일) `reqRemainLabel` · **코인**(`REQ_COIN` `myCoins` `addCoins` `syncCoinUI` `coinFly`) | app.js | v2.18 |
 | M08 | ai-agent AI 에이전트 | 활성 | AI 버튼·상황 프리셋·**트렌드=선글라스 무지개 발광(v2.15 — 온도 흐름·웜톤 재도색 삭제)**·**원격 에이전트(persona-vc)** | `initAiAgent` `aiPresetPool` `updateAiVisual` `AI_PALETTE(단일 팔레트)` `sh-lens`/`aiLensRainbow`/`aiShadeGlow`(CSS) `aiMapSummary` `aiChatAnswer` `aiAgentOn` `aiAskRemote` `aiContextSnapshot` `aiChatHistory` | app.js · config.js | v2.15 |
 | M09 | shell 폰 셸 | 안정 | 폰 미러·탭 전환·하단 네비(스와이프)·**드로어(둘러보기 전용)**·헤더·페이지 모드 분기·카메라 이동 | `initPhoneMirror` `switchTab` `layoutTabPages` `initPhoneMenu` `renderDrawerDemo` `setDrawerView` `dsSection` `openContentPop` `cpopGoMap` `goMapCam` `PAGE_MODE` `setNavActive`(switchTab 내부) · **보기 토글**(`boundaryShown` `reqCardShown` `setBoundaryShown` `setReqCardShown`) | app.js | v1.92 |
 | M10 | news 요약 지면 | 안정 | 헤더 아래 캐러셀 지면·카드 3버전·접기·메타 줄(거리·시간) | `renderNews` `newsItems` `initContentPage` `initSummaryCollapse` `cp-frame` `feedSummaryItems` `cps-meta` · **지역 Overview**(`openOverview` `ovChipData` `initOverview`) · **무대가 깐 카드**(`stage` 표시 — `allFeedEntries` 가 건너뛴다) | app.js | v2.2 |
@@ -115,8 +115,13 @@ additive 필드라 옛 콘솔은 무시하고, 옛 앱(필드 없음)을 새 콘
 내 위치 점(`myLocation`)도 찍지 않는다. `nhReset` 도 빈 값 대신 기본 무대로 되돌린다.
 
 **시나리오별 무대** (v1.72): 시나리오는 `seed` 로 자기 화면을 깐다 —
-`{reqs:[{q,answer,answerIn}] , spots:[{t,emoji}] , feeds:[{theme,label,desc,name,img}] ,
+`{reqs:[{q,answer,answerIn,mine}] , spots:[{t,emoji}] , feeds:[{theme,label,desc,name,img}] ,
 deals:[…] , pages:[…]}`. **깐 것이 하나라도 있으면 `pop`·`like` 는 그 안에서만 고른다**(`nhOwn`).
+`reqs[].mine:false` (v2.18) = **남이 올린 Request** — 팝업이 답장 칸을 그리고 `answer` 가
+"사용자가 답하는" 장면이 되어 🪙 코인이 적립되며, `drop v:req` 로 띄우면 하단 AI Agent
+수신 카드도 같이 뜬다. 키가 없으면 여태처럼 내 Request(답이 도착하는 쪽)다.
+`request` 액션(v2.18)은 꾹 누르는 링 → 컴포저 → 글자별 타이핑 → 등록까지 한 장면이고
+(`nhRequestTyped`, 커밋 바닥 1200ms), 방금 올린 것은 다음 스텝에서 `i:-1` 로 가리킨다.
 전역 시드에서 앞에서부터 고르던 v1.71 까지는 **지역만 같으면 시나리오가 달라도 같은 콘텐츠**가
 열려서, 화면상으로는 네 시나리오가 다 같은 이야기로 보였다. `i` 는 선언 순서이고 **음수는
 뒤에서부터** — `i:-1` 이 "방금 쓴 글" 이다(그 전에는 `i:0` 이 남의 글을 열어 대사가 거짓이 됐다).
