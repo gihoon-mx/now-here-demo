@@ -7375,7 +7375,9 @@ function nhLayReq(r,i,c,stamp,token){
     answers:[],ts:Date.now(),stage:true,
     by:(r.mine===false?'nh_other':(typeof myUid==='function'?myUid():'anon')),seed:false});
   nhTempIds.req.push(id);
-  if(r.answerIn){ // 재생 도중에 답이 도착한다 — 이 시연의 핵심 장면
+  // 자동 도착은 **내 Request 만** (v2.18) — 남의 것에 걸리면 아무도 안 답했는데
+  // 코인이 적립되는 화면이 된다 (answerRequest 가 "남의 것에 답함" 으로 읽는다).
+  if(r.answerIn&&r.mine!==false){ // 재생 도중에 답이 도착한다 — 이 시연의 핵심 장면
     setTimeout(function(){
       if(token!==nhRunToken)return;
       if(typeof answerRequest==='function')answerRequest(id,String(r.answer||'지금은 여유 있어요'));

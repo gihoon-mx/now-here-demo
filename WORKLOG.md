@@ -47,7 +47,7 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v2.18.0** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
+- **현재 최신: v2.18.1** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
 - ⚠️ v1.65부터 **admin.html도 버전 동기 대상**(check.js가 index/admin의 #app-version·?v= 일치를 강제). index/admin에 **공통 요소**(폰 화면 마크업·모달·설정 섹션)를 수정하면 **두 파일 모두** 반영할 것.
 
 ---
@@ -263,6 +263,12 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ---
 
 ## 📝 변경 이력
+
+### 2026-08-12 (4-1)
+- **v2.18.1 — 자동 도착(answerIn)은 내 Request 만 (M16)** — 남의 Request(mine:false)에
+  answerIn 이 실려 오면 8초 뒤 자동 답이 쏘여 **아무도 안 답했는데 코인이 적립**되는
+  화면이 됐다(answerRequest 는 "남의 것에 답함" 으로 읽는다). nhLayReq 가 `r.mine!==false`
+  일 때만 자동 도착을 건다. 콘솔 toSeed 도 같은 갈래에서 answer/answerIn 을 키째로 뺀다.
 
 ### 2026-08-12 (4)
 - **v2.18.0 — Request 두 시나리오: 남의 질문에 답해 코인을 받고, 꾹 눌러 묻는다 (M07+M16 ⚠️교차, 콘솔 D114 짝)**
