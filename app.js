@@ -3514,6 +3514,36 @@ function applySettingsData(s){ // 스타일 설정 병합 (클라우드·파일 
 var SETTINGS_CACHE_KEY='nowhere_settings_cache';
 var settingsCacheOn=false; // 임베드가 캐시를 적용했나 — 뒤늦게 오는 파일 백스톱이 덮지 않게
 var settingsRemoteOn=false; // 임베드가 공개 설정 문서를 적용했나 (v2.5) — 셋 중 가장 최신
+/* 트렌드 존 **목록만** 추린 것 (v2.22) — persona-vc 콘솔이 기능 데모의 무대 존을 만들 때
+   하나하나 손으로 적는 대신 여기서 골라 가져간다.
+
+   **기하(hexCenters)는 안 싣는다.** 콘솔의 무대 존은 앱이 데모 동네 둘레에 결정적으로
+   펴는 것이라(D117) 실제 좌표가 뜻이 없고, 존 하나의 셀 목록은 그것만으로 문서를 키운다.
+   대신 `cells`(칸 수)를 줘서 콘솔이 크기(작게/넓게)를 고를 수 있게 한다.
+
+   **사진은 https 주소만.** 관리자가 올린 사진은 압축 data URI 로 존에 박히는데(compressNews),
+   그것을 그대로 실으면 존 몇 개로 공개 문서가 Firestore 1MB 상한에 닿는다. 주소로 붙인
+   사진만 따라가고, 올린 사진은 콘솔에서 다시 올리는 것이 맞다.
+
+   이 값은 **내보내기 전용**이다 — `applyExtraSettings` 가 이것을 적용하지 않는다.
+   앱 자신의 존은 여전히 shared/mapContent 에서 온다. */
+var ZONE_BOOK_MAX=20;
+function zoneBookSnapshot(){
+  if(typeof trendZones==='undefined')return [];
+  return trendZones.slice(0,ZONE_BOOK_MAX).map(function(z){
+    var photo=String(z.photo||'');
+    if(!/^https:\/\//i.test(photo)||photo.length>500)photo='';
+    var where='';
+    try{where=zoneRegionName(z.id)||'';}catch(e){}
+    return {name:String(z.name||'').slice(0,20),
+      desc:String(z.desc||'').slice(0,80),
+      color:String(z.color||''),
+      temp:(z.temp!=null?z.temp:null),
+      photo:photo,
+      where:String(where).slice(0,20),
+      cells:(z.hexCenters&&z.hexCenters.length)||0};
+  }).filter(function(z){return z.name;});
+}
 /* 관리자 적용 설정의 통째 스냅샷 — 캐시(localStorage)·공개 문서(publicSettings)가 같은 것을 나른다. */
 function settingsSnapshotFull(){
   var snap=snapshotSettings();
@@ -3526,7 +3556,10 @@ function settingsSnapshotFull(){
     /* 상단 지면 타입 (v2.11) — cardVer 는 shared/news(SDK 전용)로만 다녀서 persona-vc
        임베드(REST publicSettings)가 영영 못 봤다. 스킨은 건너가는데 지면 타입만 기본(1)
        으로 뜨던 원인. */
-    newsCardVer:newsCardVer};
+    newsCardVer:newsCardVer,
+    /* 트렌드 존 목록 (v2.22) — 콘솔이 골라 가져가는 **내보내기 전용** 칸이다.
+       applyFullSettings 는 이것을 안 읽는다 (applyExtraSettings 참조). */
+    zoneBook:zoneBookSnapshot()};
 }
 /* 스냅샷 하나를 통째로 적용한다 — 캐시·공개 문서가 같은 코드를 탄다 (두 벌이면 한쪽만 고쳐진다). */
 function applyFullSettings(c){
@@ -3553,6 +3586,9 @@ function applyExtraSettings(s){
   // 상단 지면 타입 (v2.11) — 화면 갱신은 부르는 쪽의 renderNews 가 한다 (이 함수의 규칙 그대로).
   var _ncv=parseInt(s.newsCardVer,10);
   if(_ncv>=1&&_ncv<=3)newsCardVer=_ncv;
+  /* ⚠️ `zoneBook`(v2.22)은 **일부러 적용하지 않는다.** 그것은 콘솔이 읽어 가는 목록이지
+     이 앱의 존이 아니다 — 앱의 존은 shared/mapContent 에서 온다. 여기서 적용하면
+     임베드가 자기 무대(seed.zones) 위에 남의 존을 덧그린다. */
 }
 function saveSettingsCache(){
   try{localStorage.setItem(SETTINGS_CACHE_KEY,JSON.stringify(settingsSnapshotFull()));}catch(e){}
