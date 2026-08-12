@@ -826,12 +826,17 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 .rqc-btn:hover,.rqc-btn:active{border-color:var(--acc);color:var(--acc);background:rgba(47,123,255,0.06);}
 /* 현장 Request 전용 맵 핀: 펄스 링(현장에 질문 신호) + ? 티어드롭 — AI Agent 보라 계열 */
 .req-pin{position:absolute;transform:translate(-50%,-100%);width:48px;height:56px;pointer-events:none;z-index:5;} /* v1.58 크기 통일: 드롭 26→34px, 피드 핀(44px)과 비슷한 시각 크기 */
-.req-pin .rp-drop{position:absolute;left:50%;top:2px;width:34px;height:34px;margin-left:-17px;pointer-events:auto;cursor:pointer; /* v1.63: 탭=상세 팝업 (컨테이너 pointer-events:none이 클릭을 막던 버그 픽스) */
+/* v2.20: **똑바로 선 원**이다. 여태는 물방울을 만들려고 `border-radius:50% 50% 50% 6px`
+   에 `rotate(-45deg)` 를 걸었는데, 그 회전이 세 스킨 모두에 남아 있었다 — legacy 는 물방울이
+   기울어 보이고, 원으로 다시 그린 new·v3 에서도 **그림자가 45° 비껴** 떨어져 핀이 기운 것처럼
+   보였다. 회전을 걷고 글리프의 되돌림(rotate(45deg))도 같이 걷는다. */
+.req-pin .rp-drop{position:absolute;left:50%;top:2px;width:34px;height:34px;margin-left:-17px;pointer-events:auto;cursor:grab; /* v1.63: 탭=상세 팝업 · v2.20: 끌어 옮기기 */
   background:linear-gradient(150deg,#c6cdd7,#8f97a4);border:2px solid #fff; /* 베이직=무채색 통일 — 트렌드 온도색은 아래 mode-trend 스코프 */
-  border-radius:50% 50% 50% 6px;transform:rotate(-45deg);transform-origin:center;
+  border-radius:50%;
   box-shadow:0 3px 10px rgba(90,100,115,0.4);}
+.req-pin.dragging .rp-drop{cursor:grabbing;filter:brightness(1.06);}
 .req-pin .rp-drop i{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  transform:rotate(45deg);font-style:normal;font-size:17px;font-weight:900;color:#fff;line-height:1;}
+  font-style:normal;font-size:17px;font-weight:900;color:#fff;line-height:1;}
 .req-pin .rp-ring{position:absolute;left:50%;top:20px;width:34px;height:34px;margin-left:-17px;border-radius:50%;
   border:2px solid rgba(120,130,145,0.5);animation:rpPulse 2s ease-out infinite;}
 .req-pin .rp-ring.r2{animation-delay:1s;}

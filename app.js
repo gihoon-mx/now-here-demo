@@ -5092,9 +5092,60 @@ function initReqPinClass(){
     d.innerHTML='<span class="rp-ring"></span><span class="rp-ring r2"></span><span class="rp-drop"><i>?</i></span>';
     d.title=this.rq.place+' · 현장 Request';
     d.style.setProperty('--heat',heatColor(zoneHeatT(this.rq.lat,this.rq.lng))); // 트렌드 모드 온도색(속한 존 열기) — 베이직은 CSS 무채색
-    d.addEventListener('click',function(e){e.stopPropagation();openContentPop('req',self.rq);}); // 탭=상세 팝업(질문·남은 시간·답변)
+    d.addEventListener('click',function(e){
+      e.stopPropagation();
+      if(self._dragged){self._dragged=false;return;} // 방금 끌어 옮긴 손은 팝업을 열지 않는다
+      openContentPop('req',reqById(self.rq.id)||self.rq); // 탭=상세 팝업(질문·남은 시간·답변)
+    });
+    /* 끌어 옮기기 (v2.20) — 스팟 말풍선·피드 핀이 오래 하던 것을 Request 핀도 한다.
+       무대 항목이면 옮긴 자리가 nhPosNote 에 남아 **다음 재생에도 그 자리**다 — 그 계약
+       (rqw·nhReqIds)은 v2.3·v2.18 에 이미 적혀 있었는데 정작 끄는 손이 없어 죽어 있었다. */
+    d.addEventListener('pointerdown',function(e){self._onDown(e);});
     if(nhBounceTake(this.rq.id))d.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
     this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);
+  };
+  // 이동: 터치=롱프레스 후 드래그 / 마우스=즉시 (스팟 말풍선과 같은 문법)
+  ReqPin.prototype._onDown=function(e){
+    var self=this,m=self.getMap();if(!m)return;
+    var isTouch=(e.pointerType==='touch');
+    var moved=false,dragging=false,lpTimer=null,sx=e.clientX,sy=e.clientY,mapEl=m.getDiv();
+    var prevDrag=m.get('draggable');
+    function startDrag(){
+      dragging=true;
+      m.setOptions({draggable:false});
+      self.div.classList.add('dragging');
+      try{self.div.setPointerCapture(e.pointerId);}catch(_){}
+      if(isTouch&&navigator.vibrate)try{navigator.vibrate(15);}catch(_){}
+    }
+    if(isTouch){lpTimer=setTimeout(function(){lpTimer=null;if(!moved)startDrag();},LP_MS);}
+    else{e.stopPropagation();if(e.cancelable)e.preventDefault();startDrag();}
+    function mv(ev){
+      if(ev.pointerId!==e.pointerId)return;
+      if(!dragging){ // 롱프레스 대기 중 크게 움직이면 = 지도 팬 → 취소
+        if(Math.abs(ev.clientX-sx)>LP_TOL||Math.abs(ev.clientY-sy)>LP_TOL){moved=true;cleanup(false);}
+        return;
+      }
+      if(!moved&&(Math.abs(ev.clientX-sx)>3||Math.abs(ev.clientY-sy)>3))moved=true;
+      if(!moved)return;
+      var proj=self.getProjection();if(!proj)return;
+      var r=mapEl.getBoundingClientRect();
+      var ll=proj.fromContainerPixelToLatLng(new google.maps.Point(ev.clientX-r.left,ev.clientY-r.top));
+      if(ll){self.position=ll;self.draw();}
+    }
+    function up(ev){if(ev.pointerId!==e.pointerId)return;cleanup(true);}
+    function cleanup(fin){
+      document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
+      if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}
+      if(dragging){m.setOptions({draggable:prevDrag!==false});if(self.div)self.div.classList.remove('dragging');}
+      if(!fin||!dragging||!moved)return;
+      self._dragged=true; // 직후 click 은 팝업 대신 무시
+      var lat=self.position.lat(),lng=self.position.lng();
+      moveRequest(self.rq.id,lat,lng);
+      if(typeof nhPosNote==='function')nhPosNote(self.rq.id,lat,lng); // 무대 항목이면 옮긴 자리를 다음 재생에도 (v2.3)
+    }
+    document.addEventListener('pointermove',mv); // 팬 중 핀이 손가락에서 벗어나도 추적되게 document 에
+    document.addEventListener('pointerup',up);
+    document.addEventListener('pointercancel',up);
   };
   ReqPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
     this._ax=pos.x;this._ay=pos.y; // 앵커=원래 좌표
@@ -5222,6 +5273,18 @@ function answerRequest(id,text,img){ // img: 사진 답변(dataURL, 선택)
     :(hasLive()?'📍 답변 전송! 요청자에게 실시간으로 전달했어요.'
                :'📍 '+rq.place+' 현장 답변 도착: '+(img?'📷 ':'')+text);
     ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},5000);}
+}
+/* 옮긴 자리를 저장소에 남긴다 (v2.20) — 라이브면 문서를, 아니면 로컬 배열을.
+   place 는 좌표를 따라간다: 자리를 옮겨 놓고 옛 동 이름이 남으면 카드가 거짓말을 한다. */
+function moveRequest(id,lat,lng){
+  var rq=reqById(id);if(!rq)return;
+  rq.lat=lat;rq.lng=lng;
+  var d=(typeof regionAt==='function')?regionAt(lat,lng):null;
+  if(d&&d.name)rq.place=d.name;
+  if(hasLive()&&!rq.stage)fbDb.collection('liveRequests').doc(id).update({lat:lat,lng:lng,place:rq.place}).catch(liveWriteErr);
+  else if(!rq.stage)saveRequests(); // 무대가 깐 것은 회차가 걷는다 — 저장소에 남기지 않는다
+  renderRequestMarkers();
+  if(typeof renderDrawerDemo==='function')renderDrawerDemo();
 }
 function deleteRequest(id){ // 본인·관리자만 (드로어 카드 🗑)
   if(!confirm('이 Request를 삭제할까요?'))return;
@@ -5358,6 +5421,23 @@ function syncDealSheet(){
   var bar=document.getElementById('ds-bar');
   if(bar)bar.style.width=Math.max(4,Math.round(rem/d.secs*100))+'%';
 }
+/* 쿠폰을 받는 한 길 (v2.20) — 시트의 '쿠폰 받기' 와 무대의 `coupon` 액션이 여기로 온다.
+   여태는 시트 안에서 `alert()` 이었다. 그 창은 브라우저 것이라 화면 밖이고(시연에 안 남는다)
+   **자바스크립트를 멈춰** 재생이 그 자리에 섰다 — Request 의 prompt() 를 걷어낸 것과 같은 이유다.
+   말은 하단 AI Agent 말풍선이 한다(코인 적립과 같은 문법).
+   opts.ms=0 이면 **문구를 아예 안 띄운다** — 쿠폰은 받되 말은 다음 장면이 하는 연출이 있다.
+   opts.say 로 문구를 갈아 끼울 수 있다(무대가 정한다). */
+function claimDeal(d,opts){
+  opts=opts||{};
+  var ms=(opts.ms==null)?4000:(opts.ms|0);
+  if(ms<=0)return true;
+  var ab=document.getElementById('ai-bubble');if(!ab)return true;
+  ab.textContent=String(opts.say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요 — 매장에서 제시하세요.')).slice(0,160);
+  ab.classList.add('show');
+  clearTimeout(claimDeal._t);
+  claimDeal._t=setTimeout(function(){ab.classList.remove('show');},Math.min(ms,20000));
+  return true;
+}
 function dealDistLabel(d){ // 시안은 '180m' 고정이지만 이 앱은 실제 좌표가 있다 — 실측을 쓴다
   var c=(phoneMap&&phoneVisibleCenter())||(map&&map.getCenter());if(!c)return '근처';
   var m=haversineM(c.lat(),c.lng(),d.lat,d.lng);
@@ -5372,7 +5452,7 @@ function initTimeDeals(){
   var claim=document.getElementById('ds-claim');
   if(claim)claim.addEventListener('click',function(){
     var d=dealById(dealSheetId);closeDealSheet();
-    alert((d?d.title:'딜')+' 쿠폰을 받았어요. 매장에서 제시하세요.');
+    claimDeal(d);
   });
   var share=document.getElementById('ds-share');
   if(share)share.addEventListener('click',function(){
@@ -6737,21 +6817,36 @@ var nhAreaKey='';
    버리는 것이 맞지만, 이 값은 "사람이 정한 연출" 이라 남아야 뜻이 있다. */
 var NH_POS_KEY='nowhere_stagepos';
 var nhScenarioKey=''; // 지금 재생 중인 시나리오 id — nhRun 이 채운다
+/* **콘솔이 들고 있는 자리** (v2.20). localStorage 는 이 기기의 것이라 다른 PC 에서는 없는
+   값이었다 — 같은 데모인데 자리가 PC 마다 달랐다. 이제 콘솔(데모 문서)이 저장소고,
+   여기는 이번 회차에 받은 사본이다. 받은 값이 **먼저다**: 이 기기의 옛 값이 팀이 정한
+   자리를 덮으면 안 된다. 옮기면 nh:pos 로 콘솔에 알려 다음 회차부터 모두가 그 자리를 본다. */
+var nhPosRecv={};
 function nhPosAll(){try{var o=JSON.parse(localStorage.getItem(NH_POS_KEY)||'{}');return (o&&typeof o==='object')?o:{};}catch(e){return {};}}
 /* 무대 중심에서 5km 넘게 벗어난 저장값은 무시한다 — 데모의 동네를 옮기면 옛 자리는
    다른 동네에 남은 값이라, 그대로 쓰면 화면 밖에 깔린다. */
 function nhPosGet(kind,i,c){
   if(!nhScenarioKey)return null;
-  var o=nhPosAll()[nhScenarioKey],p=o&&o[kind+'_'+i];
+  var k=kind+'_'+i;
+  var p=(nhPosRecv&&nhPosRecv[k])||null; // 콘솔이 준 값이 먼저 (v2.20)
+  if(!p){var o=nhPosAll()[nhScenarioKey];p=o&&o[k];}
   if(!p||!isFinite(p.lat)||!isFinite(p.lng))return null;
   if(c&&typeof haversineM==='function'&&haversineM(c.lat,c.lng,p.lat,p.lng)>5000)return null;
   return p;
 }
 function nhPosSave(kind,i,lat,lng){
   if(!nhScenarioKey)return;
+  var k=kind+'_'+i;
   var all=nhPosAll();
-  (all[nhScenarioKey]=all[nhScenarioKey]||{})[kind+'_'+i]={lat:lat,lng:lng};
+  (all[nhScenarioKey]=all[nhScenarioKey]||{})[k]={lat:lat,lng:lng};
   try{localStorage.setItem(NH_POS_KEY,JSON.stringify(all));}catch(e){}
+  nhPosRecv[k]={lat:lat,lng:lng}; // 이번 회차에도 곧바로 반영
+  /* 콘솔에 알린다 (v2.20) — 저장은 그쪽이 한다(데모 문서). 부모가 없으면(임베드가 아니면)
+     조용히 지나간다: 실서비스에서 핀을 옮기는 것은 무대와 상관없는 일이다. */
+  if(window.parent&&window.parent!==window){
+    try{window.parent.postMessage({source:'now-here',type:'nh:pos',
+      scenario:nhScenarioKey,key:k,lat:lat,lng:lng},'*');}catch(e){}
+  }
 }
 /* 드래그된 것이 무대 항목이면 그 자리를 남긴다 — id 접미사가 곧 항목 번호다. */
 /** write 로 쓴 글의 id → 그 회차의 write 순번 (v2.12). 그 글은 id 규칙이 달라 표가 필요하다. */
@@ -7070,6 +7165,38 @@ function nhAnswerTyped(rq,text,token,ms){
   return true;
 }
 
+/* 타임딜 쿠폰을 받는 장면 (v2.20) — 시트의 '쿠폰 받기' 를 실제로 누른다.
+   쿠폰이 사는 자리를 보여주고 누르는 것까지가 이 액션이다: 시트가 안 열려 있으면 열고,
+   버튼에 터치 표식을 세운 뒤 한 박자 두고 받는다.
+   리워드 문구는 **따로 정한다** (v=문구 · e=표시 초, '0'이면 안 띄운다) — 쿠폰은 받되
+   말은 다음 장면이 하게 두는 연출이 있다. */
+function nhCouponMs(e){
+  var s=String(e==null?'':e).trim();
+  if(!s)return 4000;              // 빈 값 = 여태처럼 4초
+  var n=parseFloat(s);
+  if(!isFinite(n)||n<0)return 4000;
+  return Math.min(20000,Math.round(n*1000)); // 0 = 안 띄움 (claimDeal 이 판단)
+}
+function nhCoupon(i,say,e,token,ms){
+  if(typeof claimDeal!=='function')return false;
+  var d=nhPick('deal',i);
+  if(!d)return false;
+  if(typeof dealActive==='function'&&!dealActive(d))return false; // 끝난 딜의 쿠폰은 못 받는다 (v2.2 유령 방지)
+  if(typeof dealSheetId==='undefined'||dealSheetId!==d.id){
+    if(typeof openDealSheet!=='function')return false;
+    openDealSheet(d.id);
+  }
+  var btn=document.getElementById('ds-claim');
+  if(btn&&typeof nhTouch==='function')nhTouch(btn);
+  var wait=Math.min(900,Math.max(260,Math.round((ms||1500)*0.45)));
+  setTimeout(function(){
+    if(token!==nhRunToken)return;
+    if(typeof closeDealSheet==='function')closeDealSheet();
+    claimDeal(d,{ms:nhCouponMs(e),say:say});
+  },wait);
+  return true;
+}
+
 /* 채팅: 동네방 또는 주제방을 열고, 말이 있으면 보낸다. */
 function nhChat(kind,say){
   if(typeof socTab==='undefined'||typeof socRoomsFor!=='function')return false;
@@ -7229,10 +7356,15 @@ function nhAct(st,token){
       if(st.a==='pop'){var d=nhPick(st.v,st.i);
         if(!d)return false;
         /* 딜은 다른 물건이다 (v2.2) — 상세 팝업(#content-pop)이 아니다.
-           v2.15 부터 핀 탭=매장 전용 페이지라 여기서도 같은 것을 연다(구버전 앱이면
-           시트 폴백). 만료는 못 여는 게 정직하다(v2.2 유령 방지 규칙 그대로). */
+           v2.15 부터 핀 탭=매장 전용 페이지고, v2.20 부터 **어느 쪽으로 열지 단계가 정한다**
+           (e:'sheet'=쿠폰 시트 · 'page'/빈 값=매장 전용 페이지). 같은 딜이라도 장면에 따라
+           보여줄 것이 다르다 — 매장을 소개하는 장면과 쿠폰을 받는 장면은 화면이 다르다.
+           만료는 못 여는 게 정직하다(v2.2 유령 방지 규칙 그대로). */
         if(st.v==='deal'){
           if(typeof dealActive==='function'&&!dealActive(d))return false;
+          if(String(st.e||'')==='sheet'){
+            if(typeof openDealSheet!=='function')return false;
+            openDealSheet(d.id);return true;}
           if(typeof openStorePage==='function'){openStorePage(d.id);return true;}
           if(typeof openDealSheet!=='function')return false;
           openDealSheet(d.id);return true;}
@@ -7266,6 +7398,8 @@ function nhAct(st,token){
         if(!rq||typeof answerRequest!=='function')return false;
         // v2.12: 값만 꽂지 않고 **쓰이는 모습**을 보여준다 (write 와 같은 문법).
         return nhAnswerTyped(rq,st.v||'지금 그렇게 안 붐벼요',token,st.ms)!==false;}
+      // 쿠폰 받기 (v2.20) — v=리워드 문구 · e=문구 표시 초('0'=안 띄움) · i=어느 딜
+      if(st.a==='coupon')return nhCoupon(st.i,st.v,st.e,token,st.ms)!==false;
       if(st.a==='chat')return nhChat(st.v,st.say&&st.v==='send'?st.say:(st.i?st.say:''))!==false;
       if(st.a==='ai')return nhAi(token,st.ms)!==false;
       if(st.a==='scope'){if(typeof switchTab==='function')switchTab('feed');
@@ -7864,6 +7998,7 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'drop', // v1.98: 무대에 보관해 둔 것을 지금 띄운다 ("실시간으로 올라온다" 연출)
   'post','postfeed', // v2.0/v2.1: 남이 방금 올린 글·피드 카드 — 무대 없이 그 자리에서 만든다
   'burst', // v2.11: 엔딩 연출 — 줌아웃하며 컨텐츠가 쏟아진다 (v=종류·i=개수·e=줌·ms=시간)
+  'coupon', // v2.20: 타임딜 쿠폰을 받는다 (v=리워드 문구·e=문구 표시 초·i=어느 딜)
   'page']; // v2.2: 상단 지면을 옆으로 넘긴다
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
@@ -7980,15 +8115,29 @@ function nhSanitize(raw){
     if(reqs.length||sps.length||fds.length||dls.length||pgs.length)
       seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs};
   }
+  /* 사람이 옮긴 자리 (v2.20) — 콘솔이 들고 있다가 재생마다 실어 보낸다. 여태 이 값은
+     localStorage 뿐이라 **다른 PC 에서는 없는 값**이었다(같은 데모인데 자리가 달랐다).
+     여기서는 모양만 자른다: 키는 `종류_번호`, 값은 좌표. 개수도 상한을 둔다. */
+  var pos=null,rp=raw.pos;
+  if(rp&&typeof rp==='object'){
+    pos={};
+    Object.keys(rp).slice(0,120).forEach(function(k){
+      if(!/^[a-z]{3,6}_\d{1,3}$/.test(String(k)))return;
+      var pv=rp[k]||{},la=Number(pv.lat),ln=Number(pv.lng);
+      if(!isFinite(la)||!isFinite(ln)||Math.abs(la)>90||Math.abs(ln)>180)return;
+      pos[k]={lat:la,lng:ln};
+    });
+  }
   return {id:String(raw.id||'inline'),name:String(raw.name||'시나리오').slice(0,80),
     persona:String(raw.persona||'').slice(0,80),concern:!!raw.concern,
-    area:(SEED_AREAS[String(raw.area||'')]?String(raw.area):''),seed:seed,steps:steps};
+    area:(SEED_AREAS[String(raw.area||'')]?String(raw.area):''),seed:seed,pos:pos,steps:steps};
 }
 
 function nhRun(id,reply,inline){
   var sc=inline?nhSanitize(inline):nhScenario(id);
   if(!sc){nhPost(reply,{type:'nh:error',message:inline?'시나리오 형식이 올바르지 않습니다.':'없는 시나리오: '+id});return;}
   nhScenarioKey=String(sc.id||id||''); // 사람이 옮긴 무대 자리의 저장 단위 (v2.3)
+  nhPosRecv=(sc&&sc.pos)||{};          // 콘솔이 들고 있던 자리 (v2.20) — 이 회차에 쓴다
   nhStop();nhReset();
   nhCoinsMark(); // 이 회차가 시작하는 잔액 — 끝나면(다음 nhReset) 여기로 돌아온다 (v2.19)
   var token=++nhRunToken, i=0;
