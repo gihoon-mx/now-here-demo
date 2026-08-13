@@ -606,16 +606,21 @@ button:focus:not(:focus-visible){outline:none;}
 /* 위치 표시기: 앱바 중앙(모드 토글과 자리 스왑) */
 .pa-loc{justify-self:center;min-width:0;max-width:46cqw;font-size:3.8cqw;font-weight:800;letter-spacing:-0.01em;color:#20242c;pointer-events:none;}
 .pa-loc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
-/* 모드 토글: 헤더 아래 프로스트 오버레이(위치 텍스트와 자리 스왑) — 모든 탭에서 접근 가능 */
-/* v2.27 크기 배율(--ui-mode-s): 관리자 '표시 옵션 › UI 크기'(uiScale, 기본 88%).
+/* 모드 토글: **지도 위 고정 자리** (v2.28) — 모든 탭에서 접근 가능.
+   `top:100%`(헤더 아래)였는데 헤더 높이가 상단 캐러셀에 따라 달라진다 — 지면을 접거나
+   존 카드 종류를 바꾸면 버튼이 따라 올라갔다 내려갔다 했다. 모드 전환은 지도를 보는 손이
+   늘 같은 자리에서 찾는 것이라 화면에 못 박는다. 69cqw = 가장 높은 캐러셀(44cqw) 바로 아래.
+   축척도 같은 규칙이다 — 둘이 한 줄에 서므로 같이 움직여야 한다.
+   노치 기기에서는 헤더가 safe-area 만큼 내려가므로 그만큼 같이 내린다.
+   v2.27 크기 배율(--ui-mode-s): 관리자 '표시 옵션 › UI 크기'(uiScale, 기본 88%).
    CSS zoom 은 left/top 을 곱해 앵커가 밀린다(v1.64 교훈) — transform scale 로만 줄인다. */
-.pa-mode{position:absolute;top:100%;left:50%;transform:translateX(-50%) scale(var(--ui-mode-s,1));transform-origin:top center;margin-top:3.4cqw;z-index:5;display:flex;gap:0.5cqw;padding:0.7cqw;border-radius:5cqw;
+.pa-mode{position:absolute;top:calc(69cqw + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%) scale(var(--ui-mode-s,1));transform-origin:top center;z-index:5;display:flex;gap:0.5cqw;padding:0.7cqw;border-radius:5cqw;
   background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-line);box-shadow:0 1cqw 3cqw rgba(16,24,40,0.14),var(--glass-hi);}
 .pm-btn{display:inline-flex;align-items:center;gap:1cqw;border:none;background:transparent;color:#646b76;font-family:inherit;font-weight:700;font-size:2.9cqw;letter-spacing:-0.01em;padding:1cqw 3cqw;border-radius:4cqw;cursor:pointer;white-space:nowrap;transition:background .22s ease,color .22s ease,box-shadow .22s ease;}
 .pm-btn.active[data-mode="local"]{background:linear-gradient(160deg,#4a8bff,#2b6ff0);color:#fff;box-shadow:0 0.6cqw 2cqw rgba(47,123,255,0.4),inset 0 1px 0 rgba(255,255,255,0.28);}
 .pm-btn.active[data-mode="trend"]{background:linear-gradient(150deg,var(--hot1),var(--hot2));color:#fff;box-shadow:0 0.6cqw 2cqw rgba(255,77,103,0.4),inset 0 1px 0 rgba(255,255,255,0.28);}
-/* 축척: 헤더 하단 앵커 · 위치칩과 가로 정렬 · 배경/테두리 없이 자+수치 */
-#phone-scale{position:absolute;top:100%;left:4cqw;margin-top:4.5cqw;z-index:3;
+/* 축척: 모드 토글과 같은 고정 자리 (v2.27 — 위 .pa-mode 주석 참조) · 배경/테두리 없이 자+수치 */
+#phone-scale{position:absolute;top:calc(70.1cqw + env(safe-area-inset-top,0px));left:4cqw;z-index:3;
   display:inline-flex;align-items:flex-end;gap:1.5cqw;pointer-events:none;}
 #phone-scale .psc-bar{height:1.4cqw;min-width:6cqw;border:1.4px solid #4b5158;border-top:none;box-sizing:border-box;}
 #phone-scale .psc-txt{font-size:2.6cqw;font-weight:700;color:#3f454c;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.02em;}
@@ -777,20 +782,34 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 .tz-scroll{display:flex;gap:2.6cqw;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none;}
 .tz-scroll::-webkit-scrollbar{display:none;}
 .tz-card{position:relative;flex:0 0 auto;width:42cqw;height:50cqw;border:none;padding:0;cursor:pointer;font-family:inherit;border-radius:4cqw;overflow:hidden;box-shadow:var(--sh-s);background:#e9edf3;}
-/* 포커스된 존 카드: 액센트 테두리 + 체크 뱃지 (리스트 맨 앞) */
-.tz-card.focus{box-shadow:0 0 0 2.5px var(--acc),var(--sh-m,var(--sh-s));}
+/* 포커스된 존 카드: 액센트 테두리 + 체크 뱃지 (리스트 맨 앞).
+   테두리를 **안쪽에** 그린다 (v2.27) — 밖으로 두른 링은 가로 스크롤 칸(overflow-x:auto 는
+   세로를 잘라낸다)의 가장자리에서 잘려 반쪽만 보였다. outline 은 자식(사진) 위에 그려지고
+   음수 offset 이면 카드 안으로 들어와서, 잘릴 자리가 애초에 없다. */
+.tz-card.focus{box-shadow:var(--sh-m,var(--sh-s));outline:2.5px solid var(--acc);outline-offset:-2.5px;}
 .tzf-check{position:absolute;top:2cqw;right:2cqw;z-index:3;width:6.2cqw;height:6.2cqw;display:flex;align-items:center;justify-content:center;border-radius:50%;
   background:var(--acc);color:#fff;font-size:3.4cqw;font-weight:900;box-shadow:0 0.6cqw 2cqw rgba(47,123,255,0.45);}
 .tz-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:none;border-radius:0;box-shadow:none;}
 .tz-ph{display:flex;align-items:center;justify-content:center;font-size:15cqw;}
-.tz-card::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,14,22,0) 55%,rgba(10,14,22,0.28) 100%);pointer-events:none;}
-/* 하단 유리 캡션 */
-.tz-bubble{position:absolute;left:2cqw;right:2cqw;bottom:2cqw;z-index:2;display:flex;flex-direction:column;gap:0.4cqw;
-  background:var(--frost-strong);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--glass-line);border-radius:3cqw;padding:1.8cqw 2.4cqw;box-shadow:var(--sh-s),var(--glass-hi);text-align:left;}
+/* 글자를 받치는 그라데이션 (v2.27) — 캡션이 사진 위로 내려오면서 이것이 가독을 맡는다.
+   유리 칩 시절보다 짙고 높게 올라온다: 밝은 사진에서도 흰 글씨가 읽혀야 한다. */
+.tz-card::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(10,14,22,0) 38%,rgba(10,14,22,0.34) 66%,rgba(10,14,22,0.78) 100%);}
+/* 하단 캡션 — **유리 칩이 아니라 사진 위 글자다** (v2.27, 베이직 모드 지면 카드와 같은 문법).
+   칩은 사진의 절반을 덮어서, 어느 존인지보다 칩이 먼저 보였다. */
+.tz-bubble{position:absolute;left:2.6cqw;right:2.6cqw;bottom:2.4cqw;z-index:2;display:flex;flex-direction:column;gap:0.5cqw;
+  background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:none;border-radius:0;padding:0;box-shadow:none;text-align:left;}
 .tz-bubble::after{display:none;}
-.tz-bubble b{font-size:3cqw;font-weight:800;letter-spacing:-0.01em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.tz-bubble i{font-style:normal;font-size:2.3cqw;font-weight:400;color:var(--ink2);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* 이름과 온도가 한 줄에 선다 — 트렌드에서 존을 가르는 값이 이름 다음으로 온도다. */
+.tz-line{display:flex;align-items:baseline;gap:1.4cqw;min-width:0;}
+.tz-bubble b{flex:1;min-width:0;font-size:3.2cqw;font-weight:800;letter-spacing:-0.01em;color:#fff;
+  text-shadow:0 0.2cqw 0.8cqw rgba(0,0,0,0.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tz-temp{flex:none;font-style:normal;font-size:2.5cqw;font-weight:800;color:#fff;line-height:1;
+  padding:0.7cqw 1.6cqw;border-radius:9999px;background:var(--zone-c,#F4A15C);
+  box-shadow:0 0.3cqw 1.2cqw rgba(0,0,0,0.28);white-space:nowrap;}
+.tz-temp:empty{display:none;}
+.tz-bubble i{font-style:normal;font-size:2.4cqw;font-weight:500;color:rgba(255,255,255,0.9);line-height:1.25;
+  text-shadow:0 0.2cqw 0.7cqw rgba(0,0,0,0.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
 /* 트렌드존 카드 · 리스트 스타일 (썸네일+이름+카테고리+하트합산+거리) */
 .tz-scroll-list{gap:2.4cqw;align-items:stretch;}
@@ -833,8 +852,10 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
    다시 정한다 — top/right 를 안 지우면 배지가 카드 높이만큼 늘어난다(v2.26 까지 v3 서클의 버그). */
 #cp-zones.circle{overflow:visible;height:auto;} /* 서클은 44cqw 프레임 높이가 필요 없다 — 지도를 더 보여준다 */
 #cp-zones.circle .tz-scroll{gap:3.1cqw;align-items:flex-start;overflow-y:visible;height:auto;padding-top:.5cqw;padding-bottom:3.5cqw;}
+/* 서클을 키운다 (v2.28) — 26.5cqw 는 사진이 엄지만 해서 어느 동네인지 알아보기 어려웠다.
+   31cqw 면 셋이 한 화면에 거의 들어오면서 스크롤이 있다는 것도 보인다. */
 #cp-zones.circle .tz-card{
-  width:26.5cqw;height:26.5cqw;flex:none;
+  width:31cqw;height:31cqw;flex:none;
   border-radius:50%;overflow:visible;
   border:.9cqw solid var(--zone-c,#F4A15C);
   background:transparent;box-shadow:none;padding:0;position:relative;}
@@ -851,6 +872,10 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
   font-size:5.1cqw;font-weight:800;letter-spacing:-.03em;
   color:rgba(255,255,255,.96);text-shadow:0 1px 6px rgba(0,0,0,.45);}
 #cp-zones.circle .tz-card .tz-bubble i{display:none;}
+/* 온도는 서클 아래 배지가 맡는다 — 이름 옆 알약(글래스 카드의 것)은 여기서 숨긴다 (v2.28) */
+#cp-zones.circle .tz-card .tz-line{display:block;min-width:0;max-width:100%;}
+#cp-zones.circle .tz-card .tz-bubble b{display:block;}
+#cp-zones.circle .tz-card .tz-temp{display:none;}
 #cp-zones.circle .tz-card::after{content:none;} /* 기본 그라디언트 오버레이 끔 */
 /* 온도 배지 — 서클 하단 중앙, 링과 같은 색 */
 #cp-zones.circle .tz-card[data-temp]::after{

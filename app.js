@@ -1036,14 +1036,18 @@ function declutterOn(m,spots,feeds,reqs,deals){
   if(!proj)return;
   var ctr=proj.fromLatLngToDivPixel(m.getCenter());if(!ctr)return;
 
-  var items=[],pins=[],bubbles=[];
-  /* 핀 하나를 후보로 등록. **앵커는 늘 원래 좌표(_ax·_ay)** 다 — 이미 밀어 둔 값을
-     기준으로 다시 재면 잴 때마다 조금씩 더 밀려서 핀이 흘러간다. */
+  var items=[],bubbles=[];
+  /* 핀은 **자기 좌표에 고정한다** (v2.27) — 밀지 않고 장애물로만 센다.
+     v2.9 는 겹칠 때 핀을 픽셀로 밀어 놨는데, 그 값은 그때의 줌·화면 크기에서 잰 것이라
+     **줌을 바꾸거나 창이 달라지면 같은 컨텐츠가 다른 지점에 붙었다**. 지도 위의 것은
+     좌표가 곧 그 컨텐츠의 뜻이라(사진이 찍힌 자리·질문이 올라온 자리) 화면 사정으로
+     움직이면 안 된다. 겹침은 말풍선 쪽이 방향을 바꿔 피한다 — 그쪽은 앵커가 안 움직인다.
+     이미 밀어 둔 값이 있으면 여기서 되돌린다. */
   function addPin(o,dw,dh){
     if(!o.div||o._ax==null)return;
     var r=o.div.getBoundingClientRect();
-    items.push({id:'pin_'+pins.length,kind:'pin',ax:o._ax,ay:o._ay,w:r.width||dw,h:r.height||dh});
-    pins.push(o);
+    items.push({fixed:true,ax:o._ax,ay:o._ay,w:r.width||dw,h:r.height||dh});
+    if(o._ndx||o._ndy){o._ndx=0;o._ndy=0;o.draw();}
   }
   deals.forEach(function(o){addPin(o,34,46);});
   reqs.forEach(function(o){addPin(o,34,46);});
@@ -1063,14 +1067,10 @@ function declutterOn(m,spots,feeds,reqs,deals){
     items.push({id:'sp_'+bubbles.length,kind:'bubble',ax:o._ax,ay:o._ay,w:w,h:h,cur:o._dir});
     bubbles.push(o);
   });
-  if(!pins.length&&!bubbles.length)return;
+  if(!bubbles.length)return; // 밀 것이 말풍선뿐이다 (v2.27) — 핀은 장애물로만 셌다
 
   var res=declutterBoxes(items,ctr.x,ctr.y);
-  // 핀: 밀어낸 픽셀을 오버레이에 적어 두고 다시 그린다 (각 draw 가 _ndx·_ndy 를 얹는다)
-  pins.forEach(function(o,i){
-    var p=res['pin_'+i];if(!p)return;
-    if(o._ndx!==p.dx||o._ndy!==p.dy){o._ndx=p.dx;o._ndy=p.dy;o.draw();}
-  });
+  // 핀은 결과를 안 읽는다 (v2.27) — 좌표에 고정이고 장애물로만 셌다.
   bubbles.forEach(function(o,i){
     var p=res['sp_'+i];if(!p)return;
     spotDirById[o.spot.id]={dir:p.dir,gap:p.gap||0}; // 이 스팟의 자리로 굳힌다
@@ -2007,8 +2007,13 @@ function makeZoneCard(zone,focused){ // 존 카드 (글래스 캡션 / 리스트
     c.querySelector('.tzl-heart em').textContent=zoneTotalHearts(zone);
     var dl=zoneDistLabel(zone),dd=c.querySelector('.tzl-dist');dd.textContent=dl;dd.classList.toggle('here',dl==='Here');
   }else{
+    /* 사진 위에 글자를 얹는다 (v2.27) — 베이직 모드의 지면 카드와 같은 문법이다.
+       유리 칩으로 감싸던 시절에는 칩이 사진의 절반을 덮어 어느 존인지보다 칩이 먼저 보였다.
+       가독은 칩이 아니라 `.tz-card::after` 의 그라데이션이 맡는다.
+       온도는 이름 옆에 함께 — 트렌드 모드에서 존을 가르는 값이 이름 다음으로 그것이다. */
     c.className='tz-card';
-    c.innerHTML='<span class="tz-bubble"><b></b><i></i></span>'+(pho?'<img class="tz-photo" alt="" />':'<span class="tz-photo tz-ph"></span>');
+    c.innerHTML='<span class="tz-bubble"><span class="tz-line"><b></b><em class="tz-temp"></em></span><i></i></span>'+
+      (pho?'<img class="tz-photo" alt="" />':'<span class="tz-photo tz-ph"></span>');
     c.querySelector('b').textContent=zone.name;
     var de=c.querySelector('i');de.textContent=zone.desc||'';if(!zone.desc)de.style.display='none';
     var im2=c.querySelector('img');if(im2)im2.src=pho;
@@ -2020,7 +2025,11 @@ function makeZoneCard(zone,focused){ // 존 카드 (글래스 캡션 / 리스트
   c.style.setProperty('--zone-c',zone.color||'#F4A15C');
   try{
     var _ce=zoneCentroid(zone),_t=(typeof zoneHeatT==='function')?zoneHeatT(_ce.lat,_ce.lng):null;
-    if(_t!=null)c.dataset.temp=(36.5+Math.max(0,Math.min(1,_t))*63.4).toFixed(1)+'°C'; // 시안의 °C 눈금
+    if(_t!=null){
+      c.dataset.temp=(36.5+Math.max(0,Math.min(1,_t))*63.4).toFixed(1)+'°C'; // 시안의 °C 눈금
+      // 카드 안에도 적는다 (v2.27) — v3 서클은 이 자리를 숨기고 자기 배지를 쓴다.
+      var _te=c.querySelector('.tz-temp');if(_te)_te.textContent=c.dataset.temp;
+    }
   }catch(e){}
   if(focused){ // 포커스 존: 액센트 테두리 + 체크 뱃지
     c.classList.add('focus');
