@@ -143,14 +143,97 @@ var SPOT_DOT_PX = 8;   // .spot-dotmark
 var FEED_DOT_PX = 12;  // .feed-pin.fp-dot
 var PIN_DOT_PX  = 12;  // .deal-pin.dl-dot .dp-circle / Request 드롭 하한
 var DOT_RAMP = 0.5;    // 임계값 대비 이 비율(=한 줌 레벨)부터 점 크기로 당기기 시작
+
+/* ══ 화면이 커져도 **같은 그림** (v2.35, 콘솔 D133) ═══════════════════════
+   폰 크롬은 `cqw` 라 폭에 비례해 자란다 — 칸이 크든 작든 레이아웃이 같다.
+   **지도만 그 법칙 밖에 있었다.** 구글 지도의 줌은 절대 픽셀 기준이라(mapMpp 는 줌과
+   위도만의 함수다) 칸이 두 배면 같은 줌에서 **두 배 넓은 지역**이 들어온다. 무대는
+   위경도 고정 반경(nhSpread 167~345m)에 컨텐츠를 깔고 NH_AREA_ZOOM 을 못 박으므로,
+   그 원반이 340px 칸에서는 화면 가로의 37% 지만 680px 칸에서는 18% 로 쪼그라든다 —
+   "동네가 컨텐츠로 차 있다" 가 "빈 지도 한복판의 점 뭉치" 가 되는 자리다.
+   실제 앱에는 이 문제가 없다(폰이 곧 화면이라 늘 같은 크기다). 시연에서만 난다.
+
+   그래서 **기준 폭**을 정하고 화면이 그보다 넓으면 그 비율만큼 줌을 올린다:
+       z' = z + log2(폭 / 390)
+   보이는 지리 범위가 어디서나 같아진다. 덤이 하나 있는데, 컨텐츠 배율(contentScale)이
+   `2^(z-16)` **지면 고정**이라 줌을 올리면 핀·말풍선도 정확히 같은 비율로 커진다 —
+   크기 보정을 따로 안 해도 화면에서 차지하는 비중이 그대로다.
+
+   ⚠️ **임베드에서만** 건다. 실제 앱(index/admin)에서 이러면 큰 화면일수록 줌인해서
+   "넓게 보려고 창을 키웠는데 더 좁게 보이는" 화면이 된다. 거기서는 여태가 맞다.
+   ⚠️ 좌표계는 **손대지 않는다** — 이 보정은 카메라와 크기에만 걸리므로 rect·clientX 를
+   섞어 쓰는 자리(드래그·꾹눌러추가·연출)는 전부 그대로 참이다. */
+var NH_REF_W = 390;    // 기준 폭 = 9:19.5 폰의 논리 폭 (390x845)
+var NH_K_MIN = 0.5, NH_K_MAX = 2.6; // 상식 밖 칸에서 카메라가 튀지 않게
+function nhViewK(){
+  if(typeof IS_EMBED==='undefined'||!IS_EMBED)return 1;
+  var scr=document.querySelector('.phone-screen');
+  var w=scr?scr.offsetWidth:0;   // offsetWidth = 레이아웃 px (rect 와 달리 배율에 안 흔들린다)
+  if(!w||!isFinite(w))return 1;
+  return Math.min(NH_K_MAX,Math.max(NH_K_MIN,w/NH_REF_W));
+}
+/** 기준 폭 대비 줌 보정량 (log2). 실제 앱에서는 0 이다. */
+function nhViewDZ(){var k=nhViewK();return (k===1)?0:Math.log(k)/Math.LN2;}
+/** 대본이 말한 줌(기준 폭 기준) → **지금 화면에서 그 그림이 나오는** 줌 */
+function nhZ(z){
+  var v=Number(z);if(!isFinite(v))return z;
+  return Math.min(21,Math.max(3,v+nhViewDZ()));
+}
+/** 지금 화면의 줌 → 기준 폭 기준의 줌. 콘솔에 저장할 값은 이쪽이다 (재생 때 nhZ 가 다시 붙는다). */
+function nhUnZ(z){var v=Number(z);if(!isFinite(v))return z;return v-nhViewDZ();}
+/* 칸 크기가 바뀌면(패널 드래그·전체화면·기기 회전) **보이던 지리 범위를 지킨다**.
+   여태는 줌을 그대로 두어 리사이즈의 결과가 늘 "더 넓게/좁게 보이기" 였다.
+   목표 줌을 따로 기억하지 않고 **배율의 변화분**만 얹으므로 대본 상태가 필요 없다. */
+var nhViewK0=null,nhViewT=null;
+/* 칸 크기는 드래그 중에 수십 번 바뀐다 — 그때마다 setZoom 을 부르면 Maps 가 매번 자기
+   애니메이션을 시작했다 끊는다(v2.14 에서 burst 로 한 번 겪은 일이다). 한 박자 쉬고 한 번만. */
+function nhViewSyncSoon(){
+  if(nhViewT)clearTimeout(nhViewT);
+  nhViewT=setTimeout(function(){nhViewT=null;nhViewSync();},120);
+}
+/* 감시를 **한 번만** 건다 — 임베드 부팅(startEmbed)과 실앱 부팅(initApp)이 각자 부른다.
+   ResizeObserver 를 쓰는 이유: 임베드의 폰 칸은 창 크기가 아니라 **iframe 크기**를 따르고,
+   콘솔이 패널을 끄는 동안 창은 그대로다(resize 이벤트가 안 온다). 없는 브라우저는
+   window resize 로 떨어진다 — 그 경우에도 iframe 리사이즈는 창 리사이즈로 온다. */
+var nhViewWatched=false;
+function nhViewWatch(){
+  if(nhViewWatched)return;nhViewWatched=true;
+  nhViewSync(); // 첫 기준값 (이 뒤의 카메라가 이 배율을 쓴다)
+  window.addEventListener('resize',nhViewSyncSoon);
+  try{
+    var scr=document.querySelector('.phone-screen');
+    if(scr&&typeof ResizeObserver==='function')new ResizeObserver(nhViewSyncSoon).observe(scr);
+  }catch(e){}
+}
+function nhViewSync(){
+  var k=nhViewK();
+  try{document.body.style.setProperty('--nh-k',String(k));}catch(e){} // 남은 고정 px 자산(점·손가락 표식)이 이 값을 탄다
+  if(nhViewK0===null){nhViewK0=k;return;}
+  if(!(k>0)||!(nhViewK0>0)||Math.abs(k-nhViewK0)<0.002){nhViewK0=k;return;}
+  var dz=Math.log(k/nhViewK0)/Math.LN2;
+  nhViewK0=k;
+  /* ⚠️ **두 지도의 줌을 먼저 읽고 나서 건다.** 카메라는 PC → 폰 단방향 미러라
+     (map 의 zoom_changed 가 phoneMap.setZoom 을 부른다) 읽으면서 걸면 폰이 미러로 한 번,
+     이 루프로 또 한 번 받아 보정이 **두 배**로 들어간다 — 실제로 그렇게 났다. */
+  var ms=[map,(typeof phoneMap!=='undefined')?phoneMap:null];
+  var zs=ms.map(function(m){return (m&&m.getZoom)?m.getZoom():null;});
+  ms.forEach(function(m,i){
+    if(!m||!m.setZoom||!isFinite(zs[i]))return;
+    m.setZoom(Math.min(21,Math.max(3,zs[i]+dz)));
+  });
+}
+
 function contentDot(m,z,basePx,dotPx){
-  var s=contentScale(z),floor=(basePx>0?dotPx/basePx:0);
+  // 점 크기와 점 전환 임계(축척자 64px)도 화면 폭을 탄다 — 안 그러면 큰 칸에서 12px 점이
+  // 광활한 지도 위 먼지가 되고, 점이 되는 시점도 칸마다 달라진다 (v2.35).
+  var k=nhViewK(),dp=dotPx*k;
+  var s=contentScale(z),floor=(basePx>0?dp/basePx:0);
   var mpp=mapMpp(m),far,t;
   if(mpp){
-    var r=(mpp*64)/spotDotScaleM(); // 1 = 딱 임계값, >1 = 점
+    var r=(mpp*64*k)/spotDotScaleM(); // 1 = 딱 임계값, >1 = 점
     far=r>1;t=Math.max(0,Math.min(1,(r-DOT_RAMP)/(1-DOT_RAMP)));
   }else{far=(z<13);t=far?1:0;}
-  return {dot:far||s<=floor,scale:Math.max(floor,s*(1-t)+floor*t)};
+  return {dot:far||s<=floor,scale:Math.max(floor,s*(1-t)+floor*t),px:dp};
 }
 var spotOverlays = [];          // 메인 지도 SpotBubble
 var phoneSpotOverlays = [];     // 폰 지도 SpotBubble
@@ -837,7 +920,7 @@ function initFeedThumbClass(){
     // v2.3: 기준 크기만 분리 옵션(feedIconSize, 0=스팟 이모지 크기 따름)
     // v2.16: 지면 고정 배율 + 점 크기에서 이어지는 전환 (contentDot)
     var base=feedIconBase(),cd=contentDot(m,z,base,FEED_DOT_PX);
-    var px2=cd.dot?FEED_DOT_PX:Math.round(base*cd.scale);
+    var px2=cd.dot?Math.round(cd.px):Math.round(base*cd.scale); // cd.px = 화면 폭을 탄 점 크기 (v2.35)
     this.div.style.width=px2+'px';this.div.style.height=px2+'px';
     this.div.classList.toggle('fp-dot',cd.dot);
   };
@@ -845,7 +928,9 @@ function initFeedThumbClass(){
 }
 function clusterFeedPins(m){ // 현재 줌의 월드픽셀 기준 근접(56px) 그룹핑 — 줌인하면 자연히 낱개로 펼쳐짐
   var z=m.getZoom();if(z==null)z=15; // v1.88: 숨김 컨텐츠는 아래 루프에서 제외된다
-  var s=256*Math.pow(2,z),TH=56;
+  // 묶이는 거리도 화면 폭을 탄다 (v2.35) — 56px 은 340px 칸에서 가로의 16% 지만
+  // 680px 칸에서는 8% 라, 보정 없이는 큰 칸에서 같은 무리가 안 묶이고 흩어져 보인다.
+  var s=256*Math.pow(2,z),TH=56*nhViewK();
   function px(p){
     var sin=Math.max(-0.9999,Math.min(0.9999,Math.sin(p.lat*Math.PI/180)));
     return {x:(p.lng/360+0.5)*s,y:(0.5-Math.log((1+sin)/(1-sin))/(4*Math.PI))*s};
@@ -2495,7 +2580,10 @@ function initPhoneMirror(){
   var el=document.getElementById('phone-map');if(!el||typeof google==='undefined')return;
   var isMobile=window.matchMedia('(max-width:768px)').matches;
   var opts={center:{lat:CONFIG.MAP_CENTER_LAT,lng:CONFIG.MAP_CENTER_LNG},zoom:CONFIG.MAP_ZOOM,
-    disableDefaultUI:true,gestureHandling:(isMobile||IS_APP_PAGE)?'greedy':'none',keyboardShortcuts:false,clickableIcons:false}; // 서비스 페이지=폰 지도가 항상 주 지도(v1.65)
+    disableDefaultUI:true,gestureHandling:(isMobile||IS_APP_PAGE)?'greedy':'none',keyboardShortcuts:false,clickableIcons:false,
+    // 화면 폭 보정(nhZ)은 소수 줌을 만든다 (v2.35). 벡터 지도는 기본이 true 지만
+    // 래스터 폴백(MAP_ID 없음)에서는 setZoom 이 정수로 반올림돼 보정이 통째로 사라진다.
+    isFractionalZoomEnabled:true};
   if(CONFIG.MAP_ID&&CONFIG.MAP_ID.length>0)opts.mapId=CONFIG.MAP_ID;else opts.styles=mapStyles();
   phoneMap=new google.maps.Map(el,opts);
   phoneProjHelper=new ProjHelper(phoneMap); // 좌표 변환용
@@ -3283,7 +3371,7 @@ function initMap(){
   initSpotComposerClass();
   initReqComposerClass();
   initProjHelperClass();
-  var opts={center:{lat:CONFIG.MAP_CENTER_LAT,lng:CONFIG.MAP_CENTER_LNG},zoom:CONFIG.MAP_ZOOM,disableDefaultUI:false,zoomControl:true,mapTypeControl:false,streetViewControl:false,fullscreenControl:true};
+  var opts={center:{lat:CONFIG.MAP_CENTER_LAT,lng:CONFIG.MAP_CENTER_LNG},zoom:CONFIG.MAP_ZOOM,disableDefaultUI:false,zoomControl:true,mapTypeControl:false,streetViewControl:false,fullscreenControl:true,isFractionalZoomEnabled:true};
   if(CONFIG.MAP_ID&&CONFIG.MAP_ID.length>0) opts.mapId=CONFIG.MAP_ID; else opts.styles=mapStyles();
   map=new google.maps.Map(document.getElementById('map'),opts);
   mapProjHelper=new ProjHelper(map); // 좌표 변환용(제스처 지점→latLng)
@@ -7760,8 +7848,9 @@ function nhGoHome(){
   // goMapCam 을 쓰는 이유: 임베드의 PC 지도는 display:none 이라 투영이 없고 panTo 가
   // 조용히 무시된다. 카메라는 PC → 폰 단방향 미러라 그러면 폰까지 같이 멈춘다.
   if(typeof goMapCam==='function'){
-    goMapCam(map,c.lat,c.lng,NH_AREA_ZOOM);
-    if(typeof phoneMap!=='undefined'&&phoneMap)goMapCam(phoneMap,c.lat,c.lng,NH_AREA_ZOOM);
+    var hz=nhZ(NH_AREA_ZOOM); // 칸이 넓으면 그만큼 줌인해 같은 지역이 같은 범위로 (v2.35)
+    goMapCam(map,c.lat,c.lng,hz);
+    if(typeof phoneMap!=='undefined'&&phoneMap)goMapCam(phoneMap,c.lat,c.lng,hz);
   }
 }
 
@@ -8038,10 +8127,15 @@ function nhCenter(){
 function nhZoom(v){
   var m=map||phoneMap;if(!m||!m.getZoom)return false;
   var now=m.getZoom()||NH_AREA_ZOOM,z;
-  if(v==='in')z=now+2;else if(v==='out')z=now-2;else z=parseInt(v,10);
+  /* in/out 은 **지금 줌 기준의 상대 이동**이라 보정이 필요 없다 (이미 보정된 값에서 뗀다).
+     숫자는 대본이 말한 절대 줌이라 화면 폭 보정을 붙인다 (v2.35). 자르는 것은 대본의
+     범위(11~18)가 먼저다 — 보정 뒤에 자르면 넓은 칸에서 18 에 걸려 보정이 먹히지 않는다. */
+  var abs=false;
+  if(v==='in')z=now+2;else if(v==='out')z=now-2;else{z=parseInt(v,10);abs=true;}
   if(!isFinite(z))return false;
   // 너무 멀면 동네가 안 보이고 너무 가까우면 핀만 남는다.
   z=Math.min(18,Math.max(11,z));
+  if(abs)z=nhZ(z);
   var c=nhCenter();if(!c)return false;
   goMapCam(map,c.lat,c.lng,z);
   if(phoneMap)goMapCam(phoneMap,c.lat,c.lng,z);
@@ -8062,8 +8156,9 @@ function nhFocus(kind,i,token,ms){
   if(phoneMap)goMapCam(phoneMap,d.lat,d.lng,now);
   setTimeout(function(){
     if(token!==nhRunToken)return;
-    goMapCam(map,d.lat,d.lng,17);
-    if(phoneMap)goMapCam(phoneMap,d.lat,d.lng,17);
+    var fz=nhZ(17); // 들여다보는 줌도 화면 폭을 탄다 (v2.35)
+    goMapCam(map,d.lat,d.lng,fz);
+    if(phoneMap)goMapCam(phoneMap,d.lat,d.lng,fz);
   },Math.max(400,Math.round((ms||2500)*0.4)));
   return true;
 }
@@ -8550,7 +8645,7 @@ function nhAct(st,token){
       if(st.a==='area'){var c=SEED_AREAS[st.v];
         if(!c||typeof cpopGoMap!=='function')return false;
         // c.z = 사람이 맞춰 둔 배율(custom 만 갖는다, v1.99). 없으면 여태와 같은 기본값.
-        nhAreaKey=st.v;cpopGoMap('area',{lat:c.lat,lng:c.lng},c.z||NH_AREA_ZOOM);return true;}
+        nhAreaKey=st.v;cpopGoMap('area',{lat:c.lat,lng:c.lng},nhZ(c.z||NH_AREA_ZOOM));return true;}
       if(st.a==='pop'){var d=nhPick(st.v,st.i);
         if(!d)return false;
         /* 딜은 다른 물건이다 (v2.2) — 상세 팝업(#content-pop)이 아니다.
@@ -9099,6 +9194,7 @@ function nhBurst(v,n,e,ms,token){
   n=Math.min(NH_BURST_MAX,Math.max(1,n|0||12));
   ms=Math.max(800,ms|0||4000);
   var z=parseInt(e,10);if(!isFinite(z))z=13;z=Math.min(16,Math.max(11,z));
+  z=nhZ(z); // 쏟아지며 빠지는 줌도 화면 폭을 탄다 (v2.35) — 아래 rAF·camLand 가 이 값을 쓴다
   if(typeof switchTab==='function')switchTab('map');
   var at=nhCenter()||c;
   var salt=String(nhScenarioKey||'burst');
@@ -9337,6 +9433,12 @@ function nhReset(){
     /* **되돌리는 동안은 무음이다** (v2.25). 여기서 부르는 것들(모드 되돌리기·팝업 닫기)은
        연출이 아니라 청소인데, 앞 회차의 소리가 아직 걸려 있으면 회차를 시작할 때마다
        "삐-" 하고 한 번 운다. 다음 회차의 소리는 nhSeedScenario 가 다시 건다. */
+    /* 회차를 시작하며 배율을 맞춘다 (v2.35). 감시(resize·ResizeObserver)가 놓친 변화가
+       있어도 **재생은 늘 옳은 카메라에서 출발한다** — 전체화면으로 들어간 직후·기기를
+       돌린 직후가 정확히 그 순간이다.
+       ⚠️ **nhGoHome 보다 먼저**여야 한다. 뒤에 두면 nhGoHome 이 이미 보정된 절대 줌을
+       놓은 위에 이 함수가 변화분을 한 번 더 얹어 두 배로 줌인된다. */
+    if(typeof nhViewSync==='function')nhViewSync();
     if(typeof nhSfxSet==='function')nhSfxSet(null);
     if(typeof nhZoneCardRestore==='function')nhZoneCardRestore(); // 회차가 바꾼 카드 모양도 되돌린다 (v2.26)
     nhSweepTemp();
@@ -9420,7 +9522,9 @@ function nhCustomArea(raw){
   var a={name:String(p.name||'').slice(0,20)||'직접 정한 동네',lat:lat,lng:lng};
   /* 사람이 맞춰 둔 배율 (v1.99). 없으면 NH_AREA_ZOOM 이다 — "이 화면 그대로" 를 저장했는데
      배율이 안 따라오면 저장한 화면과 재생 화면이 다르다. 앱의 줌 범위로 자른다. */
-  var z=Number(p.zoom);if(isFinite(z))a.z=Math.min(18,Math.max(11,Math.round(z)));
+  // 소수 둘째 자리까지 남긴다 (v2.35) — 줌이 이제 소수를 갖는다(화면 폭 보정). 정수로
+  // 반올림하면 사람이 맞춰 둔 화면이 재생 때 한 단계 어긋난다.
+  var z=Number(p.zoom);if(isFinite(z))a.z=Math.min(18,Math.max(11,Math.round(z*100)/100));
   SEED_AREAS.custom=a;
 }
 /* 지금 화면이 보고 있는 자리 (v1.99) — 콘솔의 "이 지도 저장" 이 읽어 간다.
@@ -9430,7 +9534,9 @@ function nhHere(){
   var m=(typeof phoneMap!=='undefined'&&phoneMap)||map;
   if(!m||!m.getCenter)return null;
   var c=m.getCenter();if(!c)return null;
-  return {lat:c.lat(),lng:c.lng(),zoom:(m.getZoom&&m.getZoom())||NH_AREA_ZOOM};
+  /* **기준 폭 줌으로 되돌려 보고한다** (v2.35). 지금 화면의 줌에는 칸 폭 보정이 얹혀
+     있는데(nhZ), 그대로 저장하면 재생 때 nhZ 가 한 번 더 붙어 두 배로 줌인된다. */
+  return {lat:c.lat(),lng:c.lng(),zoom:Math.round(nhUnZ((m.getZoom&&m.getZoom())||NH_AREA_ZOOM)*100)/100};
 }
 function nhSanitize(raw){
   if(!raw||!Array.isArray(raw.steps)||!raw.steps.length)return null;
@@ -9661,6 +9767,7 @@ function startEmbed(){
   loadSettingsCache(); // 관리자가 적용한 스킨·설정을 데모의 기본값으로 (v2.3 — 지도 그리기 전에)
   loadRemoteSettings(); // 공개 설정 문서 — cross-site iframe(persona-vc)에서도 닿는 유일한 실시간 경로 (v2.5)
   hideAuthOverlay();
+  nhViewWatch(); // 기준 폭 대비 배율을 먼저 잡고 칸 크기를 감시한다 — 첫 카메라가 이 값을 쓴다 (v2.35)
   bootMap();
   var tries=0;
   (function whenReady(){
@@ -9690,6 +9797,7 @@ function startEmbed(){
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
   loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();initUiScaleUI();syncCoinUI();initSeedGen();
   window.addEventListener('resize',layoutTabPages);
+  nhViewWatch();
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)
   setInterval(function(){try{tickReqRemain();}catch(e){}},1000); // Request 남은 시간(분/초) 1초 갱신 — 텍스트만(경량)
   initInstallPrompt();

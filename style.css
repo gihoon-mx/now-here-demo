@@ -178,7 +178,7 @@ button:focus:not(:focus-visible){outline:none;}
 .spot-marker.dragging{cursor:grabbing;}
 .spot-marker.spot-admin{cursor:grab;}
 /* 줌아웃 시 점으로만 약하게 표시 */
-.spot-dotmark{display:none;width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 1.5px rgba(255,255,255,0.55);}
+.spot-dotmark{display:none;width:calc(8px*var(--nh-k,1));height:calc(8px*var(--nh-k,1));border-radius:50%;box-shadow:0 0 0 1.5px rgba(255,255,255,0.55);}
 .spot-marker.spot-dot{transform:translate(-50%,-50%);opacity:.6;}
 .spot-marker.spot-dot .spot-bubble,.spot-marker.spot-dot .spot-emoji{display:none!important;}
 .spot-marker.spot-dot .spot-dotmark{display:block;}
@@ -1396,7 +1396,7 @@ body.embed-mode .phone-screen{width:100%;height:100%;aspect-ratio:auto;border-ra
 /* ── M16 재생 연출 (v1.94, 콘솔 D72) — 화면 위 레이어라 계약과 무관하다 ── */
 /* 손가락 자국: 재생이 "누르는" 자리에 잠깐 떴다 사라진다. 상태가 스스로 바뀌면
    유령 조작으로 보인다 — 사람 손가락이 있었다는 흔적 하나가 그 인상을 바꾼다. */
-.nh-touch{position:absolute;z-index:9000;width:34px;height:34px;margin:-17px 0 0 -17px;
+.nh-touch{position:absolute;z-index:9000;width:calc(34px*var(--nh-k,1));height:calc(34px*var(--nh-k,1));margin:calc(-17px*var(--nh-k,1)) 0 0 calc(-17px*var(--nh-k,1));
   border-radius:50%;pointer-events:none;background:rgba(25,28,34,.16);
   border:2px solid rgba(25,28,34,.34);animation:nhTouch .55s ease forwards;}
 @keyframes nhTouch{0%{transform:scale(.45);opacity:.95}
