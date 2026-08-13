@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=2.31.0" />
+  <link rel="stylesheet" href="style.css?v=2.32.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.31.0" />
+  <link rel="stylesheet" href="skin-new.css?v=2.32.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.31.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.32.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -36,7 +36,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.31.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.32.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -223,7 +223,7 @@
               <span class="ds-left" id="ds-left"></span>
               <button class="ds-x" id="ds-close" type="button" aria-label="닫기">✕</button>
             </div>
-            <!-- v2.31.0: 가운데 팝업은 높이가 유한하다 — 넘치는 것은 이 칸만 구르고
+            <!-- v2.32.0: 가운데 팝업은 높이가 유한하다 — 넘치는 것은 이 칸만 구르고
                  머리줄(ds-top)과 받기 버튼(ds-acts)은 카드에 붙어 있는다. 안 그러면
                  '쿠폰 받기' 가 접힌 아래로 내려가 눌리지 않는다(v2.30 에서 실제로 그랬다). -->
             <div class="ds-scroll">
@@ -510,6 +510,7 @@
               <div class="setting-row"><label>지도에 표시</label><label class="toggle-switch"><input type="checkbox" id="pv-deal-show" checked /><span class="toggle-slider"></span></label></div>
               <div class="setting-row"><label>핀 크기</label><input type="number" id="pv-deal-size" min="40" max="200" step="5" value="100" class="num-in" /><span class="num-hint">% (기본 100)</span></div>
               <div class="setting-row"><label>할인율 라벨</label><label class="toggle-switch"><input type="checkbox" id="pv-deal-label" checked /><span class="toggle-slider"></span></label></div>
+              <div class="setting-row"><label>가게 이름표</label><label class="toggle-switch"><input type="checkbox" id="pv-deal-name" checked /><span class="toggle-slider"></span></label></div>
             </div>
             <div id="settings-apply-bar" class="sab">
               <span class="sab-dot" aria-hidden="true"></span>
@@ -669,7 +670,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.31.0"></script>
-  <script src="app.js?v=2.31.0"></script>
+  <script src="config.js?v=2.32.0"></script>
+  <script src="app.js?v=2.32.0"></script>
 </body>
 </html>

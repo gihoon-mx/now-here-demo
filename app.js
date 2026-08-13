@@ -1012,8 +1012,8 @@ function declutterMarkers(){ // 디바운스 — idle/렌더 후 한 번만
   if(_declTimer)return;
   _declTimer=setTimeout(function(){_declTimer=null;try{
     // v2.9: 타임딜 핀도 넣는다 — 전에는 빠져 있어 딜 위에 사진 핀이 그대로 얹혔다.
-    declutterOn(map,spotOverlays,feedThumbOverlays,[],[]);
-    declutterOn(phoneMap,phoneSpotOverlays,phoneFeedThumbOverlays,reqMarkers,dealMarkers);
+    declutterOn(map,spotOverlays,feedThumbOverlays,[],[],[]);
+    declutterOn(phoneMap,phoneSpotOverlays,phoneFeedThumbOverlays,reqMarkers,dealMarkers,dealLabels);
     spotDirForget();
   }catch(e){}},60);
 }
@@ -1028,10 +1028,10 @@ function spotDirForget(){
    순서 = 우선순위다. **드물고 시간에 묶인 것부터** 자리를 잡는다: 타임딜 → Request →
    사진 핀 → 말풍선. 딜·Request 는 몇 개 안 되고 그 자리에 있다는 것 자체가 정보라
    밀리면 안 되고, 말풍선은 앵커 둘레 어디든 놓을 수 있어 가장 유연하다. */
-function declutterOn(m,spots,feeds,reqs,deals){
+function declutterOn(m,spots,feeds,reqs,deals,labels){
   if(!m||typeof google==='undefined')return;
-  reqs=reqs||[];deals=deals||[];
-  var all=spots.concat(feeds).concat(reqs).concat(deals),proj=null;
+  reqs=reqs||[];deals=deals||[];labels=labels||[];
+  var all=spots.concat(feeds).concat(reqs).concat(deals).concat(labels),proj=null;
   for(var i=0;i<all.length&&!proj;i++)proj=all[i].getProjection&&all[i].getProjection();
   if(!proj)return;
   var ctr=proj.fromLatLngToDivPixel(m.getCenter());if(!ctr)return;
@@ -1052,6 +1052,24 @@ function declutterOn(m,spots,feeds,reqs,deals){
   deals.forEach(function(o){addPin(o,34,46);});
   reqs.forEach(function(o){addPin(o,34,46);});
   feeds.forEach(function(o){addPin(o,30,30);});
+  /* 가게 이름표 (v2.32) — 자리는 안 옮긴다(핀과 같은 규칙). 대신 **이름표끼리 겹치면
+     뒤에 온 것을 숨긴다**: 자리를 밀면 어느 가게의 이름인지가 사라지고, 글자벽은 줌아웃에서
+     지도를 통째로 덮는다. 숨김은 자리를 안 건드리므로 줌인하면 그대로 돌아온다.
+     훑는 순서가 곧 우선순위다 — ①지금 매장 페이지가 열린 것 ②한마디가 있는 것 ③나머지. */
+  var kept=[]; // boxOverlap 은 [x0,y0,x1,y1] 배열을 받는다 (930줄)
+  labels.slice().sort(function(a,b){
+    function rank(o){var d=o.d||{};return (storePageId===d.id?0:(String(d.msg||'').trim()?1:2));}
+    return rank(a)-rank(b);
+  }).forEach(function(o){
+    if(!o.div||o._ax==null)return;
+    var r=o.div.getBoundingClientRect(),w=r.width||70,h=r.height||18;
+    var x0=o._ax-w/2,y0=o._ay,rect=[x0,y0,x0+w,y0+h]; // 앵커가 위쪽 변이다 (translate(-50%,0))
+    var hit=kept.some(function(k){return boxOverlap(rect,k)>0;});
+    o.div.classList.toggle('dl-hide',hit);
+    if(hit)return;
+    kept.push(rect);
+    items.push({fixed:true,ax:o._ax,ay:y0+h/2,w:w,h:h}); // 말풍선이 이름표를 피하게
+  });
 
   spots.forEach(function(o){
     if(!o.div||o._ax==null)return;
@@ -3071,7 +3089,7 @@ function switchMode(mode,opts){
 /* ========== [M01] 초기화 ========== */
 function initMap(){
   initMapLabelClass();
-  initReqPinClass();initDealPinClass();initAddPinClass();
+  initReqPinClass();initDealPinClass();initDealLabelClass();initAddPinClass();
   initSpotBubbleClass();
   initFeedThumbClass();
   initSpotComposerClass();
@@ -4654,13 +4672,14 @@ function feedIconBase(){return feedIconSize>0?feedIconSize:(Number(spotConfig.em
    size(핀 배율 %, Request·딜만 — CSS 고정 크기라 배율로 조절), label(딜 %라벨)}.
    feedIconSize 와 같은 즉시 적용·additive 클라우드 동기 패턴(왕복 6지점 전부 배선).
    피드 크기는 기존 feedIconSize(0=스팟 따름)가, 스팟 스타일은 spotConfig 블록이 담당. */
-var mapPinView={spot:{show:true},feed:{show:true},req:{show:true,size:100},deal:{show:true,size:100,label:true}};
+var mapPinView={spot:{show:true},feed:{show:true},req:{show:true,size:100},deal:{show:true,size:100,label:true,name:true}};
 function mergePinView(v){ // additive 병합 — 모르는 키 무시, 빠진 키는 기본값 유지(옛 문서 호환)
   ['spot','feed','req','deal'].forEach(function(k){
     var s=v&&v[k];if(!s||typeof s!=='object')return;var t=mapPinView[k];
     if(typeof s.show==='boolean')t.show=s.show;
     if(s.size!=null&&isFinite(Number(s.size)))t.size=Math.max(40,Math.min(200,Math.round(Number(s.size))));
     if(typeof s.label==='boolean')t.label=s.label;
+    if(typeof s.name==='boolean')t.name=s.name; // v2.32 가게 이름표 (deal 하위 키라 위 배열은 그대로다)
   });
 }
 try{var _mpv=JSON.parse(localStorage.getItem('nowhere_pinview')||'null');if(_mpv)mergePinView(_mpv);}catch(e){}
@@ -4709,7 +4728,7 @@ function syncPinViewUI(){ // s-pins 컨트롤 ← mapPinView (admin.html 에만 
   v('pv-spot-show',mapPinView.spot.show);v('pv-feed-show',mapPinView.feed.show);
   v('pv-req-show',mapPinView.req.show);v('pv-req-size',mapPinView.req.size);
   v('pv-deal-show',mapPinView.deal.show);v('pv-deal-size',mapPinView.deal.size);
-  v('pv-deal-label',mapPinView.deal.label);
+  v('pv-deal-label',mapPinView.deal.label);v('pv-deal-name',mapPinView.deal.name!==false);
 }
 function initPinViewUI(){
   if(!document.getElementById('pv-spot-show'))return;
@@ -4722,6 +4741,7 @@ function initPinViewUI(){
   on('pv-req-show',function(el){mapPinView.req.show=!!el.checked;});
   on('pv-deal-show',function(el){mapPinView.deal.show=!!el.checked;});
   on('pv-deal-label',function(el){mapPinView.deal.label=!!el.checked;});
+  on('pv-deal-name',function(el){mapPinView.deal.name=!!el.checked;}); // v2.32 가게 이름표
   on('pv-req-size',function(el){mapPinView.req.size=Math.max(40,Math.min(200,parseInt(el.value,10)||100));el.value=String(mapPinView.req.size);});
   on('pv-deal-size',function(el){mapPinView.deal.size=Math.max(40,Math.min(200,parseInt(el.value,10)||100));el.value=String(mapPinView.deal.size);});
   var st=document.getElementById('pv-spot-style'); // 스팟 스타일 풀셋은 기존 s-spot 드래프트 블록으로
@@ -5466,6 +5486,8 @@ function nhDimApply(){
       .forEach(function(o){if(o&&o.div)nhDimFeed(o.div,o.members);});
     (typeof reqMarkers!=='undefined'?reqMarkers:[]).forEach(function(o){if(o&&o.div&&o.rq)nhDimEl(o.div,o.rq.id);});
     (typeof dealMarkers!=='undefined'?dealMarkers:[]).forEach(function(o){if(o&&o.div&&o.d)nhDimEl(o.div,o.d.id);});
+    // 가게 이름표도 같은 딜의 것이다 (v2.32) — 핀만 흐리면 이름표가 혼자 또렷하게 남는다
+    (typeof dealLabels!=='undefined'?dealLabels:[]).forEach(function(o){if(o&&o.div&&o.d)nhDimEl(o.div,o.d.id);});
   }catch(e){}
 }
 function nhDim(v){
@@ -5742,7 +5764,7 @@ function renderRequestMarkers(){
    장치다 — 시연 중에 콘텐츠가 사라지면 안 된다. 대신 남은 시간은 **계속 흐르는 것처럼**
    보여야 하므로 벽시계를 주기로 접어서 쓴다(`secs - (now % secs)`). 30분짜리 딜이면
    30분마다 처음으로 돌아가며 계속 카운트다운한다. */
-var timeDeals=[], dealMarkers=[], dealSheetId=null, dealTicker=null;
+var timeDeals=[], dealMarkers=[], dealLabels=[], dealSheetId=null, dealTicker=null;
 var DEAL_KEY='nowhere_deals';
 /* v2.3: 시드 딜(SEED_DEALS·ensureDealSeed) 폐지 — "추가하지 않았는데 딜 2개가 기본으로
    떠 있다"(사용자). 딜은 이제 **까는 쪽이 명시한 것만** 뜬다: 무대(nhLayDeal)·시드
@@ -5767,7 +5789,18 @@ function dealRemain(d){ // 남은 초
   if(d.seed)return d.secs-Math.floor((Date.now()/1000)%d.secs); // 시드=주기적으로 되감김(시연용 상시 활성)
   return Math.max(0,d.secs-Math.floor((Date.now()-(d.ts||0))/1000));
 }
-function dealActive(d){return !!d&&(d.seed||dealRemain(d)>0);}
+/* 딜이 **살아 있는가** — 시간이 핵심인 물건에만 참이다.
+   v2.32: `store:true`(딜 없는 가게)를 여기서 **뺀다.** nhLayDeal 이 모든 항목에 secs·ts 를
+   넣으므로 가게만 있는 항목도 30분 동안 "진행 중" 이 되고 그 뒤 조용히 뒤집힌다 —
+   그러면 "⏰ 타임딜 N" 카운트·관리자 표·쿠폰 액션·`pop e:'sheet'` 가 전부 거짓말을 한다.
+   한 술어를 좁히는 것으로 그 다섯 자리가 손대지 않고 정직해진다. */
+function dealActive(d){return !!d&&!d.store&&(d.seed||dealRemain(d)>0);}
+/* 지도에 **보일** 것인가 — 딜이거나, 딜 없는 가게이거나. 렌더만 이 술어를 쓴다. */
+function dealShown(d){return !!d&&(!!d.store||dealActive(d));}
+/* 이름표를 걸 만한 상호인가 — nhLayDeal 의 기본값('근처 매장')은 "콘솔이 안 줬다" 는 뜻이라
+   그것까지 지도에 박으면 모든 무대 딜에 뜻 없는 이름표가 생긴다 (v2.32). */
+var DEAL_SHOP_FALLBACK='근처 매장';
+function dealShopName(d){var s=String((d&&d.shop)||'').trim();return (s&&s!==DEAL_SHOP_FALLBACK)?s:'';}
 function dealClock(sec){var m=Math.floor(sec/60),s=sec%60;return m+':'+String(s).padStart(2,'0');}
 function dealById(id){return timeDeals.filter(function(d){return d.id===id;})[0]||null;}
 
@@ -5855,11 +5888,77 @@ function initDealPinClass(){
   }};
   DealPin.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
 }
+
+/* ── 가게 이름표 + 가게 한마디 (v2.32) ───────────────────────────────────────
+   요청: "가게 이름 라벨이 맵에 계속 표시되고, 가게용 스팟메시지가 이름에 말풍선 붙는 느낌으로."
+
+   **딜 항목 안에 산다.** 가게를 새 컨텐츠 종류로 세우지 않았다 — 그러면 `nhTempIds`·
+   `NH_MAX`·`NH_BAND`·`nhPosNote`·`nhStore`·`nhSweepTemp`·`nhDrop`·`nhDim` 과 콘솔의
+   `PlaySeed`·`CONTENT_KINDS`·`OPENABLE_KINDS`·`indexChoices` 까지 열두 자리가 늘어난다.
+   `deal` 은 그 열두 자리에 이미 전부 등록돼 있고, 가게는 그 항목의 칸 두 개로 산다:
+   `shop`(이미 있던 것) · `msg`(한마디) · `store`(딜 없는 순수 가게).
+
+   **앵커 아래**에 선다. `.deal-pin` 은 `translate(-50%,-100%)` 라 앵커 위를 다 쓰고 그 높이가
+   `contentDot` 배율로 변한다 — 위에 두면 줌마다 핀과의 사이가 흔들린다. 아래로 두면
+   핀 배율과 무관하게 충돌이 구조적으로 불가능하다.
+
+   **배율은 이름표의 것**(`labelScale` 0.7~1.6)이지 컨텐츠 곡선(`contentDot`, 0.02~40)이 아니다.
+   후자를 태우면 멀어질 때 12px 점이 되는데, 그러면 "계속 표시" 라는 요청 자체가 깨진다.
+
+   **색은 여기서 박는다.** `.map-label-tag` 에는 background 가 없고(호출부가 인라인으로 준다)
+   `.spot-bubble` 에는 color 가 없다(SpotBubble 이 인라인으로 준다) — 클래스만 빌리면
+   투명 배경 위 흰 글씨, 폴백 파란 말풍선이 된다. */
+var DEAL_MSG_MIN_Z=14;   // 이보다 멀면 한마디는 접고 이름만 남긴다 (관리자 설정과 무관한 상수)
+function DealLabel(d,m){this.d=d;this.position=new google.maps.LatLng(d.lat,d.lng);this.div=null;this.setMap(m);}
+function initDealLabelClass(){
+  DealLabel.prototype=new google.maps.OverlayView();
+  DealLabel.prototype.onAdd=function(){
+    var self=this,d=this.d;
+    var el=document.createElement('div');el.className='deal-label';
+    var msg=String(d.msg||'').trim();
+    el.innerHTML=(msg?'<span class="dl-msg spot-bubble tl-t"></span>':'')+'<span class="dl-name"></span>';
+    if(msg)el.querySelector('.dl-msg').textContent=msg.slice(0,60);
+    el.querySelector('.dl-name').textContent=dealShopName(d);
+    el.title=dealShopName(d)+(d.store?'':' · 타임딜');
+    /* 이름표를 누르면 **매장 전용 페이지**로 간다 (요청 3). 딜이 있든 없든 같은 페이지다 —
+       storeView 가 없는 값(가격·남은 시간)을 화면에서 빼 준다. */
+    el.querySelector('.dl-name').addEventListener('click',function(e){
+      e.stopPropagation();
+      if(typeof openStorePage==='function')openStorePage(d.id);
+    });
+    if(typeof nhDimEl==='function')nhDimEl(el,d.id); // dim 액션의 흐림을 핀과 함께 (v2.21)
+    this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
+  };
+  DealLabel.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;
+    var q=p.fromLatLngToDivPixel(this.position);if(!q)return;
+    this._ax=q.x;this._ay=q.y;                 // declutter 규약 — 앵커는 제 좌표 (v2.27)
+    this.div.style.left=(q.x+(this._ndx||0))+'px';this.div.style.top=(q.y+(this._ndy||0))+'px';
+    var m=this.getMap(),z=(m&&m.getZoom&&m.getZoom())||15;
+    this.div.style.transform='translate(-50%,0) scale('+labelScale(z)+')';
+    this.div.classList.toggle('dl-quiet',z<DEAL_MSG_MIN_Z); // 멀면 한마디만 접는다
+  };
+  DealLabel.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
+}
+/* 매장 페이지가 읽는 한 겹 (v2.32) — 딜이 있으면 딜에서, 없으면 가게 값만.
+   네 곳(openStorePage·syncStorePage·지도보기·쿠폰받기)이 각자 dealById 를 부르던 것을
+   여기로 모은다: `store` 분기를 네 번 적지 않으려는 것이다. */
+function storeView(id){
+  var d=dealById(id);if(!d)return null;
+  return {d:d, id:d.id, shop:d.shop, lat:d.lat, lng:d.lng,
+    addr:d.addr, desc:d.desc, photos:d.photos, msg:d.msg,
+    hasDeal:!d.store};                          // 가격·남은 시간·쿠폰이 있는가
+}
 function renderDealMarkers(){
   dealMarkers.forEach(function(o){o.setMap(null);});dealMarkers=[];
+  dealLabels.forEach(function(o){o.setMap(null);});dealLabels=[];
   if(!phoneMap||typeof google==='undefined'||!google.maps)return;
   if(!mapPinView.deal.show)return; // v2.15 컨텐츠별 표시 설정
+  /* ⏰ 핀은 **딜에만** 붙는다 — 가게만 있는 항목(store)은 시간이 없으니 시계가 거짓말이다.
+     이름표는 둘 다 붙는다: 요청이 "가게 이름 라벨은 맵에 계속 표시" 다 (v2.32). */
   timeDeals.filter(dealActive).forEach(function(d){dealMarkers.push(new DealPin(d,phoneMap));});
+  if(mapPinView.deal.name!==false)
+    timeDeals.filter(function(d){return dealShown(d)&&dealShopName(d);})
+      .forEach(function(d){dealLabels.push(new DealLabel(d,phoneMap));});
   if(typeof declutterMarkers==='function')declutterMarkers();
 }
 /* 시트를 **지도 화면**에 맞춰 세운다 (v2.30.1).
@@ -6043,7 +6142,8 @@ function storeChipData(d){ // 시안의 배지 자리 — Overview 칩(ovChipDat
   if(t!=null&&t>=0.7)chips.push({t:'⭐ Top Spot',hot:true});
   chips.push({t:'👥 '+Math.max(1,near)+'명 참여중'});
   if(t!=null)chips.push({t:'🔥 '+(36.5+t*63.4).toFixed(1)+'°C',hot:t>=0.5}); // 시안의 °C 눈금
-  chips.push({t:'🚩 타임딜 진행중'});
+  // 딜이 없는 가게(store)는 이 칩을 안 붙인다 (v2.32) — 없는 딜을 '진행중' 이라 적으면 거짓말이다
+  if(!d.store)chips.push({t:'🚩 타임딜 진행중'});
   return chips;
 }
 function openStorePage(id){
@@ -6057,7 +6157,7 @@ function openStorePage(id){
     var s=document.createElement('span');s.className='stp-chip'+(c.hot?' hot':'');s.textContent=c.t;chips.appendChild(s);});}
   set('stp-name','#'+d.shop);
   set('stp-addr',(d.addr||dongAt(d.lat,d.lng)||'근처')+' · 내 위치에서 '+dealDistLabel(d));
-  set('stp-desc',d.desc||(d.shop+' — '+(dongAt(d.lat,d.lng)||'우리 동네')+'에서 지금 타임딜을 진행 중인 매장이에요. 소식·사진·딜을 한곳에서 보세요.'));
+  set('stp-desc',d.desc||(d.shop+' — '+(dongAt(d.lat,d.lng)||'우리 동네')+'의 매장이에요. '+(d.store?'소식과 사진을 한곳에서 보세요.':'지금 타임딜을 진행 중이에요. 소식·사진·딜을 한곳에서 보세요.')));
   var img=document.getElementById('stp-pr-img'),promo=document.getElementById('stp-promo');
   if(img&&promo){ // 사진(v2.12 규칙: 통과한 주소만)이 있으면 배너 배경으로
     if(d.img){if(img.src!==d.img)img.src=d.img;img.style.display='';promo.classList.add('has-img');}
@@ -6085,6 +6185,12 @@ function closeStorePage(){
 }
 function syncStorePage(){ // 티커 — 남은 시간·가격줄만 갱신 (syncDealSheet 문법: 딜이 사라지면 자기 닫음)
   var d=dealById(storePageId);if(!d)return closeStorePage();
+  /* 딜이 없는 가게 (v2.32) — 배너·쿠폰 자리를 **통째로 접는다.**
+     회색으로 비활성만 시키면 "딜이 있는데 못 받는다" 로 읽힌다. cta.disabled 는
+     만료된 딜의 화면이고, 딜 자체가 없는 것은 다른 화면이다. */
+  var pg=document.getElementById('store-page');
+  if(pg)pg.classList.toggle('no-deal',!!d.store);
+  if(d.store)return;
   var rem=dealRemain(d);
   function set(eid,v){var el=document.getElementById(eid);if(el)el.textContent=v;}
   set('stp-pr-time','⏰ '+dealClock(rem)+' 남음 · 남은 수량 '+d.stock);
@@ -7824,6 +7930,29 @@ function nhCoupon(i,say,e,token,ms,fast){
   return true;
 }
 
+/* 가게가 한마디 한다 (v2.32, `shopsay` 액션).
+   i = 어느 가게(딜 목록의 번호) · v = 한마디(비우면 그 가게의 한마디를 걷는다).
+   이름표 옆에 말풍선이 붙고, 그 순간이 보이도록 등장 바운스를 태운다.
+   여는 것은 이 액션의 일이 아니다 — 매장 페이지는 `pop v:'deal'` 이 연다(popclose 가 닫는다). */
+function nhShopSay(i,say){
+  if(typeof nhPick!=='function')return false;
+  var d=nhPick('deal',i);
+  if(!d||!dealShopName(d))return false;      // 상호가 없으면 붙일 이름표가 없다
+  var t=String(say==null?'':say).trim().slice(0,60);
+  d.msg=t||undefined;
+  if(typeof renderDealMarkers==='function')renderDealMarkers();
+  /* 등장 바운스는 **표를 안 쓴다** — `nhBounceTake` 는 한 번 읽으면 지워지는 소비형이라
+     DealPin.onAdd 가 먼저 가져가면 이름표는 안 튀고, 반대면 핀이 안 튄다.
+     여기서는 방금 만든 이름표에 직접 건다. */
+  if(t){
+    var ov=(typeof dealLabels!=='undefined'?dealLabels:[]).find(function(o){return o.d&&o.d.id===d.id;});
+    if(ov&&ov.div){var el=ov.div;el.classList.remove('nh-pop-in');void el.offsetWidth;el.classList.add('nh-pop-in');
+      setTimeout(function(){el.classList.remove('nh-pop-in');},1200);}
+    if(typeof nhSfxPlay==='function')nhSfxPlay(); // 컨텐츠가 뜨는 그 순간 (v2.23 과 같은 자리)
+  }
+  return true;
+}
+
 /* 채팅: 동네방 또는 주제방을 열고, 말이 있으면 보낸다. */
 function nhChat(kind,say){
   if(typeof socTab==='undefined'||typeof socRoomsFor!=='function')return false;
@@ -8052,6 +8181,8 @@ function nhAct(st,token){
       if(st.a==='undim')return nhUndim()!==false;
       // 말풍선 닫기 (v2.31) — 유지 시간(bh)을 기다리지 않고 **지금** 걷는다.
       if(st.a==='bubbleclose')return nhHush()!==false;
+      // 가게 한마디 (v2.32) — 지도 이름표 옆 말풍선. i=어느 가게 · v=문구(비우면 걷는다)
+      if(st.a==='shopsay')return nhShopSay(st.i,st.v)!==false;
       if(st.a==='scope'){if(typeof switchTab==='function')switchTab('feed');
         return nhScope(st.v)!==false;}
       // ── v1.75 카메라 연출 ──
@@ -8321,6 +8452,11 @@ function nhLayDeal(d,i,c,stamp){
     price:now.toLocaleString('ko-KR')+'원',
     was:was.toLocaleString('ko-KR')+'원',
     stock:Math.max(3,20-Math.round(pct/5))+'개',
+    /* 가게 (v2.32) — msg 는 지도 이름표에 붙는 한마디, store 는 "딜 없이 가게만".
+       store 여도 secs·ts 는 그대로 넣는다: dealActive 가 store 를 빼므로 값이 남아도
+       아무도 그것을 '진행 중' 으로 읽지 않는다(뒷날 딜을 붙일 때 자리도 그대로다). */
+    msg:d.msg?String(d.msg).slice(0,60):undefined,
+    store:!!d.store,
     secs:secs,ts:Date.now(),seed:false});
   nhTempIds.deal.push(id);
   return id;
@@ -8774,7 +8910,8 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'dim','undim', // v2.21: 깔린 지도 컨텐츠를 흐리게/원복 — 이후 뜨는 것만 강조하는 연출 (v=남길 불투명도 %)
   'page', // v2.2: 상단 지면을 옆으로 넘긴다
   'reward', // v2.27: 현장 답변 리워드 지급 — answer 와 분리. 우하단 agent 말풍선 + 코인 버스트 (v=문구)
-  'bubbleclose']; // v2.31: 우하단 말풍선을 지금 닫는다 (agent 말풍선 + 현장 Request 수신 카드 + 프리셋)
+  'bubbleclose', // v2.31: 우하단 말풍선을 지금 닫는다 (agent 말풍선 + 현장 Request 수신 카드 + 프리셋)
+  'shopsay']; // v2.32: 가게가 한마디 한다 — 지도 이름표에 말풍선을 붙인다 (i=어느 가게·v=문구, 비우면 걷는다)
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
@@ -8890,8 +9027,14 @@ function nhSanitize(raw){
           .map(nhImgSrc).filter(Boolean),
         pct:Math.min(90,Math.max(5,(d.pct|0)||20)),
         secs:Math.min(7200,Math.max(30,(d.secs|0)||1800)),
+        // 가게 (v2.32) — 지도 이름표의 한마디 · 딜 없이 가게만인가
+        msg:String(d.msg||'').slice(0,60),
+        store:!!d.store,
         hold:!!d.hold};
-    }).filter(function(d){return d.title;});
+    /* 딜은 제목이 있어야 하고, **가게는 상호가 있으면 된다** (v2.32) — store 항목에는
+       팔 물건이 없으므로 title 을 요구하면 항목이 앱에 도착조차 못 한다.
+       ⚠️ 콘솔 toSeed 의 필터도 같은 규칙이어야 한다(한쪽만 넓히면 신호 없이 사라진다). */
+    }).filter(function(d){return d.store?d.shop:d.title;});
     /* 상단 지면 (v2.2). theme 은 SEED_PAL 의 키 — 모르는 값이면 seedImg 가 cafe 로 떨어진다.
        상한은 콘솔의 MAX_SEED_PAGES 와 같은 값이어야 한다. */
     var pgs=(Array.isArray(rs.pages)?rs.pages:[]).slice(0,NH_MAX.page).map(function(p){

@@ -228,6 +228,15 @@ deals:[…] , pages:[…] , zones:[{name,desc,img,color,temp,r}]}` (`zones` 는 
 
 ## 📝 모듈 변경 로그 (최근)
 
+- 2026-08-13 M17+M16: v2.32.0 — **가게 이름표 · 가게 한마디 · 이름표에서 매장 페이지로** (콘솔 v0.105.0 과 짝, 사용자 요청 3건).
+  ① **가게는 딜 항목 안에 산다** (`msg`·`store`). 새 컨텐츠 종류를 세우면 앱 여덟 자리(`nhTempIds` 두 곳·`NH_MAX`·`NH_BAND`·`nhPosNote`·`nhStore`·`nhSweepTemp`·`nhDrop`·`nhDim`)와 콘솔 네 자리(`PlaySeed`·`CONTENT_KINDS`/`OPENABLE_KINDS`/`DROPPABLE_KINDS`·`indexChoices`)가 는다 — `deal` 은 거기 이미 전부 등록돼 있다. 옛 시나리오도 `shop` 을 이미 들고 있어 앱만 배포하면 이름표가 뜬다.
+  ② **`DealLabel`** — 앵커 **아래**에 [상호칩][한마디▲]. 핀이 앵커 위를 다 쓰고 그 높이가 `contentDot`(0.02~40)으로 변하므로 위에 두면 줌마다 흔들린다. 배율은 `labelScale`(0.7~1.6) — 멀어져도 점이 안 된다. 클릭은 상호칩만 받는다(루트가 받으면 지도 팬이 걸린다).
+  ③ **색을 명시한다** — `.map-label-tag` 에는 background 가, `.spot-bubble` 에는 color 가 없다(둘 다 호출부가 인라인으로 주던 값). 클래스만 빌리면 투명 배경 흰 글씨 + 폴백 파란 말풍선이 된다. 스킨 3종은 `.spot-bubble` 을 알고 `.map-label-tag` 는 모르므로 **스킨 파일은 무수정**이다.
+  ④ **`dealActive` 를 좁혔다**(`!d.store &&`). `nhLayDeal` 이 모든 항목에 `secs`·`ts` 를 넣어 가게만 항목도 30분간 "진행 중" 이 됐다 — 한 술어를 좁히니 `nDeal`·관리자 표·`nhCoupon`·`pop e:'sheet'`·`storeChipData` **다섯 자리가 무수정으로** 정직해진다. 렌더만 `dealShown` 을 쓴다.
+  ⑤ **`storeView` + `.no-deal`** — 딜 없는 가게의 매장 페이지는 배너·쿠폰 CTA 를 통째로 접는다(회색 비활성은 "딜이 있는데 못 받는다" 로 읽힌다).
+  ⑥ **이름표 컬링** — 겹치면 뒤에 온 것을 `dl-hide` 로 숨긴다(자리는 안 옮긴다, v2.27 규칙). 우선순위 ①열린 매장 ②한마디 있음 ③나머지. 이름표는 declutter 에 `fixed` 장애물로도 들어가 말풍선이 피한다.
+  ⑦ **`shopsay` 액션** — i=어느 가게·v=문구(비우면 걷는다). ⚠️ 바운스는 공용 소비형 표(`nhBounceTake`)를 안 쓴다 — 핀이 먼저 가져가면 이름표가 안 튄다.
+  검증(로컬 :8765, 390×844): 실제 `nh:run` 으로 무대에 가게 셋을 깔아 상호 없는 것만 걸러지고(2/3) 딜 가게는 핀+이름표, 가게만은 이름표만(pins 1 · labels 2) · `dealActive` 가 store 에 false · `shopsay` 가 seed 의 한마디를 갈아 끼움 · 매장 페이지가 store 에서 `no-deal`(칩 2개·배너 none·쿠폰 none) / 딜에서는 칩 3개·배너 flex·쿠폰 block · CSS 계측으로 상호칩이 앵커에 붙고(0px) 말풍선이 6px 아래·꼬리 `top:-6px`·꼬리색이 `--spot-bg` 를 따름·루트 `pointer-events:none` · 관리자 토글 on/off 가 이름표 1↔0 · `mergePinView` 가 새 키를 살림 · `nhReset` 이 전부 걷음 · 콘솔 에러 0.
 - 2026-08-13 M17+M16+M08: v2.31.0 — **쿠폰이 버튼에서 Agent 로 · 말풍선 닫기 액션 · 단계 수 상한 제거** (콘솔 v0.104.0 과 짝, 사용자 요청 4건 중 앱 몫 3건).
   ① **M17 `couponFly` 의 두 끝이 바뀌었다** — 출발은 누른 `쿠폰 받기` 버튼, 도착은 하단 AI 버튼. 부르는 쪽이 **시트를 닫기 전에** `claimDeal(d,{from:btn})` 을 부른다(couponFly 가 그 자리에서 rect 를 읽고 티켓을 `.phone-screen` 에 붙이므로 다음 줄에서 닫아도 된다 — 같은 tick 이라 시트가 보이는 프레임도 안 그려진다). 세 자리(시트 버튼·`nhCoupon` fast·일반) 모두 같은 순서. ⚠️ 도착 rect 가 0 이면 **연출을 안 한다** — `.phone-navbar` 에 `transform:scale(--ui-nav-s)`(기본 90%)가 걸려 있어 자리를 상수로 못 짐작한다. ⚠️ 받는 링은 `.pn-ai.cf-catch::after` 로 그린다(`.pn-ai.spin` 의 animation 축약과 안 싸우고, 스킨의 box-shadow 재선언도 안 덮는다). 확산은 **2.2cqw 상한** — `.phone-screen{overflow:hidden}` 에 네비 아래 여백이 2.75cqw 뿐이라 그보다 크면 잘린다.
   ② **M16 `bubbleclose` 액션 신설** — 우하단에 뜨는 것은 하나가 아니라 **셋**이다(`#ai-bubble` z6 · `#ai-presets` z7 · `#req-bubble` z8, 전부 right:3cqw·bottom:21cqw 한자리). 하나만 걷으면 "닫았는데 안 닫혔다" 가 되므로 `nhHush` 가 셋을 함께 걷는다. 어휘 동기화는 **여섯 곳**: 앱 `NH_ACTIONS`·`nhAct` / 콘솔 `PLAY_ACTIONS`·`ACTION_LIST`(프롬프트)·`ACTION_INFO`(편집기) / 유저 시나리오 편집기의 하드코딩 두 곳(`actionLabel`·`ACTION_OPTIONS` — 타입 검사가 없어 빠뜨려도 조용하다).
