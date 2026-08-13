@@ -433,6 +433,50 @@ function canEditSpot(s){ // 관리자 또는 본인이 올린 유저 스팟(라�
   if(currentRole==='admin')return true;
   return !!(s&&s.live&&(!s.by||ownsContent(s)));
 }
+
+/* ── 컨텐츠 위 더블탭이 지도 줌으로 새지 않게 (v2.34) ─────────────────────────
+   더블탭 좋아요를 넣고 나서 드러난 것: 같은 두 번의 탭을 **Maps 도 본다**. 오버레이는
+   지도 컨테이너 **안**에 있어서 pointer/touch 이벤트가 그대로 위로 흐르고, 마우스는
+   `dblclick` 이 따로 한 번 더 올라간다. 그래서 하트가 달리는 동시에 화면이 확대됐다.
+
+   막는 길은 둘인데 각각 반쪽이다:
+   ① `stopPropagation` — 마우스 `dblclick` 은 이걸로 끝난다. 터치는 Maps 가 자기
+      제스처 인식기로 세므로 소용이 없고, `touchstart` 를 막아 버리면 핀에서 시작하는
+      **지도 팬**(핀 롱프레스 대기 중 크게 움직이면 팬)이 같이 죽는다.
+   ② 지도의 `disableDoubleClickZoom` — 터치·마우스 양쪽에 듣지만 켜 두면 빈 지도의
+      더블탭 줌까지 없어진다. 그래서 **첫 탭이 컨텐츠에 닿은 순간에만** 켜고 700ms 뒤 되돌린다.
+   둘 다 쓴다. 팬은 그대로 살아 있고, 빈 지도의 더블탭 줌도 그대로다. */
+var _dblGuard={m:null,t:null,prev:false};
+function mapDblRelease(){
+  var g=_dblGuard;
+  if(g.t){clearTimeout(g.t);g.t=null;}
+  if(g.m){try{g.m.setOptions({disableDoubleClickZoom:g.prev===true});}catch(e){}}
+  g.m=null;g.prev=false;
+}
+function mapDblGuard(m){
+  if(!m||!m.setOptions)return;
+  if(_dblGuard.m&&_dblGuard.m!==m)mapDblRelease(); // 다른 지도로 옮겨 갔으면 먼저 원복
+  if(!_dblGuard.m){
+    _dblGuard.m=m;
+    _dblGuard.prev=(m.get&&m.get('disableDoubleClickZoom'))===true;
+    try{m.setOptions({disableDoubleClickZoom:true});}catch(e){}
+  }
+  if(_dblGuard.t)clearTimeout(_dblGuard.t);
+  _dblGuard.t=setTimeout(mapDblRelease,700); // 두 번째 탭(340ms)보다 넉넉하게
+}
+/* 컨텐츠 오버레이가 공통으로 다는 방어 — 마우스 더블클릭이 지도까지 안 가게. */
+function guardDblClick(el){
+  if(!el)return;
+  el.addEventListener('dblclick',function(e){e.stopPropagation();if(e.cancelable)e.preventDefault();});
+}
+/* 하트가 한 번 튄다 — 말풍선·피드 핀이 같이 쓴다 (v2.34: 있던 SpotBubble._heartBurst 를 꺼냈다).
+   `.fc-heart`(피드 카드)와 같은 곡선·같은 1200ms 다. */
+function heartPopOn(el){
+  if(!el)return;
+  var h=document.createElement('span');h.className='spot-heartpop';h.textContent='♥';
+  el.appendChild(h);
+  setTimeout(function(){if(h.parentNode)h.parentNode.removeChild(h);},1200);
+}
 function initSpotBubbleClass(){
   SpotBubble.prototype=new google.maps.OverlayView();
   SpotBubble.prototype.onAdd=function(){
@@ -447,6 +491,7 @@ function initSpotBubbleClass(){
     var hrt=document.createElement('span');hrt.className='spot-heart';bubble.appendChild(hrt);this.heartEl=hrt;
     wrap.appendChild(bubble);wrap.appendChild(emoji);wrap.appendChild(dot);
     wrap.addEventListener('pointerdown',function(e){self._onDown(e);}); // 포인터 = 마우스+터치(모바일 데모 드래그)
+    guardDblClick(wrap); // 마우스 더블클릭이 지도 줌으로 새지 않게 (v2.34)
     wrap.addEventListener('click',function(e){ // 탭=상세 팝업 (편집 권한자 탭은 _onDown 경로가 팝업을 열어 중복 방지)
       e.stopPropagation();
       var handled=canEditSpot(self.spot)&&!(currentRole==='admin'&&self.getMap()!==map);
@@ -466,6 +511,7 @@ function initSpotBubbleClass(){
      터치 더블탭 줌은 `.spot-marker{touch-action:none}` 가 이미 막고 있다. */
   SpotBubble.prototype._tap=function(){
     var self=this,now=Date.now();
+    mapDblGuard(self.getMap()); // 두 번째 탭이 지도 줌으로도 세지 않게 (v2.34)
     if(now-(self._lastTap||0)<340){
       if(self._tapTimer){clearTimeout(self._tapTimer);self._tapTimer=null;}
       self._lastTap=0;
@@ -484,13 +530,8 @@ function initSpotBubbleClass(){
       if(typeof openContentPop==='function')openContentPop('spot',self.spot);
     },360);
   };
-  /* 하트가 한 번 튄다 — 피드 카드의 `.fc-heart` 와 같은 연출. 말풍선 위에 얹었다 걷는다. */
-  SpotBubble.prototype._heartBurst=function(){
-    if(!this.div)return;
-    var h=document.createElement('span');h.className='spot-heartpop';h.textContent='♥';
-    this.div.appendChild(h);
-    setTimeout(function(){if(h.parentNode)h.parentNode.removeChild(h);},1200);
-  };
+  /* 하트가 한 번 튄다 — 연출은 공용 heartPopOn 이 한다 (v2.34: 피드 핀과 나눠 쓴다). */
+  SpotBubble.prototype._heartBurst=function(){heartPopOn(this.div);};
   SpotBubble.prototype._onDown=function(e){
     var self=this,m=self.getMap();
     if(!canEditSpot(self.spot))return;
@@ -652,19 +693,60 @@ function initFeedThumbClass(){
     if(nhBounceTake(this.item.id))d.classList.add('nh-pop-in'); // drop·postfeed 로 지금 생긴 것 (v2.11)
     this.div=d;this._paintHeat();
     if(typeof nhDimFeed==='function')nhDimFeed(d,this.members); // dim 액션의 흐림 유지 (v2.21)
+    guardDblClick(d); // 마우스 더블클릭이 지도 줌으로 새지 않게 (v2.34)
     if(n>1){ // 클러스터: 대표 사진 + 개수 뱃지, 탭=멤버 범위로 줌인(펼치기)
       d.classList.add('cluster');
       var b=document.createElement('span');b.className='fp-n';b.textContent=n;d.appendChild(b);
-      d.addEventListener('click',function(e){e.stopPropagation();self._expand();});
-    }else{ // 단일 핀: 탭=상세 팝업 (편집 권한자는 드래그 이동도)
+      d.addEventListener('click',function(e){e.stopPropagation();mapDblGuard(self.getMap());self._expand();});
+    }else{ // 단일 핀: 탭 한 번=상세 팝업 · 두 번=좋아요 (v2.34) — 편집 권한자는 드래그 이동도
+      var hrt=document.createElement('span');hrt.className='fp-heart';d.appendChild(hrt);this.heartEl=hrt;
+      this._paintLikes();
       if(this._canEdit()){d.classList.add('editable');d.addEventListener('pointerdown',function(e){self._onDown(e);});}
       d.addEventListener('click',function(e){e.stopPropagation();
         if(self._dragged){self._dragged=false;return;} // 드래그 직후 오클릭 방지
-        openContentPop('feed',self.item);
+        // 편집 권한자는 _onDown 의 cleanup 이 탭을 센다 — 여기서 또 세면 두 번이 된다.
+        if(!self._canEdit())self._tap();
       });
     }
     this.getPanes().overlayMouseTarget.appendChild(d); // 전 핀 탭 가능 (v1.60 상세 팝업)
   };
+  /* 좋아요 수 뱃지 (v2.34) — 말풍선의 `.spot-heart` 와 같은 문법이다. 클러스터에는 안 붙는다
+     (그 핀은 개수 뱃지가 이미 어깨를 쓰고, 탭의 뜻도 '펼치기' 라 좋아요가 없다). */
+  FeedThumb.prototype._paintLikes=function(){
+    if(!this.heartEl)return;
+    var L=(typeof likeInfo==='function')?likeInfo(this.item.id):{n:0,me:0};
+    this.heartEl.textContent=L.n?('❤'+L.n):'';
+    this.heartEl.style.display=L.n?'':'none';
+    this.heartEl.classList.toggle('mine',!!L.me);
+  };
+  /* 탭 한 번 = 상세 팝업 · 두 번 = 좋아요 (v2.34).
+     말풍선(SpotBubble._tap)과 **같은 상수**를 쓴다 — 340ms/360ms 는 피드 카드가 오래 쓰던 값이다.
+     카운터는 인스턴스에 둔다(진입점이 click 과 _onDown 둘이라 클로저면 한쪽이 못 본다). */
+  FeedThumb.prototype._tap=function(){
+    var self=this,now=Date.now();
+    mapDblGuard(self.getMap());
+    if(now-(self._lastTap||0)<340){
+      if(self._tapTimer){clearTimeout(self._tapTimer);self._tapTimer=null;}
+      self._lastTap=0;
+      if(typeof toggleLike!=='function')return;
+      var R=toggleLike(self.item.id);
+      self._paintLikes();
+      if(R&&R.me)self._heartBurst();
+      self._paintHeat();                       // 좋아요가 곧 온도다 — 트렌드 렌즈에서 색이 따라간다
+      if(typeof renderFeed==='function'&&typeof currentTab!=='undefined'&&currentTab==='feed')renderFeed();
+      if(typeof renderDrawerDemo==='function')renderDrawerDemo(); // 존 베스트 썸네일
+      // PC·폰 두 지도의 같은 항목이 같은 숫자를 들게 (배지만 다시 칠한다 — 재클러스터는 안 한다)
+      feedPinsFor(self.item.id).forEach(function(o){if(o!==self){o._paintLikes();o._paintHeat();}});
+      return;
+    }
+    self._lastTap=now;
+    if(self._tapTimer)clearTimeout(self._tapTimer);
+    self._tapTimer=setTimeout(function(){
+      self._tapTimer=null;
+      if(typeof openContentPop==='function')openContentPop('feed',self.item);
+    },360);
+  };
+  FeedThumb.prototype._heartBurst=function(){heartPopOn(this.div);};
   // 온도색(트렌드 모드에서만 CSS body.mode-trend 스코프로 발현): 개별 수동 온도(temp) 우선, 자동=좋아요 온도. 클러스터=멤버 중 최고
   // v2.6: 존 온도를 중심으로 항목마다 흩는다 (존 밖이면 좋아요 온도가 중심). 클러스터=멤버 최고
   FeedThumb.prototype._paintHeat=function(){
@@ -685,6 +767,7 @@ function initFeedThumbClass(){
     var img=this.div.querySelector('img'); // getAttribute — .src 는 절대경로로 정규화돼 매번 달라 보인다
     if(img&&img.getAttribute('src')!==this.item.src)img.setAttribute('src',this.item.src);
     var b=this.div.querySelector('.fp-n');if(b)b.textContent=this.members.length;
+    this._paintLikes(); // 이어 쓰는 핀도 좋아요 숫자는 지금 값으로 (v2.34)
     this._paintHeat();this.draw();
   };
   FeedThumb.prototype._expand=function(){ // 클러스터 탭 → 멤버가 펼쳐지는 줌으로
@@ -728,7 +811,10 @@ function initFeedThumbClass(){
       document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
       if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}
       if(dragging){m.setOptions({draggable:prevDrag!==false});if(self.div)self.div.classList.remove('dragging');}
-      if(!fin||!dragging||!moved)return;
+      if(!fin)return; // 팬으로 판정 — 지도에 맡김
+      /* 옮기지 않았으면 그냥 탭이다 (v2.34) — 말풍선(_onDown)과 같은 문법.
+         편집 권한자의 click 은 위에서 비켜서 있으므로 여기서 세야 상세 팝업·좋아요가 산다. */
+      if(!dragging||!moved){if(!moved&&(!dragging||!isTouch))self._tap();return;}
       self._dragged=true; // 직후 click은 팝업 대신 무시
       var lat=self.position.lat(),lng=self.position.lng();
       var zz=zoneObjAtCenter(lat,lng);
@@ -810,6 +896,18 @@ function renderFeedMarkers(){ // 피드 사진 = 지도 위 원형 썸네일 핀
   if(typeof google==='undefined'||!google.maps||(!map&&!phoneMap))return;
   feedThumbOverlays=syncFeedPins(map,feedThumbOverlays);
   phoneFeedThumbOverlays=syncFeedPins(phoneMap,phoneFeedThumbOverlays);
+}
+/* 이 항목을 든 **단일** 핀들 (v2.34) — PC·폰 두 지도에 하나씩. 좋아요 숫자를 두 곳에
+   같이 칠하고, 액션(`like`·`hearts`)이 하트를 튀길 자리를 찾는 데 쓴다.
+   클러스터는 뺀다: 그 핀은 여러 항목을 대표하므로 한 항목의 하트가 앉을 자리가 아니다. */
+function feedPinsFor(id){
+  var out=[];
+  [feedThumbOverlays,phoneFeedThumbOverlays].forEach(function(arr){
+    (arr||[]).forEach(function(o){
+      if(o&&o.div&&o.members&&o.members.length===1&&o.item&&o.item.id===id)out.push(o);
+    });
+  });
+  return out;
 }
 var _fmZoom={m:null,p:null};
 function reclusterFeedMarkers(){ // 줌 변경 시에만 재클러스터 (팬은 월드픽셀 기준이라 불변)
@@ -1463,10 +1561,57 @@ function AddPin(latLng,m){this.position=latLng;this.div=null;this.setMap(m);}
 function initAddPinClass(){
   AddPin.prototype=new google.maps.OverlayView();
   AddPin.prototype.onAdd=function(){
+    var self=this;
     var d=document.createElement('div');d.className='add-pin';
     d.innerHTML='<span class="apn-ring"></span><span class="apn-dot">+</span>';
-    d.title='여기에 추가';
-    this.div=d;this.getPanes().overlayLayer.appendChild(d); // 클릭을 안 받는다 — 지도 조작을 가로막지 않는다
+    d.title='여기에 추가 (끌어서 자리 옮기기)';
+    this.div=d;
+    /* 끌어서 옮길 수 있다 (v2.34) — 여태 이 마커는 overlayLayer 에 있어 손이 안 닿았다.
+       무대에서 "꾹 눌러 추가" 단계의 자리를 정하는 길이 이것뿐이다: 다른 컨텐츠와 같은
+       규칙으로(터치=롱프레스 뒤 드래그 · 마우스=즉시) 옮기고, 옮긴 자리는 nhAddPinMoved 가
+       그 회차의 좌표로 삼고 다음 재생에도 남긴다.
+       ⚠️ 팬은 안 막힌다 — 터치는 롱프레스 전에 12px 만 움직여도 취소하고 이벤트를
+       지도에 흘려 보낸다(스팟·피드 핀과 같은 문법). */
+    d.addEventListener('pointerdown',function(e){self._onDown(e);});
+    this.getPanes().overlayMouseTarget.appendChild(d);
+  };
+  AddPin.prototype._onDown=function(e){
+    var self=this,m=self.getMap();if(!m)return;
+    var isTouch=(e.pointerType==='touch');
+    var mapEl=m.getDiv(),moved=false,dragging=false,lpTimer=null,sx=e.clientX,sy=e.clientY;
+    var prevDrag=m.get('draggable');
+    function startDrag(){
+      dragging=true;m.setOptions({draggable:false});
+      if(self.div)self.div.classList.add('dragging');
+      try{self.div.setPointerCapture(e.pointerId);}catch(_){}
+      if(isTouch&&navigator.vibrate)try{navigator.vibrate(15);}catch(_){}
+    }
+    if(isTouch){lpTimer=setTimeout(function(){lpTimer=null;if(!moved)startDrag();},LP_MS);}
+    else{e.stopPropagation();if(e.cancelable)e.preventDefault();startDrag();}
+    function mv(ev){
+      if(ev.pointerId!==e.pointerId)return;
+      if(!dragging){
+        if(Math.abs(ev.clientX-sx)>LP_TOL||Math.abs(ev.clientY-sy)>LP_TOL){moved=true;cleanup(false);}
+        return;
+      }
+      if(!moved&&(Math.abs(ev.clientX-sx)>3||Math.abs(ev.clientY-sy)>3))moved=true;
+      if(!moved)return;
+      var proj=self.getProjection();if(!proj)return;
+      var r=mapEl.getBoundingClientRect();
+      var ll=proj.fromContainerPixelToLatLng(new google.maps.Point(ev.clientX-r.left,ev.clientY-r.top));
+      if(ll){self.position=ll;self.draw();}
+    }
+    function up(ev){if(ev.pointerId!==e.pointerId)return;cleanup(true);}
+    function cleanup(fin){
+      document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
+      if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}
+      if(dragging){m.setOptions({draggable:prevDrag!==false});if(self.div)self.div.classList.remove('dragging');}
+      if(!fin||!dragging||!moved)return;
+      if(typeof nhAddPinMoved==='function')nhAddPinMoved(self.position.lat(),self.position.lng());
+    }
+    document.addEventListener('pointermove',mv);
+    document.addEventListener('pointerup',up);
+    document.addEventListener('pointercancel',up);
   };
   AddPin.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;
     var q=p.fromLatLngToDivPixel(this.position);if(!q)return;
@@ -7571,7 +7716,7 @@ function nhPosNote(id,lat,lng){
 /* 이번 회차가 만든 것들 — 시나리오 seed 와 재생 중 쓴 글, 그리고 전역 카드에 남긴
    좋아요(v1.94 — 회차를 넘어 살아남으면 두 번째 재생에서 하트가 이미 차 있다).
    nhReset 이 전부 걷어낸다. */
-var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],deal:[],page:[],zone:[]};
+var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],heart:[],deal:[],page:[],zone:[]};
 /* 무대에서 받은 코인은 회차가 끝나면 돌려놓는다 (v2.19) — 잔액은 이 기기에 남는 값이라
    재생할 때마다 500 씩 쌓여서, 두 번째 회차의 프로필이 첫 회차와 다른 숫자로 시작했다.
    시연은 몇 번을 돌려도 같은 곳에서 시작해야 한다 (nhReset 의 규칙 그대로). */
@@ -7676,6 +7821,210 @@ function nhPick(kind,i){
 /* 지금 지역의 피드 하나 — 좋아요·스크롤 대상 */
 function nhFeedPick(i){return nhPick('feed',i);}
 
+/* ── 하트 (v2.34, 콘솔 D131) ──────────────────────────────────────
+   `like` 는 **사용자가 그 컨텐츠를 더블탭하는 장면**이다. 여태 대상이 피드 카드뿐이었고
+   화면에 손도 안 보여서, 숫자만 조용히 늘고 마는 단계였다("좋아요 누르기가 동작을 안
+   한다" 는 말이 여기서 나왔다). 이제 v 로 종류를 고르고(지도 글·피드 카드), 손가락 표식이
+   **두 번** 뜨고, 하트가 튄다.
+   그리고 **끄지 않는다** — toggleLike 는 토글이라 이미 눌러 둔 것이면 이 단계가 하트를
+   빼는 장면이 된다. 시나리오가 말하는 것과 반대다.
+   `hearts` 는 같은 기계를 남의 손으로 돌린다 — 내 하트(me)는 안 켜고 숫자만 오른다. */
+function nhLikeKind(v){return (String(v||'')==='spot')?'spot':'feed';}
+/** 그 항목이 지금 그려져 있는 오버레이들 (PC·폰 두 지도) — 하트가 튈 자리이자 손이 설 자리. */
+function nhLikeOverlays(kind,item){
+  var out=[];
+  if(!item)return out;
+  if(kind==='spot'){
+    [(typeof spotOverlays!=='undefined')?spotOverlays:[],
+     (typeof phoneSpotOverlays!=='undefined')?phoneSpotOverlays:[]].forEach(function(arr){
+      (arr||[]).forEach(function(o){if(o&&o.div&&o.spot&&o.spot.id===item.id)out.push(o);});
+    });
+    return out;
+  }
+  return (typeof feedPinsFor==='function')?feedPinsFor(item.id):out;
+}
+/** 그중 화면에 실제로 보이는 것 — 폰 오버레이가 배열 뒤쪽이라 뒤에서부터 찾는다.
+    (임베드에서 사람이 보는 것도, 표식이 떠야 하는 곳도 폰 화면이다.) */
+function nhLikeVisible(ovs){
+  for(var i=(ovs||[]).length-1;i>=0;i--){
+    var d=ovs[i]&&ovs[i].div,r=d&&d.getBoundingClientRect();
+    if(r&&(r.width||r.height))return ovs[i];
+  }
+  return (ovs&&ovs[0])||null;
+}
+/** 오버레이 숫자·색을 지금 값으로 다시 칠한다 (두 지도가 같은 숫자를 들게). */
+function nhLikeRepaint(kind,item){
+  nhLikeOverlays(kind,item).forEach(function(o){
+    try{
+      if(kind==='spot'){if(o.bubbleEl)o._render();}
+      else{o._paintLikes();o._paintHeat();} // 좋아요가 곧 온도다 — 트렌드 렌즈에서 색이 따라간다
+    }catch(e){}
+  });
+  if(typeof renderFeed==='function'&&typeof currentTab!=='undefined'&&currentTab==='feed')renderFeed();
+  if(typeof renderDrawerDemo==='function')renderDrawerDemo(); // 존 하트 합산·베스트 썸네일
+}
+/* 하트 하나가 붙는다. mine=true 면 "내가 누른 것"(toggleLike 의 규칙 그대로),
+   아니면 **남의 손** — 숫자만 올린다.
+   ⚠️ 남의 손은 늘 로컬 표(feedLikes)를 만진다: 라이브 문서에 남의 계정으로 쓸 수는
+   없고, 무대 연출은 이 기기의 화면에서 끝나야 한다. 회차가 끝나면 nhSweepTemp 가 되돌린다. */
+function nhHeartAdd(kind,item,mine){
+  if(!item||typeof feedLikes==='undefined')return false;
+  var id=item.id;
+  if(mine){
+    if(typeof toggleLike!=='function')return false;
+    var was=(typeof likeInfo==='function')?likeInfo(id):{n:0,me:0};
+    if(!was.me){
+      toggleLike(id);
+      if(nhTempIds.like.indexOf(id)<0)nhTempIds.like.push(id); // 전역 카드면 회차가 걷는다 (v1.94)
+    }
+    return true;
+  }
+  var L=feedLikes[id]||(feedLikes[id]={n:0,me:0});
+  L.n=Math.min(999,L.n+1); // 상한은 시드와 같다 — 피드 온도가 최다 좋아요 대비 비율이라서
+  nhTempIds.heart.push(id); // 하나에 하나씩 적는다 — sweep 이 같은 수만큼 뺀다
+  return true;
+}
+/* `hearts` — 남들이 하나둘 누른다 (v2.34). n 개를 이 단계의 ms 에 고르게 펴서 올린다.
+   하트는 **처음과 마지막을 뺀 사이**에 뜬다: 0ms 에 몰아 두면 단계가 시작하자마자 끝나고,
+   ms 끝에 두면 다음 단계에 걸쳐 뜬다. 매 틱 토큰을 본다 — 새 재생이 시작되면 그 자리에서 멈춘다. */
+/** `hearts` 가 한 번에 올릴 수 있는 개수 — 콘솔의 MAX_HEARTS 와 같은 값이어야 한다. */
+var NH_HEARTS_MAX=50;
+function nhHearts(kind,item,count,ms,token){
+  if(!item)return false;
+  count=Math.min(NH_HEARTS_MAX,Math.max(1,count|0||1));
+  ms=Math.max(200,ms|0||1500);
+  /* **이 단계 안에서 끝난다.** 넘치면 다음 단계로 하트가 흘러가 엉뚱한 화면 위에서 오른다.
+     너무 촘촘하면 숫자가 안 읽히므로 60ms 를 박자의 바닥으로 두고, 그 박자로도 안 들어가는
+     개수는 들어갈 만큼으로 줄인다 (콘솔이 '몇 개'와 '단계 길이'를 같이 보여 주므로,
+     짧은 단계에 큰 수를 적으면 화면에서 바로 보인다). */
+  var win=Math.max(60,ms-140);
+  count=Math.min(count,Math.floor(win/60)+1);
+  var gap=Math.max(1,Math.floor(win/count));
+  for(var k=0;k<count;k++)(function(k){
+    setTimeout(function(){
+      if(token!==nhRunToken)return;
+      if(!nhHeartAdd(kind,item,false))return;
+      nhLikeRepaint(kind,item);
+      /* 온도(전체 대비 비율)는 **마지막 한 번만** 다시 칠한다 — 하트마다 전체 렌더를
+         돌리면 50개짜리 단계에서 지도가 오십 번 다시 그려진다. */
+      if(k===count-1&&kind==='feed'&&typeof renderFeedMarkers==='function')renderFeedMarkers();
+      var ov=nhLikeVisible(nhLikeOverlays(kind,item));
+      if(ov&&ov.div&&typeof heartPopOn==='function')heartPopOn(ov.div);
+    },80+k*gap);
+  })(k);
+  return true;
+}
+
+/* ── 컨텐츠 추가 팝업 (v2.34, 콘솔 D132) ────────────────────────────
+   이 앱에서 컨텐츠를 만드는 길은 둘이다 — 하단 네비의 `+` 버튼, 그리고 지도를 꾹 누르기.
+   무대에는 여태 그 두 손이 없었다: `write`·`request` 는 컴포저부터 시작하므로, 시연을
+   보는 사람은 "이 앱에서 어떻게 올리는가" 를 끝내 못 봤다.
+   `addmenu` 가 팝업을 열고, `addspot`·`addphoto`·`addpost`·`addreq` 가 그 팝업의 네
+   항목을 각각 눌러 **컨텐츠까지** 만든다 (누르는 손 + 만들기 = 한 단계).
+
+   자리: 꾹 누르기(v:'hold')는 좌표를 든 손이다. 그 자리에 AddPin 이 서고, 사람이 그걸
+   끌면 `nhAddPinMoved` 가 이 회차의 좌표로 삼고 다음 재생에도 남긴다 — 다른 컨텐츠의
+   `nhPosNote` 와 같은 약속이고, 키는 `addat_<순번>` 이다. */
+var nhAddN=0;    // 이 회차의 addmenu(hold) 순번 — 여러 번 열어도 각자 자리를 기억한다
+var nhAddIdx=-1; // 지금 열려 있는 팝업이 몇 번째였나 (마커를 끌면 그 번호에 적는다)
+function nhAddPinMoved(lat,lng){
+  /* 실서비스에서도 뜻이 있다 — 끈 자리가 곧 만들어질 자리다 (addAtLatLng 를 보는 쪽이
+     addSpotContent·feedDropAt 이다). 무대 기록(nhPosSave)은 시나리오가 없으면 조용히 지나간다. */
+  try{addAtLatLng=new google.maps.LatLng(lat,lng);}catch(e){}
+  if(nhAddIdx>=0&&typeof nhPosSave==='function')nhPosSave('addat',nhAddIdx,lat,lng);
+}
+/** 지도 좌표 → 화면 좌표 — 팝업이 그 자리에 뜨고, 손가락 표식도 거기 서게. */
+function nhLatLngToClient(m,div,ll){
+  var h=(typeof helperFor==='function')?helperFor(m):null,p=h&&h.getProjection();
+  if(!p||!div||!ll)return null;
+  var q=p.fromLatLngToContainerPixel(ll);if(!q)return null;
+  var r=div.getBoundingClientRect();
+  if(!r.width&&!r.height)return null;
+  return {x:r.left+q.x,y:r.top+q.y};
+}
+function nhAddMenu(v,fast){
+  if(typeof openAddMenu!=='function')return false;
+  if(typeof switchTab==='function')switchTab('map');
+  var m=(typeof phoneMap!=='undefined')?phoneMap:null,mdiv=document.getElementById('phone-map');
+  if(!m||!mdiv)return false;
+  if(String(v||'')!=='hold'){ // 하단 + 버튼 — 좌표가 없다(앱과 같은 규칙: 화면 센터에 만든다)
+    nhAddIdx=-1;
+    if(!fast){var b=document.querySelector('#phone-mirror .pn-add')||document.querySelector('.pn-add');if(b)nhTouch(b);}
+    openAddMenu(m,mdiv,null,null,null);
+    return true;
+  }
+  var idx=nhAddN++;
+  var c=SEED_AREAS[nhAreaKey]||null;
+  var ctr=m.getCenter&&m.getCenter();
+  // 사람이 끌어 둔 자리 → 지금 화면 중심 → 지역 좌표. 화면 중심이 기본인 이유는
+  // "꾹 누르는 곳" 이 보이는 화면 안이어야 하기 때문이다 (지역 좌표는 화면 밖일 수 있다).
+  var saved=nhPosGet('addat',idx,c||(ctr?{lat:ctr.lat(),lng:ctr.lng()}:null));
+  var ll=saved?new google.maps.LatLng(saved.lat,saved.lng)
+    :(ctr||(c?new google.maps.LatLng(c.lat,c.lng):null));
+  if(!ll)return false;
+  nhAddIdx=idx;
+  var pt=nhLatLngToClient(m,mdiv,ll);
+  if(!fast&&pt)nhTouchAt(pt.x,pt.y); // 꾹 누르는 손이 그 자리에 선다
+  openAddMenu(m,mdiv,ll,pt?pt.x:null,pt?pt.y:null);
+  return true;
+}
+/** 팝업의 항목 하나를 누른다. 안 열려 있으면 먼저 연다 — 이 단계 하나로도 서야 한다. */
+function nhAddTap(kind,fast){
+  var menu=document.getElementById('content-add-menu');
+  if(!menu)return false;
+  if(!menu.classList.contains('open')&&!nhAddMenu('hold',fast))return false;
+  var it=menu.querySelector('.cam-item[data-add="'+kind+'"]');
+  if(!it)return false;
+  if(!fast)nhTouch(it);
+  return true;
+}
+/** 지금 팝업이 가리키는 자리 (없으면 null — 그러면 각 액션의 여태 규칙대로 간다). */
+function nhAddAt(){
+  try{return addAtLatLng?{lat:addAtLatLng.lat(),lng:addAtLatLng.lng()}:null;}catch(e){return null;}
+}
+/** 팝업을 닫고 좌표도 비운다 — 남겨 두면 **다음 사용자 조작**이 이 좌표를 물려받는다
+    (앱의 addSpotContent 가 addAtLatLng 를 먼저 보므로, 화면 센터에 놓일 것이 여기로 온다). */
+function nhAddDone(){
+  if(typeof closeAddMenu==='function')closeAddMenu();
+  addAtLatLng=null;
+}
+/* 네 항목 — 스팟·Request 는 **있는 타이핑 연출을 그대로 쓴다**(nhWriteSpot·nhRequestTyped).
+   같은 일을 두 벌 만들면 둘이 어긋난다. 사진·지면은 파일 고르기가 자동화되지 않으므로
+   그 자리에서 카드를 만든다 — postfeed 와 같은 방식이고 사진은 seedImg 로 그린다. */
+function nhAddSpot(text,emoji,token,ms,fast){
+  var at=nhAddAt();
+  if(!nhAddTap('spot',fast))return false;
+  at=at||nhAddAt();
+  nhAddDone();
+  return nhWriteSpot(text,token,ms,emoji,fast,at)!==false;
+}
+function nhAddReq(text,token,ms,fast){
+  var at=nhAddAt();
+  if(!nhAddTap('request',fast))return false;
+  at=at||nhAddAt();
+  nhAddDone();
+  return nhRequestTyped(text,token,ms,fast,at)!==false;
+}
+function nhAddFeedCard(which,desc,theme,fast){ // which: 'photo'(라이브 카메라) | 'post'(Feed 작성)
+  var at=nhAddAt();
+  if(!nhAddTap(which,fast))return false;
+  at=at||nhAddAt();
+  nhAddDone();
+  var d=String(desc||'').slice(0,120);
+  var id=nhLayFeed({desc:d,label:d||(which==='photo'?'지금 여기':'오늘의 기록'),
+      theme:String(theme||'')||'cafe',
+      // 내가 올린 카드다 — 이름은 이 기기의 계정 이름(앱 feedAdd 과 같은 값)
+      name:(typeof chatName==='function'?chatName():'나'),
+      kind:(which==='photo'?'cam':'post'),at:at},
+    NH_POST_FROM+(nhPostN++),nhPostCenter(),nhHeld.stamp||Date.now());
+  if(!id)return false;
+  if(!fast)nhBounceMark(id,2); // 방금 올린 것은 뿅 하고 앉는다
+  if(typeof renderFeed==='function')renderFeed();
+  if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+  if(typeof renderNews==='function')renderNews();
+  return true;
+}
+
 /* 지금 보고 있는 지도 중심. 임베드에서 PC 지도가 숨어 있어도 좌표는 살아 있다. */
 function nhCenter(){
   var m=map||phoneMap;if(!m)return null;
@@ -7723,7 +8072,7 @@ function nhFocus(kind,i,token,ms){
    바로 넣지 않는 이유 — 시연에서 "이 사람이 쓰는 중" 이 보여야 한다. */
 /** write 로 쓴 글이 몇 번째인가 — 사람이 옮긴 자리를 기억하는 키다 (v2.12). */
 var nhWriteN=0;
-function nhWriteSpot(text,token,ms,emoji,fast){
+function nhWriteSpot(text,token,ms,emoji,fast,at){
   if(typeof addSpotContent!=='function')return false;
   // **지도 중심에 기대지 않는다.** addSpotContent 는 중심이 없으면(투영 전·지도 오류)
   // 조용히 아무것도 안 한다 — 시연에서는 "글을 썼는데 아무 일도 없음" 으로 보인다.
@@ -7735,8 +8084,13 @@ function nhWriteSpot(text,token,ms,emoji,fast){
      재생에 제자리로 돌아갔다. 키는 이 회차의 write 순번이라 여러 개를 써도 각자 기억한다. */
   var wi=nhWriteN++;
   var saved=nhPosGet('write',wi,c||(ctr?{lat:ctr.lat(),lng:ctr.lng()}:null));
+  /* at (v2.34) = `addspot` 이 넘겨주는 "추가 팝업이 가리키던 자리". 순서가 중요하다:
+     사람이 **쓰인 글을 옮긴 자리**(saved)가 먼저다 — 그게 더 나중에, 더 구체적으로 정한
+     뜻이고 화면에 남는 것도 그쪽이다. at 은 그 다음, 지역 오프셋은 마지막이다. */
+  var pinned=(!saved&&at&&isFinite(at.lat)&&isFinite(at.lng))?at:null;
   var ll=saved?new google.maps.LatLng(saved.lat,saved.lng)
-    :(c?new google.maps.LatLng(c.lat+0.0012,c.lng+0.0012):ctr);
+    :(pinned?new google.maps.LatLng(pinned.lat,pinned.lng)
+    :(c?new google.maps.LatLng(c.lat+0.0012,c.lng+0.0012):ctr));
   if(!ll)return false;
   /* fast (v2.21, 콘솔 D117) — 컴포저를 아예 안 연다. 컴포저의 textEl 은 onAdd(다음
      프레임)에서 생겨서, 그 자리에서 commit() 하면 빈 글이 등록된다. 대신 컴포저의
@@ -7818,17 +8172,20 @@ function nhWriteSpot(text,token,ms,emoji,fast){
    "묻는 사람" 이 화면에 없었다. write 와 같은 문법으로 만든다: 지도를 꾹 누르는 링,
    컴포저 카드, 글자별 타이핑, 등록, 핀 등장 바운스까지가 한 장면이다. */
 var nhReqN=0;
-function nhRequestTyped(text,token,ms,fast){
+function nhRequestTyped(text,token,ms,fast,at){
   if(typeof ReqComposer!=='function'||typeof google==='undefined')return false;
   if(typeof switchTab==='function')switchTab('map');
   var c=SEED_AREAS[nhAreaKey]||null;
   var ctr=(typeof phoneMap!=='undefined'&&phoneMap&&phoneMap.getCenter)?phoneMap.getCenter():null;
   /* 자리는 write 와 같은 규칙이다 (v2.12) — 사람이 끌어 옮긴 자리가 있으면 거기,
-     없으면 지역 좌표에서 살짝 비껴 놓는다 (write 의 +0.0012 와 다른 쪽 — 겹치지 않게). */
+     없으면 지역 좌표에서 살짝 비껴 놓는다 (write 의 +0.0012 와 다른 쪽 — 겹치지 않게).
+     at (v2.34) = `addreq` 이 넘겨주는 추가 팝업의 자리 — write 와 같은 순서다. */
   var wi=nhReqN++;
   var saved=nhPosGet('rqw',wi,c||(ctr?{lat:ctr.lat(),lng:ctr.lng()}:null));
+  var pinned=(!saved&&at&&isFinite(at.lat)&&isFinite(at.lng))?at:null;
   var ll=saved?new google.maps.LatLng(saved.lat,saved.lng)
-    :(c?new google.maps.LatLng(c.lat-0.0012,c.lng+0.0016):ctr);
+    :(pinned?new google.maps.LatLng(pinned.lat,pinned.lng)
+    :(c?new google.maps.LatLng(c.lat-0.0012,c.lng+0.0016):ctr));
   if(!ll)return false;
   var typed=String(text||'지금 여기 사람 많나요?').slice(0,120);
   /* fast (v2.21) — 링·컴포저·타이핑을 접고 그 자리에서 등록한다 (write 의 fast 와 같은 이유). */
@@ -8087,17 +8444,29 @@ function nhScrollTarget(){
 
 /* 손가락 자국 — 상태가 "스스로" 바뀌면 유령이 조작하는 것처럼 보인다.
    .phone-screen 좌표계에 점 하나를 확장-소멸로 띄운다. */
-function nhTouch(el){
+/* 화면의 한 **점**을 누르는 손 (v2.34) — 요소가 없는 손짓(지도를 꾹 누르기)에도 표식이 서게.
+   delay 를 주면 그만큼 뒤에 뜬다: 더블탭은 같은 자리에 두 번 서야 그 뜻이 화면에 보인다. */
+function nhTouchAt(cx,cy,delay){
+  if(delay){setTimeout(function(){nhTouchAt(cx,cy,0);},delay);return;}
   try{
-    var scr=document.querySelector('.phone-screen');if(!scr||!el)return;
-    var r=el.getBoundingClientRect(),s=scr.getBoundingClientRect();
-    if(!r.width&&!r.height)return;
+    var scr=document.querySelector('.phone-screen');if(!scr)return;
+    var s=scr.getBoundingClientRect();
     var d=document.createElement('div');d.className='nh-touch';
-    d.style.left=(r.left+r.width/2-s.left)+'px';
-    d.style.top=(r.top+r.height/2-s.top)+'px';
+    d.style.left=(cx-s.left)+'px';d.style.top=(cy-s.top)+'px';
     scr.appendChild(d);
     nhSfxPlay('tap'); // 누르는 손이 나는 소리 (v2.25) — 표식이 뜨는 자리가 곧 "지금 눌렀다" 다
     setTimeout(function(){try{d.remove();}catch(e){}},600);
+  }catch(e){}
+}
+function nhTouch(el,times){
+  try{
+    if(!el)return;
+    var r=el.getBoundingClientRect();
+    if(!r.width&&!r.height)return;
+    var cx=r.left+r.width/2,cy=r.top+r.height/2;
+    var n=Math.max(1,times|0||1);
+    // 두 번 이상이면 같은 자리에 240ms 간격으로 — 사람이 연달아 두드리는 박자다.
+    for(var k=0;k<n;k++)nhTouchAt(cx,cy,k*240);
   }catch(e){}
 }
 /* 액션이 "누르는" 요소 — 표식이 뜰 자리. 못 찾으면 null (표식만 생략, 실행은 그대로). */
@@ -8121,6 +8490,16 @@ function nhTouchTarget(st){
         for(var ri=0;ri<reqMarkers.length;ri++)
           if(reqMarkers[ri]&&reqMarkers[ri].rq&&reqMarkers[ri].rq.id===rd.id)return reqMarkers[ri].div;
     }
+    /* 좋아요는 **그 컨텐츠 위에서** 일어난다 (v2.34) — 손이 지도의 그 자리에 서야
+       "이걸 두 번 두드렸다" 가 화면의 말이 된다. 표식은 두 번 뜬다 (nhTapTimes).
+       `hearts` 에는 표식이 없다 — 그건 남의 손이라 이 화면에 안 보이는 것이 맞다. */
+    if(st.a==='like'){
+      var lk=nhLikeKind(st.v),it=nhPick(lk,st.i);
+      var ov=it?nhLikeVisible(nhLikeOverlays(lk,it)):null;
+      if(ov&&ov.div)return ov.div;
+    }
+    // 추가 팝업의 네 항목 — 눌리는 것은 그 항목 버튼이다 (팝업은 액션이 먼저 연다)
+    if(st.a==='addspot'||st.a==='addphoto'||st.a==='addpost'||st.a==='addreq')return null; // 표식은 액션 안에서 (팝업을 연 뒤라야 버튼이 있다)
   }catch(e){}
   return null;
 }
@@ -8202,15 +8581,31 @@ function nhAct(st,token){
         openPhoneDrawer();return true;}
       if(st.a==='wait')return true; // 화면은 그대로 — 그것이 이 스텝의 전부다
       // ── v1.71 실제로 무언가를 하는 액션들 ──
-      if(st.a==='like'){var f=nhFeedPick(st.i);
-        if(!f||typeof toggleLike!=='function')return false;
-        var L=toggleLike(f.id);
-        // 전역 시드 카드에 남긴 좋아요는 회차가 걷어야 한다 — 켠 것만 적는다 (v1.94).
-        // 같은 카드에 like 를 세 번 두면 표에 id 가 둘 쌓여 sweep 이 두 번 토글한다 (v2.33)
-        if(L&&L.me&&nhTempIds.like.indexOf(f.id)<0)nhTempIds.like.push(f.id);
-        if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
-        if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+      /* 좋아요 (v2.34) — **사용자가 그 컨텐츠를 더블탭하는 장면**이다. v 로 종류를 고르고
+         (비우면 여태처럼 피드 카드), 손가락 표식이 두 번 뜨고(nhAct 아래), 하트가 튄다.
+         끄지 않는다 — 이미 눌러 둔 것이면 숫자는 그대로 두고 하트만 한 번 더 튀긴다. */
+      if(st.a==='like'){var lkK=nhLikeKind(st.v),f=nhPick(lkK,st.i);
+        if(!f)return false;
+        if(!nhHeartAdd(lkK,f,true))return false;
+        nhLikeRepaint(lkK,f);
+        /* 피드 온도는 **최다 좋아요 대비 비율**이라, 한 장이 오르면 나머지 핀 색도 달라진다.
+           그 갱신은 전체 렌더뿐이다(_adopt 가 핀을 이어 쓰므로 DOM 은 안 새로 만든다). */
+        if(lkK==='feed'&&typeof renderFeedMarkers==='function')renderFeedMarkers();
+        var lkOv=nhLikeVisible(nhLikeOverlays(lkK,f)); // 렌더 뒤에 다시 찾는다 — 하트가 살아 있는 div 에 앉게
+        if(lkOv&&lkOv.div)heartPopOn(lkOv.div);
         return true;}
+      /* 남들이 하나둘 누른다 (v2.34) — v=종류 · i=몇 번째 · e=몇 개 · ms=오르는 시간.
+         내 하트(me)는 안 켠다: 그건 다른 사람들의 손이다. */
+      if(st.a==='hearts'){var hK=nhLikeKind(st.v),hf=nhPick(hK,st.i);
+        if(!hf)return false;
+        return nhHearts(hK,hf,parseInt(st.e,10)||5,st.ms,token)!==false;}
+      /* 컨텐츠 추가 팝업 (v2.34) — v:'btn'=하단 + 버튼 · 'hold'=지도를 꾹.
+         꾹 누른 자리에는 마커가 서고, 끌어 옮기면 다음 재생도 그 자리다. */
+      if(st.a==='addmenu')return nhAddMenu(st.v,st.fast)!==false;
+      if(st.a==='addspot')return nhAddSpot(st.v||st.say,st.e,token,st.ms,st.fast)!==false;
+      if(st.a==='addreq')return nhAddReq(st.v||st.say,token,st.ms,st.fast)!==false;
+      if(st.a==='addphoto')return nhAddFeedCard('photo',st.v||st.say,st.e,st.fast)!==false;
+      if(st.a==='addpost')return nhAddFeedCard('post',st.v||st.say,st.e,st.fast)!==false;
       if(st.a==='write'){if(typeof switchTab==='function')switchTab('map');
         // e = 이모지 (v2.12) — post 와 같은 자리, 같은 뜻이다.
         return nhWriteSpot(st.v||st.say,token,st.ms,st.e,st.fast)!==false;}
@@ -8264,7 +8659,8 @@ function nhAct(st,token){
        스텝의 ms 에 안 들어 있는 군더더기라 단계마다 화면이 한 박자씩 늦게 반응했다
        (tab·ai·scope·popclose·pop v:req 다섯 액션이 늘 이 값을 먹었다).
        표식 자체는 CSS 애니메이션이라 실행과 나란히 돈다 — 눌리는 모습은 그대로다. */
-    nhTouch(tapEl);
+    // 좋아요는 **두 번** 두드리는 손이다 (v2.34) — 한 번 뜨면 "왜 하트가 늘었지" 가 된다.
+    nhTouch(tapEl,st.a==='like'?2:1);
     return exec()!==false;
   }
   return exec();
@@ -8326,8 +8722,19 @@ function nhSweepTemp(){
       if(typeof renderFeed==='function'&&typeof currentTab!=='undefined'&&currentTab==='feed')renderFeed();
       if(typeof renderFeedMarkers==='function')renderFeedMarkers();
     }
+    /* `hearts` 가 얹은 남의 하트도 되돌린다 (v2.34) — 같은 이유다. 표에 **하나에 하나씩**
+       적어 두었으므로 그 수만큼 뺀다. 자기 seed 카드는 회차마다 새 id 라 상관없지만,
+       전역 카드는 살아남아 두 번째 재생부터 숫자가 이미 부풀어 있다. */
+    if(nhTempIds.heart&&nhTempIds.heart.length&&typeof feedLikes!=='undefined'){
+      nhTempIds.heart.forEach(function(id){
+        var L=feedLikes[id];if(L)L.n=Math.max(L.me?1:0,L.n-1);
+      });
+      if(typeof renderFeed==='function'&&typeof currentTab!=='undefined'&&currentTab==='feed')renderFeed();
+      if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+      if(typeof refreshSpotStyles==='function')refreshSpotStyles();
+    }
   }catch(e){console.warn('[M16] sweep',e);}
-  nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],deal:[],page:[],zone:[]};
+  nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],heart:[],deal:[],page:[],zone:[]};
 }
 
 /* 시나리오가 선언한 seed 를 깐다 — "이 시나리오가 성립하려면 화면에 무엇이 있어야 하나".
@@ -8480,7 +8887,8 @@ function nhLayFeed(f,i,c,stamp){
        실어 보낸다 — 시나리오 문서에 이미지를 통째로 담으면 Firestore 상한에 닿는다. */
     src:(nhImgSrc(f.img)||(typeof seedImg==='function'?seedImg(f.theme||'cafe',f.label||''):'')),
     region:(typeof dongAt==='function'?dongAt(p.lat,p.lng):'')||c.name,zone:null,
-    lat:p.lat,lng:p.lng,kind:'post',
+    // kind (v2.34) — 'cam'=라이브 카메라 · 'post'=Feed 작성. 피드 탭의 종류 필터가 이 값을 본다.
+    lat:p.lat,lng:p.lng,kind:(f.kind==='cam'?'cam':'post'),
     desc:String(f.desc||f.label||'').slice(0,120),
     name:String(f.name||'동네주민').slice(0,20),
     temp:(f.temp!=null?f.temp:nhAutoTemp('feed'+i+(f.desc||f.label||''))), // 트렌드 온도 (v2.4) — nhLaySpot 과 같은 이유
@@ -8794,6 +9202,7 @@ var nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:0};
 function nhSeedScenario(sc,token){
   // 회차마다 0 부터 — write 의 "옮긴 자리" 키가 회차를 넘어 같아야 한다 (v2.12).
   nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:token};nhPostN=0;nhWriteN=0;nhWriteIds={};nhReqN=0;nhReqIds={};
+  nhAddN=0;nhAddIdx=-1; // 추가 팝업의 순번도 회차마다 0 부터 (자리 기억 키가 어긋나지 않게, v2.34)
   /* 등장 효과음 (v2.23) — 회차를 시작할 때 건다(소리가 없는 시나리오면 빈 값으로 꺼서
      앞 회차의 소리가 따라오지 않게). **무대를 까는 동안에는 안 운다** — 여기서 깔리는
      것들은 바운스 표를 안 찍기 때문이다(재생 시작 전에 이미 있던 화면이라 등장이 아니다).
@@ -8962,6 +9371,12 @@ function nhReset(){
     if(typeof closeDealSheet==='function')closeDealSheet();
     if(typeof closeDrawer==='function')closeDrawer();
     if(typeof closeComposer==='function')closeComposer();
+    /* 추가 팝업과 그 마커도 걷는다 (v2.34) — `addmenu` 로 열어 둔 채 재생이 끊기면
+       다음 회차가 팝업 뒤에서 흐르고, 마커는 지도에 남아 시드처럼 보인다. */
+    if(typeof closeAddMenu==='function')closeAddMenu();
+    if(typeof addPinHide==='function')addPinHide();
+    addAtLatLng=null;
+    if(typeof mapDblRelease==='function')mapDblRelease(); // 더블탭 가드가 켜진 채 끊겼을 수도
     if(typeof switchTab==='function')switchTab('map');
     if(typeof switchMode==='function'&&currentMode!=='local')switchMode('local');
   }catch(e){console.warn('[M16] reset',e);}
@@ -8980,7 +9395,10 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'page', // v2.2: 상단 지면을 옆으로 넘긴다
   'reward', // v2.27: 현장 답변 리워드 지급 — answer 와 분리. 우하단 agent 말풍선 + 코인 버스트 (v=문구)
   'bubbleclose', // v2.31: 우하단 말풍선을 지금 닫는다 (agent 말풍선 + 현장 Request 수신 카드 + 프리셋)
-  'shopsay']; // v2.32: 가게가 한마디 한다 — 지도 이름표에 말풍선을 붙인다 (i=어느 가게·v=문구, 비우면 걷는다)
+  'shopsay', // v2.32: 가게가 한마디 한다 — 지도 이름표에 말풍선을 붙인다 (i=어느 가게·v=문구, 비우면 걷는다)
+  'hearts', // v2.34: 남들이 하나둘 하트를 누른다 (v=종류·i=몇 번째·e=몇 개·ms=오르는 시간)
+  // v2.34: 컨텐츠 추가 팝업 — 여는 손(addmenu v = btn|hold)과 네 항목을 누르는 손
+  'addmenu','addspot','addphoto','addpost','addreq'];
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
