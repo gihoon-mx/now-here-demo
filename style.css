@@ -261,9 +261,20 @@ button:focus:not(:focus-visible){outline:none;}
   32%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0);}
   100%{opacity:0;transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-40px))) scale(.22) rotate(14deg);}
 }
-/* 프로필이 받는 순간 — 크기는 안 건드린다(다른 규칙의 transform 과 안 싸우도록 링만) */
-.pa-profile.cf-catch{animation:cfCatch .6s ease-out;}
-@keyframes cfCatch{0%{box-shadow:0 0 0 0 rgba(242,195,60,0);}40%{box-shadow:0 0 0 2cqw rgba(242,195,60,0.55);}100%{box-shadow:0 0 0 3.6cqw rgba(242,195,60,0);}}
+/* 받는 순간의 링 (v2.31 — 받는 쪽이 프로필에서 **하단 AI 버튼**으로 옮겼다).
+   ①**::after 로 그린다.** `.pn-ai` 에 직접 걸면 `.pn-ai.spin{animation:aiSpin}`(모드 전환·AI 클릭)과
+   animation 축약이 겹쳐 한쪽이 죽는다. ②box-shadow 가 아니라 별도 레이어인 이유도 같다 —
+   `.pn-ai` 의 유리 그림자를 new·v3 스킨이 다시 선언하는데 그걸 덮어쓰면 버튼이 납작해진다.
+   ③**퍼지는 폭은 2.2cqw 를 못 넘는다**: `.phone-screen{overflow:hidden}` 이고 네비 아래
+   여백이 2.75cqw 뿐이라 그보다 크면 링의 아랫단이 잘린다. */
+.pn-ai{position:relative;}
+.pn-ai.cf-catch::after{content:'';position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  animation:cfCatch .7s ease-out;}
+@keyframes cfCatch{
+  0%{box-shadow:0 0 0 0 rgba(242,195,60,0);}
+  35%{box-shadow:0 0 0 1.2cqw rgba(242,195,60,0.55);}
+  100%{box-shadow:0 0 0 2.2cqw rgba(242,195,60,0);}
+}
 
 /* 여기에 추가 (v2.29) — 꾹 눌러 컨텐츠 추가 메뉴를 열면 그 좌표에 서는 자리표.
    컨텐츠가 아니라 **예고**라 점선 링에 +만 있다: 실제 핀·말풍선과 헷갈리면 안 된다.

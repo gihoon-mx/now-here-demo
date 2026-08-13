@@ -2011,6 +2011,17 @@ function hideAiBubble(){
   // 프리셋 패널도 같은 구석에 뜬다 — 말풍선만 걷으면 그 아래 질문 목록이 남는다
   var pn=document.getElementById('ai-presets');if(pn)pn.classList.remove('show');
 }
+/* 우하단을 **비운다** (v2.31, `bubbleclose` 액션).
+   그 구석에 뜨는 것은 하나가 아니라 셋이다: agent 말풍선(#ai-bubble z6) · 프리셋 패널
+   (#ai-presets z7) · 현장 Request 수신 카드(#req-bubble z8). 전부 right:3cqw·bottom:21cqw
+   한자리를 나눠 쓴다. "말풍선을 닫아라" 가 그중 하나만 걷으면 남은 것이 그 자리에 그대로
+   서 있어 "닫았는데 안 닫혔다" 가 된다 — 앱 자신도 이 셋을 짝으로 다룬다(showReqBubble ·
+   openContentPop('req') 이 hideAiBubble 을 부르고, reward 는 hideReqBubble 을 부른다). */
+function nhHush(){
+  hideAiBubble();
+  if(typeof hideReqBubble==='function')hideReqBubble();
+  return true;
+}
 var lastAnsweredReqId=null; // v2.29 방금 답한 Request — 리워드 지급이 걷어 갈 대상
 /* 답이 값을 받았으면 그 Request 는 끝난 일이다 (v2.29) — 지도에 계속 서 있으면
    "아직 답을 기다린다" 고 말하는 핀이 된다. 핀을 **터뜨려** 걷는다: 지웠다는 사실이
@@ -5911,29 +5922,45 @@ function syncDealSheet(){
 }
 /* 쿠폰이 지갑으로 들어가는 모습 (v2.29) — 여태 '받았다'는 **글자로만** 남았다.
    코인 버스트(coinBurst)와 같은 문법이다: 폰 화면에 잠깐 붙였다 시간이 지나면 걷는다.
-   방향은 우상단 프로필 — v2.18 의 코인 적립 연출이 가던 곳과 같다. 같은 방향이어야
-   "내 것이 되었다"로 읽힌다(방향이 제각각이면 그냥 튀는 이모지다).
-   v2.30.1: **출발점은 Agent 다** (인자 anchor) — 리워드 코인이 agent 말풍선 위에서
-   터지는 것과 같은 규칙이다. 화면 한복판에서 나오면 누가 준 것인지가 안 보였다. */
-function couponFly(anchor){
+
+   v2.31: **누른 버튼에서 나와 하단 Agent 아이콘으로 들어간다.**
+   ①출발은 `쿠폰 받기` 버튼(from). 부르는 쪽이 시트를 **닫기 전에** 이 함수를 부르면 된다 —
+   여기서 rect 를 그 자리에서 읽고 `--dx/--dy` 를 확정한 뒤 티켓을 `.phone-screen` 에
+   붙이므로, 바로 다음 줄에서 시트를 닫아도 티켓은 이미 독립이다(같은 tick 이라 시트가
+   보이는 프레임도 안 그려진다).
+   ②도착은 우상단 프로필이 아니라 **하단 AI 버튼**이다. 쿠폰을 건네준 것이 Agent 이고
+   (말풍선이 그 말을 한다) 받아 두는 곳도 거기여야 손이 한 곳을 기억한다.
+   from 이 없거나 이미 닫혔으면 화면 가운데서 나온다 — 방향은 그대로 Agent 다.
+   ⚠️ 매장 전용 페이지(`.store-page` z-29)가 떠 있으면 AI 버튼이 그 아래 가린다.
+   티켓은 z-200 이라 날아가는 동안 보이지만 받는 링은 안 보인다 — 그 장면은 페이지를
+   먼저 닫고 쿠폰을 받는 것이 맞다. */
+function couponFly(from){
   try{
-    var scr=(anchor&&anchor.closest&&anchor.closest('.phone-screen'))||document.querySelector('.phone-screen');
+    var scr=(from&&from.closest&&from.closest('.phone-screen'))||document.querySelector('.phone-screen');
     if(!scr)return;
     var sr=scr.getBoundingClientRect();if(!sr.width)return;
-    var tg=document.getElementById('phone-profile'),tr=tg?tg.getBoundingClientRect():null;
-    var ar=(anchor&&anchor.getBoundingClientRect)?anchor.getBoundingClientRect():null;
-    if(ar&&!ar.width)ar=null; // 안 보이는 요소(말풍선이 아직 안 뜬 경우)는 앵커가 못 된다
+    /* 도착점은 **이 화면 안의** AI 버튼이다. `.phone-screen` 하나에 `.pn-ai` 도 하나라
+       (index·admin 두 마크업 모두) 전역 검색보다 이쪽이 정확하다 — 관리자 페이지에는
+       폰이 하나뿐이지만 규칙을 좁혀 두면 나중에 둘이 돼도 안 헷갈린다. */
+    var tg=scr.querySelector('.pn-ai'),tr=tg?tg.getBoundingClientRect():null;
+    /* rect 가 0 이면 **연출을 안 한다.** 자리를 짐작하지 않는 이유: `.phone-navbar` 에
+       `transform:scale(var(--ui-nav-s))` 가 걸려 있고 그 값은 관리자 설정(기본 90%)이라
+       상수로 못 적는다. 엉뚱한 자리로 빨려 들어가는 것보다 아무 일도 안 하는 편이 낫다. */
+    if(!tr||!tr.width)return;
+    var ar=(from&&from.getBoundingClientRect)?from.getBoundingClientRect():null;
+    if(ar&&!ar.width)ar=null; // 이미 닫힌 요소(rect 0)는 출발점이 못 된다 — 화면 가운데로
     var host=document.createElement('div');host.className='coupon-fly';
     host.innerHTML='<span class="cf-ticket">🎟</span>';
     var x0=ar?(ar.left-sr.left+ar.width/2):(sr.width/2),
         y0=ar?(ar.top-sr.top+ar.height/2):(sr.height*0.5);
-    var x1=tr?(tr.left-sr.left+tr.width/2):(sr.width-sr.width*0.09),y1=tr?(tr.top-sr.top+tr.height/2):sr.width*0.09;
+    var x1=tr.left-sr.left+tr.width/2, y1=tr.top-sr.top+tr.height/2;
     host.style.left=x0+'px';host.style.top=y0+'px';
     host.style.setProperty('--dx',(x1-x0).toFixed(1)+'px');
     host.style.setProperty('--dy',(y1-y0).toFixed(1)+'px');
     scr.appendChild(host);
     if(typeof twParse==='function')twParse(host);
-    if(tg)setTimeout(function(){tg.classList.add('cf-catch');setTimeout(function(){tg.classList.remove('cf-catch');},600);},950); // 도착하는 순간 프로필이 받는다
+    // 도착하는 순간 Agent 가 받는다 (링은 ::after 라 .pn-ai.spin 의 animation 축약과 안 싸운다)
+    setTimeout(function(){tg.classList.add('cf-catch');setTimeout(function(){tg.classList.remove('cf-catch');},700);},950);
     setTimeout(function(){if(host.parentNode)host.parentNode.removeChild(host);},1300);
   }catch(e){}
 }
@@ -5950,15 +5977,12 @@ function claimDeal(d,opts){
      `opts.ms` 가 **null 이면 "안 정했다"** 이지 4초가 아니다: 4초로 굳히면 `e` 를
      비워 둔 단계에서 `bh` 가 영영 못 온다(nhCouponMs 도 빈 값에 null 을 돌려준다). */
   var hard=(opts.ms==null)?null:(opts.ms|0);
-  var said=(hard!=null&&hard<=0)?false
-    :aiSay(String(opts.say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요 — 매장에서 제시하세요.')).slice(0,160),
-      4000,(hard==null)?null:Math.min(hard,20000));
-  /* 말이 먼저, 쿠폰이 그 위에서 (v2.30.1) — 티켓의 출발점이 **말풍선**이라 순서가 뒤집혔다.
-     리워드 코인이 말풍선 위에서 터지는 것(coinBurst)과 같은 규칙이다.
-     문구를 안 띄우는 연출(e:0)이면 말풍선이 없으니 AI 버튼이 그 자리를 대신한다 — 어느
-     쪽이든 쿠폰은 **Agent 에서 나온다**. 그다음 우상단 프로필로 날아가 접힌다. */
-  couponFly(said?document.getElementById('ai-bubble')
-                :(document.querySelector('#phone-mirror .pn-ai')||document.querySelector('.pn-ai')));
+  /* 티켓이 **먼저** 난다 (v2.31) — 출발점이 누른 버튼이라 말풍선을 기다릴 이유가 없다.
+     opts.from = 부르는 쪽이 시트를 닫기 전에 재 둔 버튼 자리(dealClaimAt). 없으면 화면 가운데. */
+  couponFly(opts.from);
+  if(hard!=null&&hard<=0)return true; // e:0 = 문구를 아예 안 띄운다 (쿠폰은 그래도 날아갔다)
+  aiSay(String(opts.say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요 — 매장에서 제시하세요.')).slice(0,160),
+    4000,(hard==null)?null:Math.min(hard,20000));
   return true;
 }
 function dealDistLabel(d){ // 시안은 '180m' 고정이지만 이 앱은 실제 좌표가 있다 — 실측을 쓴다
@@ -5974,8 +5998,12 @@ function initTimeDeals(){
   if(sc)sc.addEventListener('click',closeDealSheet);
   var claim=document.getElementById('ds-claim');
   if(claim)claim.addEventListener('click',function(){
-    var d=dealById(dealSheetId);closeDealSheet();
-    claimDeal(d);
+    /* 순서가 뒤집혔다 (v2.31) — 티켓이 **이 버튼에서** 출발하므로 시트를 닫기 전에
+       claimDeal 을 부른다. couponFly 가 그 자리에서 rect 를 읽고 끝내므로 다음 줄에서
+       닫아도 된다. d 는 closeDealSheet 가 dealSheetId 를 비우기 전에 이미 잡혀 있다. */
+    var d=dealById(dealSheetId);
+    claimDeal(d,{from:claim});
+    closeDealSheet();
   });
   var share=document.getElementById('ds-share');
   if(share)share.addEventListener('click',function(){
@@ -7773,8 +7801,11 @@ function nhCoupon(i,say,e,token,ms,fast){
   /* fast (v2.21) — 시트도 리워드 문구도 없이 받기만 한다. 문구는 시간이 지나면 사라지는
      연출이라 조립 결과에 안 남는다 — ms 0 은 claimDeal 이 "안 띄움" 으로 읽는 값이다. */
   if(fast){
+    // 시트가 **이 딜의 것으로 열려 있을 때만** 버튼이 출발점이다 (v2.31).
+    // dealSheetId 는 닫힐 때 null 이 되므로 이 한 조건이 "열려 있고 같은 딜" 을 다 덮는다.
+    var fb=(dealSheetId===d.id)?document.getElementById('ds-claim'):null;
+    claimDeal(d,{ms:0,say:say,from:fb});
     if(typeof closeDealSheet==='function')closeDealSheet();
-    claimDeal(d,{ms:0,say:say});
     return true;
   }
   if(typeof dealSheetId==='undefined'||dealSheetId!==d.id){
@@ -7786,8 +7817,9 @@ function nhCoupon(i,say,e,token,ms,fast){
   var wait=Math.min(900,Math.max(260,Math.round((ms||1500)*0.45)));
   setTimeout(function(){
     if(token!==nhRunToken)return;
+    // 사람이 누르는 길과 같은 순서다 (v2.31) — 티켓이 버튼에서 뜬 뒤에 시트를 닫는다
+    claimDeal(d,{ms:nhCouponMs(e),say:say,from:btn});
     if(typeof closeDealSheet==='function')closeDealSheet();
-    claimDeal(d,{ms:nhCouponMs(e),say:say});
   },wait);
   return true;
 }
@@ -8018,6 +8050,8 @@ function nhAct(st,token){
       // dim 이후에 뜨는 것은 제 불투명도로 온다 — "이 다음 것만 봐 달라" 는 연출이다.
       if(st.a==='dim')return nhDim(st.v)!==false;
       if(st.a==='undim')return nhUndim()!==false;
+      // 말풍선 닫기 (v2.31) — 유지 시간(bh)을 기다리지 않고 **지금** 걷는다.
+      if(st.a==='bubbleclose')return nhHush()!==false;
       if(st.a==='scope'){if(typeof switchTab==='function')switchTab('feed');
         return nhScope(st.v)!==false;}
       // ── v1.75 카메라 연출 ──
@@ -8739,7 +8773,8 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'coupon', // v2.20: 타임딜 쿠폰을 받는다 (v=리워드 문구·e=문구 표시 초·i=어느 딜)
   'dim','undim', // v2.21: 깔린 지도 컨텐츠를 흐리게/원복 — 이후 뜨는 것만 강조하는 연출 (v=남길 불투명도 %)
   'page', // v2.2: 상단 지면을 옆으로 넘긴다
-  'reward']; // v2.27: 현장 답변 리워드 지급 — answer 와 분리. 우하단 agent 말풍선 + 코인 버스트 (v=문구)
+  'reward', // v2.27: 현장 답변 리워드 지급 — answer 와 분리. 우하단 agent 말풍선 + 코인 버스트 (v=문구)
+  'bubbleclose']; // v2.31: 우하단 말풍선을 지금 닫는다 (agent 말풍선 + 현장 Request 수신 카드 + 프리셋)
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
@@ -8777,7 +8812,12 @@ function nhSanitize(raw){
   if(!raw||!Array.isArray(raw.steps)||!raw.steps.length)return null;
   nhCustomArea(raw); // 아래 area 게이트보다 **먼저** — 등록돼 있어야 custom 스텝이 산다
   var steps=[];
-  for(var i=0;i<raw.steps.length&&steps.length<20;i++){
+  /* **단계 수에 상한이 없다** (v2.31). 여태 `steps.length<20` 이 걸려 있어 21번째부터
+     통째로 버려졌고, 버렸다는 말도 어디에도 안 남아서 "21단계부터 아무 일도 안 한다"
+     로만 보였다(콘솔은 20개를 보냈다고 믿는다). 재생 루프(nhRun 의 next)는 한 번에
+     타이머 하나만 들고 재귀하므로 단계가 늘어도 쌓이는 것이 없다. 대본은 허용 오리진의
+     콘솔만 보낼 수 있으니(EMBED_ORIGINS) 여기서 굳이 막을 것이 아니다. */
+  for(var i=0;i<raw.steps.length;i++){
     var s=raw.steps[i]||{};
     if(NH_ACTIONS.indexOf(s.a)<0)continue;              // 모르는 액션은 버린다
     // 모르는 지역도 버린다. 남겨두면 지도가 안 움직인 채로 다음 스텝이 흘러가서
