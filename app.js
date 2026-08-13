@@ -1126,6 +1126,8 @@ function cpopOpenEntry(it){ // 피드 리스트 항목 → 상세 팝업 (v1.62 
 function openContentPop(kind,data){
   var m=document.getElementById('content-pop'),body=document.getElementById('cpop-body'),tt=document.getElementById('cpop-title');
   if(!m||!body||!data)return;
+  // 현장 Request 팝업이 뜨면 agent 말풍선은 끝난 말이다 (v2.30 — showReqBubble 과 같은 규칙)
+  if(kind==='req'&&typeof hideAiBubble==='function')hideAiBubble();
   body.innerHTML='';
   cpopRefresh=null; // 앞 팝업의 갱신 훅이 남으면 없어진 DOM 을 다시 그린다 (v2.19)
   // 헤더 액션(v1.63): 제목과 얼라인 — [📍 지도보기][✏️ 수정(권한자)] ... [닫기]
@@ -1981,7 +1983,34 @@ function coinBurst(anchor){ // anchor(말풍선) 위에서 🪙 12개가 부채�
     setTimeout(function(){if(host.parentNode)host.parentNode.removeChild(host);},1400);
   }catch(e){}
 }
-var rewardBubbleTimer=null;
+/* ── agent 말풍선을 한 손이 든다 (v2.30) ────────────────────────────────────
+   #ai-bubble 을 띄우는 자리가 여섯 군데였고 머무는 시간이 2.6·4·5·6·7초로 제각각
+   흩어져 있었다. 무대(M16)가 "이 단계의 말풍선은 몇 초" 를 정하려면 그 값이 한 곳에
+   있어야 한다 — 여기가 그 자리다.
+
+   `nhBubbleMs` 는 **지금 도는 단계**가 정한 값이다(스텝의 `bh`, 초). nhAct 가 매
+   단계 시작에 심고(없으면 null 로 지운다) 다음 단계가 덮는다 — 말풍선이 액션보다
+   늦게 뜨는 경우(ai 의 답은 ms*0.4 뒤)까지 같은 단계의 값이 살아 있어야 해서
+   실행 직후에 지우지 않는다. 시연이 아닐 때는 늘 null 이라 액션 기본값이 온다. */
+var nhBubbleMs=null;
+function nhBubbleSet(bh){var n=parseFloat(bh);nhBubbleMs=(isFinite(n)&&n>0)?Math.min(60000,Math.round(n*1000)):null;}
+/* 말풍선 하나를 띄운다. 유지 시간을 정하는 순서는 **좁은 규칙부터**다:
+   hardMs(그 액션만의 값 — coupon 의 `e`) → nhBubbleMs(단계의 `bh`, 모든 액션) → defMs(이 자리 기본). */
+function aiSay(text,defMs,hardMs){
+  var ab=document.getElementById('ai-bubble');if(!ab)return false;
+  var ms=(hardMs!=null)?hardMs:((nhBubbleMs!=null)?nhBubbleMs:(defMs||5000));
+  ab.textContent=String(text==null?'':text).slice(0,200);
+  ab.classList.remove('show');void ab.offsetWidth;ab.classList.add('show'); // 이어 뜨는 말풍선도 팝 애니메이션을 다시 탄다
+  clearTimeout(ab._t);
+  ab._t=setTimeout(function(){ab.classList.remove('show');},ms);
+  return true;
+}
+function hideAiBubble(){
+  var ab=document.getElementById('ai-bubble');
+  if(ab){ab.classList.remove('show');clearTimeout(ab._t);}
+  // 프리셋 패널도 같은 구석에 뜬다 — 말풍선만 걷으면 그 아래 질문 목록이 남는다
+  var pn=document.getElementById('ai-presets');if(pn)pn.classList.remove('show');
+}
 var lastAnsweredReqId=null; // v2.29 방금 답한 Request — 리워드 지급이 걷어 갈 대상
 /* 답이 값을 받았으면 그 Request 는 끝난 일이다 (v2.29) — 지도에 계속 서 있으면
    "아직 답을 기다린다" 고 말하는 핀이 된다. 핀을 **터뜨려** 걷는다: 지웠다는 사실이
@@ -2001,11 +2030,8 @@ function showRewardBubble(msg,reqId){ // msg 비우면 기본 문구 — 시나�
   addCoins(REQ_COIN);
   reqPopAway(reqId||lastAnsweredReqId); // 지급 = 그 Request 의 종료 (v2.29)
   var ab=document.getElementById('ai-bubble');if(!ab)return true;
-  ab.textContent=(msg&&String(msg).trim().slice(0,120))||('🪙 '+REQ_COIN+' 코인 리워드가 지급됐어요! 현장 답변 감사해요.');
-  ab.classList.add('show');
+  aiSay((msg&&String(msg).trim().slice(0,120))||('🪙 '+REQ_COIN+' 코인 리워드가 지급됐어요! 현장 답변 감사해요.'),5000);
   coinBurst(ab);
-  clearTimeout(rewardBubbleTimer);
-  rewardBubbleTimer=setTimeout(function(){ab.classList.remove('show');},5000);
   return true;
 }
 function closeDrawer(){var p=document.getElementById('phone-drawer');if(p)p.classList.remove('open');var c=document.getElementById('pc-drawer');if(c)c.classList.remove('open');}
@@ -3573,8 +3599,8 @@ function liveOn(){
       }else if(ch.type==='modified'){
         var n=(v.answers||[]).length,seen=(reqAnsSeen[id]||0);reqAnsSeen[id]=n;
         if(v.by===myUid()&&n>seen){ // 내 Request에 새 답변 → 요청자에게 도착 알림 (대기중/결과 상시 노출 대신)
-          var last=v.answers[n-1]||{},ab=document.getElementById('ai-bubble');
-          if(ab){ab.textContent='📍 '+v.place+' 현장 답변 도착: '+(last.img?'📷 ':'')+(last.t||'');ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},6000);}
+          var last=v.answers[n-1]||{};
+          aiSay('📍 '+v.place+' 현장 답변 도착: '+(last.img?'📷 ':'')+(last.t||''),6000);
         }
       }else if(ch.type==='removed'){delete reqAnsSeen[id];}
     });
@@ -4419,7 +4445,11 @@ function initAiAgent(mirror){
     if(panel)panel.classList.remove('show');
     aiBub.textContent='🤖 '+text;
     aiBub.classList.remove('show');void aiBub.offsetWidth;aiBub.classList.add('show');
-    clearTimeout(aiBub._t);aiBub._t=setTimeout(hideAi,ms||7000);
+    /* 유지 시간 (v2.30): 부르는 쪽이 정했으면(생각하는 중 60초·원격 답 12초) 그 값,
+       아니면 단계의 `bh`, 아니면 7초. 닫을 때 `hideAi` 를 쓰는 것은 이 자리뿐이라
+       aiSay 로 합치지 않는다 — 여기는 기다리던 원격 답까지 버려야 한다(aiAskSeq). */
+    var hold=(ms!=null)?ms:((typeof nhBubbleMs!=='undefined'&&nhBubbleMs!=null)?nhBubbleMs:7000);
+    clearTimeout(aiBub._t);aiBub._t=setTimeout(hideAi,hold);
   }
   aiBtn.addEventListener('click',function(e){e.stopPropagation();
     if((panel&&panel.classList.contains('show'))||aiBub.classList.contains('show')){hideAi();return;}
@@ -5531,8 +5561,8 @@ function commitFieldRequest(ll,q,opts){
   if(opts.stage)rq.stage=true;
   if(hasLive()){fbDb.collection('liveRequests').doc(rq.id).set({id:rq.id,lat:rq.lat,lng:rq.lng,q:rq.q,place:rq.place,answers:[],by:myUid(),ts:rq.ts}).catch(liveWriteErr);}
   else{fieldRequests.unshift(rq);saveRequests();if(!opts.quiet)renderRequestMarkers();}
-  var ab=document.getElementById('ai-bubble'); // 수신 팝업은 타겟 지역의 '다른' 사용자에게만(실시간 리스너) — 요청자 본인에겐 안 띄움
-  if(ab){ab.textContent='📍 Request 전송! 근처 현장 유저에게 알림이 갑니다. (10분간 답변 수신)';ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},2600);}
+  // 수신 팝업은 타겟 지역의 '다른' 사용자에게만(실시간 리스너) — 요청자 본인에겐 안 띄움
+  aiSay('📍 Request 전송! 근처 현장 유저에게 알림이 갑니다. (10분간 답변 수신)',2600);
   return rq;
 }
 /* ── Request 컴포저 오버레이 (v2.18) ──
@@ -5592,6 +5622,10 @@ function showReqBubble(rq,force){ // AI Agent 수신 카드: 현장 Request 필 
   // force = 무대(M16)가 띄우는 장면 — 이 기기의 '보기' 취향이 시연의 한 장면을 지우면 안 된다 (v2.19)
   if(!reqCardShown&&!force)return; // v1.92 드로어 '보기'에서 끌 수 있다
   var b=document.getElementById('req-bubble');if(!b)return;
+  /* agent 말풍선을 먼저 걷는다 (v2.30) — 둘은 우하단 같은 자리(right:3cqw · bottom:21cqw)에
+     겹쳐 뜬다. 수신 카드가 위로 올라가면 그 밑에 깔린 말풍선의 아랫단만 삐져나와
+     읽을 수도 없는 글자가 남았다. 새 것이 오면 이전 말은 끝난 말이다. */
+  hideAiBubble();
   document.getElementById('rq-place').textContent=rq.place;
   document.getElementById('rq-text').textContent='"'+rq.q+'"';
   var cn=document.getElementById('rq-coin');if(cn)cn.textContent='🪙 '+REQ_COIN; // 리워드는 상수 하나가 정한다
@@ -5631,10 +5665,9 @@ function answerRequest(id,text,img){ // img: 사진 답변(dataURL, 선택)
      v2.29: 남의 Request 에 답한 쪽(earned)은 **아무 말도 안 한다** — "전달됐어요,
      리워드는 잠시 뒤" 는 곧 뒤따르는 리워드 말풍선이 할 말을 미리 하는 중복 안내였다.
      내 Request 에 답이 **도착한** 것은 여전히 알려야 한다(내가 모르는 일이 일어났다). */
-  if(ab&&!earned){ab.textContent=hasLive()
+  if(ab&&!earned)aiSay(hasLive()
     ?'📍 답변 전송! 요청자에게 실시간으로 전달했어요.'
-    :'📍 '+rq.place+' 현장 답변 도착: '+(img?'📷 ':'')+text;
-    ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},5000);}
+    :'📍 '+rq.place+' 현장 답변 도착: '+(img?'📷 ':'')+text,5000);
   /* v2.27 지급은 즉시가 아니다 — v2.18 의 addCoins+coinFly 는 삭제. 답이 전달되고
      시간이 지나 리워드 말풍선(코인 버스트)이 따로 뜬다. 임베드(시나리오)는 지급 시점을
      'reward' 액션이 정하므로 자동 지연 지급을 걸지 않는다 — 걸면 두 번 지급된다. */
@@ -5821,14 +5854,15 @@ function couponFly(){
    opts.say 로 문구를 갈아 끼울 수 있다(무대가 정한다). */
 function claimDeal(d,opts){
   opts=opts||{};
-  var ms=(opts.ms==null)?4000:(opts.ms|0);
-  couponFly(); // 받는 모습이 먼저다 (v2.29) — 문구를 안 띄우는 연출(ms:0)에서도 쿠폰은 날아간다
-  if(ms<=0)return true;
-  var ab=document.getElementById('ai-bubble');if(!ab)return true;
-  ab.textContent=String(opts.say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요 — 매장에서 제시하세요.')).slice(0,160);
-  ab.classList.add('show');
-  clearTimeout(claimDeal._t);
-  claimDeal._t=setTimeout(function(){ab.classList.remove('show');},Math.min(ms,20000));
+  /* 유지 시간을 정할 수 있는 두 자리 (v2.30): 이 액션 고유의 `e`(표시 초)가 먼저고,
+     안 정했으면 단계의 `bh`(모든 액션 공통)가, 그것도 없으면 4초다 — 좁은 규칙이 이긴다.
+     `opts.ms` 가 **null 이면 "안 정했다"** 이지 4초가 아니다: 4초로 굳히면 `e` 를
+     비워 둔 단계에서 `bh` 가 영영 못 온다(nhCouponMs 도 빈 값에 null 을 돌려준다). */
+  var hard=(opts.ms==null)?null:(opts.ms|0);
+  couponFly(); // 받는 모습이 먼저다 (v2.29) — 문구를 안 띄우는 연출(e:0)에서도 쿠폰은 날아간다
+  if(hard!=null&&hard<=0)return true;
+  aiSay(String(opts.say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요 — 매장에서 제시하세요.')).slice(0,160),
+    4000,(hard==null)?null:Math.min(hard,20000));
   return true;
 }
 function dealDistLabel(d){ // 시안은 '180m' 고정이지만 이 앱은 실제 좌표가 있다 — 실측을 쓴다
@@ -7471,12 +7505,12 @@ function nhWriteSpot(text,token,ms,emoji,fast){
   var pos=0;
   setTimeout(function(){
     if(token!==nhRunToken||!ov.textEl)return;
+    nhSfxPlay('type'); // 손이 자판에 닿는 순간 **한 번** (v2.30 — 글자마다 울리면 기관총이다)
     var iv=setInterval(function(){
       if(token!==nhRunToken||!ov.textEl){clearInterval(iv);return;}
       // 한 틱에 1~2자 — 등속 타자기가 아니라 사람의 몰아치는 손이다.
       pos+=(pos%3===2)?2:1;
       if(pos>=typed.length){pos=typed.length;clearInterval(iv);}
-      nhSfxPlay('type'); // 글자가 박히는 소리 (v2.25) — 최소 간격이 촘촘한 자리다
       ov.textEl.value=typed.slice(0,pos);
     },per);
   },t0);
@@ -7539,11 +7573,11 @@ function nhRequestTyped(text,token,ms,fast){
   var pos=0;
   setTimeout(function(){
     if(token!==nhRunToken||!ov.textEl)return;
+    nhSfxPlay('type'); // 손이 자판에 닿는 순간 **한 번** (v2.30 — 글자마다 울리면 기관총이다)
     var iv=setInterval(function(){
       if(token!==nhRunToken||!ov.textEl){clearInterval(iv);return;}
       pos+=(pos%3===2)?2:1;
       if(pos>=typed.length){pos=typed.length;clearInterval(iv);}
-      nhSfxPlay('type'); // 글자가 박히는 소리 (v2.25) — 최소 간격이 촘촘한 자리다
       ov.textEl.value=typed.slice(0,pos);
     },per);
   },t0);
@@ -7602,11 +7636,11 @@ function nhAnswerTyped(rq,text,token,ms,fast){
   var pos=0;
   setTimeout(function(){
     if(token!==nhRunToken)return;
+    nhSfxPlay('type'); // 손이 자판에 닿는 순간 **한 번** (v2.30 — 글자마다 울리면 기관총이다)
     var iv=setInterval(function(){
       if(token!==nhRunToken||!inp.isConnected){clearInterval(iv);return;}
       pos+=(pos%3===2)?2:1;
       if(pos>=typed.length){pos=typed.length;clearInterval(iv);}
-      nhSfxPlay('type'); // 글자가 박히는 소리 (v2.25) — 최소 간격이 촘촘한 자리다
       inp.value=typed.slice(0,pos);
     },per);
   },t0);
@@ -7628,9 +7662,11 @@ function nhAnswerTyped(rq,text,token,ms,fast){
    말은 다음 장면이 하게 두는 연출이 있다. */
 function nhCouponMs(e){
   var s=String(e==null?'':e).trim();
-  if(!s)return 4000;              // 빈 값 = 여태처럼 4초
+  /* 빈 값 = **이 액션은 안 정했다** (v2.30). 여태 4000 을 돌려줬는데, 그러면 claimDeal
+     쪽에서 "사람이 4초로 정한 것" 과 구별되지 않아 단계의 `bh` 가 영영 못 왔다. */
+  if(!s)return null;
   var n=parseFloat(s);
-  if(!isFinite(n)||n<0)return 4000;
+  if(!isFinite(n)||n<0)return null;
   return Math.min(20000,Math.round(n*1000)); // 0 = 안 띄움 (claimDeal 이 판단)
 }
 function nhCoupon(i,say,e,token,ms,fast){
@@ -7809,6 +7845,10 @@ function nhScrollHuman(el,dist,ms,token){
    ② 누르는 액션(탭·AI·범위 칩·팝업 닫기)은 **터치 표식을 먼저** 띄우고 한 박자(170ms)
      뒤에 실행한다 — 사람 손가락의 박자다. 대상을 못 찾으면 표식만 생략하고 즉시 실행. */
 function nhAct(st,token){
+  /* 이 단계가 정한 말풍선 유지 시간을 심는다 (v2.30) — **모든 액션이 대상**이라
+     액션별 분기 안이 아니라 여기, 실행 전에 한 번 둔다. 실행 직후에 지우지 않는 이유는
+     말풍선이 액션보다 늦게 뜨는 경우가 있어서다(ai 의 답은 ms*0.4 뒤). 다음 단계가 덮는다. */
+  nhBubbleSet(st&&st.bh);
   function exec(){
     try{
       if(st.a==='tab'){if(typeof switchTab!=='function')return false;switchTab(st.v);return true;}
@@ -7914,7 +7954,7 @@ function nhAct(st,token){
 }
 
 var nhRunToken=0;
-function nhStop(){nhRunToken++;}
+function nhStop(){nhRunToken++;nhBubbleMs=null;} // 회차가 끝나면 말풍선 시간도 액션 기본으로 (v2.30)
 
 /* 재생 전 초기화 — 시연은 몇 번을 돌려도 같은 곳에서 시작해야 한다.
    앞 시나리오가 열어둔 팝업·드로어가 남으면 다음 회차가 그 뒤에서 조용히 흘러간다. */
@@ -8655,6 +8695,10 @@ function nhSanitize(raw){
          지나갈 때 붙인다. 연출(터치 표식·타이핑·바운스)을 접고 **그 자리에서 커밋**한다 —
          ms 바닥을 기다리지 않아도 사슬(i:-1)이 안 끊긴다. 옛 콘솔은 안 보낸다. */
       fast:!!s.fast,
+      /* bh (v2.30, 콘솔 D125) — 이 단계가 띄우는 **agent 말풍선이 머무는 초**.
+         액션마다 4~7초로 흩어져 있던 기본값을 단계가 덮는다. 0.3~60초 밖·빈 값은
+         버린다(그러면 액션 기본값). 옛 콘솔은 안 보내고, 옛 앱은 이 필드를 모른다. */
+      bh:(function(n){return (isFinite(n)&&n>=0.3&&n<=60)?n:0;})(parseFloat(s.bh)),
       concern:!!s.concern,key:!!s.key,
       /* 상·하한 (시연이 멈춰 보이지 않게). **하한은 50 이다** — 400 이었는데, 콘솔의
          "이 단계 화면 보기" 가 앞 단계를 빨리 감아 지나가는 데 그 바닥이 곧 대기시간이라
