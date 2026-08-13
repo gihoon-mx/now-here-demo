@@ -249,6 +249,37 @@ button:focus:not(:focus-visible){outline:none;}
   100%{opacity:0;transform:translate(var(--dx,0cqw),calc(var(--dy,-10cqw) + 16cqw)) scale(.9) rotate(var(--rot,180deg));}
 }
 
+/* 쿠폰 수집 (v2.29) — 타임딜 '쿠폰 받기'. 티켓이 시트가 있던 자리에서 부풀었다가
+   우상단 프로필로 날아가 접히고, 프로필이 노란 링으로 한 번 받는다. 거리는 JS 가
+   px 로 준다(--dx/--dy) — 출발·도착이 둘 다 실제 요소 자리라 cqw 로는 못 적는다. */
+.coupon-fly{position:absolute;z-index:200;pointer-events:none;width:0;height:0;}
+.coupon-fly .cf-ticket{position:absolute;left:0;top:0;display:block;font-size:11cqw;line-height:1;
+  filter:drop-shadow(0 1cqw 2cqw rgba(16,24,40,0.28));animation:cfFly 1.15s cubic-bezier(.5,0,.2,1) forwards;}
+@keyframes cfFly{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-18deg);}
+  16%{opacity:1;transform:translate(-50%,-50%) scale(1.3) rotate(0);}
+  32%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0);}
+  100%{opacity:0;transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-40px))) scale(.22) rotate(14deg);}
+}
+/* 프로필이 받는 순간 — 크기는 안 건드린다(다른 규칙의 transform 과 안 싸우도록 링만) */
+.pa-profile.cf-catch{animation:cfCatch .6s ease-out;}
+@keyframes cfCatch{0%{box-shadow:0 0 0 0 rgba(242,195,60,0);}40%{box-shadow:0 0 0 2cqw rgba(242,195,60,0.55);}100%{box-shadow:0 0 0 3.6cqw rgba(242,195,60,0);}}
+
+/* 여기에 추가 (v2.29) — 꾹 눌러 컨텐츠 추가 메뉴를 열면 그 좌표에 서는 자리표.
+   컨텐츠가 아니라 **예고**라 점선 링에 +만 있다: 실제 핀·말풍선과 헷갈리면 안 된다.
+   핀류와 같은 규약으로 폰 밖(PC 지도)에도 그려지므로 px. 클릭은 안 받는다. */
+.add-pin{position:absolute;transform:translate(-50%,-50%);width:0;height:0;pointer-events:none;z-index:4;}
+.add-pin .apn-dot{position:absolute;left:-13px;top:-13px;display:flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:50%;background:var(--acc,#2f7bff);border:2px solid #fff;
+  box-shadow:0 2px 8px rgba(47,123,255,0.45);color:#fff;font-size:15px;font-weight:800;line-height:1;
+  animation:apnIn .32s cubic-bezier(.2,1.6,.35,1) both;}
+.add-pin .apn-ring{position:absolute;left:-13px;top:-13px;width:26px;height:26px;border-radius:50%;
+  border:2px dashed rgba(47,123,255,0.6);animation:apnPulse 1.8s ease-out infinite;}
+body.mode-trend .add-pin .apn-dot{background:linear-gradient(150deg,#ffb37a,#e23b2a);box-shadow:0 2px 8px rgba(255,80,50,0.45);}
+body.mode-trend .add-pin .apn-ring{border-color:rgba(255,90,60,0.6);}
+@keyframes apnIn{0%{transform:scale(.2);opacity:0;}100%{transform:scale(1);opacity:1;}}
+@keyframes apnPulse{0%{transform:scale(.7);opacity:.85;}80%{transform:scale(2);opacity:0;}100%{transform:scale(2);opacity:0;}}
+
 /* 스팟 추가 폼 */
 .spot-add-row{margin-top:4px;}
 #spot-add-btn{width:100%;}
@@ -924,6 +955,14 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 body.mode-trend .req-pin .rp-drop{background:linear-gradient(150deg,#ffb37a,var(--heat,#e23b2a));box-shadow:0 3px 10px rgba(255,80,50,0.4);}
 body.mode-trend .req-pin .rp-ring{border-color:rgba(255,90,60,0.55);}
 @keyframes rpPulse{0%{transform:scale(.5);opacity:.9;}80%{transform:scale(2.1);opacity:0;}100%{transform:scale(2.1);opacity:0;}}
+/* 리워드가 지급되면 그 Request 는 끝난 일이다 (v2.29) — 핀이 **펑 터지며** 사라진다.
+   조용히 없어지면 렌더 사고처럼 읽히므로 사라지는 순간을 눈에 남긴다: 드롭이 부풀었다
+   꺼지고, 펄스 링은 제자리에서 한 번 크게 퍼진다. 480ms 뒤 JS(reqPopAway)가 실제로 걷는다. */
+.req-pin.rp-pop .rp-drop{animation:rpPopOut .44s cubic-bezier(.3,1.2,.5,1) forwards;}
+.req-pin.rp-pop .rp-ring{animation:rpPopRing .44s ease-out forwards;}
+.req-pin.rp-pop .rp-ring.r2{animation-delay:.06s;}
+@keyframes rpPopOut{0%{transform:scale(1);opacity:1;}35%{transform:scale(1.45);opacity:1;}100%{transform:scale(.2);opacity:0;}}
+@keyframes rpPopRing{0%{transform:scale(1);opacity:.85;border-width:2px;}100%{transform:scale(2.8);opacity:0;border-width:1px;}}
 
 /* 내 Request 카드: 뱃지(내 Request/상태) + 답변 목록 펼침 */
 .rq-card.mine{border-color:rgba(47,123,255,0.35);}
@@ -1215,12 +1254,14 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 .feed-card .fc-mapbg{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:cover;border-radius:inherit;pointer-events:none;z-index:0;}
 .feed-card.txt .fc-emoji,.feed-card.txt .fc-text{position:relative;z-index:1;}
 
-/* ── 트렌드 모드 AI 캐릭터 = 선글라스 (v1.61) + 온도색 사선 흐름 배경 (v2.21) ──
+/* ── 트렌드 모드 AI 캐릭터 = 선글라스 (v1.61) + 온도색 사선 배경 (v2.21) ──
    v2.15 의 렌즈 무지개(aiLensRainbow)·발광(aiShadeGlow)은 걷었다 — 색이 계속 바뀌는
    선글라스가 산만하다는 피드백. 선글라스는 **정지한 다크 렌즈**로 남고, 트렌드 구분은
    버튼 배경이 한다: 온도 팔레트(HEAT_STOPS)의 붉은 두 색(#f2862e·#e23b2a)만 이어
-   사선(115deg)으로 흐른다. 색 목록은 app.js 의 HEAT_STOPS 끝 두 값과 같아야 한다.
-   그라디언트를 [A,B,A,B] 로 닫아 두면 background-position 이 한 바퀴 돌 때 이음매가 없다. */
+   사선(115deg)으로 앉는다. 색 목록은 app.js 의 HEAT_STOPS 끝 두 값과 같아야 한다.
+   v2.29: 흐름 애니메이션(aiHeatFlow)도 걷었다 — 렌즈를 정지시킨 것과 같은 이유다.
+   화면 구석에서 쉬지 않고 도는 그라디언트가 시선을 계속 끌어갔다. 배경은 **정지한
+   사선 두 색**이고, 움직이는 것은 누를 때의 회전(aiSpin) 뿐이다. */
 .pn-ai .ai-shades{display:none;}
 .pn-ai.ai-flame .ai-shades{display:block;}
 .pn-ai.ai-flame svg ellipse{display:none;} /* 눈은 선글라스 뒤로 */
@@ -1229,18 +1270,10 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 .pn-ai.ai-flame .sh-lens{fill:#1d222b;}
 .pn-ai.ai-flame{
   border-color:rgba(226,59,42,0.5);
-  background-image:linear-gradient(115deg,#f2862e,#e23b2a,#f2862e,#e23b2a);
-  background-size:300% 300%;
-  animation:aiHeatFlow 5s linear infinite;
+  background-image:linear-gradient(115deg,#f2862e,#e23b2a);
 }
-@keyframes aiHeatFlow{from{background-position:0% 50%;}to{background-position:300% 50%;}}
-/* 트렌드 전용 클릭(활성): 흐르는 배경은 그대로 두고 테두리만 짙게 — 배경을 덮으면 흐름이 멈춘 것처럼 보인다 */
-.pn-ai.ai-flame.ai-on{background-image:linear-gradient(115deg,#f2862e,#e23b2a,#f2862e,#e23b2a);border-color:rgba(226,59,42,0.9);box-shadow:0 0 0 0.6cqw rgba(226,59,42,0.18);}
-.pn-ai.ai-flame.spin{animation:aiSpin .62s cubic-bezier(.3,1,.35,1),aiHeatFlow 5s linear infinite;}
-/* 움직임을 줄이라고 한 기기에서는 흐르지 않고 두 색 사선으로 선다 (mapMorph 와 같은 규칙) */
-@media (prefers-reduced-motion:reduce){
-  .pn-ai.ai-flame,.pn-ai.ai-flame.spin{animation:none;background-image:linear-gradient(115deg,#f2862e,#e23b2a);}
-}
+/* 트렌드 전용 클릭(활성): 배경은 그대로 두고 테두리만 짙게 */
+.pn-ai.ai-flame.ai-on{border-color:rgba(226,59,42,0.9);box-shadow:0 0 0 0.6cqw rgba(226,59,42,0.18);}
 
 /* ── 스팟 의견: 메시지 버블 리스트 + 입력 (상세 팝업 내부) ── */
 #cpop-body .cps-comments{margin-top:12px;max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;text-align:left;}
@@ -1262,6 +1295,12 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 /* v2.27 팝업 문법 통일: req-bubble 과 같은 프로스트·라운드(폰 밖 fixed 라 px — 5cqw≈20px)·그림자 */
 .cpop-card{background:var(--frost);backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));-webkit-backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));
   border:1px solid var(--glass-line);border-radius:20px;box-shadow:0 6px 18px rgba(16,24,40,0.18),var(--glass-hi);}
+/* v2.29: **뒷배경을 어둡게 덮지 않는다.** 카드만 유리로 바꿔 놓고 뒤에 남은 `.modal-overlay`
+   의 짙은 스크림(rgba(15,23,42,.42)+blur)이 화면을 눌러, 같은 유리인데도 컨텐츠 추가 메뉴·
+   에이전트 말풍선과 전혀 다른 물건으로 보였다. 그 둘은 지도 위에 그냥 떠 있다 — 지도 컨텐츠를
+   눌러 여는 팝업도 지도를 계속 보여 줘야 "이 지점의 것"으로 읽힌다.
+   오버레이 자체는 남긴다(바깥 클릭으로 닫는 자리 · 레이어). 관리자 모달은 안 건드린다. */
+#content-pop{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;}
 
 /* ── v1.63 스팟 의견 수 뱃지 (버블 우상단, 색=모드 규칙) ── */
 .spot-cmt{position:absolute;right:-8px;top:-9px;font-size:9px;font-weight:800;color:#fff;border-radius:999px;padding:2px 5px;line-height:1;box-shadow:0 0 0 1.5px #fff;white-space:nowrap;}
@@ -1438,10 +1477,15 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
 .deal-pin.dl-dot .dp-pct{display:none;}
 .deal-pin.dl-dot .dp-circle{width:12px;height:12px;font-size:0;border-width:1.5px;box-shadow:0 1px 3px rgba(15,23,42,0.25);}
 
+/* v2.29 팝업 문법 통일: 스크림을 걷고 시트를 유리로 — 컨텐츠 추가 메뉴(.content-add-menu)·
+   에이전트 말풍선(.ai-bubble/.req-bubble)과 같은 프로스트·헤어라인·상단 광택이다.
+   딜은 **지도 위 그 매장의 것**이라 지도가 계속 보여야 한다. 스크림 div 는 남긴다 —
+   바깥을 눌러 닫는 자리다(closeDealSheet). */
 .deal-sheet{position:absolute;inset:0;z-index:30;}
-.deal-sheet .ds-scrim{position:absolute;inset:0;background:rgba(26,26,26,0.3);}
+.deal-sheet .ds-scrim{position:absolute;inset:0;background:transparent;}
 .deal-sheet .ds-card{position:absolute;left:0;right:0;bottom:0;padding:5cqw 4.6cqw 7.6cqw;
-  background:#fff;border-radius:6cqw 6cqw 0 0;box-shadow:0 -2cqw 8cqw rgba(0,0,0,0.2);
+  background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  border-top:1px solid var(--glass-line);border-radius:6cqw 6cqw 0 0;box-shadow:0 -1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);
   animation:dsUp .26s cubic-bezier(.22,1,.36,1);}
 @keyframes dsUp{from{opacity:0;transform:translateY(6cqw);}to{opacity:1;transform:none;}}
 .deal-sheet .ds-grip{display:block;width:9.7cqw;height:1cqw;margin:0 auto 4.1cqw;border-radius:9999px;background:#e6e5e1;}

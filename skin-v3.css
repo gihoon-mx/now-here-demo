@@ -250,12 +250,11 @@ body[data-skin="v3"] .pn-ai{padding:3.3cqw;}
 /* 캐릭터 얼굴을 흰 계열로 — 회색 유리 위에서 선이 죽는다 */
 body[data-skin="v3"] .pn-ai svg g[fill]{fill:rgba(255,255,255,.94);}
 body[data-skin="v3"] .pn-ai.ai-on{background:var(--v3-glass-on);}
-/* 트렌드 = 온도 팔레트 붉은 두 색의 사선 흐름 (v2.21 — style.css .pn-ai.ai-flame 과 같은 값).
-   이 스킨의 .pn-ai 배경 축약이 style.css 의 흐름 배경을 지우므로 여기서 다시 선언한다 —
-   애니메이션(aiHeatFlow)·정지 렌즈는 style.css 것이 그대로 돈다 (무지개 발광은 v2.21 에서 삭제). */
+/* 트렌드 = 온도 팔레트 붉은 두 색의 정지한 사선 (v2.21 · v2.29 흐름 제거 —
+   style.css .pn-ai.ai-flame 과 같은 값). 이 스킨의 .pn-ai 배경 축약이 style.css 배경을
+   지우므로 여기서 다시 선언한다 — 정지 렌즈는 style.css 것이 그대로 온다. */
 body[data-skin="v3"] .pn-ai.ai-flame{
-  background-image:linear-gradient(115deg,#f2862e,#e23b2a,#f2862e,#e23b2a);
-  background-size:300% 300%;
+  background-image:linear-gradient(115deg,#f2862e,#e23b2a);
 }
 
 /* ══ ② 지도 오버레이 ═══════════════════════════════════════════════════════
@@ -731,7 +730,9 @@ body[data-skin="v3"]:not(.mode-trend) .deal-pin .dp-circle{background:#fff;borde
 body[data-skin="v3"]:not(.mode-trend) .deal-pin .dp-pct{background:#fff;color:var(--v3-ink3);box-shadow:0 3px 10px rgba(0,0,0,.1);}
 body[data-skin="v3"].mode-trend .deal-pin .dp-circle{background:var(--v3-yellow);border-color:#E8A92B;}
 body[data-skin="v3"].mode-trend .deal-pin .dp-pct{background:var(--v3-red);color:#fff;}
-body[data-skin="v3"] .deal-sheet .ds-card{background:var(--v3-surface);}
+/* v2.29: 이 스킨도 유리 시트를 그대로 쓴다 — 불투명 면(--v3-surface)으로 덮으면
+   style.css 가 세운 팝업 문법 통일이 이 스킨에서만 깨진다(v3 가 기본 스킨이다). */
+body[data-skin="v3"] .deal-sheet .ds-card{background:var(--frost);}
 body[data-skin="v3"] .deal-sheet .ds-tag{background:var(--v3-yellow);color:#4A3B00;}
 body[data-skin="v3"] .deal-sheet .ds-left,
 body[data-skin="v3"] .deal-sheet .ds-pct{color:var(--v3-red);}

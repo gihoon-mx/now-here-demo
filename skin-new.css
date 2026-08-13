@@ -240,12 +240,11 @@ body[data-skin="new"] .pn-ai{
 /* 캐릭터는 그대로 두되 배경이 그라디언트라 얼굴을 흰 계열로 올린다 */
 body[data-skin="new"] .pn-ai svg g[fill]{fill:rgba(255,255,255,.92);}
 body[data-skin="new"] .pn-ai.ai-on{box-shadow:var(--nk-sh-blue),0 0 0 1.4cqw rgba(90,200,240,.22);}
-/* 트렌드 = 온도 팔레트 붉은 두 색의 사선 흐름 (v2.21 — style.css .pn-ai.ai-flame 과 같은 값).
-   이 스킨은 .pn-ai 배경을 축약형으로 덮으므로 여기서도 흐름 배경을 다시 선언해야 한다 —
-   애니메이션(aiHeatFlow)은 style.css 것이 그대로 돈다. */
+/* 트렌드 = 온도 팔레트 붉은 두 색의 정지한 사선 (v2.21 · v2.29 흐름 제거 —
+   style.css .pn-ai.ai-flame 과 같은 값). 이 스킨은 .pn-ai 배경을 축약형으로 덮으므로
+   여기서도 배경을 다시 선언해야 한다. */
 body[data-skin="new"] .pn-ai.ai-flame{
-  background-image:linear-gradient(115deg,#f2862e,#e23b2a,#f2862e,#e23b2a);
-  background-size:300% 300%;
+  background-image:linear-gradient(115deg,#f2862e,#e23b2a);
   border:none;
   box-shadow:var(--nk-sh-hot);
 }
@@ -675,7 +674,7 @@ body[data-skin="new"] #content-pop .cpop-card{
      폭 326px 짜리 카드의 모서리가 뭉텅 잘려 내용이 가려졌다.
      ②지도 오버레이에서 세운 규칙과 같다: 컨테이너 밖은 px. */
   border-radius:22px;
-  background:rgba(255,255,255,.94);
+  background:var(--frost); /* v2.29 팝업 문법 통일 — 불투명 흰 면을 유리로 (style.css .cpop-card 와 같은 값) */
   box-shadow:0 24px 64px -20px rgba(14,20,32,.4);
 }
 body[data-skin="new"] #content-pop .cpop-hbtn{font-weight:800;color:var(--nk-ink3);}

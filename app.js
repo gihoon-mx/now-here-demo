@@ -1381,14 +1381,50 @@ function helperFor(m){return m===phoneMap?phoneProjHelper:mapProjHelper;}
 function clientToLatLng(m,div,cx,cy){var h=helperFor(m),p=h&&h.getProjection();if(!p||!div)return null;var r=div.getBoundingClientRect();return p.fromContainerPixelToLatLng(new google.maps.Point(cx-r.left,cy-r.top));}
 function positionAddMenuAt(cx,cy){var menu=document.getElementById('content-add-menu');var scr=menu&&menu.closest('.phone-screen');if(!scr)return;var r=scr.getBoundingClientRect();var x=cx-r.left,y=cy-r.top;menu.classList.add('at-point');menu.style.left=Math.max(6,Math.min(x,r.width*0.5))+'px';menu.style.right='auto';menu.style.top='auto';menu.style.bottom=Math.max(6,Math.min(r.height-y+8,r.height-6))+'px';}
 function resetAddMenuPos(){var menu=document.getElementById('content-add-menu');if(!menu)return;menu.classList.remove('at-point');menu.style.left='';menu.style.right='';menu.style.top='';menu.style.bottom='';}
+/* 어디에 놓이는지 지도가 말한다 (v2.29) — 꾹 눌러 추가 메뉴가 뜨면 **그 좌표에 마커**를
+   세운다. 여태는 메뉴만 떠서, 손가락을 뗀 자리와 실제로 놓일 자리가 같은지 알 길이 없었다.
+   메뉴가 닫히면 마커도 걷힌다. 컨텐츠가 만들어지면 그 자리에는 컨텐츠가 서므로 걷어도 된다 —
+   스팟·Request 는 컴포저 카드가 곧바로 그 좌표에 앉고(마커와 겹칠 필요가 없다), 사진·지면은
+   파일 고르는 동안 놓일 자리를 계속 보여야 하므로 마커를 살려 둔다(keepPin). */
+var addPinOv=null;
+/* 사진·지면이 놓일 자리 (v2.29) — 여태 이 둘은 꾹 누른 자리를 무시하고 **화면 센터**에
+   올라갔다. 자리를 가리키는 마커를 세우기로 한 이상 그 말이 참이어야 한다.
+   파일 고르기는 취소해도 이벤트가 없으므로(브라우저 규약) 창이 돌아온 뒤 확인해서 걷는다. */
+var feedDropAt=null, feedDropPicked=false;
+function feedDropClear(){feedDropAt=null;addPinHide();}
+function feedDropArm(){
+  feedDropPicked=false;
+  window.addEventListener('focus',function(){setTimeout(function(){if(!feedDropPicked)feedDropClear();},900);},{once:true});
+}
+function AddPin(latLng,m){this.position=latLng;this.div=null;this.setMap(m);}
+function initAddPinClass(){
+  AddPin.prototype=new google.maps.OverlayView();
+  AddPin.prototype.onAdd=function(){
+    var d=document.createElement('div');d.className='add-pin';
+    d.innerHTML='<span class="apn-ring"></span><span class="apn-dot">+</span>';
+    d.title='여기에 추가';
+    this.div=d;this.getPanes().overlayLayer.appendChild(d); // 클릭을 안 받는다 — 지도 조작을 가로막지 않는다
+  };
+  AddPin.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;
+    var q=p.fromLatLngToDivPixel(this.position);if(!q)return;
+    this.div.style.left=q.x+'px';this.div.style.top=q.y+'px';};
+  AddPin.prototype.onRemove=function(){if(this.div&&this.div.parentNode)this.div.parentNode.removeChild(this.div);this.div=null;};
+}
+function addPinShow(m,ll){
+  addPinHide();
+  if(!m||!ll||typeof google==='undefined'||typeof AddPin.prototype.draw!=='function')return;
+  try{addPinOv=new AddPin(new google.maps.LatLng(ll.lat(),ll.lng()),m);}catch(e){addPinOv=null;}
+}
+function addPinHide(){if(addPinOv){try{addPinOv.setMap(null);}catch(e){}addPinOv=null;}}
 function openAddMenu(mapObj,div,latLng,popCx,popCy){
   addTargetMap=mapObj||primaryMap();addTargetDiv=div||null;addAtLatLng=latLng||null;
   resetAddMenuPos();
   if(popCx!=null&&div&&div.closest&&div.closest('.phone-screen'))positionAddMenuAt(popCx,popCy); // 폰에선 누른 지점에 팝업
+  addPinShow(addTargetMap,addAtLatLng); // 좌표가 없으면(+버튼) 마커도 없다 — 화면 센터에 놓이므로 가리킬 지점이 없다
   var el=document.getElementById('content-add-menu');if(el)el.classList.add('open');
   addMenuOpenedAt=Date.now();
 }
-function closeAddMenu(){var el=document.getElementById('content-add-menu');if(el)el.classList.remove('open');resetAddMenuPos();}
+function closeAddMenu(keepPin){var el=document.getElementById('content-add-menu');if(el)el.classList.remove('open');resetAddMenuPos();if(!keepPin)addPinHide();}
 // 스팟 = 제스처 지점(있으면) 또는 보이는 화면 센터에 추가
 function addSpotContent(){
   if(!currentRole)return; // 로그인 사용자면 데모(뷰어)도 추가 가능
@@ -1946,8 +1982,24 @@ function coinBurst(anchor){ // anchor(말풍선) 위에서 🪙 12개가 부채�
   }catch(e){}
 }
 var rewardBubbleTimer=null;
-function showRewardBubble(msg){ // msg 비우면 기본 문구 — 시나리오('reward' 액션의 v)가 바꾼다
+var lastAnsweredReqId=null; // v2.29 방금 답한 Request — 리워드 지급이 걷어 갈 대상
+/* 답이 값을 받았으면 그 Request 는 끝난 일이다 (v2.29) — 지도에 계속 서 있으면
+   "아직 답을 기다린다" 고 말하는 핀이 된다. 핀을 **터뜨려** 걷는다: 지웠다는 사실이
+   보여야 사용자가 자기 답이 닫혔음을 안다(조용히 사라지면 렌더 사고처럼 읽힌다).
+   데이터는 남긴다(rq.rewarded) — 답변 목록·드로어에는 그대로 있어야 한다. */
+function reqPopAway(id){
+  if(!id)return;
+  var rq=(typeof reqById==='function')?reqById(id):null;if(!rq)return;
+  var ov=(typeof reqMarkers!=='undefined'?reqMarkers:[]).find(function(o){return o.rq&&o.rq.id===id;});
+  rq.rewarded=1;
+  if(ov&&ov.div){
+    ov.div.classList.add('rp-pop');
+    setTimeout(function(){if(typeof renderRequestMarkers==='function')renderRequestMarkers();},480); // 터짐이 끝나고 걷는다
+  }else if(typeof renderRequestMarkers==='function')renderRequestMarkers();
+}
+function showRewardBubble(msg,reqId){ // msg 비우면 기본 문구 — 시나리오('reward' 액션의 v)가 바꾼다
   addCoins(REQ_COIN);
+  reqPopAway(reqId||lastAnsweredReqId); // 지급 = 그 Request 의 종료 (v2.29)
   var ab=document.getElementById('ai-bubble');if(!ab)return true;
   ab.textContent=(msg&&String(msg).trim().slice(0,120))||('🪙 '+REQ_COIN+' 코인 리워드가 지급됐어요! 현장 답변 감사해요.');
   ab.classList.add('show');
@@ -2010,9 +2062,12 @@ function makeZoneCard(zone,focused){ // 존 카드 (글래스 캡션 / 리스트
     /* 사진 위에 글자를 얹는다 (v2.27) — 베이직 모드의 지면 카드와 같은 문법이다.
        유리 칩으로 감싸던 시절에는 칩이 사진의 절반을 덮어 어느 존인지보다 칩이 먼저 보였다.
        가독은 칩이 아니라 `.tz-card::after` 의 그라데이션이 맡는다.
-       온도는 이름 옆에 함께 — 트렌드 모드에서 존을 가르는 값이 이름 다음으로 그것이다. */
+       온도는 이름 옆에 함께 — 트렌드 모드에서 존을 가르는 값이 이름 다음으로 그것이다.
+       **이름·온도가 맨 아랫줄이다** (v2.29) — 설명은 그 위에 얹는다. 설명이 밑에 있으면
+       존이 무엇인지(이름)보다 부연이 먼저 눈에 들어오고, 설명이 있고 없고에 따라
+       이름 줄의 높이가 카드마다 달라져 캐러셀에서 글자 기준선이 들쭉날쭉했다. */
     c.className='tz-card';
-    c.innerHTML='<span class="tz-bubble"><span class="tz-line"><b></b><em class="tz-temp"></em></span><i></i></span>'+
+    c.innerHTML='<span class="tz-bubble"><i></i><span class="tz-line"><b></b><em class="tz-temp"></em></span></span>'+
       (pho?'<img class="tz-photo" alt="" />':'<span class="tz-photo tz-ph"></span>');
     c.querySelector('b').textContent=zone.name;
     var de=c.querySelector('i');de.textContent=zone.desc||'';if(!zone.desc)de.style.display='none';
@@ -2655,7 +2710,9 @@ function initPhoneControls(){
       it.addEventListener('click',function(){
         if(it.dataset.add==='spot'){addSpotContent();}
         else if(it.dataset.add==='request'){openRequestComposer();}
-        else{closeAddMenu();
+        else{/* 사진·지면은 파일을 고르는 동안 화면이 비어 있다 (v2.29) — 놓일 자리를
+               마커로 남겨 두고 좌표도 같이 들고 간다. 메뉴는 닫되 마커는 살린다. */
+          feedDropAt=addAtLatLng;closeAddMenu(!!feedDropAt);if(feedDropAt)feedDropArm();
           if(it.dataset.add==='photo'){var fi=document.getElementById('feed-photo-input');if(fi)fi.click();}
           else if(it.dataset.add==='post'){var fp=document.getElementById('feed-post-input');if(fp)fp.click();}}
       });
@@ -2971,7 +3028,7 @@ function switchMode(mode,opts){
 /* ========== [M01] 초기화 ========== */
 function initMap(){
   initMapLabelClass();
-  initReqPinClass();initDealPinClass();
+  initReqPinClass();initDealPinClass();initAddPinClass();
   initSpotBubbleClass();
   initFeedThumbClass();
   initSpotComposerClass();
@@ -5189,15 +5246,16 @@ function renderFeedColList(){ // 설정-컨텐츠: 피드 컨텐츠 관리
 function initFeedPost(){
   var fi=document.getElementById('feed-post-input');if(!fi)return;
   fi.addEventListener('change',function(){
+    feedDropPicked=true;
     var arr=Array.prototype.slice.call(this.files||[]);this.value='';
-    if(!arr.length)return;
+    if(!arr.length){feedDropClear();return;}
     compressNews(arr[0],function(url){
-      if(!url){alert('사진 처리에 실패했어요. 더 작은 사진으로 시도해 주세요.');return;}
+      if(!url){feedDropClear();alert('사진 처리에 실패했어요. 더 작은 사진으로 시도해 주세요.');return;}
       var desc=prompt('✍️ Feed 작성\n설명글을 입력하세요 (선택, 120자)');
-      if(desc==null)return; // 취소 = 업로드 중단
-      var ctr=(phoneMap&&phoneMap.getCenter())||(map&&map.getCenter());
+      if(desc==null){feedDropClear();return;} // 취소 = 업로드 중단
+      var ctr=feedDropAt||(phoneMap&&phoneMap.getCenter())||(map&&map.getCenter());feedDropClear(); // 꾹 누른 자리가 있으면 그 자리 (v2.29)
       var zz=ctr?zoneObjAtCenter(ctr.lat(),ctr.lng()):null;
-      feedAdd(url,currentCenterDong(),zz?zz.id:null,ctr?ctr.lat():null,ctr?ctr.lng():null,'post',desc.trim());
+      feedAdd(url,(ctr&&dongAt(ctr.lat(),ctr.lng()))||currentCenterDong(),zz?zz.id:null,ctr?ctr.lat():null,ctr?ctr.lng():null,'post',desc.trim());
       setNavActive('feed');switchTab('feed');
     });
   });
@@ -5206,13 +5264,14 @@ function initFeedPost(){
 function initLiveCamera(){
   var fi=document.getElementById('feed-photo-input');if(!fi)return;
   fi.addEventListener('change',function(){
+    feedDropPicked=true;
     var arr=Array.prototype.slice.call(this.files||[]);this.value='';
-    if(!arr.length)return;
+    if(!arr.length){feedDropClear();return;}
     compressNews(arr[0],function(url){
-      if(!url){alert('사진 처리에 실패했어요. 더 작은 사진으로 시도해 주세요.');return;}
-      var ctr=(phoneMap&&phoneMap.getCenter())||(map&&map.getCenter());
+      if(!url){feedDropClear();alert('사진 처리에 실패했어요. 더 작은 사진으로 시도해 주세요.');return;}
+      var ctr=feedDropAt||(phoneMap&&phoneMap.getCenter())||(map&&map.getCenter());feedDropClear(); // 꾹 누른 자리가 있으면 그 자리 (v2.29)
       var zz=ctr?zoneObjAtCenter(ctr.lat(),ctr.lng()):null;
-      feedAdd(url,currentCenterDong(),zz?zz.id:null,ctr?ctr.lat():null,ctr?ctr.lng():null,'cam','');
+      feedAdd(url,(ctr&&dongAt(ctr.lat(),ctr.lng()))||currentCenterDong(),zz?zz.id:null,ctr?ctr.lat():null,ctr?ctr.lng():null,'cam','');
       setNavActive('feed');switchTab('feed'); // 바로 피드에서 확인
     });
   });
@@ -5559,14 +5618,16 @@ function answerRequest(id,text,img){ // img: 사진 답변(dataURL, 선택)
   else{rq.answers.push(ans);saveRequests();renderRequestMarkers();}
   hideReqBubble();
   var earned=!isMyReq(rq); // v1.92 남의 Request 에 답하면 적립 (내 것에 답하는 건 적립 대상이 아니다)
+  lastAnsweredReqId=rq.id;  // v2.29 리워드가 어느 Request 의 것인지 — 지급 때 그 핀을 걷는다
   var ab=document.getElementById('ai-bubble');
   /* 말의 주인을 가른다 (v2.18). 남의 Request 에 답한 것은 **내가 보낸** 것이라
-     "도착" 이 아니라 "전달" 이고, 내 Request 의 답은 **도착한** 것이다 —
-     여태는 무대 Request 가 전부 내 것이라 한 문장이 두 장면을 겸했다. */
-  if(ab){ab.textContent=earned
-    ?'📨 현장 답변이 요청자에게 전달됐어요. 리워드는 잠시 뒤 지급됩니다.'
-    :(hasLive()?'📍 답변 전송! 요청자에게 실시간으로 전달했어요.'
-               :'📍 '+rq.place+' 현장 답변 도착: '+(img?'📷 ':'')+text);
+     "도착" 이 아니라 "전달" 이고, 내 Request 의 답은 **도착한** 것이다.
+     v2.29: 남의 Request 에 답한 쪽(earned)은 **아무 말도 안 한다** — "전달됐어요,
+     리워드는 잠시 뒤" 는 곧 뒤따르는 리워드 말풍선이 할 말을 미리 하는 중복 안내였다.
+     내 Request 에 답이 **도착한** 것은 여전히 알려야 한다(내가 모르는 일이 일어났다). */
+  if(ab&&!earned){ab.textContent=hasLive()
+    ?'📍 답변 전송! 요청자에게 실시간으로 전달했어요.'
+    :'📍 '+rq.place+' 현장 답변 도착: '+(img?'📷 ':'')+text;
     ab.classList.add('show');setTimeout(function(){ab.classList.remove('show');},5000);}
   /* v2.27 지급은 즉시가 아니다 — v2.18 의 addCoins+coinFly 는 삭제. 답이 전달되고
      시간이 지나 리워드 말풍선(코인 버스트)이 따로 뜬다. 임베드(시나리오)는 지급 시점을
@@ -5613,7 +5674,7 @@ function renderRequestMarkers(){
   if(!phoneMap||typeof google==='undefined')return;
   if(typeof renderDrawerDemo==='function')renderDrawerDemo();
   if(mapPinView.req.show) // v2.15 컨텐츠별 표시 설정 — 꺼도 딜·declutter 연쇄는 그대로 탄다
-  fieldRequests.filter(reqActive).forEach(function(rq){ // 활성(10분 내·시드)만 표시, 전용 핀(답변 내용 노출 안 함)
+  fieldRequests.filter(function(rq){return reqActive(rq)&&!rq.rewarded;}).forEach(function(rq){ // 활성(10분 내·시드) · 리워드가 지급되지 않은 것만 (v2.29). 전용 핀(답변 내용 노출 안 함)
     reqMarkers.push(new ReqPin(rq,phoneMap));
   });
   if(typeof renderDealMarkers==='function')renderDealMarkers(); // v1.89 타임딜 핀도 같은 시점에
@@ -5724,6 +5785,28 @@ function syncDealSheet(){
   var bar=document.getElementById('ds-bar');
   if(bar)bar.style.width=Math.max(4,Math.round(rem/d.secs*100))+'%';
 }
+/* 쿠폰이 지갑으로 들어가는 모습 (v2.29) — 여태 '받았다'는 **글자로만** 남았다.
+   코인 버스트(coinBurst)와 같은 문법이다: 폰 화면에 잠깐 붙였다 시간이 지나면 걷는다.
+   방향은 우상단 프로필 — v2.18 의 코인 적립 연출이 가던 곳과 같다. 같은 방향이어야
+   "내 것이 되었다"로 읽힌다(방향이 제각각이면 그냥 튀는 이모지다). */
+function couponFly(){
+  try{
+    var scr=document.querySelector('.phone-screen');if(!scr)return;
+    var sr=scr.getBoundingClientRect();if(!sr.width)return;
+    var tg=document.getElementById('phone-profile'),tr=tg?tg.getBoundingClientRect():null;
+    var host=document.createElement('div');host.className='coupon-fly';
+    host.innerHTML='<span class="cf-ticket">🎟</span>';
+    var x0=sr.width/2,y0=sr.height*0.62;                                   // 시트가 있던 자리에서 출발
+    var x1=tr?(tr.left-sr.left+tr.width/2):(sr.width-sr.width*0.09),y1=tr?(tr.top-sr.top+tr.height/2):sr.width*0.09;
+    host.style.left=x0+'px';host.style.top=y0+'px';
+    host.style.setProperty('--dx',(x1-x0).toFixed(1)+'px');
+    host.style.setProperty('--dy',(y1-y0).toFixed(1)+'px');
+    scr.appendChild(host);
+    if(typeof twParse==='function')twParse(host);
+    if(tg)setTimeout(function(){tg.classList.add('cf-catch');setTimeout(function(){tg.classList.remove('cf-catch');},600);},950); // 도착하는 순간 프로필이 받는다
+    setTimeout(function(){if(host.parentNode)host.parentNode.removeChild(host);},1300);
+  }catch(e){}
+}
 /* 쿠폰을 받는 한 길 (v2.20) — 시트의 '쿠폰 받기' 와 무대의 `coupon` 액션이 여기로 온다.
    여태는 시트 안에서 `alert()` 이었다. 그 창은 브라우저 것이라 화면 밖이고(시연에 안 남는다)
    **자바스크립트를 멈춰** 재생이 그 자리에 섰다 — Request 의 prompt() 를 걷어낸 것과 같은 이유다.
@@ -5733,6 +5816,7 @@ function syncDealSheet(){
 function claimDeal(d,opts){
   opts=opts||{};
   var ms=(opts.ms==null)?4000:(opts.ms|0);
+  couponFly(); // 받는 모습이 먼저다 (v2.29) — 문구를 안 띄우는 연출(ms:0)에서도 쿠폰은 날아간다
   if(ms<=0)return true;
   var ab=document.getElementById('ai-bubble');if(!ab)return true;
   ab.textContent=String(opts.say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요 — 매장에서 제시하세요.')).slice(0,160);
