@@ -1466,7 +1466,8 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
 .deal-pin{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:4px;
   pointer-events:auto;cursor:pointer;z-index:5;-webkit-user-select:none;user-select:none;}
 .deal-pin .dp-circle{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;
-  background:#fff;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(15,23,42,0.28);font-size:16px;}
+  background:#fff;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(15,23,42,0.28);font-size:16px;cursor:grab;} /* v2.30.1 끌어 옮기기 */
+.deal-pin.dragging .dp-circle{cursor:grabbing;filter:brightness(1.06);}
 .deal-pin .dp-pct{padding:2px 8px;border-radius:9999px;background:#fff;color:#4a4a4a;
   font-size:10px;font-weight:800;line-height:1.3;box-shadow:0 1px 5px rgba(15,23,42,0.24);white-space:nowrap;}
 body.mode-trend .deal-pin .dp-circle{background:#f2c33c;border-color:#e8a92b;}
@@ -1485,14 +1486,24 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
    바닥 전체를 밀고 올라오면 지도가 반쯤 가려 "어디의 딜인지" 가 사라졌다. 가운데에
    컴팩트한 카드로 서고, 크기는 아래 값들이 v1.89 시안에서 한 단계씩 줄어든 것이다.
    마크업은 안 바꾼다 — 자리와 크기만 CSS 가 정한다(손잡이 ds-grip 은 시트의 물건이라 숨긴다). */
-.deal-sheet{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:6cqw;}
+/* v2.30.1: 자리를 **지도 화면 기준**으로 잡는다. `inset:0` 이면 폰 화면 한가운데라
+   헤더·캐러셀이 있는 만큼 위로 치우쳐 모드 전환 버튼(69cqw)에 붙었다 — 딜은 지도 위
+   그 핀의 것이니 지도의 가운데에 서야 한다. 실제 값은 JS(dealSheetFrame)가 열 때 잰다:
+   헤더 높이도 캐러셀 종류도 그때그때 달라 CSS 상수로는 못 적는다. */
+.deal-sheet{position:absolute;left:0;right:0;top:0;bottom:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:5cqw;}
 .deal-sheet .ds-scrim{position:absolute;inset:0;background:transparent;}
-.deal-sheet .ds-card{position:relative;width:78cqw;max-height:82%;overflow-y:auto;padding:4cqw 4.2cqw 4.6cqw;
+.deal-sheet .ds-card{position:relative;width:78cqw;max-height:100%;display:flex;flex-direction:column;overflow:hidden;padding:4cqw 4.2cqw 4.6cqw;
   background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   border:1px solid var(--glass-line);border-radius:5cqw;box-shadow:0 1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);
   animation:dsPop .28s cubic-bezier(.2,1.5,.4,1);}
 @keyframes dsPop{from{opacity:0;transform:scale(.88);}to{opacity:1;transform:scale(1);}}
 .deal-sheet .ds-grip{display:none;} /* 아래에서 끌어 올리는 손잡이 — 가운데 팝업에는 없는 물건 */
+/* 넘치면 **이 칸만** 구른다 (v2.30.1) — 머리줄과 받기 버튼은 카드에 붙어 있는다.
+   v2.30 은 카드 전체를 overflow:auto 로 뒀고, 내용이 max-height 를 넘는 화면에서
+   '쿠폰 받기' 가 접힌 아래로 내려가 **보이지도 눌리지도 않았다**(그 자리를 누르면
+   뒤의 스크림이 받아 시트가 닫혔다 — "동작을 안 한다" 의 정체). */
+.deal-sheet .ds-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.deal-sheet .ds-top,.deal-sheet .ds-acts{flex:none;}
 .deal-sheet .ds-top{display:flex;align-items:center;gap:1.8cqw;}
 .deal-sheet .ds-tag{padding:1.1cqw 2.4cqw;border-radius:9999px;background:#f2c33c;color:#4a3b00;font-size:2.6cqw;font-weight:800;}
 .deal-sheet .ds-left{font-size:2.9cqw;font-weight:700;color:#e8574a;}

@@ -5740,6 +5740,17 @@ var DEAL_KEY='nowhere_deals';
    dealActive 가 seed:true 를 영영 살려 두어 화면에는 계속 남는다. */
 function loadDeals(){if(IS_CLEAN_EMBED){timeDeals=[];return;}try{var a=JSON.parse(localStorage.getItem(DEAL_KEY)||'[]');if(Array.isArray(a))timeDeals=a.filter(function(d){return !(d&&d.seed&&/^dl_\d+$/.test(String(d.id)));});}catch(e){}}
 function saveDeals(){try{localStorage.setItem(DEAL_KEY,JSON.stringify(timeDeals.slice(0,20)));}catch(e){}}
+/* 옮긴 자리를 저장소에 남긴다 (v2.30.1 — moveRequest 와 같은 문법).
+   딜만 이 손이 없어서, 시연 자리를 잡을 때 스팟·피드·Request 는 끌어 옮기고 딜만 못 옮겼다.
+   **무대가 깐 것(dln_*)은 저장하지 않는다** — 회차가 끝나면 걷어야 하는 물건이고,
+   다음 재생의 자리는 nhPosNote 가 따로 기억한다(nhLayDeal 의 nhPosGet 이 그걸 읽는다). */
+function moveDeal(id,lat,lng){
+  var d=dealById(id);if(!d)return;
+  d.lat=lat;d.lng=lng;
+  if(!/^dln_/.test(String(id)))saveDeals();
+  if(typeof renderDealMarkers==='function')renderDealMarkers();
+  if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+}
 function dealRemain(d){ // 남은 초
   if(!d)return 0;
   if(d.seed)return d.secs-Math.floor((Date.now()/1000)%d.secs); // 시드=주기적으로 되감김(시연용 상시 활성)
@@ -5759,10 +5770,61 @@ function initDealPinClass(){
     el.classList.toggle('no-pct',!mapPinView.deal.label); // v2.15 %라벨 표시 설정
     el.title=this.d.title;
     // v2.15: 핀 탭=매장 전용 페이지. 쿠폰 시트는 그 페이지의 '타임딜 쿠폰받기'가 연다.
-    el.addEventListener('click',function(e){e.stopPropagation();openStorePage(self.d.id);});
+    el.addEventListener('click',function(e){e.stopPropagation();
+      if(self._dragged){self._dragged=false;return;} // 방금 끌어 옮긴 손은 페이지를 열지 않는다
+      openStorePage(self.d.id);});
+    /* 끌어 옮기기 (v2.30.1) — 스팟·피드·Request 가 하던 것을 딜도 한다(같은 문법:
+       터치는 롱프레스 뒤, 마우스는 즉시). 무대 항목이면 옮긴 자리가 nhPosNote 에 남아
+       **다음 재생에도 그 자리**다 — `dln_` id 를 읽는 그 계약은 v2.3 부터 있었고
+       nhLayDeal 도 nhPosGet 으로 읽고 있었는데, 정작 **끄는 손이 없어** 죽어 있었다
+       (Request 가 v2.20 에 겪은 것과 똑같은 자리다). */
+    el.addEventListener('pointerdown',function(e){self._onDown(e);});
     if(nhBounceTake(this.d.id))el.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
     if(typeof nhDimEl==='function')nhDimEl(el,this.d.id); // dim 액션의 흐림 유지 (v2.21)
     this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
+  };
+  // 이동 (v2.30.1) — ReqPin._onDown 과 같은 규칙: 터치=롱프레스 후 드래그 / 마우스=즉시
+  DealPin.prototype._onDown=function(e){
+    var self=this,m=self.getMap();if(!m)return;
+    var isTouch=(e.pointerType==='touch');
+    var moved=false,dragging=false,lpTimer=null,sx=e.clientX,sy=e.clientY,mapEl=m.getDiv();
+    var prevDrag=m.get('draggable');
+    function startDrag(){
+      dragging=true;
+      m.setOptions({draggable:false});
+      self.div.classList.add('dragging');
+      try{self.div.setPointerCapture(e.pointerId);}catch(_){}
+      if(isTouch&&navigator.vibrate)try{navigator.vibrate(15);}catch(_){}
+    }
+    if(isTouch){lpTimer=setTimeout(function(){lpTimer=null;if(!moved)startDrag();},LP_MS);}
+    else{e.stopPropagation();if(e.cancelable)e.preventDefault();startDrag();}
+    function mv(ev){
+      if(ev.pointerId!==e.pointerId)return;
+      if(!dragging){ // 롱프레스 대기 중 크게 움직이면 = 지도 팬 → 취소
+        if(Math.abs(ev.clientX-sx)>LP_TOL||Math.abs(ev.clientY-sy)>LP_TOL){moved=true;cleanup(false);}
+        return;
+      }
+      if(!moved&&(Math.abs(ev.clientX-sx)>3||Math.abs(ev.clientY-sy)>3))moved=true;
+      if(!moved)return;
+      var proj=self.getProjection();if(!proj)return;
+      var r=mapEl.getBoundingClientRect();
+      var ll=proj.fromContainerPixelToLatLng(new google.maps.Point(ev.clientX-r.left,ev.clientY-r.top));
+      if(ll){self.position=ll;self.draw();}
+    }
+    function up(ev){if(ev.pointerId!==e.pointerId)return;cleanup(true);}
+    function cleanup(fin){
+      document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
+      if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}
+      if(dragging){m.setOptions({draggable:prevDrag!==false});if(self.div)self.div.classList.remove('dragging');}
+      if(!fin||!dragging||!moved)return;
+      self._dragged=true; // 직후 click 은 매장 페이지 대신 무시
+      var lat=self.position.lat(),lng=self.position.lng();
+      moveDeal(self.d.id,lat,lng);
+      if(typeof nhPosNote==='function')nhPosNote(self.d.id,lat,lng); // 무대 항목이면 다음 재생에도 그 자리 (v2.3 dln_)
+    }
+    document.addEventListener('pointermove',mv); // 팬 중 핀이 손가락에서 벗어나도 추적되게 document 에
+    document.addEventListener('pointerup',up);
+    document.addEventListener('pointercancel',up);
   };
   DealPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
     this._ax=pos.x;this._ay=pos.y; // 앵커=원래 좌표 (declutter 규약 v1.59)
@@ -5789,12 +5851,35 @@ function renderDealMarkers(){
   timeDeals.filter(dealActive).forEach(function(d){dealMarkers.push(new DealPin(d,phoneMap));});
   if(typeof declutterMarkers==='function')declutterMarkers();
 }
+/* 시트를 **지도 화면**에 맞춰 세운다 (v2.30.1).
+   폰 화면 전체(inset:0) 한가운데면 헤더·상단 캐러셀이 차지한 만큼 위로 치우쳐 모드 전환
+   버튼(69cqw)에 붙는다. 딜은 지도 위 그 핀의 것이니 **보이는 지도**의 가운데여야 한다.
+   값은 CSS 상수로 못 적는다 — 헤더 높이가 존 카드 종류·지면 접힘에 따라 달라진다.
+   phoneMapInsets 는 카메라(phoneVisibleCenter·fitBounds)가 쓰는 것과 같은 자다. */
+function dealSheetFrame(){
+  var sh=document.getElementById('deal-sheet');if(!sh)return;
+  function full(){sh.style.top='';sh.style.bottom='';}
+  var scr=sh.closest?sh.closest('.phone-screen'):null;
+  if(!scr){full();return;}
+  var sr=scr.getBoundingClientRect();if(!sr.height){full();return;}
+  /* 자는 **헤더 + 인셋**이다. `#phone-map` 의 rect 를 쓰지 않는 이유: 지도가 아직 안 붙은
+     화면(타일 실패·초기 프레임)에서 높이가 0 이라 프레임이 통째로 어긋난다. 헤더·네비·모드
+     필은 언제나 레이아웃을 갖는다. ins.top 은 헤더 아래로 더 가리는 만큼(모드 필)이다. */
+  var hd=scr.querySelector('.phone-header');
+  var ins=(typeof phoneMapInsets==='function')?phoneMapInsets():{top:0,bottom:0};
+  var top=(hd?Math.max(0,hd.getBoundingClientRect().bottom-sr.top):0)+(ins.top||0);
+  var bottom=Math.max(0,ins.bottom||0);
+  // 남는 자리가 없으면(가리는 것이 화면의 3분의 2) 프레임을 걷는다 — 화면 전체가 낫다
+  if(top+bottom>sr.height*0.62){full();return;}
+  sh.style.top=Math.round(top)+'px';sh.style.bottom=Math.round(bottom)+'px';
+}
 function openDealSheet(id){
   var sheet=document.getElementById('deal-sheet'),d=dealById(id);
   if(!sheet||!d)return;
   if(sheet.style.display==='none'&&typeof nhSfxPlay==='function')nhSfxPlay('open'); // v2.25
   dealSheetId=id;
   sheet.style.display='';
+  dealSheetFrame();
   syncDealSheet();
   if(!dealTicker)dealTicker=setInterval(syncDealSheet,1000); // 1초 티커 — 열려 있을 때만 돈다
 }
@@ -5827,15 +5912,21 @@ function syncDealSheet(){
 /* 쿠폰이 지갑으로 들어가는 모습 (v2.29) — 여태 '받았다'는 **글자로만** 남았다.
    코인 버스트(coinBurst)와 같은 문법이다: 폰 화면에 잠깐 붙였다 시간이 지나면 걷는다.
    방향은 우상단 프로필 — v2.18 의 코인 적립 연출이 가던 곳과 같다. 같은 방향이어야
-   "내 것이 되었다"로 읽힌다(방향이 제각각이면 그냥 튀는 이모지다). */
-function couponFly(){
+   "내 것이 되었다"로 읽힌다(방향이 제각각이면 그냥 튀는 이모지다).
+   v2.30.1: **출발점은 Agent 다** (인자 anchor) — 리워드 코인이 agent 말풍선 위에서
+   터지는 것과 같은 규칙이다. 화면 한복판에서 나오면 누가 준 것인지가 안 보였다. */
+function couponFly(anchor){
   try{
-    var scr=document.querySelector('.phone-screen');if(!scr)return;
+    var scr=(anchor&&anchor.closest&&anchor.closest('.phone-screen'))||document.querySelector('.phone-screen');
+    if(!scr)return;
     var sr=scr.getBoundingClientRect();if(!sr.width)return;
     var tg=document.getElementById('phone-profile'),tr=tg?tg.getBoundingClientRect():null;
+    var ar=(anchor&&anchor.getBoundingClientRect)?anchor.getBoundingClientRect():null;
+    if(ar&&!ar.width)ar=null; // 안 보이는 요소(말풍선이 아직 안 뜬 경우)는 앵커가 못 된다
     var host=document.createElement('div');host.className='coupon-fly';
     host.innerHTML='<span class="cf-ticket">🎟</span>';
-    var x0=sr.width/2,y0=sr.height*0.5;                                    // 팝업이 있던 자리에서 출발 (v2.29.1: 시트→가운데 팝업)
+    var x0=ar?(ar.left-sr.left+ar.width/2):(sr.width/2),
+        y0=ar?(ar.top-sr.top+ar.height/2):(sr.height*0.5);
     var x1=tr?(tr.left-sr.left+tr.width/2):(sr.width-sr.width*0.09),y1=tr?(tr.top-sr.top+tr.height/2):sr.width*0.09;
     host.style.left=x0+'px';host.style.top=y0+'px';
     host.style.setProperty('--dx',(x1-x0).toFixed(1)+'px');
@@ -5859,10 +5950,15 @@ function claimDeal(d,opts){
      `opts.ms` 가 **null 이면 "안 정했다"** 이지 4초가 아니다: 4초로 굳히면 `e` 를
      비워 둔 단계에서 `bh` 가 영영 못 온다(nhCouponMs 도 빈 값에 null 을 돌려준다). */
   var hard=(opts.ms==null)?null:(opts.ms|0);
-  couponFly(); // 받는 모습이 먼저다 (v2.29) — 문구를 안 띄우는 연출(e:0)에서도 쿠폰은 날아간다
-  if(hard!=null&&hard<=0)return true;
-  aiSay(String(opts.say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요 — 매장에서 제시하세요.')).slice(0,160),
-    4000,(hard==null)?null:Math.min(hard,20000));
+  var said=(hard!=null&&hard<=0)?false
+    :aiSay(String(opts.say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요 — 매장에서 제시하세요.')).slice(0,160),
+      4000,(hard==null)?null:Math.min(hard,20000));
+  /* 말이 먼저, 쿠폰이 그 위에서 (v2.30.1) — 티켓의 출발점이 **말풍선**이라 순서가 뒤집혔다.
+     리워드 코인이 말풍선 위에서 터지는 것(coinBurst)과 같은 규칙이다.
+     문구를 안 띄우는 연출(e:0)이면 말풍선이 없으니 AI 버튼이 그 자리를 대신한다 — 어느
+     쪽이든 쿠폰은 **Agent 에서 나온다**. 그다음 우상단 프로필로 날아가 접힌다. */
+  couponFly(said?document.getElementById('ai-bubble')
+                :(document.querySelector('#phone-mirror .pn-ai')||document.querySelector('.pn-ai')));
   return true;
 }
 function dealDistLabel(d){ // 시안은 '180m' 고정이지만 이 앱은 실제 좌표가 있다 — 실측을 쓴다
