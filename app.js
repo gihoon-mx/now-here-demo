@@ -3019,7 +3019,13 @@ function switchMode(mode,opts){
     var dt; boundsListener=map.addListener('idle',function(){clearTimeout(dt);dt=setTimeout(function(){if(currentMode==='trend')generateHexagons();},350);});
     updateZoneSaveUI(); renderZoneList();
     renderSpots();   // 트렌드 모드에서도 스팟 유지
-    if(!noNearby)setTimeout(focusNearbyZones,80); // 전환 마무리 후 근접 존 N개(단일 존 선택 시엔 억제)
+    /* 전환 마무리 후 근접 존 N개(단일 존 선택 시엔 억제).
+       **시연에서는 안 한다** (v2.29.1) — 임베드는 카메라를 대본이 정한다. 이 자동
+       줌아웃은 전환 80ms 뒤에 혼자 `fitBounds` 를 걸어, 무대가 맞춰 둔 화면(zoom·focus·
+       burst 가 앉힌 자리)을 소리 없이 밀어냈다. 손으로 토글을 눌러도 마찬가지라
+       IS_EMBED 로 막는다 — 시연 중에 카메라를 움직이는 주체는 단계뿐이어야 한다.
+       실제 앱(index/admin)에서는 여태와 같다. */
+    if(!noNearby&&!IS_EMBED)setTimeout(focusNearbyZones,80);
   }
   phoneDataVisibility(); syncPhoneZones(); updatePhoneUI(); updatePhoneLens();
   renderSummaryZones();
@@ -5796,7 +5802,7 @@ function couponFly(){
     var tg=document.getElementById('phone-profile'),tr=tg?tg.getBoundingClientRect():null;
     var host=document.createElement('div');host.className='coupon-fly';
     host.innerHTML='<span class="cf-ticket">🎟</span>';
-    var x0=sr.width/2,y0=sr.height*0.62;                                   // 시트가 있던 자리에서 출발
+    var x0=sr.width/2,y0=sr.height*0.5;                                    // 팝업이 있던 자리에서 출발 (v2.29.1: 시트→가운데 팝업)
     var x1=tr?(tr.left-sr.left+tr.width/2):(sr.width-sr.width*0.09),y1=tr?(tr.top-sr.top+tr.height/2):sr.width*0.09;
     host.style.left=x0+'px';host.style.top=y0+'px';
     host.style.setProperty('--dx',(x1-x0).toFixed(1)+'px');

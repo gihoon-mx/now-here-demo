@@ -1481,38 +1481,43 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
    에이전트 말풍선(.ai-bubble/.req-bubble)과 같은 프로스트·헤어라인·상단 광택이다.
    딜은 **지도 위 그 매장의 것**이라 지도가 계속 보여야 한다. 스크림 div 는 남긴다 —
    바깥을 눌러 닫는 자리다(closeDealSheet). */
-.deal-sheet{position:absolute;inset:0;z-index:30;}
+/* v2.29.1: 바텀시트가 아니라 **화면 가운데 팝업**이다. 딜은 지도 위 그 핀의 것인데
+   바닥 전체를 밀고 올라오면 지도가 반쯤 가려 "어디의 딜인지" 가 사라졌다. 가운데에
+   컴팩트한 카드로 서고, 크기는 아래 값들이 v1.89 시안에서 한 단계씩 줄어든 것이다.
+   마크업은 안 바꾼다 — 자리와 크기만 CSS 가 정한다(손잡이 ds-grip 은 시트의 물건이라 숨긴다). */
+.deal-sheet{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:6cqw;}
 .deal-sheet .ds-scrim{position:absolute;inset:0;background:transparent;}
-.deal-sheet .ds-card{position:absolute;left:0;right:0;bottom:0;padding:5cqw 4.6cqw 7.6cqw;
+.deal-sheet .ds-card{position:relative;width:78cqw;max-height:82%;overflow-y:auto;padding:4cqw 4.2cqw 4.6cqw;
   background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-  border-top:1px solid var(--glass-line);border-radius:6cqw 6cqw 0 0;box-shadow:0 -1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);
-  animation:dsUp .26s cubic-bezier(.22,1,.36,1);}
-@keyframes dsUp{from{opacity:0;transform:translateY(6cqw);}to{opacity:1;transform:none;}}
-.deal-sheet .ds-grip{display:block;width:9.7cqw;height:1cqw;margin:0 auto 4.1cqw;border-radius:9999px;background:#e6e5e1;}
-.deal-sheet .ds-top{display:flex;align-items:center;gap:2cqw;}
-.deal-sheet .ds-tag{padding:1.3cqw 2.8cqw;border-radius:9999px;background:#f2c33c;color:#4a3b00;font-size:2.8cqw;font-weight:800;}
-.deal-sheet .ds-left{font-size:3.1cqw;font-weight:700;color:#e8574a;}
-.deal-sheet .ds-x{margin-left:auto;border:none;background:transparent;color:#9c9c9c;font-size:3.8cqw;cursor:pointer;padding:0 1cqw;}
-/* 딜 사진 (v2.12) — 시트 위 히어로. 폰 컨테이너 안이라 cqw 를 쓴다(컨테이너 밖은 px, v1.82). */
-.deal-sheet .ds-img{width:100%;height:34cqw;object-fit:cover;border-radius:4cqw;margin-top:3.6cqw;display:block;}
-.deal-sheet .ds-main{display:flex;align-items:center;gap:3.6cqw;margin-top:3.6cqw;}
-.deal-sheet .ds-emoji{display:flex;align-items:center;justify-content:center;width:18.4cqw;height:18.4cqw;flex:none;
-  border-radius:4.6cqw;background:linear-gradient(150deg,#fdf0c8,#f5d78a);font-size:8.2cqw;}
+  border:1px solid var(--glass-line);border-radius:5cqw;box-shadow:0 1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);
+  animation:dsPop .28s cubic-bezier(.2,1.5,.4,1);}
+@keyframes dsPop{from{opacity:0;transform:scale(.88);}to{opacity:1;transform:scale(1);}}
+.deal-sheet .ds-grip{display:none;} /* 아래에서 끌어 올리는 손잡이 — 가운데 팝업에는 없는 물건 */
+.deal-sheet .ds-top{display:flex;align-items:center;gap:1.8cqw;}
+.deal-sheet .ds-tag{padding:1.1cqw 2.4cqw;border-radius:9999px;background:#f2c33c;color:#4a3b00;font-size:2.6cqw;font-weight:800;}
+.deal-sheet .ds-left{font-size:2.9cqw;font-weight:700;color:#e8574a;}
+.deal-sheet .ds-x{margin-left:auto;border:none;background:transparent;color:#9c9c9c;font-size:3.6cqw;cursor:pointer;padding:0 1cqw;}
+/* 딜 사진 (v2.12) — 카드 위 히어로. 폰 컨테이너 안이라 cqw 를 쓴다(컨테이너 밖은 px, v1.82).
+   v2.29.1: 가운데 팝업이 되며 한 단계씩 줄었다 — 34→24cqw. */
+.deal-sheet .ds-img{width:100%;height:24cqw;object-fit:cover;border-radius:3cqw;margin-top:2.8cqw;display:block;}
+.deal-sheet .ds-main{display:flex;align-items:center;gap:2.8cqw;margin-top:2.8cqw;}
+.deal-sheet .ds-emoji{display:flex;align-items:center;justify-content:center;width:13.4cqw;height:13.4cqw;flex:none;
+  border-radius:3.6cqw;background:linear-gradient(150deg,#fdf0c8,#f5d78a);font-size:6.2cqw;}
 .deal-sheet .ds-tt{flex:1;min-width:0;display:block;}
-.deal-sheet .ds-tt b{display:block;font-size:5.1cqw;font-weight:800;letter-spacing:-0.03em;line-height:1.3;color:#1a1a1a;}
-.deal-sheet .ds-tt i{display:block;margin-top:1.3cqw;font-style:normal;font-size:3.3cqw;color:#6b6b6b;}
-.deal-sheet .ds-price{display:flex;align-items:baseline;gap:2cqw;margin-top:4.1cqw;}
-.deal-sheet .ds-pct{font-size:6.6cqw;font-weight:800;letter-spacing:-0.05em;color:#e8574a;}
-.deal-sheet .ds-now{font-size:3.8cqw;font-weight:700;color:#1a1a1a;}
-.deal-sheet .ds-was{font-size:3.3cqw;color:#9c9c9c;text-decoration:line-through;}
-.deal-sheet .ds-stock{margin-left:auto;font-size:3.1cqw;color:#6b6b6b;}
-.deal-sheet .ds-bar{display:block;height:1.5cqw;margin-top:2.6cqw;border-radius:9999px;background:#f0efec;overflow:hidden;}
+.deal-sheet .ds-tt b{display:block;font-size:4.2cqw;font-weight:800;letter-spacing:-0.03em;line-height:1.3;color:#1a1a1a;}
+.deal-sheet .ds-tt i{display:block;margin-top:1cqw;font-style:normal;font-size:2.9cqw;color:#6b6b6b;}
+.deal-sheet .ds-price{display:flex;align-items:baseline;gap:1.8cqw;margin-top:3cqw;}
+.deal-sheet .ds-pct{font-size:5.4cqw;font-weight:800;letter-spacing:-0.05em;color:#e8574a;}
+.deal-sheet .ds-now{font-size:3.4cqw;font-weight:700;color:#1a1a1a;}
+.deal-sheet .ds-was{font-size:2.9cqw;color:#9c9c9c;text-decoration:line-through;}
+.deal-sheet .ds-stock{margin-left:auto;font-size:2.8cqw;color:#6b6b6b;}
+.deal-sheet .ds-bar{display:block;height:1.2cqw;margin-top:2.2cqw;border-radius:9999px;background:#f0efec;overflow:hidden;}
 .deal-sheet .ds-bar-fill{display:block;height:100%;border-radius:9999px;background:linear-gradient(90deg,#f2c33c,#e8574a);transition:width .9s linear;}
-.deal-sheet .ds-acts{display:flex;gap:2cqw;margin-top:4.6cqw;}
-.deal-sheet .ds-claim{flex:1;height:12.2cqw;border:none;border-radius:9999px;background:#1a1a1a;color:#fff;
-  font-family:inherit;font-size:3.8cqw;font-weight:700;cursor:pointer;}
-.deal-sheet .ds-share{height:12.2cqw;padding:0 4.6cqw;border:none;border-radius:9999px;background:#f4f3f1;color:#4a4a4a;
-  font-family:inherit;font-size:3.8cqw;font-weight:700;cursor:pointer;}
+.deal-sheet .ds-acts{display:flex;gap:1.8cqw;margin-top:3.4cqw;}
+.deal-sheet .ds-claim{flex:1;height:10.4cqw;border:none;border-radius:9999px;background:#1a1a1a;color:#fff;
+  font-family:inherit;font-size:3.3cqw;font-weight:700;cursor:pointer;}
+.deal-sheet .ds-share{height:10.4cqw;padding:0 3.8cqw;border:none;border-radius:9999px;background:#f4f3f1;color:#4a4a4a;
+  font-family:inherit;font-size:3.3cqw;font-weight:700;cursor:pointer;}
 
 /* ── [M17] v2.15 매장 전용 페이지 — 타임딜 핀 탭 → 전면 페이지 (시안: 석촌동 쵸리상경).
    z-29: Overview(28) 위·딜 시트(30) 아래 — '쿠폰받기'가 시트를 이 위로 올린다. */
