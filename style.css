@@ -1315,6 +1315,16 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 
 /* ── v1.63 스팟 의견 수 뱃지 (버블 우상단, 색=모드 규칙) ── */
 .spot-cmt{position:absolute;right:-8px;top:-9px;font-size:9px;font-weight:800;color:#fff;border-radius:999px;padding:2px 5px;line-height:1;box-shadow:0 0 0 1.5px #fff;white-space:nowrap;}
+/* ── 좋아요 수 뱃지 (v2.33) — 의견 수(.spot-cmt)와 같은 문법, 반대쪽 어깨에 앉는다.
+   말풍선의 자식이라 draw 의 CSS zoom 을 그대로 타서 px 로 써도 줌에 맞게 커진다.
+   색은 JS 가 인라인으로 박는다(모드 규칙·스킨 3종을 공짜로 타려고 — .spot-cmt 와 같은 이유).
+   내가 누른 것은 하트만 붉게: 숫자까지 물들이면 남의 좋아요와 구분이 안 된다. */
+.spot-heart{position:absolute;left:-8px;top:-9px;font-size:9px;font-weight:800;color:#fff;border-radius:999px;padding:2px 5px;line-height:1;box-shadow:0 0 0 1.5px #fff;white-space:nowrap;}
+.spot-heart.mine{color:#ffd2dc;}
+/* 더블탭한 순간 하트가 한 번 튄다 — 피드 카드의 .fc-heart 와 같은 연출·같은 곡선.
+   지도 오버레이는 폰 컨테이너 밖(PC 지도)에도 그려지므로 cqw 가 아니라 px 다 (v1.82 규칙). */
+.spot-heartpop{position:absolute;left:50%;top:0;font-size:20px;color:#ff4d6d;pointer-events:none;
+  text-shadow:0 2px 10px rgba(0,0,0,0.25);animation:heartPop 1.15s cubic-bezier(.22,1,.36,1) forwards;}
 
 /* ── v1.63 피드 핀 점 모드(스팟 점 전환 기준과 동일 시점) ── */
 .feed-pin.fp-dot{opacity:.75;}

@@ -442,12 +442,15 @@ function initSpotBubbleClass(){
     var emoji=document.createElement('div');emoji.className='spot-emoji';
     var dot=document.createElement('div');dot.className='spot-dotmark';
     var cmt=document.createElement('span');cmt.className='spot-cmt';bubble.appendChild(cmt);this.cmtEl=cmt; // 의견 수 뱃지 (v1.63)
+    /* 좋아요 수 뱃지 (v2.33) — 의견 수와 같은 문법이다. **말풍선의 자식**이라 draw 의
+       CSS zoom(배율)을 그대로 타므로 px 로 써도 줌에 맞게 커진다. */
+    var hrt=document.createElement('span');hrt.className='spot-heart';bubble.appendChild(hrt);this.heartEl=hrt;
     wrap.appendChild(bubble);wrap.appendChild(emoji);wrap.appendChild(dot);
     wrap.addEventListener('pointerdown',function(e){self._onDown(e);}); // 포인터 = 마우스+터치(모바일 데모 드래그)
     wrap.addEventListener('click',function(e){ // 탭=상세 팝업 (편집 권한자 탭은 _onDown 경로가 팝업을 열어 중복 방지)
       e.stopPropagation();
       var handled=canEditSpot(self.spot)&&!(currentRole==='admin'&&self.getMap()!==map);
-      if(!handled)openContentPop('spot',self.spot);
+      if(!handled)self._tap();
     });
     this.div=wrap;this.bubbleEl=bubble;this.emojiEl=emoji;this.dotEl=dot;
     if(nhBounceTake(this.spot.id))wrap.classList.add('nh-pop-in'); // drop·post 로 지금 생긴 것 (v2.11)
@@ -456,6 +459,38 @@ function initSpotBubbleClass(){
     this.getPanes().overlayMouseTarget.appendChild(wrap);
   };
   // 편집 권한자(관리자·본인): 이동=터치 롱프레스 후 드래그(마우스는 즉시) / 짧은 탭·클릭=편집 모달
+  /* 탭 한 번 = 상세 팝업 · 두 번 = 좋아요 (v2.33).
+     피드 카드가 오래 쓰던 문법을 그대로 가져온다(같은 상수: 두 번 사이 340ms · 싱글탭 대기 360ms).
+     ⚠️ 카운터는 **인스턴스**에 둔다 — 클로저에 두면 진입점이 둘이라(권한 없는 손은 click,
+     권한자는 _onDown 의 cleanup) 한쪽에서 센 탭을 다른 쪽이 못 본다.
+     터치 더블탭 줌은 `.spot-marker{touch-action:none}` 가 이미 막고 있다. */
+  SpotBubble.prototype._tap=function(){
+    var self=this,now=Date.now();
+    if(now-(self._lastTap||0)<340){
+      if(self._tapTimer){clearTimeout(self._tapTimer);self._tapTimer=null;}
+      self._lastTap=0;
+      if(typeof toggleLike!=='function')return;
+      var R=toggleLike(self.spot.id);
+      if(self.bubbleEl)self._render();      // 뱃지 숫자를 그 자리에서 (오버레이가 붙기 전이면 건너뛴다)
+      if(R&&R.me)self._heartBurst();
+      if(typeof refreshSpotStyles==='function')refreshSpotStyles(); // PC·폰 두 오버레이가 같은 숫자를 든다
+      if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+      return;
+    }
+    self._lastTap=now;
+    if(self._tapTimer)clearTimeout(self._tapTimer);
+    self._tapTimer=setTimeout(function(){
+      self._tapTimer=null;
+      if(typeof openContentPop==='function')openContentPop('spot',self.spot);
+    },360);
+  };
+  /* 하트가 한 번 튄다 — 피드 카드의 `.fc-heart` 와 같은 연출. 말풍선 위에 얹었다 걷는다. */
+  SpotBubble.prototype._heartBurst=function(){
+    if(!this.div)return;
+    var h=document.createElement('span');h.className='spot-heartpop';h.textContent='♥';
+    this.div.appendChild(h);
+    setTimeout(function(){if(h.parentNode)h.parentNode.removeChild(h);},1200);
+  };
   SpotBubble.prototype._onDown=function(e){
     var self=this,m=self.getMap();
     if(!canEditSpot(self.spot))return;
@@ -492,7 +527,7 @@ function initSpotBubbleClass(){
       if(!fin)return; // 팬으로 판정 — 지도에 맡김
       if(dragging&&moved){renderSpots();persistSpotEdit(self.spot);
         if(typeof nhPosNote==='function')nhPosNote(self.spot.id,self.spot.lat,self.spot.lng);} // 무대 항목이면 옮긴 자리를 다음 재생에도 (v2.3)
-      else if(!moved&&(!dragging||!isTouch))openContentPop('spot',self.spot); // 탭/클릭=상세 팝업(✏️로 편집 진입 — 터치 롱프레스 후 제자리 해제는 무동작)
+      else if(!moved&&(!dragging||!isTouch))self._tap(); // 탭/클릭=상세 팝업 · 더블탭=좋아요 (v2.33)
     }
     document.addEventListener('pointermove',mv); // 팬 중 버블이 손가락에서 벗어나도 추적되게 document에
     document.addEventListener('pointerup',up);
@@ -517,6 +552,14 @@ function initSpotBubbleClass(){
       this.cmtEl.style.display=cn?'':'none';
       this.cmtEl.style.background=hexToRgba(baseCol,1);
       this.bubbleEl.appendChild(this.cmtEl);
+    }
+    if(this.heartEl){ // 좋아요 수 뱃지 — 의견 수와 같은 규칙(대입이 자식을 지우므로 다시 부착)
+      var L=(typeof likeInfo==='function')?likeInfo(s.id):{n:0,me:0};
+      this.heartEl.textContent=L.n?('❤'+L.n):'';
+      this.heartEl.style.display=L.n?'':'none';
+      this.heartEl.classList.toggle('mine',!!L.me);
+      this.heartEl.style.background=hexToRgba(baseCol,1);
+      this.bubbleEl.appendChild(this.heartEl);
     }
     this.bubbleEl.style.display=t?'':'none';
     this.bubbleEl.style.color=hexToRgba(mono?MONO_INK:'#ffffff',txA(c)); // 색조=모드 규칙, 투명도=설정(textOpacity) 존중 (v1.65)
@@ -4527,7 +4570,10 @@ var feedItems=[]; var FEED_KEY='nowhere_feed';
 var feedLikes={};try{feedLikes=JSON.parse(localStorage.getItem('nowhere_likes')||'{}')||{};}catch(e){}
 function likeInfo(id){return feedLikes[id]||{n:0,me:0};}
 function rebuildLikes(){ // liveFeed 문서의 likes 맵 → feedLikes{n,me}
-  var uid=myUid();feedLikes={};
+  /* **피드 id 만** 다시 짓는다 (v2.33). 여태 `feedLikes={}` 로 통째로 비웠는데, 이제
+     스팟 하트가 같은 표에 산다 — 라이브 스냅샷이 올 때마다 지도 위 하트가 사라졌다.
+     id 네임스페이스가 안 겹치므로(스팟 sps_/spn_ · 피드 fs_/fdn_/f_) 표는 하나로 족하다. */
+  var uid=myUid();
   feedItems.forEach(function(f){var lk=f.likes||{};feedLikes[f.id]={n:Object.keys(lk).length,me:lk[uid]?1:0};});
 }
 function feedAdd(src,region,zone,lat,lng,kind,desc){ // 피드 컨텐츠 추가 (라이브=공유 / 로컬=이 기기) — kind: 'cam'(라이브 카메라)|'post'(Feed 작성/업로드)
@@ -4547,7 +4593,9 @@ function feedDelete(id){
   feedItems=feedItems.filter(function(f){return f.id!==id;});saveFeed();renderFeedColList();renderDrawerDemo();renderFeedMarkers();if(currentTab==='feed')renderFeed();
 }
 function toggleLike(id){ // 더블탭 좋아요 (계정당 1개 토글)
-  if(hasLive()){
+  /* 라이브라도 **피드 문서가 아닌 것**(지도 스팟)은 로컬 경로로 내려간다 (v2.33).
+     여태 여기서 조용히 돌아섰다 — 로그인 상태에서 스팟 카드를 더블탭하면 아무 일도 안 났다. */
+  if(hasLive()&&feedItems.some(function(x){return x.id===id;})){
     var f=feedItems.filter(function(x){return x.id===id;})[0];if(!f)return likeInfo(id);
     var uid=myUid();f.likes=f.likes||{};
     var upd={};upd['likes.'+uid]=f.likes[uid]?firebase.firestore.FieldValue.delete():true;
@@ -7726,7 +7774,11 @@ function nhWriteSpot(text,token,ms,emoji,fast){
     }
   }
   var typed=String(text||'').slice(0,80);
-  var commitAt=Math.max(900,Math.round((ms||2600)*0.55));
+  /* 커밋은 **이 스텝 안에서** 끝난다 (v2.33). 여태 max(900,…) 라 짧은 스텝에서는 커밋이
+     다음 스텝으로 넘어갔고, 그러면 뒤따르는 `i:-1` 이 아직 없는 글을 집었다(D115).
+     answer·request 가 이미 쓰던 min(…, ms-여유) 문법을 write 도 쓴다 — 이래야 콘솔의
+     ms 하한을 낮춰도 사슬이 안 끊긴다. */
+  var commitAt=Math.min(Math.max(900,Math.round((ms||2600)*0.55)),Math.max(260,(ms||2600)-100));
   // 글자별 타이핑 (v1.94). 220ms 뒤 통째로 박히는 것이 화면에서 가장 큰 로봇 티였다.
   // 커밋 150ms 전까지를 타이핑 창으로 쓰고, 틱 간격은 글자 수에서 역산한다 (30~90ms).
   // 매 틱 토큰을 본다 — 새 재생이 시작되면 잘린 글자가 남지 않게 그 자리에서 멈춘다.
@@ -7992,7 +8044,7 @@ function nhAi(token,ms,fast){
     if(token!==nhRunToken)return;
     var item=document.querySelector('#aip-list .aip-item');
     if(item)item.click();
-  },Math.max(700,Math.round((ms||2600)*0.4)));
+  },Math.min(Math.max(700,Math.round((ms||2600)*0.4)),Math.max(200,(ms||2600)-120))); // 스텝 안에서 (v2.33)
   return true;
 }
 
@@ -8154,7 +8206,8 @@ function nhAct(st,token){
         if(!f||typeof toggleLike!=='function')return false;
         var L=toggleLike(f.id);
         // 전역 시드 카드에 남긴 좋아요는 회차가 걷어야 한다 — 켠 것만 적는다 (v1.94).
-        if(L&&L.me)nhTempIds.like.push(f.id);
+        // 같은 카드에 like 를 세 번 두면 표에 id 가 둘 쌓여 sweep 이 두 번 토글한다 (v2.33)
+        if(L&&L.me&&nhTempIds.like.indexOf(f.id)<0)nhTempIds.like.push(f.id);
         if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
         if(typeof renderFeedMarkers==='function')renderFeedMarkers();
         return true;}
@@ -8207,9 +8260,12 @@ function nhAct(st,token){
   // fast 스텝은 표식도 박자도 없다 (v2.21) — 화면 조립이지 연출이 아니다.
   var tapEl=st.fast?null:nhTouchTarget(st);
   if(tapEl){
+    /* 표식은 띄우되 **기다리지 않는다** (v2.33). 여태 170ms 뒤에 실행했는데, 그 시간은
+       스텝의 ms 에 안 들어 있는 군더더기라 단계마다 화면이 한 박자씩 늦게 반응했다
+       (tab·ai·scope·popclose·pop v:req 다섯 액션이 늘 이 값을 먹었다).
+       표식 자체는 CSS 애니메이션이라 실행과 나란히 돈다 — 눌리는 모습은 그대로다. */
     nhTouch(tapEl);
-    setTimeout(function(){if(token!==nhRunToken)return;exec();},170);
-    return true; // 누를 대상이 화면에 있다 = 화면이 따라온다
+    return exec()!==false;
   }
   return exec();
 }
@@ -8388,6 +8444,17 @@ function nhLayReq(r,i,c,stamp,token){
   }
   return id;
 }
+/* 무대 항목의 **좋아요 수를 미리 심는다** (v2.33, 콘솔 D130).
+   `feedLikes` 는 {n,me} 표라 숫자만 넣으면 된다 — 시드 생성기(seedDemoData)가 옛날부터
+   쓰던 수법과 같은 자리다. `me:0` 이므로 재생 중 더블탭하면 그 위에 하나가 더 얹힌다.
+   ⚠️ 상한 999: 피드 온도(feedHeatT)가 **최다 좋아요 대비 비율**이라, 한 장에 큰 수를 주면
+   전역 시드 카드가 전부 식어 버린다. 시연에서 네 자리 하트를 쓸 일도 없다. */
+function nhLikes(v){var n=Math.round(Number(v));return (isFinite(n)&&n>0)?Math.min(999,n):0;}
+function nhLaySeedLikes(id,n){
+  var v=Math.max(0,Math.min(999,Math.round(Number(n)||0)));
+  if(!v||typeof feedLikes==='undefined')return;
+  feedLikes[id]={n:v,me:0};
+}
 function nhLaySpot(s,i,c,stamp){
   if(typeof demoSpots==='undefined')return null;
   // 자리: 사람이 옮긴 것(v2.3) → 항목이 들고 온 제 자리(v2.24, 앱에서 가져온 존의 컨텐츠) → 무대가 편 자리
@@ -8399,6 +8466,7 @@ function nhLaySpot(s,i,c,stamp){
        색을 내고, 그러면 트렌드 모드가 아무것도 구분해 보여주지 못한다. */
     temp:(s.temp!=null?s.temp:nhAutoTemp('spot'+i+(s.t||''))),
     live:true});
+  nhLaySeedLikes(id,s.likes); // 좋아요 수 (v2.33) — 지도 말풍선 뱃지에 그대로 뜬다
   nhTempIds.spot.push(id);
   return id;
 }
@@ -8417,6 +8485,7 @@ function nhLayFeed(f,i,c,stamp){
     name:String(f.name||'동네주민').slice(0,20),
     temp:(f.temp!=null?f.temp:nhAutoTemp('feed'+i+(f.desc||f.label||''))), // 트렌드 온도 (v2.4) — nhLaySpot 과 같은 이유
     by:'nh_tmp',ts:Date.now()-(i+1)*3600e3,likes:{},seed:false,type:'photo'});
+  nhLaySeedLikes(id,f.likes); // 좋아요 수 (v2.33) — 라이브가 아니면 feedLikes 가 화면의 기준이다
   nhTempIds.feed.push(id);
   return id;
 }
@@ -8999,6 +9068,7 @@ function nhSanitize(raw){
       s=s||{};return {t:String(s.t||'').slice(0,80),emoji:String(s.emoji||'💬').slice(0,4),
         temp:nhTemp(s.temp), // v2.4: 트렌드 온도 (빈 값이면 null → 깔 때 결정적 랜덤)
         at:nhLatLng(s.at),   // v2.24: 항목이 들고 온 제 자리 (앱에서 가져온 존의 컨텐츠)
+        likes:nhLikes(s.likes), // v2.33: 미리 심는 좋아요 수 (0~999)
         hold:!!s.hold};
     }).filter(function(s){return s.t;});
     var fds=(Array.isArray(rs.feeds)?rs.feeds:[]).slice(0,NH_MAX.feed).map(function(f){
@@ -9007,6 +9077,7 @@ function nhSanitize(raw){
         temp:nhTemp(f.temp), // v2.4
         img:nhImgSrc(f.img), // v2.10: 사람이 올린 사진 (없으면 테마 색으로 그린다 — 지면 카드와 같은 규칙)
         at:nhLatLng(f.at),   // v2.24: 항목이 들고 온 제 자리
+        likes:nhLikes(f.likes), // v2.33: 미리 심는 좋아요 수 (0~999)
         hold:!!f.hold};
     // 사진만 올리고 글은 안 적을 수 있다 (v2.10) — 카드가 곧 사진인 피드다.
     }).filter(function(f){return f.desc||f.label||f.img;});
