@@ -212,6 +212,9 @@ function nhViewSync(){
   if(!(k>0)||!(nhViewK0>0)||Math.abs(k-nhViewK0)<0.002){nhViewK0=k;return;}
   var dz=Math.log(k/nhViewK0)/Math.LN2;
   nhViewK0=k;
+  // 흐르던 카메라가 있으면 그 자리에서 멈춘다 (v2.36) — 아래 setZoom 과 트윈이 싸우면
+  // 배율이 두 주인 사이에서 떤다. 멈춘 자리에 보정을 얹는 편이 정직하다.
+  if(nhCamLive)nhCamCancel();
   /* ⚠️ **두 지도의 줌을 먼저 읽고 나서 건다.** 카메라는 PC → 폰 단방향 미러라
      (map 의 zoom_changed 가 phoneMap.setZoom 을 부른다) 읽으면서 걸면 폰이 미러로 한 번,
      이 루프로 또 한 번 받아 보정이 **두 배**로 들어간다 — 실제로 그렇게 났다. */
@@ -1342,7 +1345,8 @@ function addSpotComment(id,t){
 function closeContentPop(){var m=document.getElementById('content-pop');
   if(m&&m.style.display!=='none'&&typeof nhSfxPlay==='function')nhSfxPlay('close');
   if(m)m.style.display='none';cpopRefresh=null;}
-function cpopGoMap(kind,data,zoom){ // 팝업 '📍 지도에서 보기' — 컨텐츠 탭=팝업 통일 규칙에서 위치 이동은 이 버튼으로
+function cpopGoMap(kind,data,zoom,camMs,token){ // 팝업 '📍 지도에서 보기' — 컨텐츠 탭=팝업 통일 규칙에서 위치 이동은 이 버튼으로
+  // camMs (v2.36) — 무대의 `area` 단계가 자기 ms 를 준다. 안 주면 실앱 기본 900ms.
   // zoom: optional. 안 주면 종전대로(줌<15 일 때만 16). 동네 전체를 보여줘야 하는
   // 호출(M16 area)이 14 처럼 넓은 값을 준다 — 16 은 "이 항목 하나" 용이라 동네가 안 보인다.
   closeContentPop();if(typeof closeDrawer==='function')closeDrawer();
@@ -1353,14 +1357,147 @@ function cpopGoMap(kind,data,zoom){ // 팝업 '📍 지도에서 보기' — 컨
   // panTo 가 **조용히 무시된다.** 임베드(M16)의 PC 지도가 그렇다(display:none). 카메라는
   // PC → 폰 단방향 미러라 그러면 폰 지도까지 같이 멈춘다. 투영이 없으면 setCenter 로 간다
   // (애니메이션은 없지만 안 움직이는 것보다 낫다). 보이는 지도에서는 종전과 동일하다.
-  goMapCam(map,lat,lng,zoom);
-  if(phoneMap){goMapCam(phoneMap,lat,lng,zoom);
-    if(phoneMap.getBounds()){var ins=phoneMapInsets();phoneMap.panBy(0,-(ins.top-ins.bottom)/2);}}
+  /* 흘려보낸다 (v2.36) — 두 지도를 한 번에 다루므로 각각 부르지 않는다.
+     헤더·네비에 가리지 않게 하던 `panBy` 는 **목표 중심에 미리 녹인다**: 트윈이 끝난 뒤
+     panBy 를 또 부르면 그것이 두 번째 애니메이션이 되어 도착 직후 화면이 한 번 더 밀린다.
+     ms 를 안 받는 실앱 호출은 기본 900ms 로 흐른다. */
+  var dLat=0;
+  try{
+    var ins=phoneMapInsets();
+    // 목표 **줌 기준**의 축척으로 재야 도착한 자리가 맞다 (지금 줌으로 재면 트윈 거리만큼 어긋난다)
+    var zt=zoom||((phoneMap&&phoneMap.getZoom&&phoneMap.getZoom())||NH_AREA_ZOOM);
+    var mpp2=156543.03392*Math.cos(lat*Math.PI/180)/Math.pow(2,zt);
+    if(isFinite(mpp2)&&mpp2>0)dLat=((ins.top-ins.bottom)/2)*mpp2/111320;
+  }catch(e){}
+  nhCamGo(lat+dLat,lng,zoom,(camMs|0)||900,0.75,token);
 }
-function goMapCam(m,lat,lng,z){ // 지도 하나를 (lat,lng)로 — 투영이 없으면 panTo 대신 setCenter
+/* ══ 카메라 (v2.36) ═══════════════════════════════════════════════════
+   여태 카메라는 `panTo` + `setZoom` 두 줄이었다. 임베드에서는 PC 지도가 display:none 이라
+   투영이 없어 늘 `setCenter` 가지로 떨어졌다 — **중심은 순간이동하고 배율만 스르륵** 하는
+   그 이질감이 여기서 났다. 유일하게 부드러운 곳이 burst 의 rAF 루프였고, 그것이 부드러운
+   이유는 이징이 아니라 세 규칙이었다: ①`moveCamera` 로 프레임마다 카메라를 직접 놓고
+   ②그동안 PC 지도를 안 건드려 미러를 재우고 ③끝에서 한 번만 PC 를 앉힌다.
+   그 셋을 공용 엔진으로 뽑는다.
+
+   ⚠️ **미러를 재우는 것이 핵심이다.** 카메라는 PC → 폰 단방향 미러인데, `sync` 가
+   `phoneMap.setZoom` 을 부르고 setZoom 은 부를 때마다 Maps **자체 애니메이션**을 새로
+   시작한다 — 16ms 마다 새 애니메이션을 시작하는 꼴이라 v2.13 이 겪은 끊김이 그대로 난다.
+   게다가 `map` 의 idle 이 트윈 한복판에 떨어지면 폰을 앞 단계 값으로 되돌린다. */
+var nhCamSeq=0;        // 카메라 전용 세대 번호 — nhRunToken 은 같은 회차 안에서 안 변해 앞 단계를 못 끊는다
+var nhCamMute=false;   // 트윈 중 미러 잠금
+var nhCamLive=null;    // 진행 중 트윈 (리사이즈·리렌더가 "지금 주인이 있다" 를 안다)
+var NH_CAM_MIN=280, NH_CAM_MAX=1100;
+function nhCamEase(p){return 0.5-Math.cos(Math.PI*p)/2;} // easeInOutSine — 시작·끝이 느려진다
+function nhCamY(lat){var s=Math.max(-85,Math.min(85,lat));return Math.log(Math.tan(Math.PI/4+s*Math.PI/360));}
+function nhCamLat(y){return (Math.atan(Math.exp(y))-Math.PI/4)*360/Math.PI;}
+/** 이 지도가 화면에 실제로 그려지나 — 숨은 지도(임베드의 PC)는 프레임마다 만질 이유가 없다. */
+function nhCamVisible(m){try{return !!(m&&m.getDiv&&m.getDiv()&&m.getDiv().offsetWidth);}catch(e){return false;}}
+/** 트윈을 걸 수 있는 지도인가 — 벡터 + moveCamera + rAF 셋이 다 있어야 한다.
+    래스터는 소수 줌이 정수로 반올림돼(isFractionalZoomEnabled 무시) 트윈이 계단이 된다. */
+function nhCamSmooth(m){
+  return !!(CONFIG.MAP_ID&&CONFIG.MAP_ID.length)&&!!m&&typeof m.moveCamera==='function'
+    &&typeof requestAnimationFrame==='function';
+}
+function nhCamReduced(){
+  try{return window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}
+}
+/** 진행 중 트윈을 **그 자리에서** 끊는다 (목표로 튀지 않는다 — 손이 이겼거나 다음 명령이 왔다). */
+function nhCamCancel(){nhCamSeq++;nhCamLive=null;nhCamMute=false;}
+/** 옛 동작 그대로의 즉시 이동 — 착지(land)와 폴백이 쓴다. */
+function goMapCamRaw(m,lat,lng,z){
   if(!m)return;
   if(m.getBounds())m.panTo({lat:lat,lng:lng});else m.setCenter({lat:lat,lng:lng});
   if(z)m.setZoom(z);else if(m.getZoom()<15)m.setZoom(16);
+}
+/* 이동 시간 — **단계 ms 안에서 끝난다** (D115 결). 넘기면 다음 단계가 움직이는 카메라
+   위에서 시작하고 `i:-1` 사슬과 ok 판정이 흔들린다. 멀수록·많이 줌할수록 조금 더 준다. */
+function nhCamDur(ms,frac,dScr,dz){
+  ms=ms|0||1500;
+  var d=Math.round(ms*(frac||0.55));
+  d=Math.round(d*(1+0.30*Math.min(1,(dScr||0)/3)+0.20*Math.min(1,Math.abs(dz||0)/4)));
+  return Math.min(NH_CAM_MAX,Math.max(NH_CAM_MIN,Math.min(d,ms-140)));
+}
+/** 두 점 사이가 화면 몇 개인가 — 아크(중간에 줌아웃)를 걸지 말지의 기준. */
+function nhCamScreens(m,a,b){
+  try{
+    var mpp=mapMpp(m);if(!mpp)return 0;
+    var w=(m.getDiv&&m.getDiv().offsetWidth)||NH_REF_W;
+    var dy=(b.lat-a.lat)*111320,dx=(b.lng-a.lng)*111320*Math.cos(a.lat*Math.PI/180);
+    return Math.sqrt(dx*dx+dy*dy)/mpp/Math.max(1,w);
+  }catch(e){return 0;}
+}
+/* 카메라를 목표로 **흘려보낸다**.
+   o = {lat,lng,zoom,ms,frac,token,onFrame,onEnd,instant}
+   zoom 을 안 주면 지금 배율 유지, lat/lng 를 안 주면 지금 중심 유지. */
+function nhCamTo(o){
+  o=o||{};
+  var seq=++nhCamSeq,token=o.token;
+  var lead=(typeof phoneMap!=='undefined'&&nhCamVisible(phoneMap))?phoneMap:(nhCamVisible(map)?map:(phoneMap||map));
+  if(!lead||!lead.getCenter)return false;
+  var c0=lead.getCenter();if(!c0)return false;
+  var z0=lead.getZoom();if(!isFinite(z0))z0=NH_AREA_ZOOM;
+  var to={lat:(o.lat!=null?Number(o.lat):c0.lat()),lng:(o.lng!=null?Number(o.lng):c0.lng()),
+          zoom:(o.zoom!=null&&isFinite(Number(o.zoom)))?Number(o.zoom):z0};
+  if(!isFinite(to.lat)||!isFinite(to.lng))return false;
+  /* 착지 — 두 지도를 **같은 값에** 앉힌 뒤에 미러를 푼다. 순서가 바뀌면 해제 직후의
+     첫 idle 이 폰을 흔든다. 세 갈래(정상·취소·예외) 전부 여기로 온다. */
+  function land(){
+    try{
+      nhCamMute=true;
+      goMapCamRaw(map,to.lat,to.lng,to.zoom);
+      if(typeof phoneMap!=='undefined'&&phoneMap)goMapCamRaw(phoneMap,to.lat,to.lng,to.zoom);
+    }finally{
+      nhCamMute=false;nhCamLive=null;
+    }
+    if(o.onEnd)try{o.onEnd();}catch(e){}
+  }
+  var dz=to.zoom-z0;
+  var dScr=nhCamScreens(lead,{lat:c0.lat(),lng:c0.lng()},to);
+  var dur=nhCamDur(o.ms,o.frac,dScr,dz);
+  var tgts=[map,(typeof phoneMap!=='undefined')?phoneMap:null].filter(nhCamVisible);
+  /* **짧은 단계는 흐르지 않는다.** 바닥(280ms)이 남는 시간보다 길면 트윈이 단계를 삼킨다 —
+     여태와 같은 즉시 이동이 정직하고, 대본이 0.4초로 잡은 단계가 늘어지지도 않는다. */
+  var tight=(o.ms|0)>0&&((o.ms|0)-140)<NH_CAM_MIN;
+  if(o.instant||tight||!tgts.length||nhCamReduced()||!tgts.every(nhCamSmooth)){land();return true;}
+  /* 아크 — 멀리 갈 때는 중간에서 줌을 판다(줌아웃 → 슬라이드 → 줌인). 가까우면 0 이라
+     순수 슬라이드가 된다. 사람이 지도를 훑는 손짓이 원래 그렇다. */
+  var dip=Math.min(2.2,Math.max(0,Math.log(Math.max(1e-6,dScr/1.5))/Math.LN2));
+  var y0=nhCamY(c0.lat()),y1=nhCamY(to.lat),x0=c0.lng(),x1=to.lng;
+  nhCamMute=true;nhCamLive={seq:seq};
+  var t0=(window.performance&&performance.now)?performance.now():Date.now();
+  // rAF 는 화면에 없는 탭에서 아예 안 돈다 — 그대로 두면 카메라가 출발점에 멈춘다.
+  var guard=setTimeout(function(){if(seq===nhCamSeq)land();},dur+120);
+  (function frame(){
+    if(seq!==nhCamSeq)return;                                   // 새 카메라 명령이 왔다 (그 자리에서 멈춘다)
+    if(token!=null&&token!==nhRunToken){clearTimeout(guard);nhCamCancel();return;} // 회차가 끝났다
+    var now=(window.performance&&performance.now)?performance.now():Date.now();
+    var p=Math.min(1,(now-t0)/dur),e=nhCamEase(p);
+    var at={lat:nhCamLat(y0+(y1-y0)*e),lng:x0+(x1-x0)*e};
+    var zz=z0+dz*e-(dip?dip*Math.sin(Math.PI*p):0);
+    try{
+      for(var i=0;i<tgts.length;i++)tgts[i].moveCamera({center:at,zoom:zz});
+    }catch(err){clearTimeout(guard);land();return;}             // 벡터가 아니면 즉시 (끊기느니 낫다)
+    if(o.onFrame)try{o.onFrame(zz,at);}catch(e2){}
+    if(p<1)requestAnimationFrame(frame);
+    else{clearTimeout(guard);land();}
+  })();
+  return true;
+}
+/* 두 지도를 **함께** 흘려보낸다 — 무대(M16)가 쓰는 유일한 카메라 문법이다.
+   여태 호출부는 `goMapCam(map,…)` 과 `goMapCam(phoneMap,…)` 을 나란히 불렀는데, 엔진은
+   둘을 한 번에 다루므로 이 함수 하나로 대체된다. */
+function nhCamGo(lat,lng,z,ms,frac,token,o){
+  var a=o||{};
+  return nhCamTo({lat:lat,lng:lng,zoom:z,ms:ms,frac:frac,token:token,
+    instant:a.instant,onFrame:a.onFrame,onEnd:a.onEnd});
+}
+/* 옛 이름은 **동작까지 그대로** 남긴다 — 호출부가 스무 곳 가까이고 대부분 실앱 경로다.
+   달라진 것은 인자 검증뿐이다: 지도를 빼먹은 호출이 실제로 있었고(사이드바 '지도로' 버튼)
+   그동안 TypeError 로 조용히 죽었다. */
+function goMapCam(m,lat,lng,z){
+  if(!m||typeof m.getCenter!=='function'){console.warn('[M01] goMapCam: 첫 인자는 지도다',m);return false;}
+  goMapCamRaw(m,lat,lng,z);
+  return true;
 }
 function cpopOpenEntry(it){ // 피드 리스트 항목 → 상세 팝업 (v1.62 통일: 컨텐츠 탭=팝업, 위치 이동=팝업 안 📍)
   if(it.type==='spot'){var sp=spotMessages.find(function(s){return s.id===it.id;});if(sp)openContentPop('spot',sp);return;}
@@ -1715,9 +1852,13 @@ function openAddMenu(mapObj,div,latLng,popCx,popCy){
   if(popCx!=null&&div&&div.closest&&div.closest('.phone-screen'))positionAddMenuAt(popCx,popCy); // 폰에선 누른 지점에 팝업
   addPinShow(addTargetMap,addAtLatLng); // 좌표가 없으면(+버튼) 마커도 없다 — 화면 센터에 놓이므로 가리킬 지점이 없다
   var el=document.getElementById('content-add-menu');if(el)el.classList.add('open');
+  // + 가 X 로 돈다 (v2.36) — .pn-add.open 은 style.css 에 있었는데 붙이는 코드가 없었다.
+  // 무대에서 btn 단계의 근거가 600ms 짜리 점 하나뿐이던 것도 이걸로 나아진다.
+  try{document.querySelectorAll('.pn-add').forEach(function(b){b.classList.add('open');});}catch(e){}
   addMenuOpenedAt=Date.now();
 }
-function closeAddMenu(keepPin){var el=document.getElementById('content-add-menu');if(el)el.classList.remove('open');resetAddMenuPos();if(!keepPin)addPinHide();}
+function closeAddMenu(keepPin){var el=document.getElementById('content-add-menu');if(el)el.classList.remove('open');
+  try{document.querySelectorAll('.pn-add').forEach(function(b){b.classList.remove('open');});}catch(e){}resetAddMenuPos();if(!keepPin)addPinHide();}
 // 스팟 = 제스처 지점(있으면) 또는 보이는 화면 센터에 추가
 function addSpotContent(){
   if(!currentRole)return; // 로그인 사용자면 데모(뷰어)도 추가 가능
@@ -2588,11 +2729,22 @@ function initPhoneMirror(){
   phoneMap=new google.maps.Map(el,opts);
   phoneProjHelper=new ProjHelper(phoneMap); // 좌표 변환용
   // 카메라 단방향 미러 (PC → 폰)
-  var sync=function(){if(!phoneMap)return;var c=map.getCenter();if(c)phoneMap.setCenter(c);phoneMap.setZoom(map.getZoom());};
+  /* ⚠️ **트윈 중에는 재운다** (v2.36). setZoom 은 부를 때마다 Maps 자체 애니메이션을 새로
+     시작하므로, 프레임마다 이 미러가 돌면 v2.13 이 겪은 끊김이 그대로 재현된다. 게다가
+     `map` 의 idle 이 트윈 한복판에 떨어지면 폰을 앞 단계 값으로 되돌린다.
+     잠금은 nhCamTo 의 land() 가 **두 지도를 같은 값에 앉힌 뒤에** 푼다. */
+  var sync=function(){if(!phoneMap||nhCamMute)return;var c=map.getCenter();if(c)phoneMap.setCenter(c);phoneMap.setZoom(map.getZoom());};
   map.addListener('center_changed',sync);
   map.addListener('zoom_changed',sync);
   map.addListener('idle',function(){sync();updatePhoneLocation();updatePhoneViewportOverlay();updateScaleLegend();updatePhoneScale();reclusterFeedMarkers();declutterMarkers();});
   phoneMap.addListener('idle',function(){autoReleaseFocus();updatePhoneViewportOverlay();updatePhoneLocation();updatePhoneLens();updatePhoneScale();reclusterFeedMarkers();declutterMarkers();if(currentMode==='trend'&&currentTab==='map')renderSummaryZones();}); // 존 리스트=포커스/거리 의존이라 idle마다 갱신. autoReleaseFocus=렌즈 갱신 전에
+  /* **손이 항상 이긴다** (v2.36) — moveCamera 는 프레임마다 사람 조작을 지워 버리므로
+     취소는 선택이 아니라 필수다. 다음 대본 단계는 안 막는다(시연에서 카메라의 주인은
+     단계다) — 손은 지금 흐르는 움직임만 끊고, 다음 트윈은 손이 놓고 간 자리에서 시작한다. */
+  ['dragstart','wheel','gesturestart'].forEach(function(ev){
+    try{el.addEventListener(ev,nhCamCancel,{passive:true});}catch(e){}
+  });
+  try{el.addEventListener('pointerdown',nhCamCancel,{passive:true,capture:true});}catch(e){}
   phoneMap.addListener('click',function(){ clearPhoneSpotlight(); if(currentMode==='local')clearPhoneDong(); }); // 빈 곳 클릭 = 강조 해제
   phoneMap.data.addListener('click',function(e){ // 베이직: 동 탭 → 존과 동일한 포커스+맵 조정
     if(currentMode!=='local')return;
@@ -2972,7 +3124,9 @@ function clampPhonePos(x,y){
   m.style.left=x+'px';m.style.top=y+'px';m.style.right='auto';m.style.transform='none';
 }
 function reclampPhone(){var m=phoneMirrorEl();if(!m||!m.style.left)return;var r=m.getBoundingClientRect();clampPhonePos(r.left,r.top);}
-function phoneResizeMap(){if(!phoneMap)return;setTimeout(function(){google.maps.event.trigger(phoneMap,'resize');var c=map&&map.getCenter();if(c)phoneMap.setCenter(c);if(map)phoneMap.setZoom(map.getZoom());},90);}
+function phoneResizeMap(){if(!phoneMap)return;setTimeout(function(){google.maps.event.trigger(phoneMap,'resize');
+  if(nhCamLive)return; // 카메라의 주인은 흐르는 트윈이다 (v2.36) — 재동기가 그걸 되돌리면 안 된다
+  var c=map&&map.getCenter();if(c)phoneMap.setCenter(c);if(map)phoneMap.setZoom(map.getZoom());},90);}
 function setPhoneWidth(w){
   phoneWidth=Math.max(224,Math.min(360,w));
   var m=phoneMirrorEl();if(m)m.style.setProperty('--phone-w',phoneWidth+'px');
@@ -3708,7 +3862,8 @@ function initPanelCollapse(){
 function resizeMaps(){
   if(typeof google==='undefined')return;
   if(map)google.maps.event.trigger(map,'resize');
-  if(phoneMap){google.maps.event.trigger(phoneMap,'resize');var c=map&&map.getCenter();if(c){phoneMap.setCenter(c);phoneMap.setZoom(map.getZoom());}}
+  if(phoneMap){google.maps.event.trigger(phoneMap,'resize');
+    if(!nhCamLive){var c=map&&map.getCenter();if(c){phoneMap.setCenter(c);phoneMap.setZoom(map.getZoom());}}}
   updatePhoneViewportOverlay();
 }
 function initSidebarResize(){
@@ -7408,8 +7563,8 @@ function renderSeedGroups(){
     function btn(label,cls,fn){var b=document.createElement('button');b.type='button';
       b.className='action-btn small'+(cls?' '+cls:'');b.textContent=label;b.addEventListener('click',fn);acts.appendChild(b);return b;}
     btn('지도로','',function(){
-      if(typeof goMapCam==='function')goMapCam(g.lat,g.lng,16);
-      else if(map)map.setCenter({lat:g.lat,lng:g.lng});
+      // (버그) 첫 인자가 지도여야 하는데 좌표를 넣어 그동안 조용히 죽었다 (v2.36)
+      nhCamGo(g.lat,g.lng,16,700,0.8,null);
     });
     btn(g.hidden?'표시':'숨김','',function(){sgGroupSetHidden(g.id,!g.hidden);});
     btn('삭제','danger',function(){sgGroupDelete(g.id);});
@@ -7849,8 +8004,9 @@ function nhGoHome(){
   // 조용히 무시된다. 카메라는 PC → 폰 단방향 미러라 그러면 폰까지 같이 멈춘다.
   if(typeof goMapCam==='function'){
     var hz=nhZ(NH_AREA_ZOOM); // 칸이 넓으면 그만큼 줌인해 같은 지역이 같은 범위로 (v2.35)
-    goMapCam(map,c.lat,c.lng,hz);
-    if(typeof phoneMap!=='undefined'&&phoneMap)goMapCam(phoneMap,c.lat,c.lng,hz);
+    // 회차 리셋은 **즉시** 간다 (v2.36) — 청소지 연출이 아니고, 여기서 흐르면 첫 단계가
+    // 움직이는 카메라 위에서 시작한다.
+    nhCamGo(c.lat,c.lng,hz,0,0,null,{instant:true});
   }
 }
 
@@ -7877,11 +8033,17 @@ function nhOwn(kind){
     if(arr[j]&&arr[j].id===ids[i]){out.push(arr[j]);break;}
   return out;
 }
-/* i 는 시나리오가 선언한 순서. **음수면 뒤에서부터** — i:-1 = 방금 만든 것(직접 쓴 글). */
+/* i 는 시나리오가 선언한 순서. **음수면 뒤에서부터** — i:-1 = 방금 만든 것(직접 쓴 글).
+   **범위를 넘으면 null 이다** (v2.36). 여태는 마지막 항목으로 조용히 클램프했는데, 그것이
+   번호가 어긋난 단계를 **실패가 아니라 "엉뚱한 성공"** 으로 만들었다 — 3개를 깔고 5번을
+   가리키면 3번이 열리고 ok:true 로 보고돼, 콘솔 타임라인에도 아무 표시가 안 남았다.
+   사람은 "왜 다른 게 열리지" 만 보게 된다. 넘으면 그 단계는 빨간 실패로 드러난다. */
 function nhAt(arr,i){
+  if(!arr||!arr.length)return null;
   i=i|0;
   var k=(i<0)?(arr.length+i):i;
-  return arr[Math.min(Math.max(k,0),arr.length-1)];
+  if(k<0||k>=arr.length)return null;
+  return arr[k];
 }
 /* 콘텐츠 고르기 (v1.72).
    **이번 회차가 만든 것이 있으면 그 안에서만** 고른다. 전역 시드에서 앞에서부터 고르면
@@ -8124,7 +8286,7 @@ function nhCenter(){
 }
 /* 줌만 바꾼다 — 중심은 그대로. 'in'/'out' 은 한 단계, 숫자면 그 값으로.
    v1.94: 실행 여부를 돌려준다 — nh:step 의 ok 재료 (콘솔 D72). */
-function nhZoom(v){
+function nhZoom(v,ms,token){
   var m=map||phoneMap;if(!m||!m.getZoom)return false;
   var now=m.getZoom()||NH_AREA_ZOOM,z;
   /* in/out 은 **지금 줌 기준의 상대 이동**이라 보정이 필요 없다 (이미 보정된 값에서 뗀다).
@@ -8137,8 +8299,7 @@ function nhZoom(v){
   z=Math.min(18,Math.max(11,z));
   if(abs)z=nhZ(z);
   var c=nhCenter();if(!c)return false;
-  goMapCam(map,c.lat,c.lng,z);
-  if(phoneMap)goMapCam(phoneMap,c.lat,c.lng,z);
+  nhCamGo(c.lat,c.lng,z,ms,0.45,token); // 배율만 흐른다 (v2.36)
   return true;
 }
 /* i 번째 콘텐츠로 카메라를 옮겨 확대한다. **팝업은 열지 않는다** — 여는 것은 pop 의 일이고,
@@ -8152,14 +8313,14 @@ function nhFocus(kind,i,token,ms){
   if(typeof switchTab==='function')switchTab('map');
   var m=map||phoneMap;
   var now=(m&&m.getZoom&&m.getZoom())||NH_AREA_ZOOM;
-  goMapCam(map,d.lat,d.lng,now);
-  if(phoneMap)goMapCam(phoneMap,d.lat,d.lng,now);
-  setTimeout(function(){
+  /* 두 박자다 (v1.94) — 먼저 지금 줌으로 거기까지 흐르고, 도착하면 들여다본다.
+     ⚠️ 이음매를 setTimeout 이 아니라 **앞 트윈의 onEnd** 로 둔다 (v2.36): 사람이
+     지도를 만져 앞 트윈이 끊기면 뒤 박자도 자동으로 안 온다. 시각도 어긋나지 않는다. */
+  var half=Math.max(0.2,Math.min(0.45,((ms||2500)*0.42)/(ms||2500)));
+  nhCamGo(d.lat,d.lng,now,ms,half,token,{onEnd:function(){
     if(token!==nhRunToken)return;
-    var fz=nhZ(17); // 들여다보는 줌도 화면 폭을 탄다 (v2.35)
-    goMapCam(map,d.lat,d.lng,fz);
-    if(phoneMap)goMapCam(phoneMap,d.lat,d.lng,fz);
-  },Math.max(400,Math.round((ms||2500)*0.4)));
+    nhCamGo(d.lat,d.lng,nhZ(17),ms,half,token); // 들여다보는 줌도 화면 폭을 탄다 (v2.35)
+  }});
   return true;
 }
 
@@ -8645,8 +8806,8 @@ function nhAct(st,token){
       if(st.a==='area'){var c=SEED_AREAS[st.v];
         if(!c||typeof cpopGoMap!=='function')return false;
         // c.z = 사람이 맞춰 둔 배율(custom 만 갖는다, v1.99). 없으면 여태와 같은 기본값.
-        nhAreaKey=st.v;cpopGoMap('area',{lat:c.lat,lng:c.lng},nhZ(c.z||NH_AREA_ZOOM));return true;}
-      if(st.a==='pop'){var d=nhPick(st.v,st.i);
+        nhAreaKey=st.v;cpopGoMap('area',{lat:c.lat,lng:c.lng},nhZ(c.z||NH_AREA_ZOOM),st.ms,token);return true;}
+      if(st.a==='pop'){var d=nhPick(st.v||'spot',st.i); // 빈 v 는 지도 글로 (v2.36 — focus 와 같은 규칙)
         if(!d)return false;
         /* 딜은 다른 물건이다 (v2.2) — 상세 팝업(#content-pop)이 아니다.
            v2.15 부터 핀 탭=매장 전용 페이지고, v2.20 부터 **어느 쪽으로 열지 단계가 정한다**
@@ -8697,6 +8858,8 @@ function nhAct(st,token){
       /* 컨텐츠 추가 팝업 (v2.34) — v:'btn'=하단 + 버튼 · 'hold'=지도를 꾹.
          꾹 누른 자리에는 마커가 서고, 끌어 옮기면 다음 재생도 그 자리다. */
       if(st.a==='addmenu')return nhAddMenu(st.v,st.fast)!==false;
+      // 하단 + 버튼은 **따로 선다** (v2.36) — 지도 꾹과 다른 손짓이라 목록에서도 달라야 한다
+      if(st.a==='addbtn')return nhAddMenu('btn',st.fast)!==false;
       if(st.a==='addspot')return nhAddSpot(st.v||st.say,st.e,token,st.ms,st.fast)!==false;
       if(st.a==='addreq')return nhAddReq(st.v||st.say,token,st.ms,st.fast)!==false;
       if(st.a==='addphoto')return nhAddFeedCard('photo',st.v||st.say,st.e,st.fast)!==false;
@@ -8737,7 +8900,7 @@ function nhAct(st,token){
       if(st.a==='postfeed')return nhPostFeed(st.v,st.e,st.n,st.fast);
       if(st.a==='burst')return nhBurst(st.v,st.i,st.e,st.ms,token);
       if(st.a==='page')return nhPage(st.v);
-      if(st.a==='zoom')return nhZoom(st.v)!==false;
+      if(st.a==='zoom')return nhZoom(st.v,st.ms,token)!==false;
       if(st.a==='focus')return nhFocus(st.v,st.i,token,st.ms)!==false;
       if(st.a==='scroll'){
         var el=nhScrollTarget();
@@ -9194,57 +9357,20 @@ function nhBurst(v,n,e,ms,token){
   n=Math.min(NH_BURST_MAX,Math.max(1,n|0||12));
   ms=Math.max(800,ms|0||4000);
   var z=parseInt(e,10);if(!isFinite(z))z=13;z=Math.min(16,Math.max(11,z));
-  z=nhZ(z); // 쏟아지며 빠지는 줌도 화면 폭을 탄다 (v2.35) — 아래 rAF·camLand 가 이 값을 쓴다
+  z=nhZ(z); // 쏟아지며 빠지는 줌도 화면 폭을 탄다 (v2.35)
   if(typeof switchTab==='function')switchTab('map');
   var at=nhCenter()||c;
   var salt=String(nhScenarioKey||'burst');
   var stamp=nhHeld.stamp||Date.now();
-  /* 줌아웃을 **한 번의 매끄러운 움직임**으로 (v2.14). v2.13 은 setZoom 을 열두 번 나눠
-     불렀는데, `setZoom` 은 부를 때마다 Maps **자체 애니메이션**(0.3초쯤)을 시작한다 —
-     다음 걸음이 그 애니메이션을 중간에 자르고 새로 시작하니 끊기고 튀었다.
-     그래서 걸음이 아니라 **프레임**으로 돈다: `moveCamera` 는 애니메이션 없이 카메라를
-     그 값에 바로 놓으므로, rAF 로 매 프레임 조금씩 옮기면 그것이 곧 부드러운 줌아웃이다.
-     이징은 easeInOutSine — 시작과 끝이 느려져 "빠져나가는" 느낌이 난다.
-     `moveCamera` 가 없는 지도(래스터)면 setZoom 한 번으로 떨어진다(끊김 없음). */
+  /* 줌아웃을 **한 번의 매끄러운 움직임**으로 (v2.14). v2.36 부터 그 루프는 공용 엔진
+     (nhCamTo)이 돈다 — 여기서 처음 만든 세 규칙(프레임마다 moveCamera · 그동안 미러를
+     재운다 · 끝에서 한 번만 착지)이 이제 모든 카메라 이동의 규칙이다.
+     `zNow` 계약만 남긴다: 깔기 콜백이 **카메라가 실제로 있는 줌**을 읽어 그 순간 화면
+     안에 컨텐츠를 앉힌다(v2.14 — 예측값을 쓰면 이징 때문에 어긋난다). */
   var z0=(phoneMap&&phoneMap.getZoom&&phoneMap.getZoom())||(map&&map.getZoom&&map.getZoom())||NH_AREA_ZOOM;
-  var zoomWin=Math.max(300,Math.round(ms*0.85));
-  /* 지금 카메라가 어느 줌에 있나 — 컨텐츠 자리를 그 순간의 화면에 맞추는 데 쓴다.
-     프레임 루프가 갱신하고, 깔기 콜백이 읽는다(둘이 같은 값을 봐야 화면 안에 앉는다). */
   var zNow=z0;
-  function camLand(){ // 마지막에 PC 지도를 목표 줌에 앉힌다 — 미러(map idle → phoneMap)와
-    goMapCam(map,at.lat,at.lng,z);   // 뒤따르는 단계(zoom·area)가 같은 값을 보게.
-    if(phoneMap)goMapCam(phoneMap,at.lat,at.lng,z);
-    zNow=z;
-  }
-  if(phoneMap&&phoneMap.moveCamera&&typeof requestAnimationFrame==='function'){
-    var camT0=(window.performance&&performance.now)?performance.now():Date.now();
-    var camDone=false;
-    /* 안전망 — rAF 는 탭이 화면에 없으면 아예 안 돈다(백그라운드·숨은 iframe).
-       그대로 두면 카메라가 z0 에 멈춘 채 컨텐츠만 쌓인다. 시간이 지나면 목표에 앉힌다. */
-    setTimeout(function(){
-      if(camDone||token!==nhRunToken)return;
-      camDone=true;camLand();
-    },zoomWin+400);
-    (function frame(){
-      if(token!==nhRunToken||camDone)return;
-      var now=(window.performance&&performance.now)?performance.now():Date.now();
-      var p=Math.min(1,(now-camT0)/zoomWin);
-      var eased=0.5-Math.cos(Math.PI*p)/2; // easeInOutSine — 시작·끝이 느려 "빠져나가는" 느낌
-      var zz=z0+(z-z0)*eased;
-      try{
-        /* **폰 지도만 매 프레임 움직인다.** PC 지도는 임베드에서 display:none 이라
-           카메라 호출이 조용히 무시될 수 있는데, 그 상태로 PC 가 idle 을 쏘면 미러
-           (map → phoneMap)가 폰을 z0 로 되돌려 버린다 — 끊김의 근원이다.
-           PC 는 끝에서 한 번만 맞춘다(camLand). */
-        phoneMap.moveCamera({center:{lat:at.lat,lng:at.lng},zoom:zz});
-        zNow=zz;
-      }catch(err){ camDone=true;camLand(); return; } // 벡터가 아니면 한 번에 (끊기느니 즉시가 낫다)
-      if(p<1)requestAnimationFrame(frame);
-      else{camDone=true;camLand();}
-    })();
-  }else{
-    camLand();
-  }
+  // frac 0.85 = 쏟아지는 동안 내내 빠진다. 아크는 안 붙는다(중심이 안 움직여 dScr=0).
+  nhCamGo(at.lat,at.lng,z,ms,0.85,token,{onFrame:function(zz){zNow=zz;},onEnd:function(){zNow=z;}});
   for(var k=0;k<n;k++)(function(k){
     /* 등장 시각 (v2.12) — **줌아웃이 도는 동안부터** 마구 생긴다.
        v2.11 은 앞 15% 를 비우고 등간격으로 놨더니 메트로놈처럼 규칙적이었고, 카메라가
@@ -9380,7 +9506,16 @@ function nhDrop(v,i,e,fast){
   if(!kind)return false;
   var list=nhHeld[kind]||[],n=(i|0);
   if(n<0||n>=list.length)return false;
-  var item=list.splice(n,1)[0]; // 한 번 깐 것은 다시 깔지 않는다
+  /* **번호를 회차 내내 고정한다** (v2.36).
+     여태는 `list.splice(n,1)` 로 꺼내서, 한 번 띄울 때마다 뒤 항목의 번호가 앞으로
+     당겨졌다. 그런데 콘솔의 고르개(indexChoices)는 보관 목록을 **정적으로** 세어 0·1·2 를
+     저장한다 — 그래서 같은 종류를 두 번 이상 띄우는 데모는 **두 번째부터 엉뚱한 것이 뜨고
+     마지막은 조용히 실패**했다("컨텐츠 탭에 등록한 걸 액션이 못 알아본다" 의 정체다).
+     이제 자리를 그대로 두고 쓴 것만 표시한다. 이미 띄운 것을 또 고르면 다른 게 뜨는 대신
+     **실패로 드러난다** — 조용한 거짓말보다 낫다. */
+  var item=list[n];
+  if(!item||item.used)return false;
+  item.used=true;
   var c=nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangnam;
   /* 지금 깐 것의 id — 등장 바운스 표시용 (v2.11). 렌더 **전에** 적어야 onAdd 가 본다.
      두 번째 인자는 그 종류를 그리는 지도 수다 (스팟·피드는 PC+폰 둘, 나머지는 폰 하나).
@@ -9500,32 +9635,52 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'shopsay', // v2.32: 가게가 한마디 한다 — 지도 이름표에 말풍선을 붙인다 (i=어느 가게·v=문구, 비우면 걷는다)
   'hearts', // v2.34: 남들이 하나둘 하트를 누른다 (v=종류·i=몇 번째·e=몇 개·ms=오르는 시간)
   // v2.34: 컨텐츠 추가 팝업 — 여는 손(addmenu v = btn|hold)과 네 항목을 누르는 손
-  'addmenu','addspot','addphoto','addpost','addreq'];
+  'addmenu','addbtn','addspot','addphoto','addpost','addreq'];
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
   return {key:k,name:SEED_AREAS[k].name};});}
-/* 콘솔이 정한 동네를 등록한다 (v1.98, 콘솔 D85). 앱이 미리 아는 네 곳 밖에서 시연하려면
-   이 길뿐이다 — 여기 심으면 배포가 묶이고, 시연할 동네는 제품보다 자주 바뀐다.
-   **SEED_AREA_ORDER 에는 넣지 않는다**: 그 배열은 시드 평탄화 순서라 문서 id 를 정하고,
-   앞뒤가 바뀌면 기존 문서가 통째로 어긋난다. custom 은 카메라·무대 앵커로만 쓴다.
-   좌표가 이상하면 등록하지 않는다 — 그러면 아래 게이트가 그 스텝을 버려서, 엉뚱한 자리에
-   무대가 깔리는 대신 "지역이 안 움직였다" 는 실패가 남는다. */
-function nhCustomArea(raw){
-  /* **먼저 지운다.** 앞 회차가 등록해 둔 좌표가 남아 있으면, areaPlace 없이 custom 만 온
-     시나리오가 그 자리에 무대를 깔고도 성공한 것처럼 보인다 (조용한 거짓말). */
-  try{delete SEED_AREAS.custom;}catch(e){SEED_AREAS.custom=undefined;}
-  var p=raw&&raw.areaPlace;if(!p)return;
+/** 한 데모가 등록할 수 있는 동네 수 (v2.36) — 콘솔의 MAX_AREA_PLACES 와 같은 값. */
+var NH_MAX_AREAS=6;
+/** 등록된 자리 하나를 SEED_AREAS 모양으로 — 좌표가 이상하면 null (그 칸은 안 만든다). */
+function nhAreaFrom(p){
+  if(!p)return null;
   var lat=Number(p.lat),lng=Number(p.lng);
-  if(!isFinite(lat)||!isFinite(lng))return;
-  if(Math.abs(lat)>90||Math.abs(lng)>180)return;
+  if(!isFinite(lat)||!isFinite(lng))return null;
+  if(Math.abs(lat)>90||Math.abs(lng)>180)return null;
   var a={name:String(p.name||'').slice(0,20)||'직접 정한 동네',lat:lat,lng:lng};
   /* 사람이 맞춰 둔 배율 (v1.99). 없으면 NH_AREA_ZOOM 이다 — "이 화면 그대로" 를 저장했는데
-     배율이 안 따라오면 저장한 화면과 재생 화면이 다르다. 앱의 줌 범위로 자른다. */
-  // 소수 둘째 자리까지 남긴다 (v2.35) — 줌이 이제 소수를 갖는다(화면 폭 보정). 정수로
-  // 반올림하면 사람이 맞춰 둔 화면이 재생 때 한 단계 어긋난다.
+     배율이 안 따라오면 저장한 화면과 재생 화면이 다르다. 앱의 줌 범위로 자른다.
+     소수 둘째 자리까지 남긴다 (v2.35) — 줌이 이제 소수를 갖는다(화면 폭 보정). */
   var z=Number(p.zoom);if(isFinite(z))a.z=Math.min(18,Math.max(11,Math.round(z*100)/100));
-  SEED_AREAS.custom=a;
+  return a;
+}
+/* 콘솔이 정한 동네를 등록한다 (v1.98, 콘솔 D85 · **여러 개는 v2.36**, D136).
+   `custom`·`custom2`·`custom3`… 이라는 **키 네임스페이스**로 넓혔다. `area` 단계의 게이트가
+   이미 `SEED_AREAS[v]` 조회라(nhSanitize) 등록만 해 두면 게이트·액션·배율이 한 줄도 안
+   고치고 그대로 산다 — 이것이 이 설계를 고른 이유다.
+   **SEED_AREA_ORDER 에는 넣지 않는다**: 그 배열은 시드 평탄화 순서라 문서 id 를 정하고,
+   앞뒤가 바뀌면 기존 문서가 통째로 어긋난다. custom 계열은 런타임 등록뿐이다. */
+function nhCustomArea(raw){
+  /* **먼저 지운다.** 앞 회차가 등록해 둔 좌표가 남아 있으면, areaPlace 없이 custom 만 온
+     시나리오가 그 자리에 무대를 깔고도 성공한 것처럼 보인다 (조용한 거짓말).
+     이제 계열 전체를 지운다 — 앞 데모가 custom3 을 썼는데 이번 데모에 없으면 남으면 안 된다. */
+  try{
+    Object.keys(SEED_AREAS).forEach(function(k){
+      if(/^custom\d*$/.test(k))delete SEED_AREAS[k];
+    });
+  }catch(e){}
+  /* 새 콘솔은 `areaPlaces` 배열을, 옛 콘솔은 `areaPlace` 하나를 보낸다 (additive).
+     배열이 와도 **첫 칸은 `custom`** 이라, 옛 데모의 `area:'custom'` 단계가 그대로 산다. */
+  var list=(raw&&Array.isArray(raw.areaPlaces))?raw.areaPlaces:(raw&&raw.areaPlace?[raw.areaPlace]:[]);
+  list.slice(0,NH_MAX_AREAS).forEach(function(p,i){
+    var a=nhAreaFrom(p);if(!a)return;
+    SEED_AREAS[i===0?'custom':('custom'+(i+1))]=a;
+  });
+}
+/** 지금 등록된 custom 계열 키 (콘솔에 알려 줄 목록·검증용). */
+function nhCustomKeys(){
+  return Object.keys(SEED_AREAS).filter(function(k){return /^custom\d*$/.test(k)&&SEED_AREAS[k];});
 }
 /* 지금 화면이 보고 있는 자리 (v1.99) — 콘솔의 "이 지도 저장" 이 읽어 간다.
    **폰 지도를 먼저 본다.** 임베드에서 사람 눈에 보이는 것도, 손으로 끄는 것도 폰이다
@@ -9639,7 +9794,11 @@ function nhSanitize(raw){
         title:String(p.title||'').slice(0,60),
         img:nhImgSrc(p.img), // v2.4: 사람이 올린 사진 (https/data 만 — 없으면 테마 색으로 그린다)
         hold:!!p.hold};
-    });
+    /* **빈 지면은 버린다** (v2.36) — 다른 다섯 종류는 예전부터 버렸는데 지면만 안 버렸다.
+       콘솔의 toSeed 는 여섯 다 버리므로, 여기만 안 버리면 손으로 짠 데모(toSeed 를 안 거친다)와
+       AI 를 거친 데모의 **번호 체계가 달라진다** — "어제까지 되던 데모가 AI 고치기 한 번 뒤에
+       한 칸씩 밀린다" 가 그 자리다. 이제 여섯 종류 모두 같은 규칙이다. */
+    }).filter(function(p){return p.title||p.img;});
     /* 무대 트렌드 존 (v2.21, 콘솔 D117) — 이름은 필수, 색은 #rrggbb 만, r 은 1(7칸)·2(19칸).
        상한·자르기는 콘솔의 toSeed 와 같은 값이어야 한다. */
     var zns=(Array.isArray(rs.zones)?rs.zones:[]).slice(0,NH_MAX.zone).map(function(z){
