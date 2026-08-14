@@ -1794,7 +1794,9 @@ function initSpotComposerClass(){
      닫는 시점을 `popclose` 가 정하게 하려는 것이라, 사람이 직접 쓰는 길(버튼·Enter)은
      인자 없이 불러 여태처럼 그 자리에서 닫힌다. */
   SpotComposer.prototype.commit=function(opts){
-    var text=(this.textEl?this.textEl.value:'').trim();
+    /* `opts.text` (v2.48.1) — 무대는 **손에 든 글**을 그대로 넘긴다. 칸에서 읽으면
+       칸이 없는 상황(오버레이가 아직·이미 안 그려진 프레임)에서 빈 글이 등록된다. */
+    var text=((opts&&opts.text!=null)?String(opts.text):(this.textEl?this.textEl.value:'')).trim();
     var spot={id:'sp_'+Date.now(),lat:this.position.lat(),lng:this.position.lng(),text:text,emoji:this.emoji||'💬'};
     currentSpotEmoji=this.emoji;if(!(opts&&opts.hold))this.close();
     if(currentRole==='admin'){adminSpots.push(spot);rebuildSpots();markCloudDirty();}
@@ -2635,13 +2637,17 @@ function reqSparkBurst(el){
   try{
     if(!el)return;
     var C=['#ffd23f','#ff8a3d','#ff5c78','#8fd0ff','#9be36a'];
-    for(var i=0;i<10;i++){
+    for(var i=0;i<12;i++){
       var s=document.createElement('span');s.className='rp-spark';
-      var ang=(i/10)*Math.PI*2+0.3, d=16+Math.random()*12;
+      /* 사방으로 **멀리** 나간다 (v2.48.1) — 16~28px 은 원 지름(34px) 안에서 끝나
+         "터졌다" 가 아니라 "원 안에서 반짝였다" 로 보였다. 부푼 껍질(scale 1.75 ≈ 지름 60px)
+         **밖까지** 가야 두 움직임이 한 사건으로 읽힌다. */
+      var ang=(i/12)*Math.PI*2+0.26, d=46+Math.random()*24;
       s.style.setProperty('--dx',(Math.cos(ang)*d).toFixed(1)+'px');
       s.style.setProperty('--dy',(Math.sin(ang)*d).toFixed(1)+'px');
       s.style.setProperty('--sp-c',C[i%C.length]);
-      s.style.animationDelay=(Math.random()*0.06)+'s';
+      // 드롭이 움츠렸다 팡 하는 그 순간(≈0.1s)에 맞춰 나간다 — 먼저 나가면 두 효과가 따로 논다
+      s.style.animationDelay=(0.1+Math.random()*0.05).toFixed(3)+'s';
       el.appendChild(s);
     }
   }catch(e){}
@@ -2654,7 +2660,7 @@ function reqPopAway(id){
   if(ov&&ov.div){
     ov.div.classList.add('rp-pop');
     reqSparkBurst(ov.div); // v2.48 불꽃이 흩어진다 — "끝났다" 를 자리로 말한다
-    setTimeout(function(){if(typeof renderRequestMarkers==='function')renderRequestMarkers();},620); // 터짐이 끝나고 걷는다
+    setTimeout(function(){if(typeof renderRequestMarkers==='function')renderRequestMarkers();},760); // 터짐(0.1+0.6s)이 끝나고 걷는다
   }else if(typeof renderRequestMarkers==='function')renderRequestMarkers();
 }
 function showRewardBubble(msg,reqId){ // msg 비우면 기본 문구 — 시나리오('reward' 액션의 v)가 바꾼다
@@ -9102,15 +9108,11 @@ function nhWriteSpot(text,token,ms,emoji,fast,at){
     }
   }
   var typed=String(text||'').slice(0,80);
-  /* 커밋은 **이 스텝 안에서** 끝난다 (v2.33). 여태 max(900,…) 라 짧은 스텝에서는 커밋이
-     다음 스텝으로 넘어갔고, 그러면 뒤따르는 `i:-1` 이 아직 없는 글을 집었다(D115).
-     answer·request 가 이미 쓰던 min(…, ms-여유) 문법을 write 도 쓴다 — 이래야 콘솔의
-     ms 하한을 낮춰도 사슬이 안 끊긴다. */
-  var commitAt=Math.min(Math.max(900,Math.round((ms||2600)*0.55)),Math.max(260,(ms||2600)-100));
-  // 글자별 타이핑 (v1.94). 220ms 뒤 통째로 박히는 것이 화면에서 가장 큰 로봇 티였다.
-  // 커밋 150ms 전까지를 타이핑 창으로 쓰고, 틱 간격은 글자 수에서 역산한다 (30~90ms).
-  // 매 틱 토큰을 본다 — 새 재생이 시작되면 잘린 글자가 남지 않게 그 자리에서 멈춘다.
-  var t0=220,win=Math.max(300,commitAt-t0-150);
+  /* 글자별 타이핑 (v1.94). 220ms 뒤 통째로 박히는 것이 화면에서 가장 큰 로봇 티였다.
+     타이핑 창은 **이 단계의 끝까지**다 (v2.48.1 — 등록이 "닫는 순간" 으로 갔다).
+     틱 간격은 글자 수에서 역산한다 (30~90ms). 매 틱 토큰을 본다 — 새 재생이 시작되면
+     잘린 글자가 남지 않게 그 자리에서 멈춘다. */
+  var t0=220,win=Math.max(300,(ms||2600)-t0-140);
   var per=Math.min(90,Math.max(30,Math.round(win/Math.max(1,typed.length))));
   var pos=0;
   setTimeout(function(){
@@ -9124,14 +9126,16 @@ function nhWriteSpot(text,token,ms,emoji,fast,at){
       ov.textEl.value=typed.slice(0,pos);
     },per);
   },t0);
-  setTimeout(function(){
-    if(token!==nhRunToken)return;
-    // 중단 없이 왔으면 전체 문자열로 보정하고 커밋한다 — 잘린 글이 등록되지 않게.
-    if(ov.textEl)ov.textEl.value=typed;
+  /* 등록은 **팝업이 닫히는 순간**이다 (v2.48.1 — addreq 와 같은 규칙, 같은 이유).
+     타이머 안에서 적으면 그 타이머가 돌기 전에 닫힌 회차는 적을 기회조차 없다. */
+  var committed=false;
+  function finishSpot(){
+    if(committed)return;committed=true;
+    if(token!==nhRunToken){try{ov.close();}catch(e){}return;}
+    if(ov.textEl)ov.textEl.value=typed; // 화면도 전체 글로 맞춘다 (칸이 살아 있으면)
     var before=(typeof demoSpots!=='undefined')?demoSpots.length:0;
-    // v2.48: 등록해도 카드는 남는다 — 닫는 것은 popclose 다 (addreq 와 같은 규칙).
-    try{ov.commit({hold:true});}catch(e){}
-    nhAfterClose(function(){try{ov.close();}catch(e){}});
+    // 등록되는 글은 **칸이 아니라 손에 든 것**이다 — 다 못 쳤어도 전체 글이 올라간다
+    try{ov.commit({text:typed});}catch(e){} // 커밋이 카드를 닫는다 = 이제 그것이 닫는 순간이다
     if(typeof demoSpots!=='undefined')
       for(var i=before;i<demoSpots.length;i++){
         nhTempIds.spot.push(demoSpots[i].id);
@@ -9139,7 +9143,9 @@ function nhWriteSpot(text,token,ms,emoji,fast,at){
         nhWriteIds[demoSpots[i].id]=wi;
         nhBounceMark(demoSpots[i].id,2); // 내가 쓴 글도 뿅 하고 앉는다 (v2.12)
       }
-  },commitAt);
+    if(typeof rebuildSpots==='function')rebuildSpots(); // 바운스 표를 적은 뒤 다시 그린다
+  }
+  nhAfterClose(finishSpot);
   return true;
 }
 
@@ -9179,13 +9185,12 @@ function nhRequestTyped(text,token,ms,fast,at){
   }
   closeReqComposer();
   var ov=reqComposer=new ReqComposer(ll,(typeof phoneMap!=='undefined'&&phoneMap)||map,{press:true,auto:true,stage:true});
-  /* 커밋 바닥 1200: 롱프레스 링(560)이 차오른 뒤에야 타이핑 창이 열린다 —
-     write 의 900 을 그대로 쓰면 링과 타이핑이 겹쳐 둘 다 안 보인다.
-     단 **이 스텝 안에서는 반드시 커밋한다** (v2.19): nhRun 은 st.ms 뒤에 다음 스텝을
-     시작하므로, 바닥이 스텝보다 길면 뒤따르는 answer/pop 의 i:-1 이 아직 없는 Request 를
-     집는다(빈손이거나 남의 것). 짧게 적힌 스텝은 연출이 접힐 뿐 사슬은 안 끊긴다. */
-  var commitAt=Math.min(Math.max(1200,Math.round((ms||2600)*0.6)),Math.max(300,(ms||2600)-120));
-  var t0=760,win=Math.max(300,commitAt-t0-150);
+  /* 타이핑 창은 **이 단계의 끝까지** 쓴다 (v2.48.1).
+     예전에는 `commitAt`(등록 시점) 앞까지만 쳤다 — 등록이 "닫는 순간" 으로 옮겨 갔으니
+     칠 수 있는 시간은 이 단계가 끝날 때까지다. 시작은 여전히 760: 롱프레스 링(560)이
+     차오른 뒤에야 타이핑 창이 열린다(write 의 900 을 쓰면 링과 겹쳐 둘 다 안 보인다).
+     ⚠️ 다 못 쳐도 잃는 글은 없다 — `finishReq` 가 등록 직전에 **전체 글**로 맞춘다. */
+  var t0=760,win=Math.max(300,(ms||2600)-t0-160);
   var per=Math.min(90,Math.max(30,Math.round(win/Math.max(1,typed.length))));
   var pos=0;
   setTimeout(function(){
@@ -9198,26 +9203,31 @@ function nhRequestTyped(text,token,ms,fast,at){
       ov.textEl.value=typed.slice(0,pos);
     },per);
   },t0);
-  setTimeout(function(){
+  /* ── 등록은 **팝업이 닫히는 순간**이다 (v2.48.1) ─────────────────────────
+     v2.48 은 여태처럼 `commitAt` 타이머에서 등록하고 닫기·말풍선만 미뤘다. 그런데 이 단계는
+     "타이핑까지" 이고 닫는 것은 다음 단계(`popclose`)라, **닫기가 타이머보다 먼저 오면**
+     `ov.closed` 가 참이 되어 타이머가 그대로 물러났다 — 핀도 말풍선도 없었다(사용자 보고).
+     이제 커밋·핀·말풍선이 **한 자리**에 있다: 카드를 닫는 그 순간.
+     ⚠️ 등록은 **지금 적어 둔다** — 타이머 안에서 적으면 그 타이머가 돌기 전에 닫힌 회차는
+     적을 기회조차 없다(그것이 위 버그의 정체다). */
+  var committed=false;
+  function finishReq(){
+    if(committed)return;committed=true;
     if(token!==nhRunToken){try{ov.close();}catch(e){}return;}
-    if(ov.closed)return; // 사람이 취소했거나 이미 등록했다 (v2.19) — 타이머가 한 번 더 올리지 않는다
+    if(ov.textEl)ov.textEl.value=typed; // 타이핑이 덜 끝났어도 **전체 글**로 등록한다
     var rq=null;
     try{rq=commitFieldRequest(ll,typed,{stage:true,quiet:true});}catch(e){}
-    if(!rq){try{ov.close();}catch(e){}return;}
-    /* v2.48: **등록해도 카드는 남는다.** 닫는 것은 `popclose` 이고, 닫히고 나서야
-       "전송했다" 는 말풍선이 온다 — 카드가 떠 있는 동안 그 말을 하면 아직 손에 든
-       것을 이미 보냈다고 말하는 셈이다. 얼마나 보여줄지는 대본이 정한다. */
-    nhAfterClose(function(){
-      try{ov.close();}catch(e){}
-      if(typeof aiSay==='function')
-        aiSay('📍 Request 전송! 근처 현장 유저에게 알림이 갑니다. (10분간 답변 수신)',nhBubbleMs||2600);
-    });
+    try{ov.close();}catch(e){}
+    if(!rq)return;
     nhTempIds.req.push(rq.id); // 회차가 걷는다 — 두 번째 재생에 내 Request 가 이미 있으면 안 된다
     nhReqIds[rq.id]=wi;
     nhBounceMark(rq.id,1); // 렌더 **전에** 적어야 onAdd 가 본다 (v2.11)
     if(typeof renderRequestMarkers==='function')renderRequestMarkers();
     if(typeof renderDrawerDemo==='function')renderDrawerDemo();
-  },commitAt);
+    if(typeof aiSay==='function')
+      aiSay('📍 Request 전송! 근처 현장 유저에게 알림이 갑니다. (10분간 답변 수신)',nhBubbleMs||2600);
+  }
+  nhAfterClose(finishReq);
   return true;
 }
 
@@ -9604,10 +9614,12 @@ function nhAct(st,token){
         if(typeof closeDealSheet==='function'){closeDealSheet();did=true;}
         if(typeof closeStorePage==='function'){closeStorePage();did=true;}
         if(typeof closeContentPop==='function'){closeContentPop();did=true;}
-        /* 컴포저도 **이 손이** 닫는다 (v2.48) — 등록해도 카드는 남아 있다. */
+        /* **뒷일이 먼저다** (v2.48.1) — 글쓰기 카드의 뒷일은 "등록하고 닫는다" 라서,
+           카드를 먼저 걷어 버리면 등록할 글이 든 칸이 사라진 뒤에 등록이 돈다.
+           아래 close* 는 뒷일이 없는 카드(사람이 열어 둔 것)를 위한 그물이다. */
+        nhRunAfterClose();
         if(typeof closeReqComposer==='function'){closeReqComposer();did=true;}
         if(typeof closeComposer==='function'){closeComposer();did=true;}
-        nhRunAfterClose(); // 닫히고 나서야 하는 일 (말풍선·핀 걷기)
         return did;}
       // 꾹 누르기 → 컴포저 → 타이핑 → 등록 — 묻는 손이 화면에 보인다 (v2.18).
       if(st.a==='request')return nhRequestTyped(st.v||st.say,token,st.ms,st.fast)!==false;
