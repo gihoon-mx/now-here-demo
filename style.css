@@ -694,6 +694,10 @@ body.mode-trend .add-pin .apn-ring{border-color:rgba(255,90,60,0.6);}
 /* v2.27 팝업 문법 통일: 현장 Request 버블(.req-bubble)과 같은 프로스트·라운드 5cqw·그림자 */
 .content-add-menu{position:absolute;left:3cqw;bottom:calc(21cqw + env(safe-area-inset-bottom,0px));z-index:7;display:none;flex-direction:column;gap:1.2cqw;padding:2cqw;border-radius:5cqw;
   background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-line);box-shadow:0 1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);}
+/* 눌린 항목 (v2.37) — 무대가 누르는 동안 표시가 남는다. 팝업도 그동안 안 닫힌다
+   (app.js NH_ADD_HOLD) — 여태는 표식이 커지는 중에 메뉴가 먼저 사라졌다. */
+.content-add-menu .cam-item.nh-press{background:var(--acc,#3b6ef5);border-color:transparent;color:#fff;transform:scale(.97);}
+.content-add-menu .cam-item{transition:background .12s ease,color .12s ease,transform .12s ease;}
 .content-add-menu.open{display:flex;animation:aiPop .34s cubic-bezier(.2,1.5,.4,1) both;transform-origin:14% bottom;}
 .cam-item{display:flex;align-items:center;gap:2cqw;padding:2.4cqw 3.2cqw;border:none;border-radius:2.4cqw;background:transparent;color:var(--ink);font-family:inherit;font-size:3.2cqw;font-weight:600;white-space:nowrap;cursor:pointer;text-align:left;transition:background .15s ease;}
 .cam-item:hover,.cam-item:active{background:var(--hover);}
@@ -1392,6 +1396,25 @@ body.embed-mode #sidebar{position:static;flex:none;width:100%!important;height:1
 body.embed-mode #phone-mirror{position:static;width:100%;height:100%;padding:0;background:none;}
 body.embed-mode .phone-bar{display:none;}
 body.embed-mode .phone-screen{width:100%;height:100%;aspect-ratio:auto;border-radius:0;border:none;box-shadow:none;}
+
+/* ── 찰칵 (v2.37) — 라이브 카메라가 찍는 장면 ────────────────────────────
+   화면이 한 번 하얗게 번쩍하고, 찍힌 사진이 뷰파인더 가운데서 부풀었다 지도 위 제자리로
+   날아가 앉는다. 쿠폰(.coupon-fly)·코인과 같은 문법이다 — .phone-screen 에 붙었다 걷히고
+   이동은 --dx/--dy 로 준다. 폰 컨테이너 안이라 크기는 cqw 다 (v1.82 규칙). */
+.nh-flash{position:absolute;inset:0;z-index:9200;pointer-events:none;background:#fff;
+  animation:nhFlash .4s ease-out forwards;}
+@keyframes nhFlash{0%{opacity:0}12%{opacity:.92}100%{opacity:0}}
+.nh-shot{position:absolute;z-index:9150;width:26cqw;height:26cqw;margin:-13cqw 0 0 -13cqw;
+  border-radius:2.6cqw;background:#dfe3ea;overflow:hidden;pointer-events:none;
+  box-shadow:0 1.2cqw 3cqw rgba(15,23,42,.32);border:0.5cqw solid #fff;
+  animation:nhShot .78s cubic-bezier(.3,.9,.3,1) forwards;}
+.nh-shot img{width:100%;height:100%;object-fit:cover;display:block;}
+@keyframes nhShot{
+  0%{transform:translate(0,0) scale(.72);opacity:0}
+  14%{transform:translate(0,0) scale(1);opacity:1}
+  30%{transform:translate(0,0) scale(1);opacity:1}
+  100%{transform:translate(var(--dx,0),var(--dy,0)) scale(.16);opacity:.15}}
+@media (prefers-reduced-motion:reduce){.nh-flash,.nh-shot{animation-duration:.01ms;}}
 
 /* ── M16 재생 연출 (v1.94, 콘솔 D72) — 화면 위 레이어라 계약과 무관하다 ── */
 /* 손가락 자국: 재생이 "누르는" 자리에 잠깐 떴다 사라진다. 상태가 스스로 바뀌면

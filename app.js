@@ -1857,7 +1857,17 @@ function openAddMenu(mapObj,div,latLng,popCx,popCy){
   try{document.querySelectorAll('.pn-add').forEach(function(b){b.classList.add('open');});}catch(e){}
   addMenuOpenedAt=Date.now();
 }
-function closeAddMenu(keepPin){var el=document.getElementById('content-add-menu');if(el)el.classList.remove('open');
+/* 팝업을 **잠깐 붙잡아 둔다** (v2.37).
+   손가락 표식은 0.55초짜리 CSS 애니메이션인데(.nh-touch) 무대가 항목을 누르고 나서
+   **그 자리에서** 팝업을 닫아 왔다 — 표식이 아직 커지는 중인데 가리키던 메뉴가 이미
+   없어서 "터치보다 팝업이 먼저 사라진다" 로 보였다. 닫기 경로가 셋이라(무대의 nhAddDone,
+   addSpotContent 안쪽, 바깥 클릭) 부르는 쪽마다 늦추는 대신 **닫기 자체가 기다린다**. */
+var addMenuHold=0;
+function addMenuHoldFor(ms){addMenuHold=Date.now()+Math.max(0,ms|0);}
+function closeAddMenu(keepPin){
+  var left=addMenuHold-Date.now();
+  if(left>0){addMenuHold=0;setTimeout(function(){closeAddMenu(keepPin);},left);return;} // 0 을 먼저 — 재귀가 안 돈다
+  var el=document.getElementById('content-add-menu');if(el)el.classList.remove('open');
   try{document.querySelectorAll('.pn-add').forEach(function(b){b.classList.remove('open');});}catch(e){}resetAddMenuPos();if(!keepPin)addPinHide();}
 // 스팟 = 제스처 지점(있으면) 또는 보이는 화면 센터에 추가
 function addSpotContent(){
@@ -5846,8 +5856,9 @@ function nhBounceMark(id,n){
    시나리오가 소리를 잃지 않는다.
    최소 간격도 자리마다 다르다: 타이핑은 글자마다 나므로 촘촘하고(55ms), 모드 전환은
    한 번 크게 난다(150ms). */
-var NH_SFX_KEYS=['pop','tap','open','close','mode','type'];
-var NH_SFX_GAP={pop:120,tap:90,open:140,close:140,mode:150,type:55};
+// v2.37: 'shot' = 카메라 셔터 (라이브 카메라 액션). 파일을 안 올리면 조용히 지나간다.
+var NH_SFX_KEYS=['pop','tap','open','close','mode','type','shot'];
+var NH_SFX_GAP={pop:120,tap:90,open:140,close:140,mode:150,type:55,shot:200};
 var nhSfxBank={},nhSfxAt={};
 function nhSfxSet(v){
   nhSfxBank={};nhSfxAt={};
@@ -8207,11 +8218,26 @@ function nhAddMenu(v,fast){
   var idx=nhAddN++;
   var c=SEED_AREAS[nhAreaKey]||null;
   var ctr=m.getCenter&&m.getCenter();
-  // 사람이 끌어 둔 자리 → 지금 화면 중심 → 지역 좌표. 화면 중심이 기본인 이유는
-  // "꾹 누르는 곳" 이 보이는 화면 안이어야 하기 때문이다 (지역 좌표는 화면 밖일 수 있다).
+  /* 사람이 끌어 둔 자리가 먼저다. 없으면 **화면 중심에서 비껴 놓는다** (v2.37).
+     여태 기본값이 지도 중심이었는데, `+` 버튼 갈래도 좌표 없이 화면 센터에 만들므로
+     **둘이 같은 자리에 같은 것을 만들었다** — 사용자가 "지도 꾹이 하단 버튼과 똑같이
+     동작한다" 고 한 것이 이것이다. 꾹 누르는 손은 화면 한가운데가 아니라 엄지가 닿는
+     아래쪽에 떨어지므로, 중심에서 아래로 한 뼘 옮긴다(가로도 살짝). 눈에 보이는 차이가
+     생기고, 그 자리는 마커로 보이며 끌어 옮기면 다음 재생에도 남는다. */
   var saved=nhPosGet('addat',idx,c||(ctr?{lat:ctr.lat(),lng:ctr.lng()}:null));
-  var ll=saved?new google.maps.LatLng(saved.lat,saved.lng)
-    :(ctr||(c?new google.maps.LatLng(c.lat,c.lng):null));
+  var ll=null;
+  if(saved)ll=new google.maps.LatLng(saved.lat,saved.lng);
+  else if(ctr){
+    var dLat=0,dLng=0;
+    try{
+      var mpp=mapMpp(m),h=(mdiv.offsetHeight||NH_REF_W*2.17),w=(mdiv.offsetWidth||NH_REF_W);
+      if(mpp){
+        dLat=-(h*0.16)*mpp/111320;                                  // 아래로 (엄지가 닿는 자리)
+        dLng=-(w*0.10)*mpp/(111320*Math.cos(ctr.lat()*Math.PI/180)); // 살짝 왼쪽
+      }
+    }catch(e){}
+    ll=new google.maps.LatLng(ctr.lat()+dLat,ctr.lng()+dLng);
+  }else if(c)ll=new google.maps.LatLng(c.lat,c.lng);
   if(!ll)return false;
   nhAddIdx=idx;
   var pt=nhLatLngToClient(m,mdiv,ll);
@@ -8219,6 +8245,9 @@ function nhAddMenu(v,fast){
   openAddMenu(m,mdiv,ll,pt?pt.x:null,pt?pt.y:null);
   return true;
 }
+/** 항목을 누른 뒤 팝업이 남아 있는 시간 — 손가락 표식(.nh-touch 0.55초)보다 조금 짧다.
+    같이 끝나면 둘이 동시에 사라져 "닫혔다" 가 안 보인다. */
+var NH_ADD_HOLD=420;
 /** 팝업의 항목 하나를 누른다. 안 열려 있으면 먼저 연다 — 이 단계 하나로도 서야 한다. */
 function nhAddTap(kind,fast){
   var menu=document.getElementById('content-add-menu');
@@ -8226,7 +8255,15 @@ function nhAddTap(kind,fast){
   if(!menu.classList.contains('open')&&!nhAddMenu('hold',fast))return false;
   var it=menu.querySelector('.cam-item[data-add="'+kind+'"]');
   if(!it)return false;
-  if(!fast)nhTouch(it);
+  if(!fast){
+    nhTouch(it);
+    /* 표식이 사는 동안 팝업을 붙잡고, 눌린 항목에 표시를 남긴다 (v2.37).
+       그래야 "눌렀다 → 반응했다 → 닫혔다" 가 순서대로 보인다 — 여태는 닫기가 0ms 라
+       표식이 아직 커지는 중인데 가리키던 메뉴가 이미 없었다. */
+    addMenuHoldFor(NH_ADD_HOLD);
+    try{it.classList.add('nh-press');
+      setTimeout(function(){try{it.classList.remove('nh-press');}catch(e){}},NH_ADD_HOLD);}catch(e){}
+  }
   return true;
 }
 /** 지금 팝업이 가리키는 자리 (없으면 null — 그러면 각 액션의 여태 규칙대로 간다). */
@@ -8256,6 +8293,40 @@ function nhAddReq(text,token,ms,fast){
   nhAddDone();
   return nhRequestTyped(text,token,ms,fast,at)!==false;
 }
+/* 찰칵 (v2.37) — 라이브 카메라는 **찍는 장면**이다.
+   화면이 한 번 번쩍하고, 방금 찍힌 사진이 화면 가운데서 부풀었다가 지도 위 제자리로
+   날아가 앉는다. 쿠폰(couponFly)·코인(coinBurst)이 쓰던 문법 그대로다 —
+   `.phone-screen` 에 붙였다 걷고, 이동은 CSS 변수(--dx/--dy)로 준다.
+   ⚠️ 좌표는 **로컬 px** 이다: rect 로 잰 값을 그대로 style.left 에 넣으면 안 되는데,
+   여기서는 두 값 모두 같은 화면 좌표계라 차(delta)만 쓰므로 안전하다. */
+function nhShutter(){
+  try{
+    var scr=document.querySelector('.phone-screen');if(!scr)return;
+    var f=document.createElement('div');f.className='nh-flash';
+    scr.appendChild(f);
+    if(typeof nhSfxPlay==='function')nhSfxPlay('shot');
+    setTimeout(function(){try{f.remove();}catch(e){}},420);
+  }catch(e){}
+}
+/** 찍힌 사진이 지도의 그 자리로 날아간다. to 는 화면 좌표(없으면 연출을 안 한다). */
+function nhPhotoFly(src,to){
+  try{
+    var scr=document.querySelector('.phone-screen');if(!scr||!to)return;
+    var r=scr.getBoundingClientRect();if(!r.width)return;
+    var x0=r.width/2,y0=r.height*0.42;              // 뷰파인더 한가운데서 출발
+    var x1=to.x-r.left,y1=to.y-r.top;
+    var el=document.createElement('div');el.className='nh-shot';
+    /* 사진은 **자식 img 로** 넣는다 (v2.37). CSS 의 url(...) 로 주면 안 되는데,
+       테마 일러스트가 SVG data URI 이고 그 안에 괄호가 그대로 있어(encodeURIComponent 는
+       괄호를 escape 하지 않는다) url() 이 그 자리에서 끊긴다 — 실제로 빈 카드가 날아갔다. */
+    if(src){var im=document.createElement('img');im.src=src;im.alt='';el.appendChild(im);}
+    el.style.left=x0+'px';el.style.top=y0+'px';
+    el.style.setProperty('--dx',(x1-x0)+'px');
+    el.style.setProperty('--dy',(y1-y0)+'px');
+    scr.appendChild(el);
+    setTimeout(function(){try{el.remove();}catch(e){}},900);
+  }catch(e){}
+}
 function nhAddFeedCard(which,desc,theme,fast){ // which: 'photo'(라이브 카메라) | 'post'(Feed 작성)
   var at=nhAddAt();
   if(!nhAddTap(which,fast))return false;
@@ -8273,6 +8344,23 @@ function nhAddFeedCard(which,desc,theme,fast){ // which: 'photo'(라이브 카�
   if(typeof renderFeed==='function')renderFeed();
   if(typeof renderFeedMarkers==='function')renderFeedMarkers();
   if(typeof renderNews==='function')renderNews();
+  /* 라이브 카메라만 **찍는 장면**을 얹는다 (v2.37) — Feed 작성은 갤러리에서 고르는
+     것이라 셔터가 없다. 카드는 위에서 이미 만들어졌으므로 `i:-1` 사슬이 안 흔들린다:
+     번쩍임과 날아가는 사진은 그 위에 덧그리는 연출이다. */
+  if(!fast&&which==='photo'){
+    var made=null;
+    try{made=feedItems.filter(function(f){return f.id===id;})[0]||null;}catch(e){}
+    nhShutter();
+    setTimeout(function(){
+      var to=null;
+      try{
+        var mdiv=document.getElementById('phone-map');
+        if(made&&mdiv&&typeof nhLatLngToClient==='function'&&typeof phoneMap!=='undefined')
+          to=nhLatLngToClient(phoneMap,mdiv,new google.maps.LatLng(made.lat,made.lng));
+      }catch(e){}
+      nhPhotoFly(made&&made.src,to);
+    },140);
+  }
   return true;
 }
 
@@ -8898,7 +8986,7 @@ function nhAct(st,token){
       if(st.a==='drop')return nhDrop(st.v,st.i,st.e,st.fast)!==false;
       if(st.a==='post')return nhPostSpot(st.v,st.e,st.fast);
       if(st.a==='postfeed')return nhPostFeed(st.v,st.e,st.n,st.fast);
-      if(st.a==='burst')return nhBurst(st.v,st.i,st.e,st.ms,token);
+      if(st.a==='burst')return nhBurst(st.v,st.i,st.e,st.ms,token,st.n);
       if(st.a==='page')return nhPage(st.v);
       if(st.a==='zoom')return nhZoom(st.v,st.ms,token)!==false;
       if(st.a==='focus')return nhFocus(st.v,st.i,token,st.ms)!==false;
@@ -9338,6 +9426,33 @@ var NH_BURST_SPOTS=[['여기 줄 서기 시작했어요','🔥'],['방금 자리
   ['산책하기 딱 좋은 날','🌿'],['웨이팅 없이 들어왔어요','🏃']];
 var NH_BURST_FEEDS=[['지금 이 골목','cafe'],['오늘의 발견','food'],['방금 찍었어요','park'],
   ['신상 스팟','shop'],['야경 맛집','night'],['운동 끝!','gym'],['전시 보러 왔어요','art'],['독서 한 판','book']];
+/* 쏟아지는 피드에 **실사진**을 쓸 때의 풀 (v2.37).
+   웹에서 긁어오지 않는다 — 이 저장소는 이미 `SEED_IMG` 에 **Wikimedia Commons 직링크**
+   묶음을 갖고 있다(핫링크 허용·영구 보존·로드 검증을 거친 것들이다). 임의의 웹 이미지는
+   출처와 라이선스를 그때그때 알 수 없고, 시연 중에 죽으면 빈 카드가 된다.
+   테마별로 묶어 두어 `cafe` 카드에는 카페 사진이 간다 — 아무 사진이나 꽂으면 문구와
+   그림이 어긋나서 오히려 지어낸 티가 난다. 고르기는 결정적이다(heatJitter). */
+var NH_BURST_PHOTOS={
+  cafe:['latte','latteHeart','cafeInt','espresso','brunch','cheesecake','roastery','barista','bakery'],
+  food:['gopchang','kfood8','kfood9','noodle','pojang','gwangjang','gukbap','burger','foodAlley'],
+  park:['parkPath','parkMay','seokchonLake','cherry','ttukPark','parkRun','cherryStreet','dogWalk'],
+  shop:['flea3','flea7','seongsuShop','seongsuBrick','shopStreet','store'],
+  night:['rooftop','garosu','lotteTower','nightRoad','lotteWorld'],
+  gym:['gym','climb'],
+  book:['book','bookNight','cherryCampus'],
+  art:['mural','seongsuBrick','flavin'],
+  pet:['dog','dogWalk'],
+  run:['parkRun','parkPath']
+};
+/** 그 테마의 실사진 하나 — 없으면 빈 문자열(그러면 여태처럼 테마 색 일러스트로 그린다). */
+function nhBurstPhoto(theme,salt,k){
+  try{
+    var pool=NH_BURST_PHOTOS[theme]||NH_BURST_PHOTOS.cafe;
+    if(!pool||!pool.length)return '';
+    var i=Math.floor(heatJitter(salt+'p'+k)*pool.length)%pool.length;
+    return (typeof SEED_IMG!=='undefined'&&SEED_IMG[pool[i]])||'';
+  }catch(e){return '';}
+}
 var NH_BURST_NAMES=['동네주민','골목탐험가','산책러','단골손님','뚜벅이','로컬큐레이터'];
 var NH_BURST_DEALS=[['마감 직전 딜','🥐','베이커리',40],['오늘만 이 가격','☕','카페',30],
   ['라스트 오더','🍜','분식집',25],['깜짝 타임딜','🛍️','편집숍',35]];
@@ -9351,16 +9466,25 @@ function nhBurstKinds(v){
   });
   return out.length?out:['spot','feed','deal']; // mix·빈 값·모르는 값 = 셋 다
 }
-function nhBurst(v,n,e,ms,token){
+function nhBurst(v,n,e,ms,token,look){
   var c=nhPostCenter();if(!c)return false;
   var kinds=nhBurstKinds(v);
   n=Math.min(NH_BURST_MAX,Math.max(1,n|0||12));
   ms=Math.max(800,ms|0||4000);
+  /* 줌아웃을 **안 할 수도 있다** (v2.37) — e:'keep'. 이미 맞춰 둔 화면에서는 빠지는 것
+     자체가 방해다 ("엔딩" 이 아니라 "지금 이 동네가 찬다" 를 보여줄 때). 그때는 카메라를
+     아예 안 건드리고 쏟아지기만 한다. */
+  var keepZoom=(String(e||'').toLowerCase()==='keep');
   var z=parseInt(e,10);if(!isFinite(z))z=13;z=Math.min(16,Math.max(11,z));
-  z=nhZ(z); // 쏟아지며 빠지는 줌도 화면 폭을 탄다 (v2.35)
+  z=keepZoom
+    ? (((typeof phoneMap!=='undefined'&&phoneMap&&phoneMap.getZoom&&phoneMap.getZoom())
+        ||(map&&map.getZoom&&map.getZoom())||nhZ(13)))
+    : nhZ(z); // 쏟아지며 빠지는 줌도 화면 폭을 탄다 (v2.35)
   if(typeof switchTab==='function')switchTab('map');
   var at=nhCenter()||c;
   var salt=String(nhScenarioKey||'burst');
+  // look:'photo' = 쏟아지는 피드를 **실사진**으로 (v2.37). 비면 여태처럼 테마 색 일러스트.
+  var realPhoto=String(look||'').toLowerCase()==='photo';
   var stamp=nhHeld.stamp||Date.now();
   /* 줌아웃을 **한 번의 매끄러운 움직임**으로 (v2.14). v2.36 부터 그 루프는 공용 엔진
      (nhCamTo)이 돈다 — 여기서 처음 만든 세 규칙(프레임마다 moveCamera · 그동안 미러를
@@ -9370,7 +9494,9 @@ function nhBurst(v,n,e,ms,token){
   var z0=(phoneMap&&phoneMap.getZoom&&phoneMap.getZoom())||(map&&map.getZoom&&map.getZoom())||NH_AREA_ZOOM;
   var zNow=z0;
   // frac 0.85 = 쏟아지는 동안 내내 빠진다. 아크는 안 붙는다(중심이 안 움직여 dScr=0).
-  nhCamGo(at.lat,at.lng,z,ms,0.85,token,{onFrame:function(zz){zNow=zz;},onEnd:function(){zNow=z;}});
+  // 유지 옵션이면 카메라를 **아예 안 건드린다** — 지금 화면이 곧 무대다 (v2.37).
+  if(!keepZoom)
+    nhCamGo(at.lat,at.lng,z,ms,0.85,token,{onFrame:function(zz){zNow=zz;},onEnd:function(){zNow=z;}});
   for(var k=0;k<n;k++)(function(k){
     /* 등장 시각 (v2.12) — **줌아웃이 도는 동안부터** 마구 생긴다.
        v2.11 은 앞 15% 를 비우고 등간격으로 놨더니 메트로놈처럼 규칙적이었고, 카메라가
@@ -9403,7 +9529,10 @@ function nhBurst(v,n,e,ms,token){
         if(nhLaySpot({t:sp[0],emoji:sp[1]},idx,p,stamp)&&typeof rebuildSpots==='function')rebuildSpots();
       }else if(kind==='feed'){
         var fd=pick(NH_BURST_FEEDS);
-        if(nhLayFeed({desc:fd[0],label:fd[0],theme:fd[1],name:pick(NH_BURST_NAMES)},idx,p,stamp)){
+        /* 실사진 옵션 (v2.37) — `nhLayFeed` 는 `img` 가 있으면 그것을, 없으면 테마 색으로
+           그린다. 그 갈래를 그대로 타므로 여기서는 주소만 고르면 된다(빈 값이면 여태와 같다). */
+        if(nhLayFeed({desc:fd[0],label:fd[0],theme:fd[1],name:pick(NH_BURST_NAMES),
+            img:(realPhoto?nhBurstPhoto(fd[1],salt,k):'')},idx,p,stamp)){
           if(typeof renderFeedMarkers==='function')renderFeedMarkers();
           if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
           if(typeof renderNews==='function')renderNews();}
