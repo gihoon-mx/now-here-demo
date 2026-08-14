@@ -6443,7 +6443,11 @@ function initDealLabelClass(){
     var msg=String(d.msg||'').trim();
     el.innerHTML=(msg?'<span class="dl-msg spot-bubble tl-t"></span>':'')+'<span class="dl-name"></span>';
     if(msg)el.querySelector('.dl-msg').textContent=msg.slice(0,60);
-    el.querySelector('.dl-name').textContent=dealShopName(d);
+    /* 이름표에 이모지를 앞세운다 (v2.42) — 실서비스 지도가 그렇게 생겼다(🍴 강남원주추어탕).
+       종류가 한 글자로 먼저 읽혀서, 이름표가 스무 개 깔려도 훑어볼 수 있다.
+       `e` 는 딜의 이모지와 같은 칸이다 — 딜에는 ⏰ 핀이 그것을 쓰고, 가게에는 이름표가 쓴다. */
+    var dlE=String(d.e||'').trim().slice(0,4);
+    el.querySelector('.dl-name').textContent=(dlE?dlE+' ':'')+dealShopName(d);
     el.title=dealShopName(d)+(d.store?'':' · 타임딜');
     /* 이름표를 누르면 **매장 전용 페이지**로 간다 (요청 3). 딜이 있든 없든 같은 페이지다 —
        storeView 가 없는 값(가격·남은 시간)을 화면에서 빼 준다. */
