@@ -278,13 +278,24 @@ button:focus:not(:focus-visible){outline:none;}
 
 /* 여기에 추가 (v2.29) — 꾹 눌러 컨텐츠 추가 메뉴를 열면 그 좌표에 서는 자리표.
    컨텐츠가 아니라 **예고**라 점선 링에 +만 있다: 실제 핀·말풍선과 헷갈리면 안 된다.
-   핀류와 같은 규약으로 폰 밖(PC 지도)에도 그려지므로 px. 클릭은 안 받는다. */
+   핀류와 같은 규약으로 폰 밖(PC 지도)에도 그려지므로 px.
+
+   ⚠️ **파란 원만 손에 잡힌다** (v2.45). 상자는 계속 `pointer-events:none` 이다 — 0×0 이라
+   상관없어 보이지만 `pointer-events` 는 **상속**이라, 상자가 none 이면 자식도 none 이고
+   `AddPin.onAdd` 가 붙인 `pointerdown` 이 **영영 안 불린다**. v2.34 가 끌어 옮기기를
+   넣고도 안 되던 것이 이 한 줄이었다(판은 overlayMouseTarget 로 이미 옮겨 뒀다).
+   ⚠️ 링(`.apn-ring`)에는 주지 않는다 — `apnPulse` 가 scale(2) 까지 부풀어 손잡이가
+   26↔52px 로 숨쉬며 이웃 마커를 덮는다. 잡는 것은 언제나 그 원 하나다. */
 .add-pin{position:absolute;transform:translate(-50%,-50%);width:0;height:0;pointer-events:none;z-index:4;}
 .add-pin .apn-dot{position:absolute;left:-13px;top:-13px;display:flex;align-items:center;justify-content:center;
   width:26px;height:26px;border-radius:50%;background:var(--acc,#2f7bff);border:2px solid #fff;
   box-shadow:0 2px 8px rgba(47,123,255,0.45);color:#fff;font-size:15px;font-weight:800;line-height:1;
+  pointer-events:auto;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
   animation:apnIn .32s cubic-bezier(.2,1.6,.35,1) both;}
-.add-pin .apn-ring{position:absolute;left:-13px;top:-13px;width:26px;height:26px;border-radius:50%;
+/* 끄는 중 (v2.45) — `.spot-marker.dragging`(178)·`.feed-pin.editable.dragging`(1155)과 같은 자리.
+   ⚠️ transform 으로 피드백을 주면 안 된다: `apnIn` 이 `both` 라 fill 이 transform 을 붙잡고 있다. */
+.add-pin.dragging .apn-dot{cursor:grabbing;box-shadow:0 6px 16px rgba(47,123,255,0.55);}
+.add-pin .apn-ring{position:absolute;left:-13px;top:-13px;width:26px;height:26px;border-radius:50%;pointer-events:none;
   border:2px dashed rgba(47,123,255,0.6);animation:apnPulse 1.8s ease-out infinite;}
 body.mode-trend .add-pin .apn-dot{background:linear-gradient(150deg,#ffb37a,#e23b2a);box-shadow:0 2px 8px rgba(255,80,50,0.45);}
 body.mode-trend .add-pin .apn-ring{border-color:rgba(255,90,60,0.6);}

@@ -744,6 +744,19 @@ function initSpotBubbleClass(){
     var cd=contentDot(m,z,Number(this.cfg.emojiSize)||26,SPOT_DOT_PX),isDot=cd.dot;
     var emojiDot=isDot&&(spotConfig.dotStyle==='emoji'); // 작을 때 이모지로 표시 옵션
     var s=cd.scale; // 지면 고정 배율 (점 크기 아래로는 안 내려간다)
+    /* **이모지 한가운데가 좌표다** (v2.45).
+       여태 말풍선 갈래는 `translate(-50%,-100%)` 라 상자 **아래 변**이 좌표였고, 기본
+       설정(emojiPos:'bottom')에서 아래 변은 곧 이모지의 아래 끝이다 — 그래서 이모지가
+       좌표보다 `이모지높이/2` 만큼 위에 떠 있었다. 꾹 눌러 뜨는 파란 자리표(`.apn-dot`)는
+       **원의 중심**이 좌표라(둘 다 26px 이다), 자리표가 사라지고 스팟이 서면 그 반 칸이
+       어긋나 보인다. 점 갈래는 이미 중심 앵커라 여기서 제외한다 — 덕분에 줌아웃하며
+       말풍선↔점으로 넘어갈 때 툭 튀던 것도 같이 없어진다.
+       ⚠️ 상자 높이를 재지 않는다: 재면 draw 마다(팬·줌 프레임 × 스팟 수) 강제 리플로가 난다.
+       이모지 높이는 `line-height:1`(style.css)이라 `emojiSize × 배율` 로 계산된다.
+       ⚠️ 옮기는 것은 **기준점**(div.top 과 `_ay`)이다. 그래야 겹침 방지(dirBox)가 같은
+       틀에서 재고, 방향·꼬리·gap 규칙을 한 줄도 안 고쳐도 된다. */
+    var eOff=(!isDot&&((this.cfg.emojiPos||'bottom')==='bottom'))?((Number(this.cfg.emojiSize)||26)*s/2):0;
+    if(pos&&eOff){this.div.style.top=(pos.y+eOff)+'px';this._ay=pos.y+eOff;}
     this.div.classList.toggle('spot-dot',isDot);
     this.div.classList.toggle('spot-dot-emoji',emojiDot);
     // 스케일은 CSS zoom(레이아웃)으로 — transform scale은 1배 래스터를 GPU 확대해 줌인 시 글자/이모지가 흐릿해짐
@@ -1975,7 +1988,13 @@ function addSpotContent(){
 // 화면 롱프레스(터치) / 우클릭 → 누른 지점에 컨텐츠 추가 팝업 + 그 지점에 생성
 function attachAddGestures(el,mapObj){
   if(!el||el._addGest)return;el._addGest=true;
-  function onContent(e){return !!(e.target&&e.target.closest&&e.target.closest('.spot-marker,.feed-pin'));} // 스팟·피드핀 위 롱프레스=콘텐츠 이동/편집 — 추가 메뉴와 충돌 방지
+  /* 이 위에서의 롱프레스는 그 물건의 것이다 — 추가 메뉴를 또 열지 않는다.
+     ⚠️ `.add-pin` 이 v2.45 에 합류했다. 안 넣으면 자리표 위 touchstart 가 지도로 올라와
+     **520ms 타이머**가 걸리는데, 자리표 자신의 드래그는 **450ms**(LP_MS)에 시작한다 —
+     70ms 차로 경쟁하고, 520ms 쪽이 이기면 `openAddMenu`→`addPinShow` 가 돌아
+     **끌고 있던 인스턴스가 `setMap(null)`** 된다. 그런데 `_onDown` 의 클로저는 살아남아
+     pointerup 에서 없어진 마커의 자리를 저장한다. */
+  function onContent(e){return !!(e.target&&e.target.closest&&e.target.closest('.spot-marker,.feed-pin,.add-pin'));}
   el.addEventListener('contextmenu',function(e){e.preventDefault();if(onContent(e))return;openAddMenu(mapObj,el,clientToLatLng(mapObj,el,e.clientX,e.clientY),e.clientX,e.clientY);});
   var t=null,sx=0,sy=0,lx=0,ly=0;
   el.addEventListener('touchstart',function(e){if(e.touches.length!==1||onContent(e))return;sx=lx=e.touches[0].clientX;sy=ly=e.touches[0].clientY;clearTimeout(t);t=setTimeout(function(){openAddMenu(mapObj,el,clientToLatLng(mapObj,el,lx,ly),lx,ly);},520);},{passive:true});
@@ -3306,7 +3325,15 @@ function initPhoneControls(){
           else if(it.dataset.add==='post'){var fp=document.getElementById('feed-post-input');if(fp)fp.click();}}
       });
     });
-    document.addEventListener('click',function(){if(Date.now()-addMenuOpenedAt<600)return;closeAddMenu();}); // 롱프레스 직후 자동 닫힘 방지
+    /* 바깥을 누르면 닫는다 — 단, **자리표 자신은 바깥이 아니다** (v2.45).
+       파란 원을 잡히게 만든 순간 이 핸들러가 곧바로 문제가 됐다: 원을 잡는 그 클릭이
+       600ms 뒤부터는 `closeAddMenu()`→`addPinHide()` 를 불러 **잡으려는 동작이 곧 지우는
+       동작**이 된다. pointerdown 의 preventDefault 로는 안 막힌다 — click 은 그대로 온다. */
+    document.addEventListener('click',function(e){
+      if(e&&e.target&&e.target.closest&&e.target.closest('.add-pin'))return;
+      if(Date.now()-addMenuOpenedAt<600)return; // 롱프레스 직후 자동 닫힘 방지
+      closeAddMenu();
+    });
   }
   // 창 크기 변경 시 화면 밖 방지
   window.addEventListener('resize',reclampPhone);
@@ -6135,7 +6162,14 @@ function initReqPinClass(){
     // v1.95 컨텐츠 공통 배율 × v2.15 종류별 배율(관리자 s-pins, 곡선은 공통 유지)
     // v2.16 지면 고정 — 점 모양은 없지만 점 크기(12px) 아래로는 안 줄어든다(멀리서 사라지지 않게)
     var m=this.getMap(),z=m?m.getZoom():15,sc=contentDot(m,z,34,PIN_DOT_PX).scale*pinScale('req');
-    this.div.style.transformOrigin='50% 100%';this.div.style.transform='translate(-50%,-100%) scale('+sc+')';
+    /* **물방울 한가운데가 좌표다** (v2.45).
+       여태는 `50% 100%`(상자 아래 변)였는데, v2.20 이 티어드롭의 회전을 걷어 **뾰족한 끝을
+       없애면서** 상자 높이 56px 만 그대로 남았다 — 즉 원 아래에 20px 짜리 빈 자리가 있어
+       핀이 좌표보다 37px 떠 있었다. `.rp-drop` 은 상자 안 `top:2px`·34px 이므로 중심이
+       상자 위에서 19px. 그 점을 좌표에 대고(translate) 그 점을 중심으로 키운다(origin).
+       CSS 는 안 건드린다 — `.rp-ring`·`.rp-tag` 가 물방울 기준이라 같이 따라온다.
+       꾹 눌러 뜨는 파란 자리표(`.apn-dot`)도 원의 중심이 좌표라, 이제 둘이 겹친다. */
+    this.div.style.transformOrigin='50% 19px';this.div.style.transform='translate(-50%,-19px) scale('+sc+')';
   }};
   ReqPin.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
 }
@@ -8497,10 +8531,19 @@ function nhAdopt(rq,idx,token){
    `nhPosNote` 와 같은 약속이고, 키는 `addat_<순번>` 이다. */
 var nhAddN=0;    // 이 회차의 addmenu(hold) 순번 — 여러 번 열어도 각자 자리를 기억한다
 var nhAddIdx=-1; // 지금 열려 있는 팝업이 몇 번째였나 (마커를 끌면 그 번호에 적는다)
+/* 지금 팝업의 자리를 **사람이 콕 집어 정했나** (v2.45).
+   자리표를 끌었거나(`nhAddPinMoved`) 콘솔의 📍 로 미리 정해 둔 자리(`addat_<n>`)면 참이다.
+   왜 필요한가: 만드는 쪽(`nhWriteSpot`·`nhRequestTyped`·`nhLayFeed`)이 "그 컨텐츠를 전에
+   끌어 옮긴 자리"(`write_*`·`req_*`·`feed_*`)를 **먼저** 보게 돼 있다(v2.12). 그 규칙은
+   자리표를 끌 수 없던 시절에는 옳았다 — 더 나중에, 더 구체적으로 정한 뜻이 그쪽이었으니까.
+   자리표를 끌 수 있게 된 지금은 뒤집힌다: 방금 + 를 옮겼는데 글은 옛 자리에 생기면
+   화면이 손을 안 따라온다. **콕 집은 자리가 먼저다.** */
+var nhAddAtPinned=false;
 function nhAddPinMoved(lat,lng){
   /* 실서비스에서도 뜻이 있다 — 끈 자리가 곧 만들어질 자리다 (addAtLatLng 를 보는 쪽이
      addSpotContent·feedDropAt 이다). 무대 기록(nhPosSave)은 시나리오가 없으면 조용히 지나간다. */
   try{addAtLatLng=new google.maps.LatLng(lat,lng);}catch(e){}
+  nhAddAtPinned=true;
   if(nhAddIdx>=0&&typeof nhPosSave==='function')nhPosSave('addat',nhAddIdx,lat,lng);
 }
 /** 지도 좌표 → 화면 좌표 — 팝업이 그 자리에 뜨고, 손가락 표식도 거기 서게. */
@@ -8525,6 +8568,7 @@ function nhAddMenu(v,fast){
        뜻이 "지금 보고 있는 자리에 올린다" 이므로 그 자리를 명시로 준다.
        마커는 안 세운다 — 가리킬 지점이 따로 없는 손짓이다(openAddMenu 의 규칙 그대로). */
     var bc=m.getCenter&&m.getCenter();
+    nhAddAtPinned=false; // 화면 가운데는 아무도 콕 집지 않았다 (v2.45)
     openAddMenu(m,mdiv,bc||null,null,null);
     if(typeof addPinHide==='function')addPinHide();
     return true;
@@ -8539,6 +8583,7 @@ function nhAddMenu(v,fast){
      아래쪽에 떨어지므로, 중심에서 아래로 한 뼘 옮긴다(가로도 살짝). 눈에 보이는 차이가
      생기고, 그 자리는 마커로 보이며 끌어 옮기면 다음 재생에도 남는다. */
   var saved=nhPosGet('addat',idx,c||(ctr?{lat:ctr.lat(),lng:ctr.lng()}:null));
+  nhAddAtPinned=!!saved; // 사람이 정해 둔 자리인가 (v2.45) — 만드는 쪽의 우선순위를 가른다
   var ll=null;
   if(saved)ll=new google.maps.LatLng(saved.lat,saved.lng);
   else if(ctr){
@@ -8583,9 +8628,10 @@ function nhAddTap(kind,fast,ms){
   }
   return true;
 }
-/** 지금 팝업이 가리키는 자리 (없으면 null — 그러면 각 액션의 여태 규칙대로 간다). */
+/** 지금 팝업이 가리키는 자리 (없으면 null — 그러면 각 액션의 여태 규칙대로 간다).
+    `pinned` (v2.45) = 사람이 콕 집어 정한 자리인가 — 만드는 쪽의 우선순위를 가른다. */
 function nhAddAt(){
-  try{return addAtLatLng?{lat:addAtLatLng.lat(),lng:addAtLatLng.lng()}:null;}catch(e){return null;}
+  try{return addAtLatLng?{lat:addAtLatLng.lat(),lng:addAtLatLng.lng(),pinned:nhAddAtPinned}:null;}catch(e){return null;}
 }
 /** 팝업을 닫고 좌표도 비운다 — 남겨 두면 **다음 사용자 조작**이 이 좌표를 물려받는다
     (앱의 addSpotContent 가 addAtLatLng 를 먼저 보므로, 화면 센터에 놓일 것이 여기로 온다). */
@@ -8807,9 +8853,14 @@ function nhWriteSpot(text,token,ms,emoji,fast,at){
   var saved=nhPosGet('write',wi,c||(ctr?{lat:ctr.lat(),lng:ctr.lng()}:null));
   /* at (v2.34) = `addspot` 이 넘겨주는 "추가 팝업이 가리키던 자리". 순서가 중요하다:
      사람이 **쓰인 글을 옮긴 자리**(saved)가 먼저다 — 그게 더 나중에, 더 구체적으로 정한
-     뜻이고 화면에 남는 것도 그쪽이다. at 은 그 다음, 지역 오프셋은 마지막이다. */
-  var pinned=(!saved&&at&&isFinite(at.lat)&&isFinite(at.lng))?at:null;
-  var ll=saved?new google.maps.LatLng(saved.lat,saved.lng)
+     뜻이고 화면에 남는 것도 그쪽이다. at 은 그 다음, 지역 오프셋은 마지막이다.
+     ⚠️ **단 하나 예외** (v2.45): at 이 `pinned` 면, 즉 자리표를 손으로 끌었거나 콘솔의
+     📍 로 미리 정해 둔 자리면 **그것이 먼저다.** 위 문장의 근거가 "그쪽이 더 나중의 뜻"
+     인데, 자리표를 끌 수 있게 된 지금은 콕 집은 그 손이 더 나중이다. 안 뒤집으면
+     "+ 를 옮겼는데 글은 안 따라온다" 가 된다. */
+  var atOk=!!(at&&isFinite(at.lat)&&isFinite(at.lng));
+  var pinned=(atOk&&(at.pinned||!saved))?at:null;
+  var ll=(saved&&!pinned)?new google.maps.LatLng(saved.lat,saved.lng)
     :(pinned?new google.maps.LatLng(pinned.lat,pinned.lng)
     :(c?new google.maps.LatLng(c.lat+0.0012,c.lng+0.0012):ctr));
   if(!ll)return false;
@@ -8903,8 +8954,10 @@ function nhRequestTyped(text,token,ms,fast,at){
      at (v2.34) = `addreq` 이 넘겨주는 추가 팝업의 자리 — write 와 같은 순서다. */
   var wi=nhReqN++;
   var saved=nhPosGet('rqw',wi,c||(ctr?{lat:ctr.lat(),lng:ctr.lng()}:null));
-  var pinned=(!saved&&at&&isFinite(at.lat)&&isFinite(at.lng))?at:null;
-  var ll=saved?new google.maps.LatLng(saved.lat,saved.lng)
+  // 콕 집은 자리가 먼저다 (v2.45) — nhWriteSpot 과 같은 규칙, 같은 이유
+  var atOk=!!(at&&isFinite(at.lat)&&isFinite(at.lng));
+  var pinned=(atOk&&(at.pinned||!saved))?at:null;
+  var ll=(saved&&!pinned)?new google.maps.LatLng(saved.lat,saved.lng)
     :(pinned?new google.maps.LatLng(pinned.lat,pinned.lng)
     :(c?new google.maps.LatLng(c.lat-0.0012,c.lng+0.0016):ctr));
   if(!ll)return false;
@@ -9684,8 +9737,11 @@ function nhLaySpot(s,i,c,stamp){
 }
 function nhLayFeed(f,i,c,stamp){
   if(typeof feedItems==='undefined')return null;
-  // 자리: 사람이 옮긴 것(v2.3) → 항목이 들고 온 제 자리(v2.24) → 무대가 편 자리
-  var id='fdn_'+stamp+'_'+i,p=nhPosGet('feed',i,c)||nhLatLng(f.at)||nhSpread(c,NH_BAND.feed+i);
+  /* 자리: **콕 집은 자리**(v2.45) → 사람이 옮긴 것(v2.3) → 항목이 들고 온 제 자리(v2.24)
+     → 무대가 편 자리. 맨 앞이 v2.45 에 늘었다 — 자리표를 끌었거나 콘솔 📍 로 정한
+     자리는 `feed_*` 를 이긴다(nhWriteSpot·nhRequestTyped 와 같은 규칙·같은 이유). */
+  var pinAt=(f.at&&f.at.pinned)?nhLatLng(f.at):null;
+  var id='fdn_'+stamp+'_'+i,p=pinAt||nhPosGet('feed',i,c)||nhLatLng(f.at)||nhSpread(c,NH_BAND.feed+i);
   feedItems.push({id:id,
     /* 사진: 사람이 올린 것이 있으면 그것, 없으면 테마 색으로 그린다 (v2.10 — 지면
        카드가 v2.4 에 얻은 길을 피드 카드도 갖는다). 콘솔이 Storage 에 두고 주소만
@@ -10023,7 +10079,7 @@ var nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:0};
 function nhSeedScenario(sc,token){
   // 회차마다 0 부터 — write 의 "옮긴 자리" 키가 회차를 넘어 같아야 한다 (v2.12).
   nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:token};nhPostN=0;nhWriteN=0;nhWriteIds={};nhReqN=0;nhReqIds={};
-  nhAddN=0;nhAddIdx=-1; // 추가 팝업의 순번도 회차마다 0 부터 (자리 기억 키가 어긋나지 않게, v2.34)
+  nhAddN=0;nhAddIdx=-1;nhAddAtPinned=false; // 추가 팝업의 순번도 회차마다 0 부터 (자리 기억 키가 어긋나지 않게, v2.34 · 콕 집음 표시는 v2.45)
   /* 등장 효과음 (v2.23) — 회차를 시작할 때 건다(소리가 없는 시나리오면 빈 값으로 꺼서
      앞 회차의 소리가 따라오지 않게). **무대를 까는 동안에는 안 운다** — 여기서 깔리는
      것들은 바운스 표를 안 찍기 때문이다(재생 시작 전에 이미 있던 화면이라 등장이 아니다).
