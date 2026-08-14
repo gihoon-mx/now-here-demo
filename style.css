@@ -1410,10 +1410,17 @@ body.embed-mode .phone-screen{width:100%;height:100%;aspect-ratio:auto;border-ra
   animation:nhShot .78s cubic-bezier(.3,.9,.3,1) forwards;}
 .nh-shot img{width:100%;height:100%;object-fit:cover;display:block;}
 @keyframes nhShot{
-  0%{transform:translate(0,0) scale(.72);opacity:0}
-  14%{transform:translate(0,0) scale(1);opacity:1}
-  30%{transform:translate(0,0) scale(1);opacity:1}
-  100%{transform:translate(var(--dx,0),var(--dy,0)) scale(.16);opacity:.15}}
+  0%{transform:translate(0,0) scale(.5);opacity:0}
+  16%{transform:translate(0,0) scale(1);opacity:1}
+  34%{transform:translate(0,0) scale(1);opacity:1}
+  100%{transform:translate(var(--dx,0),var(--dy,0)) scale(.14);opacity:.1}}
+/* 피드 탭이 받는다 (v2.38) — 쿠폰을 Agent 가 받는 링(.pn-ai.cf-catch)과 같은 규칙.
+   퍼지는 폭은 네비 안에 잘리므로 작게 둔다. */
+.pn-item.nh-catch{position:relative;}
+.pn-item.nh-catch::after{content:'';position:absolute;left:50%;top:50%;width:2cqw;height:2cqw;
+  margin:-1cqw 0 0 -1cqw;border-radius:50%;pointer-events:none;
+  border:0.5cqw solid var(--acc,#3b6ef5);animation:nhCatch .6s ease-out forwards;}
+@keyframes nhCatch{0%{transform:scale(.4);opacity:.9}100%{transform:scale(4.2);opacity:0}}
 @media (prefers-reduced-motion:reduce){.nh-flash,.nh-shot{animation-duration:.01ms;}}
 
 /* ── M16 재생 연출 (v1.94, 콘솔 D72) — 화면 위 레이어라 계약과 무관하다 ── */

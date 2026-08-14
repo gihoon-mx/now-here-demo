@@ -8299,6 +8299,13 @@ function nhAddReq(text,token,ms,fast){
    `.phone-screen` 에 붙였다 걷고, 이동은 CSS 변수(--dx/--dy)로 준다.
    ⚠️ 좌표는 **로컬 px** 이다: rect 로 잰 값을 그대로 style.left 에 넣으면 안 되는데,
    여기서는 두 값 모두 같은 화면 좌표계라 차(delta)만 쓰므로 안전하다. */
+/** 하단 네비의 피드 탭 — 사진이 날아가 앉을 자리 (v2.38). */
+function nhFeedTabEl(){
+  try{
+    return document.querySelector('#phone-mirror .pn-item[data-nav="feed"]')
+      ||document.querySelector('.pn-item[data-nav="feed"]');
+  }catch(e){return null;}
+}
 function nhShutter(){
   try{
     var scr=document.querySelector('.phone-screen');if(!scr)return;
@@ -8308,12 +8315,16 @@ function nhShutter(){
     setTimeout(function(){try{f.remove();}catch(e){}},420);
   }catch(e){}
 }
-/** 찍힌 사진이 지도의 그 자리로 날아간다. to 는 화면 좌표(없으면 연출을 안 한다). */
-function nhPhotoFly(src,to){
+/* 찍힌 사진이 **지도 위 그 핀에서 하단 피드 탭으로** 날아간다 (v2.38).
+   v2.37 은 화면 가운데에서 핀으로 갔는데, 그건 "찍혔다" 까지만 말한다. 사진이 어디로
+   들어가는지(=피드)를 화면이 말하려면 **핀에서 탭으로** 가야 한다 — 쿠폰이 버튼에서
+   Agent 로 가는 것과 같은 문법이고(v2.31), 방향이 곧 "여기에 쌓인다" 는 뜻이다.
+   from 이 없으면(핀 좌표를 못 구하면) 뷰파인더 한가운데에서 출발한다. */
+function nhPhotoFly(src,from,to){
   try{
     var scr=document.querySelector('.phone-screen');if(!scr||!to)return;
     var r=scr.getBoundingClientRect();if(!r.width)return;
-    var x0=r.width/2,y0=r.height*0.42;              // 뷰파인더 한가운데서 출발
+    var x0=from?(from.x-r.left):(r.width/2),y0=from?(from.y-r.top):(r.height*0.42);
     var x1=to.x-r.left,y1=to.y-r.top;
     var el=document.createElement('div');el.className='nh-shot';
     /* 사진은 **자식 img 로** 넣는다 (v2.37). CSS 의 url(...) 로 주면 안 되는데,
@@ -8352,13 +8363,25 @@ function nhAddFeedCard(which,desc,theme,fast){ // which: 'photo'(라이브 카�
     try{made=feedItems.filter(function(f){return f.id===id;})[0]||null;}catch(e){}
     nhShutter();
     setTimeout(function(){
-      var to=null;
+      var from=null,to=null;
       try{
+        // 출발 = 지도 위 그 핀 (방금 생겼다)
         var mdiv=document.getElementById('phone-map');
         if(made&&mdiv&&typeof nhLatLngToClient==='function'&&typeof phoneMap!=='undefined')
-          to=nhLatLngToClient(phoneMap,mdiv,new google.maps.LatLng(made.lat,made.lng));
+          from=nhLatLngToClient(phoneMap,mdiv,new google.maps.LatLng(made.lat,made.lng));
+        /* 도착 = 하단 **피드 탭**. rect 로 실측하는 이유는 쿠폰(couponFly)과 같다 —
+           네비바에 배율(--ui-nav-s)이 걸려 있어 자리를 상수로 짐작할 수 없다. */
+        var tab=nhFeedTabEl();
+        var tr=tab&&tab.getBoundingClientRect();
+        if(tr&&(tr.width||tr.height))to={x:tr.left+tr.width/2,y:tr.top+tr.height/2};
       }catch(e){}
-      nhPhotoFly(made&&made.src,to);
+      nhPhotoFly(made&&made.src,from,to);
+      // 탭이 받는다 — 쿠폰을 Agent 가 받는 링과 같은 규칙 (v2.38)
+      if(to)setTimeout(function(){
+        var t2=nhFeedTabEl();if(!t2)return;
+        t2.classList.add('nh-catch');
+        setTimeout(function(){try{t2.classList.remove('nh-catch');}catch(e){}},620);
+      },560);
     },140);
   }
   return true;
@@ -8986,7 +9009,7 @@ function nhAct(st,token){
       if(st.a==='drop')return nhDrop(st.v,st.i,st.e,st.fast)!==false;
       if(st.a==='post')return nhPostSpot(st.v,st.e,st.fast);
       if(st.a==='postfeed')return nhPostFeed(st.v,st.e,st.n,st.fast);
-      if(st.a==='burst')return nhBurst(st.v,st.i,st.e,st.ms,token,st.n);
+      if(st.a==='burst')return nhBurst(st.v,st.i,st.e,st.ms,token,st.n,st.sp);
       if(st.a==='page')return nhPage(st.v);
       if(st.a==='zoom')return nhZoom(st.v,st.ms,token)!==false;
       if(st.a==='focus')return nhFocus(st.v,st.i,token,st.ms)!==false;
@@ -9456,8 +9479,9 @@ function nhBurstPhoto(theme,salt,k){
 var NH_BURST_NAMES=['동네주민','골목탐험가','산책러','단골손님','뚜벅이','로컬큐레이터'];
 var NH_BURST_DEALS=[['마감 직전 딜','🥐','베이커리',40],['오늘만 이 가격','☕','카페',30],
   ['라스트 오더','🍜','분식집',25],['깜짝 타임딜','🛍️','편집숍',35]];
-/** burst 가 한 번에 만들 수 있는 개수 — 콘솔의 MAX_BURST_COUNT 와 같은 값이어야 한다. */
-var NH_BURST_MAX=50;
+/** burst 가 한 번에 만들 수 있는 개수 — 콘솔의 MAX_BURST_COUNT 와 같은 값이어야 한다.
+    v2.38: 50 → 100. 등장 시각을 ms 에 고르게 펴므로 개수가 늘어도 리듬은 유지된다. */
+var NH_BURST_MAX=100;
 /** `v` 를 종류 목록으로 — "spot+feed" 처럼 이어 붙일 수 있다 (v2.12). */
 function nhBurstKinds(v){
   var out=[];
@@ -9466,7 +9490,15 @@ function nhBurstKinds(v){
   });
   return out.length?out:['spot','feed','deal']; // mix·빈 값·모르는 값 = 셋 다
 }
-function nhBurst(v,n,e,ms,token,look){
+/* 밀집도 (v2.38) — 같은 개수라도 **얼마나 좁게 몰아넣을까**.
+   자리는 `rVis`(그 순간 보이는 화면의 반폭)에 비례하는데, 그 계수를 사람이 고른다:
+   좁을수록 '이 골목이 찬다', 넓을수록 '동네 전체가 깨어난다' 로 읽힌다. */
+var NH_BURST_SPREAD={tight:0.45,normal:1,wide:1.7};
+function nhBurstSpread(v){
+  var k=String(v||'').toLowerCase();
+  return NH_BURST_SPREAD[k]||NH_BURST_SPREAD.normal;
+}
+function nhBurst(v,n,e,ms,token,look,sp){
   var c=nhPostCenter();if(!c)return false;
   var kinds=nhBurstKinds(v);
   n=Math.min(NH_BURST_MAX,Math.max(1,n|0||12));
@@ -9485,6 +9517,7 @@ function nhBurst(v,n,e,ms,token,look){
   var salt=String(nhScenarioKey||'burst');
   // look:'photo' = 쏟아지는 피드를 **실사진**으로 (v2.37). 비면 여태처럼 테마 색 일러스트.
   var realPhoto=String(look||'').toLowerCase()==='photo';
+  var spread=nhBurstSpread(sp); // 밀집도 (v2.38) — 자리 반경에 곱한다
   var stamp=nhHeld.stamp||Date.now();
   /* 줌아웃을 **한 번의 매끄러운 움직임**으로 (v2.14). v2.36 부터 그 루프는 공용 엔진
      (nhCamTo)이 돈다 — 여기서 처음 만든 세 규칙(프레임마다 moveCamera · 그동안 미러를
@@ -9515,7 +9548,7 @@ function nhBurst(v,n,e,ms,token,look){
          v2.14: 계산 대신 **카메라가 실제로 있는 줌**(zNow)을 읽는다 — 이징이 붙어
          진행이 시간에 비례하지 않으므로, 예측값을 쓰면 다시 어긋난다. */
       var zAt=zNow;
-      var rVis=0.028*Math.pow(2,13-zAt); // 줌 13 화면 반폭 기준 — 레벨당 두 배
+      var rVis=0.028*Math.pow(2,13-zAt)*spread; // 줌 13 화면 반폭 기준 — 레벨당 두 배 · 밀집도(v2.38)
       var r=rVis*(0.25+0.7*Math.sqrt(heatJitter(salt+'r'+k))); // sqrt = 면적 균등
       var p={lat:at.lat+r*Math.cos(a)*0.8,lng:at.lng+r*Math.sin(a),name:c.name};
       var pick=function(pool){return pool[(k+Math.floor(heatJitter(salt)*pool.length))%pool.length];};
@@ -9841,6 +9874,9 @@ function nhSanitize(raw){
       say:String(s.say||'').slice(0,300),
       // e = 이모지(post) 또는 테마(postfeed) · n = 올린 사람 이름 (v2.1). 옛 콘솔은 안 보낸다.
       e:String(s.e||'').slice(0,12),n:String(s.n||'').slice(0,20),
+      /* sp (v2.38, 콘솔 D142) — 곁들이는 값 **둘째 칸**. 지금은 burst 의 밀집도만 쓴다.
+         `e` 가 이미 줌에 쓰이고 있어서 자리가 없었다 — 옛 콘솔은 안 보내고 옛 앱은 모른다. */
+      sp:String(s.sp||'').slice(0,12),
       /* fast (v2.21, 콘솔 D117) — 콘솔의 "이 단계만 보기" 가 앞 단계를 화면 조립용으로
          지나갈 때 붙인다. 연출(터치 표식·타이핑·바운스)을 접고 **그 자리에서 커밋**한다 —
          ms 바닥을 기다리지 않아도 사슬(i:-1)이 안 끊긴다. 옛 콘솔은 안 보낸다. */
