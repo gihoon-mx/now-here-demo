@@ -1622,23 +1622,32 @@ function openContentPop(kind,data){
     var rl=reqRemainLabel(data);lf.textContent=rl?('⏱ '+rl):'';
     if(n){ // 도착한 답변 목록 — 요청자만 보던 것을 푼다 (v2.18): 답을 쓴 사람도 제 답이 앉는 것을 본다
       var ansBox=document.createElement('div');ansBox.className='rqc-answers';
+      /* 한 줄이 **가로 셋**이다 (v2.43): [사진 썸네일] [이름·글] [시각·채택].
+         v2.41 은 전부 세로로 쌓아서 답 세 개가 팝업을 가득 채웠다 — 여러 답을 훑어보고
+         하나를 고르는 화면인데 한 번에 하나밖에 안 보였다(사용자가 "컴팩트하게" 라고 한 자리).
+         사진은 왼쪽 썸네일이다: 무엇에 대한 답인지가 글보다 먼저 읽힌다. */
       (data.answers||[]).forEach(function(a,ai){
         var it=document.createElement('div');it.className='rqa-item'+(a.best?' best':'');
+        if(a.img){var im2=document.createElement('img');im2.className='rqa-img';im2.src=a.img;im2.alt='';it.appendChild(im2);}
+        var mid=document.createElement('div');mid.className='rqa-mid';
         /* 누가 답했나 (v2.41) — 무대가 얹는 답은 이름을 들고 온다(`who`). 사람이 쓴 답은
            여태처럼 이름이 없다: 그 자리에서는 "누구" 보다 "무엇" 이 중요했다. */
-        if(a.who){var wh=document.createElement('i');wh.className='rqa-who';wh.textContent=a.who;it.appendChild(wh);}
-        if(a.t){var tx=document.createElement('span');tx.className='rqa-t';tx.textContent=a.t;it.appendChild(tx);}
-        if(a.img){var im2=document.createElement('img');im2.className='rqa-img';im2.src=a.img;im2.alt='';it.appendChild(im2);}
-        var tm=document.createElement('i');tm.className='rqa-time';tm.textContent=timeAgo(a.ts||0);it.appendChild(tm);
+        if(a.who){var wh=document.createElement('i');wh.className='rqa-who';wh.textContent=a.who;mid.appendChild(wh);}
+        if(a.t){var tx=document.createElement('span');tx.className='rqa-t';tx.textContent=a.t;mid.appendChild(tx);}
+        else if(a.img){var tx2=document.createElement('span');tx2.className='rqa-t rqa-dim';tx2.textContent='사진으로 답했어요';mid.appendChild(tx2);}
+        it.appendChild(mid);
+        var side=document.createElement('div');side.className='rqa-side';
+        var tm=document.createElement('i');tm.className='rqa-time';tm.textContent=timeAgo(a.ts||0);side.appendChild(tm);
         /* 채택 (v2.41) — **내 Request 이고 아직 안 골랐을 때만** 고르는 손이 선다.
            남의 Request 에는 안 뜬다(고를 자격이 없다). 고른 뒤에는 표만 남는다. */
-        if(a.best){var bg=document.createElement('i');bg.className='rqa-best';bg.textContent='✅ 채택됨';it.appendChild(bg);}
+        if(a.best){var bg=document.createElement('i');bg.className='rqa-best';bg.textContent='✅ 채택';side.appendChild(bg);}
         else if(mineR&&act&&!data.adopted){
           var ab2=document.createElement('button');ab2.type='button';ab2.className='rqa-pick';ab2.textContent='채택';
           ab2.addEventListener('click',function(e){e.stopPropagation();
             if(typeof nhAdopt==='function')nhAdopt(data,ai,(typeof nhRunToken!=='undefined')?nhRunToken:0);});
-          it.appendChild(ab2);
+          side.appendChild(ab2);
         }
+        it.appendChild(side);
         ansBox.appendChild(it);
       });
       body.appendChild(ansBox);
@@ -6453,8 +6462,14 @@ function initDealLabelClass(){
        storeView 가 없는 값(가격·남은 시간)을 화면에서 빼 준다. */
     el.querySelector('.dl-name').addEventListener('click',function(e){
       e.stopPropagation();
+      if(self._dragged){self._dragged=false;return;} // 방금 끌어 옮긴 손은 페이지를 안 연다
       if(typeof openStorePage==='function')openStorePage(d.id);
     });
+    /* 끌어 옮기기 (v2.43) — 지도 위 컨텐츠는 **전부** 옮길 수 있어야 한다.
+       스팟·피드·Request·딜 핀은 진작 옮겨졌는데 **이름표만 안 움직였다**: '가게만' 항목은
+       ⏰ 핀이 안 서므로(dealActive 가 뺀다) 잡을 손잡이가 아예 없었던 것이다.
+       옮긴 자리는 `nhPosNote` 가 `dln_<순번>` 으로 남겨 다음 재생에도 그 자리다 (v2.3 규약). */
+    el.querySelector('.dl-name').addEventListener('pointerdown',function(e){self._onDown(e);});
     if(typeof nhDimEl==='function')nhDimEl(el,d.id); // dim 액션의 흐림을 핀과 함께 (v2.21)
     /* 등장 바운스 (v2.41) — **가게만** 항목(store)에는 ⏰ 핀이 안 서므로(dealActive 가 뺀다)
        표를 소비할 손이 여기밖에 없다. 여태 `drop` 으로 가게를 띄우면 소리는 나는데 아무것도
@@ -6462,6 +6477,49 @@ function initDealLabelClass(){
        표는 소비형이라 둘이 부르면 한쪽이 빈손이 된다. */
     if(d.store&&typeof nhBounceTake==='function'&&nhBounceTake(d.id))el.classList.add('nh-pop-in');
     this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
+  };
+  /* 이름표의 드래그 — `DealPin._onDown` 과 **같은 문법**이다 (터치=롱프레스 뒤 · 마우스=즉시).
+     둘이 같은 딜을 옮기므로 끝에서 하는 일도 같다: `moveDeal` + `nhPosNote`. */
+  DealLabel.prototype._onDown=function(e){
+    var self=this,m=self.getMap();if(!m||!self.div)return;
+    var isTouch=(e.pointerType==='touch');
+    var moved=false,dragging=false,lpTimer=null,sx=e.clientX,sy=e.clientY,mapEl=m.getDiv();
+    var prevDrag=m.get('draggable');
+    function startDrag(){
+      dragging=true;
+      m.setOptions({draggable:false});
+      self.div.classList.add('dragging');
+      if(isTouch&&navigator.vibrate)try{navigator.vibrate(15);}catch(_){}
+    }
+    if(isTouch){lpTimer=setTimeout(function(){lpTimer=null;if(!moved)startDrag();},LP_MS);}
+    else{e.stopPropagation();if(e.cancelable)e.preventDefault();startDrag();}
+    function mv(ev){
+      if(ev.pointerId!==e.pointerId)return;
+      if(!dragging){ // 롱프레스 대기 중 크게 움직이면 = 지도 팬 → 취소
+        if(Math.abs(ev.clientX-sx)>LP_TOL||Math.abs(ev.clientY-sy)>LP_TOL){moved=true;cleanup(false);}
+        return;
+      }
+      if(!moved&&(Math.abs(ev.clientX-sx)>3||Math.abs(ev.clientY-sy)>3))moved=true;
+      if(!moved)return;
+      var proj=self.getProjection();if(!proj)return;
+      var r=mapEl.getBoundingClientRect();
+      var ll=proj.fromContainerPixelToLatLng(new google.maps.Point(ev.clientX-r.left,ev.clientY-r.top));
+      if(ll){self.position=ll;self.draw();}
+    }
+    function up(ev){if(ev.pointerId!==e.pointerId)return;cleanup(true);}
+    function cleanup(fin){
+      document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
+      if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}
+      if(dragging){m.setOptions({draggable:prevDrag!==false});if(self.div)self.div.classList.remove('dragging');}
+      if(!fin||!dragging||!moved)return;
+      self._dragged=true; // 직후 click 은 매장 페이지 대신 무시
+      var lat=self.position.lat(),lng=self.position.lng();
+      if(typeof moveDeal==='function')moveDeal(self.d.id,lat,lng);
+      if(typeof nhPosNote==='function')nhPosNote(self.d.id,lat,lng);
+    }
+    document.addEventListener('pointermove',mv);
+    document.addEventListener('pointerup',up);
+    document.addEventListener('pointercancel',up);
   };
   DealLabel.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;
     var q=p.fromLatLngToDivPixel(this.position);if(!q)return;
@@ -8322,13 +8380,30 @@ var NH_ANS_TEXT=['지금은 자리 있어요','조금 전에 지나왔는데 한
   '방금 다녀왔어요, 괜찮아요','저녁엔 붐벼요','지금 딱 좋아요','비 와서 그런지 조용해요',
   '주차는 뒤쪽이 편해요'];
 var NH_ANS_WHO=['근처 주민','방금 지나감','단골','산책 중','퇴근길','옆 가게'];
+/* 사람이 적어 둔 답 (v2.43) — `v` 한 칸에 **줄마다 하나씩** 담긴다.
+   한 줄은 `글` 또는 `글\t사진주소` 다. 새 스텝 칸을 안 뚫은 이유: 답은 개수가 정해지지
+   않은 목록이라 칸 하나로는 어차피 못 담고(`e` 는 개수, `sp` 는 이미 임자가 있다),
+   `v` 는 이 액션에서 여태 비어 있었다. 탭·줄바꿈은 사람이 칸에 못 넣는 글자라 안전하다. */
+function nhAnsPlan(v){
+  return String(v||'').split('\n').map(function(line){
+    var p=line.split('\t');
+    return {t:String(p[0]||'').trim(),img:nhImgSrc(p[1]||'')};
+  });
+}
 /** 답 하나를 그 Request 에 얹는다 — 회차가 끝나면 무대 Request 와 함께 걷힌다. */
-function nhAnswerAdd(rq,k){
+function nhAnswerAdd(rq,k,plan){
   if(!rq)return false;
   var i=Math.abs((k|0)+String(rq.id||'').length);
+  var p=(plan&&plan[k])||{};
   rq.answers=rq.answers||[];
-  rq.answers.push({t:NH_ANS_TEXT[i%NH_ANS_TEXT.length],ts:Date.now(),
-    by:'nh_other',who:NH_ANS_WHO[i%NH_ANS_WHO.length]});
+  var ans={ts:Date.now(),by:'nh_other',who:NH_ANS_WHO[i%NH_ANS_WHO.length]};
+  /* 안 적은 줄은 앱이 채운다 — "개수만 정하고 내용은 알아서" 가 가장 흔한 쓰임이다.
+     ⚠️ 사진만 적은 줄은 **글을 안 채운다**: 사진으로 답한 장면이 따로 있고,
+     거기에 지어낸 문장을 얹으면 화면이 없는 말을 한다 (팝업이 '사진으로 답했어요' 로 그린다). */
+  if(p.t)ans.t=p.t;
+  else if(!p.img)ans.t=NH_ANS_TEXT[i%NH_ANS_TEXT.length];
+  if(p.img)ans.img=p.img;
+  rq.answers.push(ans);
   return true;
 }
 /** 그 Request 의 핀들만 다시 칠한다 — 전체 렌더는 핀을 파기·재생성해서 무겁고 깜박인다. */
@@ -8342,7 +8417,7 @@ function nhReqRepaint(id){
   try{if(typeof cpopRefresh==='function'&&cpopRefresh)cpopRefresh();}catch(e){}
 }
 /** 답 n 개가 이 단계의 ms 안에 하나씩 도착한다. 첫 답에서 우하단이 한 번 알린다. */
-function nhAnswers(rq,count,ms,token){
+function nhAnswers(rq,count,ms,token,plan){
   if(!rq)return false;
   count=Math.min(NH_HEARTS_MAX,Math.max(1,count|0||1));
   ms=Math.max(200,ms|0||2000);
@@ -8352,7 +8427,7 @@ function nhAnswers(rq,count,ms,token){
   for(var k=0;k<count;k++)(function(k){
     setTimeout(function(){
       if(token!==nhRunToken)return;
-      if(!nhAnswerAdd(rq,k))return;
+      if(!nhAnswerAdd(rq,k,plan))return;
       nhReqRepaint(rq.id);
       /* 내가 모르는 일이 일어났으니 알린다 — 다만 **처음 한 번**이다 (v2.29 의 규칙:
          곧 뒤따를 말을 미리 하지 않는다). 뒤의 답들은 핀의 숫자가 말한다. */
@@ -8459,7 +8534,7 @@ function nhAddMenu(v,fast){
     같이 끝나면 둘이 동시에 사라져 "닫혔다" 가 안 보인다. */
 var NH_ADD_HOLD=420;
 /** 팝업의 항목 하나를 누른다. 안 열려 있으면 먼저 연다 — 이 단계 하나로도 서야 한다. */
-function nhAddTap(kind,fast){
+function nhAddTap(kind,fast,ms){
   var menu=document.getElementById('content-add-menu');
   if(!menu)return false;
   if(!menu.classList.contains('open')&&!nhAddMenu('hold',fast))return false;
@@ -8470,8 +8545,9 @@ function nhAddTap(kind,fast){
     /* 표식이 사는 동안 팝업을 붙잡고, 눌린 항목에 표시를 남긴다 (v2.37).
        그래야 "눌렀다 → 반응했다 → 닫혔다" 가 순서대로 보인다 — 여태는 닫기가 0ms 라
        표식이 아직 커지는 중인데 가리키던 메뉴가 이미 없었다. */
-    // 붙잡는 시간도 단계의 박자를 탄다 (v2.39) — 표식이 늘어나면 팝업도 그만큼 남아야 한다.
-    var hold=nhT(NH_ADD_HOLD);
+    /* 붙잡는 시간은 단계의 박자를 타되(v2.39) **단계 길이의 30% 를 안 넘는다**(v2.42) —
+       `nhAfterMenu` 가 쓰는 것과 **같은 값**이어야 팝업이 걷히는 순간에 컴포저가 선다. */
+    var hold=nhAddHold(ms,fast);
     addMenuHoldFor(hold);
     try{it.classList.add('nh-press');
       setTimeout(function(){try{it.classList.remove('nh-press');}catch(e){}},hold);}catch(e){}
@@ -8500,8 +8576,18 @@ function nhAddDone(){
    흘러넘친다. 남는 시간이 너무 짧으면 글자가 안 박히므로 바닥(360ms)을 둔다:
    콘솔의 `STEP_FLOOR` 가 이 대기를 셈에 넣은 값으로 올라가 있다.
    빨리 감기(fast)는 팝업도 표식도 없으므로 기다리지 않는다. */
+/* 팝업을 붙잡는 시간 (v2.42 — **단계 길이의 몫**이다).
+   v2.41 은 `nhT(NH_ADD_HOLD)` 를 그대로 썼는데, 배율이 ms 를 따라 커지므로(v2.39) 단계를
+   길게 줘도 **남는 시간이 안 늘었다** — `addreq` 1300ms 면 대기 666, 남은 634 인데 커밋은
+   514ms 에 오고 타이핑은 760ms 에 시작한다. 즉 **글자가 한 자도 안 박힌 채 등록**됐다
+   (사용자가 "바로 등록된다" 고 한 자리 — v2.41 이 낸 회귀다).
+   이제 두 몫이 다투지 않게 자른다: 붙잡는 시간은 **아무리 길어도 단계의 30%** 다. */
+function nhAddHold(ms,fast){
+  if(fast)return 0;
+  return Math.min(nhT(NH_ADD_HOLD),Math.round((ms|0||1500)*0.3));
+}
 function nhAfterMenu(fast,ms,fn){
-  var wait=fast?0:nhT(NH_ADD_HOLD);
+  var wait=nhAddHold(ms,fast);
   var left=Math.max(360,(ms|0||1500)-wait);
   if(!wait){fn(left);return true;}
   setTimeout(function(){fn(left);},wait);
@@ -8509,7 +8595,7 @@ function nhAfterMenu(fast,ms,fn){
 }
 function nhAddSpot(text,emoji,token,ms,fast){
   var at=nhAddAt();
-  if(!nhAddTap('spot',fast))return false;
+  if(!nhAddTap('spot',fast,ms))return false;
   at=at||nhAddAt();
   nhAddDone();
   return nhAfterMenu(fast,ms,function(left){
@@ -8518,7 +8604,7 @@ function nhAddSpot(text,emoji,token,ms,fast){
 }
 function nhAddReq(text,token,ms,fast){
   var at=nhAddAt();
-  if(!nhAddTap('request',fast))return false;
+  if(!nhAddTap('request',fast,ms))return false;
   at=at||nhAddAt();
   nhAddDone();
   return nhAfterMenu(fast,ms,function(left){
@@ -8575,7 +8661,7 @@ function nhPhotoFly(src,from,to){
    카드가 v2.10 에 얻은 길(Storage 에 두고 주소만 싣는다)을 단계도 그대로 쓴다. */
 function nhAddFeedCard(which,desc,theme,fast,img,ms){ // which: 'photo'(라이브 카메라) | 'post'(Feed 작성)
   var at=nhAddAt();
-  if(!nhAddTap(which,fast))return false;
+  if(!nhAddTap(which,fast,ms))return false;
   at=at||nhAddAt();
   nhAddDone();
   // 팝업이 사라진 뒤에 카드가 올라온다 (v2.41 — addspot·addreq 와 같은 규칙)
@@ -9261,7 +9347,7 @@ function nhAct(st,token){
          `answer`(내가 쓰는 손)의 반대쪽이다: 손이 없고 답이 하나씩 붙는다. */
       if(st.a==='answers'){var arq=nhPick('req',st.i);
         if(!arq)return false;
-        return nhAnswers(arq,parseInt(st.e,10)||3,st.ms,token)!==false;}
+        return nhAnswers(arq,parseInt(st.e,10)||3,st.ms,token,nhAnsPlan(st.v))!==false;}
       /* 답변 채택 (v2.41) — i=어느 Request · e=몇 번째 답(0부터, 음수는 뒤에서). */
       if(st.a==='adopt'){var drq=nhPick('req',st.i);
         if(!drq)return false;
