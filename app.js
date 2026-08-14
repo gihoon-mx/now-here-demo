@@ -9511,13 +9511,11 @@ function nhTouchTarget(st){
     if(st.a==='tab')return document.querySelector('.pn-item[data-nav="'+st.v+'"]');
     if(st.a==='ai')return document.querySelector('#phone-mirror .pn-ai')||document.querySelector('.pn-ai');
     if(st.a==='scope')return document.querySelector('.fsc[data-s="'+(st.v||'local')+'"]');
-    /* 딜 시트가 열려 있으면 실제로 눌리는 것은 ds-close 다 (v2.2) — cpop-close 는
-       딜 시트가 열려 있을 때 화면에 없어(hidden) 표식이 안 뜨고 조용히 170ms 만 죽는다. */
-    if(st.a==='popclose'){
-      var dsSheet=document.getElementById('deal-sheet');
-      if(dsSheet&&dsSheet.style.display!=='none')return document.getElementById('ds-close');
-      return document.getElementById('cpop-close');
-    }
+    /* 닫기에는 **손을 안 그린다** (v2.49) — 표식은 "사용자가 무엇을 눌렀나" 를 말하는
+       자리인데, 닫기는 그 장면의 끝일 뿐 보여줄 손짓이 아니다. 게다가 v2.48 부터 이
+       단계는 글쓰기 카드까지 닫으므로 눌릴 버튼이 하나로 정해지지도 않는다
+       (닫기 버튼·시트 ✕·카드 — 아무거나 하나에 손이 뜨면 나머지는 거짓말이 된다). */
+    if(st.a==='popclose')return null;
     /* Request 를 여는 것은 핀을 고르는 손이다 (v2.18) — "사용자가 그 Request 를 눌러
        연다" 가 시나리오의 장면이라, 표식이 핀 위에 서야 화면이 그 말을 한다. */
     if(st.a==='pop'&&st.v==='req'){
@@ -10010,7 +10008,31 @@ function nhLayFeed(f,i,c,stamp){
    가격 3칸은 만든다(사람은 5칸만 적는다). **결정적**이어야 한다 — Math.random 금지. */
 function nhLayDeal(d,i,c,stamp){
   if(typeof timeDeals==='undefined')return null;
-  var id='dln_'+stamp+'_'+i,p=nhPosGet('deal',i,c)||nhSpread(c,NH_BAND.deal+i); // 사람이 옮긴 자리 우선 (v2.3)
+  /* ── 딜을 **매장에 붙인다** (v2.49) ─────────────────────────────────────────
+     `of` = 이 딜이 열리는 매장의 번호(무대 목록의 자리). 여태 딜과 매장은 남남이라,
+     "그 가게에서 하는 딜" 을 만들려면 같은 상호를 두 번 적고 자리도 손으로 맞춰야 했다 —
+     그러고도 지도에는 이름표가 **둘** 섰다.
+     이제 붙는다: 매장이 이미 서 있으면 **그 항목을 딜로 승격**한다(핀 하나, 이름표 하나,
+     매장 페이지에 쿠폰까지). 아직 안 섰으면(보관 중) 매장의 글·사진·자리를 물려받아
+     혼자 선다 — 둘 다 "그 가게의 딜" 로 읽힌다. */
+  var ofN=(d&&d.of!=null&&isFinite(Number(d.of)))?Math.max(0,Math.round(Number(d.of))):-1;
+  var host=(ofN>=0&&nhDealIds[ofN])?dealById(nhDealIds[ofN]):null;
+  if(host&&host.store){
+    var pctH=Math.min(90,Math.max(5,(d.pct|0)||20));
+    var wasH=9900+(i%8)*5000, nowH=Math.floor(wasH*(100-pctH)/100/100)*100;
+    host.store=false;                                   // 이제 ⏰ 핀이 선다 (dealActive 가 받는다)
+    host.pct=pctH;host.secs=Math.min(7200,Math.max(30,(d.secs|0)||1800));
+    host.price=nowH.toLocaleString('ko-KR')+'원';host.was=wasH.toLocaleString('ko-KR')+'원';
+    host.stock=Math.max(3,20-Math.round(pctH/5))+'개';host.ts=Date.now();
+    if(d.title)host.title=String(d.title).slice(0,40);
+    if(d.img)host.img=nhImgSrc(d.img);                   // 딜 배너는 딜의 것
+    if(d.msg)host.msg=String(d.msg).slice(0,60);
+    nhDealIds[i]=host.id;                                // 이 딜의 번호도 그 핀을 가리킨다
+    return host.id;
+  }
+  var src=(ofN>=0&&nhSeedDeals[ofN]&&nhSeedDeals[ofN].store)?nhSeedDeals[ofN]:null; // 아직 안 선 매장
+  var slot=(src&&ofN>=0)?ofN:i;                          // 자리는 **매장의 자리**를 쓴다
+  var id='dln_'+stamp+'_'+i,p=nhPosGet('deal',slot,c)||nhSpread(c,NH_BAND.deal+slot); // 사람이 옮긴 자리 우선 (v2.3)
   var pct=Math.min(90,Math.max(5,(d.pct|0)||20));
   var secs=Math.min(7200,Math.max(30,(d.secs|0)||1800));
   /* 순번을 섞는다 — 셋이 다 같으면 지어낸 게 보인다. **%8 로 접는다** (v2.11):
@@ -10018,18 +10040,23 @@ function nhLayDeal(d,i,c,stamp){
      v2.2 에서 hold 딜이 "30만 원짜리 모자" 가 되던 것과 같은 결이다. */
   var was=9900+(i%8)*5000;
   var now=Math.floor(was*(100-pct)/100/100)*100;   // 백 원 단위로 내림
+  /* 붙을 매장이 아직 안 섰으면 그 가게의 **얼굴**을 물려받는다 (v2.49) — 상호·이모지·주소·
+     소개·사진. 딜이 제 값을 적었으면 그것이 먼저다(딜의 배너·제목은 딜의 것). */
+  function inh(k){return (d&&d[k])?d[k]:(src?src[k]:'');}
   timeDeals.push({id:id,lat:p.lat,lng:p.lng,
     // 사진 (v2.12) — 피드·지면과 같은 규칙: 통과한 주소만, 없으면 이모지로 그린다.
     img:nhImgSrc(d.img),
-    e:String(d.e||'⏰').slice(0,4),
+    e:String(inh('e')||'⏰').slice(0,4),
     title:String(d.title||'').slice(0,40),
-    shop:String(d.shop||'근처 매장').slice(0,30),
+    shop:String(inh('shop')||'근처 매장').slice(0,30),
     // 매장 페이지(v2.15)용 optional 칸 — 콘솔이 안 주면 페이지가 파생값(동네·템플릿·근처 사진)으로 채운다.
     // desc 는 300자까지 받는다 (v2.17) — 매장 소개는 한 문장으로 안 끝나는 일이 잦다.
-    addr:d.addr?String(d.addr).slice(0,60):undefined,
-    desc:d.desc?String(d.desc).slice(0,300):undefined,
+    addr:inh('addr')?String(inh('addr')).slice(0,60):undefined,
+    desc:inh('desc')?String(inh('desc')).slice(0,300):undefined,
     // 사진 그리드 (v2.17) — 통과한 주소만, 없으면 storeFeedPhotos 가 근처 피드에서 모은다.
-    photos:Array.isArray(d.photos)?d.photos.slice(0,NH_MAX.dealPhoto).map(nhImgSrc).filter(Boolean):undefined,
+    // v2.49: 붙을 매장의 사진도 물려받는다 (딜이 제 사진을 안 적었을 때)
+    photos:(function(ph){return Array.isArray(ph)&&ph.length?ph.slice(0,NH_MAX.dealPhoto).map(nhImgSrc).filter(Boolean):undefined;})(
+      (Array.isArray(d.photos)&&d.photos.length)?d.photos:(src?src.photos:null)),
     pct:pct,
     price:now.toLocaleString('ko-KR')+'원',
     was:was.toLocaleString('ko-KR')+'원',
@@ -10037,10 +10064,11 @@ function nhLayDeal(d,i,c,stamp){
     /* 가게 (v2.32) — msg 는 지도 이름표에 붙는 한마디, store 는 "딜 없이 가게만".
        store 여도 secs·ts 는 그대로 넣는다: dealActive 가 store 를 빼므로 값이 남아도
        아무도 그것을 '진행 중' 으로 읽지 않는다(뒷날 딜을 붙일 때 자리도 그대로다). */
-    msg:d.msg?String(d.msg).slice(0,60):undefined,
+    msg:inh('msg')?String(inh('msg')).slice(0,60):undefined,
     store:!!d.store,
     secs:secs,ts:Date.now(),seed:false});
   nhTempIds.deal.push(id);
+  nhDealIds[i]=id; // v2.49 — 뒤에 오는 딜이 `of` 로 이 항목을 가리킬 수 있다
   return id;
 }
 /* ── 방금 만든 것을 지금 화면에 세워 본다 (v2.47, 콘솔 D162) ────────────────
@@ -10261,9 +10289,12 @@ var NH_BURST_MAX=100;
 function nhBurstKinds(v){
   var out=[];
   String(v||'').split(/[+,\s]+/).forEach(function(x){
-    if((x==='spot'||x==='feed'||x==='deal')&&out.indexOf(x)<0)out.push(x);
+    // v2.49: `store`(딜 없이 이름표만 서는 가게)도 쏟아진다 — 상권이 깨어나는 그림
+    if((x==='spot'||x==='feed'||x==='deal'||x==='store')&&out.indexOf(x)<0)out.push(x);
   });
-  return out.length?out:['spot','feed','deal']; // mix·빈 값·모르는 값 = 셋 다
+  /* 빈 값·모르는 값은 **여태 셋**이다 (store 를 넣지 않는다) — 저장된 데모의 `v` 가
+     대개 비어 있어서, 여기에 끼우면 옛 엔딩에 없던 가게 이름표가 갑자기 깔린다. */
+  return out.length?out:['spot','feed','deal'];
 }
 /* 밀집도 (v2.38) — 같은 개수라도 **얼마나 좁게 몰아넣을까**.
    자리는 `rVis`(그 순간 보이는 화면의 반폭)에 비례하는데, 그 계수를 사람이 고른다:
@@ -10344,6 +10375,12 @@ function nhBurst(v,n,e,ms,token,look,sp){
           if(typeof renderFeedMarkers==='function')renderFeedMarkers();
           if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
           if(typeof renderNews==='function')renderNews();}
+      }else if(kind==='store'){
+        /* 매장 (v2.49) — 딜 없이 **이름표만** 선다. 상호는 딜 표본의 가게 이름을 빌리되
+           `title` 을 안 준다: title 이 있으면 딜로 읽혀 ⏰ 핀이 서고 "마감 직전" 이 뜬다. */
+        var st2=pick(NH_BURST_DEALS);
+        if(nhLayDeal({e:st2[1],shop:st2[2],store:true},idx,p,stamp)
+           &&typeof renderDealMarkers==='function')renderDealMarkers();
       }else{
         var dl=pick(NH_BURST_DEALS);
         if(nhLayDeal({title:dl[0],e:dl[1],shop:dl[2],pct:dl[3],secs:600+120*(k%5)},idx,p,stamp)
@@ -10356,11 +10393,17 @@ function nhBurst(v,n,e,ms,token,look,sp){
 
 /* 아직 안 깐 것 — `hold` 가 붙은 항목은 여기 담아 두고 `drop` 이 꺼낸다.
    무대(c)와 stamp 도 같이 들고 있어야 나중에 깔 때 같은 자리에 같은 규칙으로 깔린다. */
-var nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:0};
+/* v2.49: `store` 가 제 칸을 갖는다. 저장은 여태처럼 `deals` 한 배열이지만(D155),
+   **보관함은 갈라야 한다** — 콘솔의 고르개는 딜과 매장을 두 목록으로 세는데 여기서
+   한 통에 담으면 "타임딜 1번" 이 매장을 집는다(사용자가 본 그 자리다). */
+var nhHeld={spot:[],feed:[],req:[],deal:[],store:[],page:[],c:null,stamp:0,token:0};
+/* 이 회차의 딜/매장 원본과 깔린 id — 딜을 매장에 **붙이는**(`of`) 데 쓴다 (v2.49). */
+var nhSeedDeals=[],nhDealIds={};
 
 function nhSeedScenario(sc,token){
   // 회차마다 0 부터 — write 의 "옮긴 자리" 키가 회차를 넘어 같아야 한다 (v2.12).
-  nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:token};nhPostN=0;nhWriteN=0;nhWriteIds={};nhReqN=0;nhReqIds={};
+  nhHeld={spot:[],feed:[],req:[],deal:[],store:[],page:[],c:null,stamp:0,token:token};nhPostN=0;nhWriteN=0;nhWriteIds={};nhReqN=0;nhReqIds={};
+  nhSeedDeals=[];nhDealIds={}; // v2.49 딜↔매장 연동의 출입구 (회차마다 비운다)
   nhAddN=0;nhAddIdx=-1;nhAddAtPinned=false; // 추가 팝업의 순번도 회차마다 0 부터 (자리 기억 키가 어긋나지 않게, v2.34 · 콕 집음 표시는 v2.45)
   /* 등장 효과음 (v2.23) — 회차를 시작할 때 건다(소리가 없는 시나리오면 빈 값으로 꺼서
      앞 회차의 소리가 따라오지 않게). **무대를 까는 동안에는 안 운다** — 여기서 깔리는
@@ -10400,8 +10443,20 @@ function nhSeedScenario(sc,token){
      여기서 60+i 를 미리 얹으면 hold 로 보관했다가 drop 한 딜이 배열 순번이 아니라
      "60+순번" 으로 가격을 매겨 원가가 30만 원대로 튄다(모자가 30만 원짜리가 된다).
      그래서 보관하는 i 는 배열 순번 그대로 — nhLayReq 와 같은 방식이다. */
-  (sc.seed.deals||[]).slice(0,NH_MAX.deal).forEach(function(d,i){
-    if(d&&d.hold){nhHeld.deal.push({v:d,i:i});return;}
+  /* v2.49: **매장은 매장 보관함으로.** 저장은 한 배열이지만 세는 곳은 둘이라(콘솔의
+     타임딜 목록·매장 목록), 여기서 갈라 두어야 `drop v:'deal' i:0` 이 첫 **딜**을 집는다.
+     `i` 는 여전히 **배열 순번 그대로**다 — 자리(NH_BAND)와 원가(9900+i*5000)가 그것으로
+     정해지고, `of`(딜이 붙을 매장)도 이 번호로 가리킨다.
+     매장을 **먼저** 깐다: 딜이 `of` 로 매장을 가리키면 그 매장이 이미 서 있어야 붙는다. */
+  nhSeedDeals=(sc.seed.deals||[]).slice(0,NH_MAX.deal);
+  nhSeedDeals.forEach(function(d,i){
+    if(!d||!d.store)return;
+    if(d.hold){nhHeld.store.push({v:d,i:i});return;}
+    nhLayDeal(d,i,c,stamp);
+  });
+  nhSeedDeals.forEach(function(d,i){
+    if(!d||d.store)return;
+    if(d.hold){nhHeld.deal.push({v:d,i:i});return;}
     nhLayDeal(d,i,c,stamp);
   });
   /* 상단 지면 (v2.2) — 좌표가 없으니 base 도 없다. 상한은 관리자 화면의
@@ -10441,7 +10496,8 @@ function nhSeedScenario(sc,token){
 function nhDrop(v,i,e,fast){
   /* 모르는 종류를 spot 으로 떨어뜨리지 않는다 (v2.2) — 전에는 삼항의 else 가 spot 이라
      `drop:deal` 이 조용히 스팟을 집었다. 아는 것만 받고 나머지는 실패다. */
-  var kind=(v==='feed'||v==='req'||v==='deal'||v==='page')?v:(v==='spot'?'spot':'');
+  // v2.49: `store`(매장) 가 제 종류로 선다 — 보관함도 갈려 있어 번호가 딜과 안 섞인다
+  var kind=(v==='feed'||v==='req'||v==='deal'||v==='store'||v==='page')?v:(v==='spot'?'spot':'');
   if(!kind)return false;
   var list=nhHeld[kind]||[],n=(i|0);
   if(n<0||n>=list.length)return false;
@@ -10479,6 +10535,12 @@ function nhDrop(v,i,e,fast){
     if(typeof renderFeedMarkers==='function')renderFeedMarkers();
     if(typeof renderNews==='function')renderNews(); // 지도 탭 상단 지면에도 실린다 (v2.10)
   }else if(kind==='deal'){
+    laid=nhLayDeal(item.v,item.i,c,nhHeld.stamp);
+    if(!laid)return false;if(!fast)nhBounceMark(laid,1);
+    if(typeof renderDealMarkers==='function')renderDealMarkers();
+    if(typeof syncStorePage==='function')syncStorePage(); // 딜이 매장에 붙었으면 열린 페이지도 따라온다 (v2.49)
+  }else if(kind==='store'){
+    // 매장도 같은 손으로 깐다 (v2.49) — `nhLayDeal` 이 store 칸을 보고 이름표만 세운다
     laid=nhLayDeal(item.v,item.i,c,nhHeld.stamp);
     if(!laid)return false;if(!fast)nhBounceMark(laid,1);
     if(typeof renderDealMarkers==='function')renderDealMarkers();
@@ -10730,6 +10792,9 @@ function nhSanitize(raw){
         // 가게 (v2.32) — 지도 이름표의 한마디 · 딜 없이 가게만인가
         msg:String(d.msg||'').slice(0,60),
         store:!!d.store,
+        /* `of` (v2.49) — 이 딜이 붙을 **매장의 번호**(같은 배열의 자리). 딜에만 뜻이 있다:
+           매장에 달려 오면 자기 자신을 가리키는 고리가 되므로 버린다. */
+        of:(!d.store&&d.of!=null&&isFinite(Number(d.of)))?Math.max(0,Math.round(Number(d.of))):undefined,
         hold:!!d.hold};
     /* 딜은 제목이 있어야 하고, **가게는 상호가 있으면 된다** (v2.32) — store 항목에는
        팔 물건이 없으므로 title 을 요구하면 항목이 앱에 도착조차 못 한다.
