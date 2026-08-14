@@ -1622,11 +1622,23 @@ function openContentPop(kind,data){
     var rl=reqRemainLabel(data);lf.textContent=rl?('⏱ '+rl):'';
     if(n){ // 도착한 답변 목록 — 요청자만 보던 것을 푼다 (v2.18): 답을 쓴 사람도 제 답이 앉는 것을 본다
       var ansBox=document.createElement('div');ansBox.className='rqc-answers';
-      (data.answers||[]).forEach(function(a){
-        var it=document.createElement('div');it.className='rqa-item';
+      (data.answers||[]).forEach(function(a,ai){
+        var it=document.createElement('div');it.className='rqa-item'+(a.best?' best':'');
+        /* 누가 답했나 (v2.41) — 무대가 얹는 답은 이름을 들고 온다(`who`). 사람이 쓴 답은
+           여태처럼 이름이 없다: 그 자리에서는 "누구" 보다 "무엇" 이 중요했다. */
+        if(a.who){var wh=document.createElement('i');wh.className='rqa-who';wh.textContent=a.who;it.appendChild(wh);}
         if(a.t){var tx=document.createElement('span');tx.className='rqa-t';tx.textContent=a.t;it.appendChild(tx);}
         if(a.img){var im2=document.createElement('img');im2.className='rqa-img';im2.src=a.img;im2.alt='';it.appendChild(im2);}
         var tm=document.createElement('i');tm.className='rqa-time';tm.textContent=timeAgo(a.ts||0);it.appendChild(tm);
+        /* 채택 (v2.41) — **내 Request 이고 아직 안 골랐을 때만** 고르는 손이 선다.
+           남의 Request 에는 안 뜬다(고를 자격이 없다). 고른 뒤에는 표만 남는다. */
+        if(a.best){var bg=document.createElement('i');bg.className='rqa-best';bg.textContent='✅ 채택됨';it.appendChild(bg);}
+        else if(mineR&&act&&!data.adopted){
+          var ab2=document.createElement('button');ab2.type='button';ab2.className='rqa-pick';ab2.textContent='채택';
+          ab2.addEventListener('click',function(e){e.stopPropagation();
+            if(typeof nhAdopt==='function')nhAdopt(data,ai,(typeof nhRunToken!=='undefined')?nhRunToken:0);});
+          it.appendChild(ab2);
+        }
         ansBox.appendChild(it);
       });
       body.appendChild(ansBox);
@@ -6009,7 +6021,14 @@ function initReqPinClass(){
   ReqPin.prototype.onAdd=function(){
     var self=this;
     var d=document.createElement('div');d.className='req-pin';
-    d.innerHTML='<span class="rp-ring"></span><span class="rp-ring r2"></span><span class="rp-drop"><i>?</i></span>';
+    /* 답글 수 미니 라벨 (v2.41) — 컨텐츠의 리액션 라벨(v2.40)과 **같은 자리·같은 문법**이다
+       (우측 상단, 💬N). Request 핀은 여태 "물어봤다" 만 말하고 답이 몇 개 왔는지는 열어야
+       알았다 — 내 질문에 답이 붙는 것이 이 화면의 사건인데 지도에서는 안 보였다.
+       `.req-pin` 은 pointer-events:none 이고 라벨도 absolute 라 겹침 계산(declutter)이
+       재는 상자를 안 키운다. */
+    d.innerHTML='<span class="rp-ring"></span><span class="rp-ring r2"></span><span class="rp-drop"><i>?</i></span><span class="rp-tag"></span>';
+    this.tagEl=d.querySelector('.rp-tag');
+    this._paintAns();
     d.title=this.rq.place+' · 현장 Request';
     d.style.setProperty('--heat',heatColor(zoneHeatT(this.rq.lat,this.rq.lng))); // 트렌드 모드 온도색(속한 존 열기) — 베이직은 CSS 무채색
     d.addEventListener('click',function(e){
@@ -6024,6 +6043,15 @@ function initReqPinClass(){
     if(nhBounceTake(this.rq.id))d.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
     if(typeof nhDimEl==='function')nhDimEl(d,this.rq.id); // dim 액션의 흐림 유지 (v2.21)
     this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);
+  };
+  /* 답글 수를 지금 값으로 (v2.41). 핀은 `renderRequestMarkers` 가 전량 파기·재생성할 때만
+     새로 만들어지므로, 답이 하나 붙을 때마다 전체를 다시 그리지 않고 이것만 부른다. */
+  ReqPin.prototype._paintAns=function(){
+    if(!this.tagEl)return;
+    var rq=(typeof reqById==='function'&&reqById(this.rq.id))||this.rq;
+    var n=(rq&&rq.answers||[]).length;
+    this.tagEl.textContent=n?('💬'+n):'';
+    this.tagEl.style.display=n?'':'none';
   };
   // 이동: 터치=롱프레스 후 드래그 / 마우스=즉시 (스팟 말풍선과 같은 문법)
   ReqPin.prototype._onDown=function(e){
@@ -6424,6 +6452,11 @@ function initDealLabelClass(){
       if(typeof openStorePage==='function')openStorePage(d.id);
     });
     if(typeof nhDimEl==='function')nhDimEl(el,d.id); // dim 액션의 흐림을 핀과 함께 (v2.21)
+    /* 등장 바운스 (v2.41) — **가게만** 항목(store)에는 ⏰ 핀이 안 서므로(dealActive 가 뺀다)
+       표를 소비할 손이 여기밖에 없다. 여태 `drop` 으로 가게를 띄우면 소리는 나는데 아무것도
+       안 튀었다. 딜이 있는 항목은 핀이 먼저 가져가므로(DealPin.onAdd) 여기서 또 안 뺀다 —
+       표는 소비형이라 둘이 부르면 한쪽이 빈손이 된다. */
+    if(d.store&&typeof nhBounceTake==='function'&&nhBounceTake(d.id))el.classList.add('nh-pop-in');
     this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
   };
   DealLabel.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;
@@ -8276,6 +8309,80 @@ function nhHearts(kind,item,count,ms,token){
   return nhReact(kind,item,Math.max(1,count|0||1),0,ms,token);
 }
 
+/* ── 내 Request 에 답이 도착한다 (v2.41, 콘솔 D153) ──────────
+   여태 `answer` 는 **내가 쓰는 손**이었다(nhAnswerTyped — 컴포저에 글자를 박는다).
+   그런데 시연에서 더 자주 필요한 것은 반대쪽이다: **내가 물었고 남들이 답한다.**
+   그 장면에는 손이 없다 — 답이 하나씩 도착하고, 지도의 물음표 핀에 답글 수가 오르고,
+   우하단이 알려 주는 것이 전부다. `react` 와 같은 문법으로 센다(개수·+1씩·결정적 문구). */
+var NH_ANS_TEXT=['지금은 자리 있어요','조금 전에 지나왔는데 한산했어요','웨이팅 5팀 정도예요',
+  '방금 다녀왔어요, 괜찮아요','저녁엔 붐벼요','지금 딱 좋아요','비 와서 그런지 조용해요',
+  '주차는 뒤쪽이 편해요'];
+var NH_ANS_WHO=['근처 주민','방금 지나감','단골','산책 중','퇴근길','옆 가게'];
+/** 답 하나를 그 Request 에 얹는다 — 회차가 끝나면 무대 Request 와 함께 걷힌다. */
+function nhAnswerAdd(rq,k){
+  if(!rq)return false;
+  var i=Math.abs((k|0)+String(rq.id||'').length);
+  rq.answers=rq.answers||[];
+  rq.answers.push({t:NH_ANS_TEXT[i%NH_ANS_TEXT.length],ts:Date.now(),
+    by:'nh_other',who:NH_ANS_WHO[i%NH_ANS_WHO.length]});
+  return true;
+}
+/** 그 Request 의 핀들만 다시 칠한다 — 전체 렌더는 핀을 파기·재생성해서 무겁고 깜박인다. */
+function nhReqRepaint(id){
+  try{
+    (reqMarkers||[]).forEach(function(p){
+      if(p&&p.rq&&p.rq.id===id&&typeof p._paintAns==='function')p._paintAns();
+    });
+  }catch(e){}
+  // 열려 있는 팝업도 같이 (답변 목록이 그 안에 있다)
+  try{if(typeof cpopRefresh==='function'&&cpopRefresh)cpopRefresh();}catch(e){}
+}
+/** 답 n 개가 이 단계의 ms 안에 하나씩 도착한다. 첫 답에서 우하단이 한 번 알린다. */
+function nhAnswers(rq,count,ms,token){
+  if(!rq)return false;
+  count=Math.min(NH_HEARTS_MAX,Math.max(1,count|0||1));
+  ms=Math.max(200,ms|0||2000);
+  var win=Math.max(60,ms-140);
+  count=Math.min(count,Math.floor(win/60)+1);
+  var gap=Math.max(1,Math.floor(win/count));
+  for(var k=0;k<count;k++)(function(k){
+    setTimeout(function(){
+      if(token!==nhRunToken)return;
+      if(!nhAnswerAdd(rq,k))return;
+      nhReqRepaint(rq.id);
+      /* 내가 모르는 일이 일어났으니 알린다 — 다만 **처음 한 번**이다 (v2.29 의 규칙:
+         곧 뒤따를 말을 미리 하지 않는다). 뒤의 답들은 핀의 숫자가 말한다. */
+      if(k===0&&typeof aiSay==='function')
+        aiSay('📍 '+(rq.place||'현장')+' 답변 도착: '+rq.answers[rq.answers.length-1].t,nhBubbleMs||5000);
+    },80+k*gap);
+  })(k);
+  return true;
+}
+/* 채택 (v2.41) — 여러 답 중 하나를 고른다.
+   여태 리워드는 **Request 당 한 번**(REQ_COIN 정액)이고 지급되면 그 Request 가 끝났다.
+   채택은 그 모델을 뒤집지 않는다: 고른 답에 표를 남기고, 리워드는 **그 답을 쓴 사람에게**
+   갔다고 말한 뒤 Request 를 끝낸다. 내 주머니에는 안 들어온다 — 내가 주는 쪽이다. */
+function nhAdopt(rq,idx,token){
+  if(!rq||!(rq.answers||[]).length)return false;
+  var n=rq.answers.length,i=(idx|0);
+  if(i<0)i=n+i;                       // 음수는 뒤에서부터 (nhAt 과 같은 규칙)
+  if(i<0||i>=n)return false;
+  rq.answers.forEach(function(a){delete a.best;});
+  rq.answers[i].best=1;
+  rq.adopted=1;
+  nhReqRepaint(rq.id);
+  if(typeof aiSay==='function')
+    aiSay('✅ 답변을 채택했어요 — 🪙 '+(typeof REQ_COIN!=='undefined'?REQ_COIN:500)+' 코인이 '+
+      (rq.answers[i].who||'답변자')+'님께 전달됐어요.',nhBubbleMs||5200);
+  /* 채택하면 그 Request 는 끝난다 — 기존 리워드 지급과 같은 자리다(핀이 터지며 걷힌다).
+     token 을 보는 이유: 새 재생이 시작됐는데 옛 회차의 핀이 뒤늦게 터지면 안 된다. */
+  setTimeout(function(){
+    if(token!==nhRunToken)return;
+    if(typeof reqPopAway==='function')reqPopAway(rq.id);
+  },900);
+  return true;
+}
+
 /* ── 컨텐츠 추가 팝업 (v2.34, 콘솔 D132) ────────────────────────────
    이 앱에서 컨텐츠를 만드는 길은 둘이다 — 하단 네비의 `+` 버튼, 그리고 지도를 꾹 누르기.
    무대에는 여태 그 두 손이 없었다: `write`·`request` 는 컴포저부터 시작하므로, 시연을
@@ -8380,19 +8487,39 @@ function nhAddDone(){
 /* 네 항목 — 스팟·Request 는 **있는 타이핑 연출을 그대로 쓴다**(nhWriteSpot·nhRequestTyped).
    같은 일을 두 벌 만들면 둘이 어긋난다. 사진·지면은 파일 고르기가 자동화되지 않으므로
    그 자리에서 카드를 만든다 — postfeed 와 같은 방식이고 사진은 seedImg 로 그린다. */
+/* 항목을 누른 뒤 **팝업이 사라지고 나서** 만든다 (v2.41).
+   여태는 누르는 손과 컴포저가 겹쳤다 — `nhAddDone()` 이 팝업을 `NH_ADD_HOLD` 만큼 붙잡아
+   두는데(v2.37, 표식이 사는 동안 보이게) 만드는 쪽은 그 자리에서 시작했다. 그래서 팝업이
+   아직 떠 있는데 입력창이 그 위에 뜨는 어색한 한 겹이 생겼다 (사용자가 말한 자리).
+
+   기다린 만큼 **ms 에서 뺀다** — 안 빼면 이 단계가 팝업 시간만큼 길어져 다음 단계로
+   흘러넘친다. 남는 시간이 너무 짧으면 글자가 안 박히므로 바닥(360ms)을 둔다:
+   콘솔의 `STEP_FLOOR` 가 이 대기를 셈에 넣은 값으로 올라가 있다.
+   빨리 감기(fast)는 팝업도 표식도 없으므로 기다리지 않는다. */
+function nhAfterMenu(fast,ms,fn){
+  var wait=fast?0:nhT(NH_ADD_HOLD);
+  var left=Math.max(360,(ms|0||1500)-wait);
+  if(!wait){fn(left);return true;}
+  setTimeout(function(){fn(left);},wait);
+  return true; // 누르는 손은 이미 섰다 — 만드는 쪽의 성패는 이 단계의 성패가 아니다
+}
 function nhAddSpot(text,emoji,token,ms,fast){
   var at=nhAddAt();
   if(!nhAddTap('spot',fast))return false;
   at=at||nhAddAt();
   nhAddDone();
-  return nhWriteSpot(text,token,ms,emoji,fast,at)!==false;
+  return nhAfterMenu(fast,ms,function(left){
+    if(token===nhRunToken)nhWriteSpot(text,token,left,emoji,fast,at);
+  });
 }
 function nhAddReq(text,token,ms,fast){
   var at=nhAddAt();
   if(!nhAddTap('request',fast))return false;
   at=at||nhAddAt();
   nhAddDone();
-  return nhRequestTyped(text,token,ms,fast,at)!==false;
+  return nhAfterMenu(fast,ms,function(left){
+    if(token===nhRunToken)nhRequestTyped(text,token,left,fast,at);
+  });
 }
 /* 찰칵 (v2.37) — 라이브 카메라는 **찍는 장면**이다.
    화면이 한 번 번쩍하고, 방금 찍힌 사진이 화면 가운데서 부풀었다가 지도 위 제자리로
@@ -8442,11 +8569,15 @@ function nhPhotoFly(src,from,to){
 /* img (v2.39) — 콘솔이 올려 둔 **진짜 사진**의 주소. 없으면 여태처럼 테마 색으로 그린다.
    라이브 카메라는 사진을 올리는 장면인데 정작 올릴 사진이 없었다 — 컨텐츠 탭의 피드
    카드가 v2.10 에 얻은 길(Storage 에 두고 주소만 싣는다)을 단계도 그대로 쓴다. */
-function nhAddFeedCard(which,desc,theme,fast,img){ // which: 'photo'(라이브 카메라) | 'post'(Feed 작성)
+function nhAddFeedCard(which,desc,theme,fast,img,ms){ // which: 'photo'(라이브 카메라) | 'post'(Feed 작성)
   var at=nhAddAt();
   if(!nhAddTap(which,fast))return false;
   at=at||nhAddAt();
   nhAddDone();
+  // 팝업이 사라진 뒤에 카드가 올라온다 (v2.41 — addspot·addreq 와 같은 규칙)
+  return nhAfterMenu(fast,ms,function(){nhAddFeedCardNow(which,desc,theme,fast,img,at);});
+}
+function nhAddFeedCardNow(which,desc,theme,fast,img,at){
   var d=String(desc||'').slice(0,120);
   var id=nhLayFeed({desc:d,label:d||(which==='photo'?'지금 여기':'오늘의 기록'),
       theme:String(theme||'')||'cafe',img:img,
@@ -9122,6 +9253,15 @@ function nhAct(st,token){
         return nhHearts(hK,hf,parseInt(st.e,10)||5,st.ms,token)!==false;}
       /* 리액션 추가 (v2.40) — 남들이 하트와 의견을 단다. e=하트 수 · sp=의견 수,
          비우면 각각 1 이다. 둘 다 0 이면 할 일이 없으므로 실패로 남는다(화면에 표시된다). */
+      /* 내 Request 에 답이 도착한다 (v2.41) — i=어느 Request · e=몇 개 · ms=오는 시간.
+         `answer`(내가 쓰는 손)의 반대쪽이다: 손이 없고 답이 하나씩 붙는다. */
+      if(st.a==='answers'){var arq=nhPick('req',st.i);
+        if(!arq)return false;
+        return nhAnswers(arq,parseInt(st.e,10)||3,st.ms,token)!==false;}
+      /* 답변 채택 (v2.41) — i=어느 Request · e=몇 번째 답(0부터, 음수는 뒤에서). */
+      if(st.a==='adopt'){var drq=nhPick('req',st.i);
+        if(!drq)return false;
+        return nhAdopt(drq,(st.e===''||st.e==null)?0:(parseInt(st.e,10)||0),token)!==false;}
       if(st.a==='react'){var rK=nhLikeKind(st.v),rf=nhPick(rK,st.i);
         if(!rf)return false;
         var rH=(st.e===''||st.e==null)?1:Math.max(0,parseInt(st.e,10)||0);
@@ -9135,8 +9275,8 @@ function nhAct(st,token){
       if(st.a==='addspot')return nhAddSpot(st.v||st.say,st.e,token,st.ms,st.fast)!==false;
       if(st.a==='addreq')return nhAddReq(st.v||st.say,token,st.ms,st.fast)!==false;
       // sp = 사진 주소 (v2.39) — 비면 테마 색으로 그린다 (여태 동작)
-      if(st.a==='addphoto')return nhAddFeedCard('photo',st.v||st.say,st.e,st.fast,st.sp)!==false;
-      if(st.a==='addpost')return nhAddFeedCard('post',st.v||st.say,st.e,st.fast,st.sp)!==false;
+      if(st.a==='addphoto')return nhAddFeedCard('photo',st.v||st.say,st.e,st.fast,st.sp,st.ms)!==false;
+      if(st.a==='addpost')return nhAddFeedCard('post',st.v||st.say,st.e,st.fast,st.sp,st.ms)!==false;
       if(st.a==='write'){if(typeof switchTab==='function')switchTab('map');
         // e = 이모지 (v2.12) — post 와 같은 자리, 같은 뜻이다.
         return nhWriteSpot(st.v||st.say,token,st.ms,st.e,st.fast)!==false;}
@@ -9976,7 +10116,7 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'hearts', // v2.34: 남들이 하나둘 하트를 누른다 (v=종류·i=몇 번째·e=몇 개·ms=오르는 시간)
   // v2.34: 컨텐츠 추가 팝업 — 여는 손(addmenu v = btn|hold)과 네 항목을 누르는 손
   'addmenu','addbtn','addspot','addphoto','addpost','addreq',
-  'react'];
+  'react','answers','adopt'];
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){

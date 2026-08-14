@@ -967,6 +967,12 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 .req-pin .rp-ring{position:absolute;left:50%;top:20px;width:34px;height:34px;margin-left:-17px;border-radius:50%;
   border:2px solid rgba(120,130,145,0.5);animation:rpPulse 2s ease-out infinite;}
 .req-pin .rp-ring.r2{animation-delay:1s;}
+/* 답글 수 미니 라벨 (v2.41) — 컨텐츠의 `.spot-tag`/`.fp-tag` 와 같은 자리(우측 상단)·같은 문법.
+   드롭(34px)이 left:50%/top:2px 에 서므로 그 오른쪽 어깨에 맞춘다. 핀 상자는 안 키운다. */
+.req-pin .rp-tag{position:absolute;left:50%;top:-2px;margin-left:9px;min-width:16px;height:16px;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;padding:0 4px;border-radius:9px;background:#8a919d;
+  border:1.5px solid #fff;color:#fff;font-size:10px;font-weight:800;line-height:1;white-space:nowrap;pointer-events:none;}
+body.mode-trend .req-pin .rp-tag{background:var(--heat,#f2862e);}
 /* 트렌드 모드 = 온도색(--heat: 속한 존 좋아요 열기, ReqPin이 인라인 주입) */
 body.mode-trend .req-pin .rp-drop{background:linear-gradient(150deg,#ffb37a,var(--heat,#e23b2a));box-shadow:0 3px 10px rgba(255,80,50,0.4);}
 body.mode-trend .req-pin .rp-ring{border-color:rgba(255,90,60,0.55);}
@@ -991,6 +997,15 @@ body.mode-trend .req-pin .rp-ring{border-color:rgba(255,90,60,0.55);}
 .rqa-t{font-size:2.6cqw;font-weight:600;color:var(--ink);line-height:1.35;}
 .rqa-img{width:100%;height:16cqw;object-fit:cover;border-radius:2cqw;border:1px solid var(--line-soft);}
 .rqa-time{font-style:normal;font-size:2.1cqw;color:var(--ink3);}
+/* 답변 채택 (v2.41) — 고른 답은 테두리로 표를 남기고, 못 고른 답에는 고르는 손이 선다.
+   내 Request 이고 아직 안 골랐을 때만 버튼이 그려진다(JS 쪽 조건). */
+.rqa-who{font-style:normal;font-size:2.1cqw;font-weight:700;color:var(--ink2);}
+.rqa-item.best{background:rgba(47,123,255,0.08);box-shadow:inset 0 0 0 1.5px rgba(47,123,255,0.45);}
+.rqa-best{font-style:normal;font-size:2.1cqw;font-weight:800;color:var(--acc,#2f7bff);}
+.rqa-pick{align-self:flex-start;border:none;border-radius:999px;background:var(--acc,#2f7bff);color:#fff;
+  font-family:inherit;font-weight:700;font-size:2.2cqw;padding:1cqw 2.6cqw;cursor:pointer;}
+#cpop-body .rqa-who,#cpop-body .rqa-best{font-size:.72rem;}
+#cpop-body .rqa-pick{font-size:.74rem;padding:5px 12px;}
 .rqa-empty{font-size:2.5cqw;color:var(--ink3);padding:1cqw 0.5cqw;}
 /* 스팟 메시지: 말풍선 · 세로 */
 /* 드로어 스팟 = 현재 지역 클라우드: 단일 텍스트 스타일 + 얇은 테두리 필 버블 + 옅은 채색 */
