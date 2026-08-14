@@ -1385,7 +1385,9 @@ function addSpotComment(id,t){
    부르므로, 그냥 울리면 아무 일도 없는 자리에서 소리가 난다. */
 function closeContentPop(){var m=document.getElementById('content-pop');
   if(m&&m.style.display!=='none'&&typeof nhSfxPlay==='function')nhSfxPlay('close');
-  if(m)m.style.display='none';cpopRefresh=null;}
+  // 자리 지정을 걷는다 (v2.44) — 다음에 열 때 다시 재고, 다른 화면이 이 요소를 쓰면 안 물려받는다
+  if(m){m.style.display='none';m.style.top=m.style.left=m.style.width=m.style.height='';}
+  cpopRefresh=null;}
 function cpopGoMap(kind,data,zoom,camMs,token){ // 팝업 '📍 지도에서 보기' — 컨텐츠 탭=팝업 통일 규칙에서 위치 이동은 이 버튼으로
   // camMs (v2.36) — 무대의 `area` 단계가 자기 ms 를 준다. 안 주면 실앱 기본 900ms.
   // zoom: optional. 안 주면 종전대로(줌<15 일 때만 16). 동네 전체를 보여줘야 하는
@@ -1573,6 +1575,23 @@ function cpopComments(body,id){
   cin.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();sendCm();}});
   body.appendChild(ir);
 }
+/* 팝업을 **지도 칸 가운데**에 놓는다 (v2.44).
+   `.modal-overlay` 는 `position:fixed; inset:0` 이라 **뷰포트** 가운데에 선다. 그런데 폰
+   화면의 가운데는 지도의 가운데가 아니다 — 위에 헤더·스토리가, 아래에 네비가 있어서
+   카드가 지도보다 한 뼘 위에 뜬다. 눌러서 연 것은 지도 위의 컨텐츠인데 카드는 딴 데
+   있으니, 무엇을 열었는지가 눈으로 안 이어진다.
+   실측으로 맞춘다 — 헤더 높이는 스킨·화면 폭마다 다르므로 상수로 못 짐작한다. */
+function cpopFitMap(){
+  var el=document.getElementById('content-pop');if(!el)return;
+  var md=document.getElementById('phone-map'),r=md&&md.getBoundingClientRect();
+  if(!r||!r.width||!r.height){md=document.getElementById('map');r=md&&md.getBoundingClientRect();}
+  if(!r||!r.width||!r.height){ // 지도를 못 찾으면 여태처럼 화면 가운데
+    el.style.top=el.style.left=el.style.width=el.style.height='';
+    return;
+  }
+  el.style.top=r.top+'px';el.style.left=r.left+'px';
+  el.style.width=r.width+'px';el.style.height=r.height+'px';
+}
 function openContentPop(kind,data){
   var m=document.getElementById('content-pop'),body=document.getElementById('cpop-body'),tt=document.getElementById('cpop-title');
   if(!m||!body||!data)return;
@@ -1685,6 +1704,7 @@ function openContentPop(kind,data){
   } // 지도 보기 버튼은 헤더 공통(headAct)
   if(m.style.display==='none'&&typeof nhSfxPlay==='function')nhSfxPlay('open'); // v2.25 — 닫혀 있던 것이 설 때만
   m.style.display='flex';
+  cpopFitMap(); // 지도 칸 가운데로 (v2.44) — display 를 준 **뒤**라야 rect 가 잡힌다
 }
 function initContentPop(){
   var m=document.getElementById('content-pop');if(!m)return;
@@ -1921,7 +1941,10 @@ function openAddMenu(mapObj,div,latLng,popCx,popCy){
   addTargetMap=mapObj||primaryMap();addTargetDiv=div||null;addAtLatLng=latLng||null;
   resetAddMenuPos();
   if(popCx!=null&&div&&div.closest&&div.closest('.phone-screen'))positionAddMenuAt(popCx,popCy); // 폰에선 누른 지점에 팝업
-  addPinShow(addTargetMap,addAtLatLng); // 좌표가 없으면(+버튼) 마커도 없다 — 화면 센터에 놓이므로 가리킬 지점이 없다
+  /* 좌표가 없으면 마커도 없다 — 가리킬 지점이 없는 손짓이다.
+     ⚠️ 무대의 `+` 버튼 갈래는 v2.44 부터 **화면 센터를 좌표로 준다**(만들어질 자리를 못 박으려고).
+     마커까지 서면 "꾹 누른 자리" 처럼 보이므로 그쪽에서 바로 `addPinHide()` 로 걷는다. */
+  addPinShow(addTargetMap,addAtLatLng);
   var el=document.getElementById('content-add-menu');if(el)el.classList.add('open');
   // + 가 X 로 돈다 (v2.36) — .pn-add.open 은 style.css 에 있었는데 붙이는 코드가 없었다.
   // 무대에서 btn 단계의 근거가 600ms 짜리 점 하나뿐이던 것도 이걸로 나아진다.
@@ -8494,10 +8517,16 @@ function nhAddMenu(v,fast){
   if(typeof switchTab==='function')switchTab('map');
   var m=(typeof phoneMap!=='undefined')?phoneMap:null,mdiv=document.getElementById('phone-map');
   if(!m||!mdiv)return false;
-  if(String(v||'')!=='hold'){ // 하단 + 버튼 — 좌표가 없다(앱과 같은 규칙: 화면 센터에 만든다)
+  if(String(v||'')!=='hold'){ // 하단 + 버튼
     nhAddIdx=-1;
     if(!fast){var b=document.querySelector('#phone-mirror .pn-add')||document.querySelector('.pn-add');if(b)nhTouch(b);}
-    openAddMenu(m,mdiv,null,null,null);
+    /* **화면 한가운데에 만든다** (v2.44) — 여태는 좌표를 안 주고 각 만드는 함수의 기본값에
+       맡겼는데(지역 좌표 +0.0012 · nhSpread), 그러면 화면 밖에 생기기도 했다. `+` 버튼의
+       뜻이 "지금 보고 있는 자리에 올린다" 이므로 그 자리를 명시로 준다.
+       마커는 안 세운다 — 가리킬 지점이 따로 없는 손짓이다(openAddMenu 의 규칙 그대로). */
+    var bc=m.getCenter&&m.getCenter();
+    openAddMenu(m,mdiv,bc||null,null,null);
+    if(typeof addPinHide==='function')addPinHide();
     return true;
   }
   var idx=nhAddN++;
