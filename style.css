@@ -965,7 +965,10 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 .rqc-btn{flex:1;padding:1.6cqw 0;border:1px solid var(--line);border-radius:2.6cqw;background:#fff;color:var(--ink2);font-family:inherit;font-size:2.5cqw;font-weight:700;cursor:pointer;transition:all .15s ease;}
 .rqc-btn:hover,.rqc-btn:active{border-color:var(--acc);color:var(--acc);background:rgba(47,123,255,0.06);}
 /* 현장 Request 전용 맵 핀: 펄스 링(현장에 질문 신호) + ? 티어드롭 — AI Agent 보라 계열 */
-.req-pin{position:absolute;transform:translate(-50%,-100%);width:48px;height:56px;pointer-events:none;z-index:5;} /* v1.58 크기 통일: 드롭 26→34px, 피드 핀(44px)과 비슷한 시각 크기 */
+/* `--rq-o` = 관리자 설정의 투명도 (v2.47). 스킨 3종 어디도 .req-pin 의 opacity 를 안 건드리므로
+   변수 하나로 셋 다 걸린다. 색(`--rq-c`)은 스킨이 .rp-drop 의 background 를 덮으므로
+   CSS 로는 못 이긴다 — 그쪽은 ReqPin.onAdd 가 **인라인**으로 박는다. */
+.req-pin{position:absolute;transform:translate(-50%,-100%);width:48px;height:56px;pointer-events:none;z-index:5;opacity:var(--rq-o,1);} /* v1.58 크기 통일: 드롭 26→34px, 피드 핀(44px)과 비슷한 시각 크기 */
 /* v2.20: **똑바로 선 원**이다. 여태는 물방울을 만들려고 `border-radius:50% 50% 50% 6px`
    에 `rotate(-45deg)` 를 걸었는데, 그 회전이 세 스킨 모두에 남아 있었다 — legacy 는 물방울이
    기울어 보이고, 원으로 다시 그린 new·v3 에서도 **그림자가 45° 비껴** 떨어져 핀이 기운 것처럼
@@ -983,9 +986,10 @@ body.mode-trend .aip-item:hover{border-color:rgba(255,106,77,0.55);}
 /* 답글 수 미니 라벨 (v2.41) — 컨텐츠의 `.spot-tag`/`.fp-tag` 와 같은 자리(우측 상단)·같은 문법.
    드롭(34px)이 left:50%/top:2px 에 서므로 그 오른쪽 어깨에 맞춘다. 핀 상자는 안 키운다. */
 .req-pin .rp-tag{position:absolute;left:50%;top:-2px;margin-left:9px;min-width:16px;height:16px;box-sizing:border-box;
-  display:flex;align-items:center;justify-content:center;padding:0 4px;border-radius:9px;background:#8a919d;
+  display:flex;align-items:center;justify-content:center;gap:2px;padding:0 4px;border-radius:9px;
+  background:rgba(138,145,157,var(--tag-a,.72)); /* v2.47 연한 톤 — 컨텐츠 라벨과 같은 알파 */
   border:1.5px solid #fff;color:#fff;font-size:10px;font-weight:800;line-height:1;white-space:nowrap;pointer-events:none;}
-body.mode-trend .req-pin .rp-tag{background:var(--heat,#f2862e);}
+body.mode-trend .req-pin .rp-tag{background:var(--heat-a,var(--heat,#f2862e));}
 /* 트렌드 모드 = 온도색(--heat: 속한 존 좋아요 열기, ReqPin이 인라인 주입) */
 body.mode-trend .req-pin .rp-drop{background:linear-gradient(150deg,#ffb37a,var(--heat,#e23b2a));box-shadow:0 3px 10px rgba(255,80,50,0.4);}
 body.mode-trend .req-pin .rp-ring{border-color:rgba(255,90,60,0.55);}
@@ -1376,23 +1380,34 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
   font-size:9px;font-weight:800;color:#fff;border-radius:999px;padding:2px 5px;line-height:1;
   box-shadow:0 0 0 1.5px #fff;white-space:nowrap;}
 .spot-tag>b{font-weight:800;}
-/* 내가 누른 것은 **하트 쪽만** 붉게 — 라벨 전체를 물들이면 옆의 의견 수까지 내 것처럼 보인다. */
-.spot-tag .tg-h.mine{color:#ffd2dc;}
+/* ── 라벨 한 칸 = 이모지 + 숫자 (v2.47) ────────────────────────────────
+   **숫자는 언제나 흰색이다.** 여태 `❤3` 이 글자열 하나라 `.mine` 색이 숫자까지 물들였다.
+   색이 붙는 것은 이모지(`.tg-e`)뿐이다 — 내가 누른 하트인지가 이모지 하나로 읽힌다.
+   `position:relative` 는 **그 칸 위에서** 튀게 하는 자리다(v2.47 — 라벨 통째가 아니라). */
+.tg-h,.tg-c{position:relative;display:inline-flex;align-items:center;gap:2px;}
+.tg-e{font-style:normal;}
+.tg-n{font-style:normal;color:#fff;}
+.spot-tag .tg-h.mine .tg-e,.feed-pin .fp-tag .tg-h.mine .tg-e{color:#ff5c78;}
 /* 더블탭한 순간 하트가 한 번 튄다 — 피드 카드의 .fc-heart 와 같은 연출·같은 곡선.
-   지도 오버레이는 폰 컨테이너 밖(PC 지도)에도 그려지므로 cqw 가 아니라 px 다 (v1.82 규칙). */
+   지도 오버레이는 폰 컨테이너 밖(PC 지도)에도 그려지므로 cqw 가 아니라 px 다 (v1.82 규칙).
+   `left:50%` 는 **부모 칸의 가운데** — 부모가 라벨이면 라벨 가운데, 이모지 칸이면 그 위다. */
 .spot-heartpop{position:absolute;left:50%;top:0;font-size:20px;color:#ff4d6d;pointer-events:none;
   text-shadow:0 2px 10px rgba(0,0,0,0.25);animation:heartPop 1.15s cubic-bezier(.22,1,.36,1) forwards;}
+/* 의견이 튈 때 (v2.47) — 하트와 같은 곡선·같은 시간이고 글리프만 다르다. */
+.spot-heartpop.cmt{color:#8fd0ff;font-size:17px;}
 /* 피드 핀의 리액션 라벨 (v2.40) — 말풍선(.spot-tag)과 **같은 자리·같은 순서**(우측 상단,
    하트 다음 의견)다. v2.34 는 하트만 왼쪽 어깨에 뒀는데, 종류마다 규칙이 다르면 시연을
    보는 사람이 매번 어디를 볼지 다시 배운다. 클러스터 개수(.fp-n)와 어깨가 같지만 둘이
    함께 뜨는 핀은 없다 — 클러스터는 탭의 뜻이 '펼치기' 라 좋아요·의견이 없다.
    말풍선과 달리 핀은 CSS zoom 을 안 타므로 크기가 고정이다 — 점 모드에선 감춘다. */
+/* 배경은 **연한 톤**이다 (v2.47) — 알파는 `--tag-a`(관리자 설정 mapPinView.tag.op)가 정하고,
+   트렌드는 `--heat-a`(온도색 + 같은 알파)를 JS 가 실어 준다. `--heat` 는 hex 라 알파를 못 얹는다. */
 .feed-pin .fp-tag{position:absolute;right:-5px;top:-5px;min-width:16px;height:16px;box-sizing:border-box;
-  display:flex;align-items:center;justify-content:center;gap:3px;padding:0 4px;border-radius:9px;background:#8a919d;
+  display:flex;align-items:center;justify-content:center;gap:3px;padding:0 4px;border-radius:9px;
+  background:rgba(138,145,157,var(--tag-a,.72));
   border:1.5px solid #fff;color:#fff;font-size:10px;font-weight:800;line-height:1;white-space:nowrap;}
 .feed-pin .fp-tag>b{font-weight:800;}
-.feed-pin .fp-tag .tg-h.mine{color:#ffd2dc;}
-body.mode-trend .feed-pin .fp-tag{background:var(--heat,#f2862e);}
+body.mode-trend .feed-pin .fp-tag{background:var(--heat-a,var(--heat,#f2862e));}
 .feed-pin.fp-dot .fp-tag{display:none!important;} /* 점 모드 — paintReactTag 의 인라인 display 를 이긴다 */
 /* 핀 위에서 튀는 하트 — 말풍선과 같은 연출을 쓰되 원의 위 가장자리에서 시작한다. */
 .feed-pin .spot-heartpop{top:-6px;font-size:18px;}
@@ -1617,12 +1632,14 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
 /* 끌어 옮길 수 있다 (v2.43) — `touch-action:none` 이 없으면 터치 드래그가 지도 팬으로 샌다
    (스팟 말풍선이 v2.34 에 배운 것과 같다). */
 .deal-label.dragging .dl-name{cursor:grabbing;filter:brightness(1.1);}
+/* 색·투명도는 관리자 설정이 정한다 (v2.47 — `--dln-c`/`--dln-bg`, applyPinStyle 이 싣는다).
+   변수가 없으면 여태 값이 그대로 폴백이라 설정을 안 만진 화면은 하나도 안 바뀐다. */
 .deal-label .dl-name{pointer-events:auto;cursor:grab;touch-action:none;order:1;
   padding:3px 10px;border-radius:20px;font-family:inherit;font-size:11px;font-weight:700;
-  color:#fff;background:rgba(26,26,26,0.88);white-space:nowrap;letter-spacing:.01em;
+  color:var(--dln-c,#fff);background:var(--dln-bg,rgba(26,26,26,0.88));white-space:nowrap;letter-spacing:.01em;
   box-shadow:0 2px 10px rgba(0,0,0,0.35),0 0 0 1px rgba(255,255,255,0.16);
   backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
-.deal-label .dl-name:hover{background:rgba(26,26,26,0.96);}
+.deal-label .dl-name:hover{filter:brightness(1.12);}
 /* 한마디 — 스팟 말풍선 몸통(.spot-bubble)을 그대로 빌린다. 스킨 3종이 이 클래스를 알고 있어
    유리 룩·꼬리색이 공짜로 따라온다. 다만 `--spot-bg` 와 color 는 SpotBubble 이 인라인으로
    박던 값이라 **여기서 명시해야** legacy·v3 에서 폴백 파랑이 안 뜬다. `tl-t`(위 꼬리)가

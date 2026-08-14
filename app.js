@@ -572,31 +572,58 @@ function guardDblClick(el){
    `bg` 를 주면 배경을 인라인으로 박는다(말풍선: 모드 색을 따라간다). 피드 핀은 CSS 가
    색을 들고 있어 안 준다. 둘 다 0 이면 라벨째 감춘다 — 빈 알약이 떠 있으면 그것이 무슨
    수인지 물어보게 된다. */
+/* 라벨 한 칸을 **이모지와 숫자로 나눠** 담는다 (v2.47).
+   여태 `❤3` 은 글자열 하나라 `.mine` 색이 **숫자까지** 물들였다 — 사용자가 "카운트 숫자는
+   흰색" 이라고 한 자리다. 이제 색이 붙는 것은 이모지(`.tg-e`)뿐이고 숫자(`.tg-n`)는 늘 흰색이다.
+   자식은 **한 번만** 만든다: 이 함수는 팬·줌·리액션마다 불려서, 매번 innerHTML 을 새로 쓰면
+   Twemoji 가 갈아 끼운 `<img>` 가 그때마다 버려지고 다시 그려진다(깜박임). */
+function paintTagCell(el,glyph,n){
+  if(!el)return;
+  if(!el._tgN){
+    el.textContent='';
+    var e=document.createElement('i');e.className='tg-e';e.textContent=glyph;
+    var v=document.createElement('em');v.className='tg-n';
+    el.appendChild(e);el.appendChild(v);
+    el._tgE=e;el._tgN=v;
+  }
+  el._tgN.textContent=n?String(n):'';
+  el.style.display=n?'':'none';
+}
+/* 미니 라벨의 배경 (v2.47) — 관리자 설정의 **연한 톤**을 한 곳에서 정한다.
+   여태 말풍선은 JS 가 불투명하게 박고(alpha 1) 피드 핀·Request 핀은 CSS 가 단색으로 들어서,
+   톤을 바꾸려면 세 자리를 따로 고쳐야 했다. 이제 셋 다 이 함수를 지난다. */
+function tagBg(baseHex){
+  var a=(mapPinView&&mapPinView.tag&&mapPinView.tag.op!=null)?mapPinView.tag.op/100:0.72;
+  return hexToRgba(baseHex||'#8a919d',Math.max(0,Math.min(1,a)));
+}
 function paintReactTag(tag,hEl,cEl,id,bg){
   if(!tag)return;
   var L=(typeof likeInfo==='function')?likeInfo(id):{n:0,me:0};
   var cn=(typeof contentComments==='function')?contentComments(id).length:0;
   if(hEl){
-    hEl.textContent=L.n?('❤'+L.n):'';
-    hEl.style.display=L.n?'':'none';
-    hEl.classList.toggle('mine',!!L.me); // 내가 누른 하트만 붉게 — 숫자까지 물들이면 남의 것과 구분이 안 된다
+    paintTagCell(hEl,'❤',L.n);
+    hEl.classList.toggle('mine',!!L.me); // 내가 누른 하트만 붉게 — 이모지 쪽만이다(숫자는 흰색)
   }
-  if(cEl){
-    cEl.textContent=cn?('💬'+cn):'';
-    cEl.style.display=cn?'':'none';
-  }
+  if(cEl)paintTagCell(cEl,'💬',cn);
   tag.style.display=(L.n||cn)?'':'none';
   if(bg)tag.style.background=bg;
 }
 /* 하트가 한 번 튄다 — 말풍선·피드 핀이 같이 쓴다 (v2.34: 있던 SpotBubble._heartBurst 를 꺼냈다).
    `.fc-heart`(피드 카드)와 같은 곡선·같은 1200ms 다.
    v2.40 부터 **미니 라벨을 기준으로** 튄다 — 부르는 쪽이 라벨 요소를 넘긴다. */
-function heartPopOn(el){
+/* v2.47: 의견도 같이 튄다 — 그리고 **각자 제 이모지 위에서** 튄다.
+   여태 튀는 자리는 라벨 통째(`heartEl`)라 하트 하나뿐일 때는 맞았지만, `❤3 💬2` 처럼
+   둘이 같이 서 있으면 라벨 한가운데에서 터져 **어느 수가 오른 건지** 안 보였다.
+   부르는 쪽이 칸(`tagH`/`tagC`)을 넘기면 그 칸 위에서 터진다 (CSS 가 칸을 relative 로 둔다). */
+function reactPopOn(el,glyph){
   if(!el)return;
-  var h=document.createElement('span');h.className='spot-heartpop';h.textContent='♥';
+  var h=document.createElement('span');
+  h.className='spot-heartpop'+(glyph==='💬'?' cmt':'');
+  h.textContent=glyph||'♥';
   el.appendChild(h);
   setTimeout(function(){if(h.parentNode)h.parentNode.removeChild(h);},1200);
 }
+function heartPopOn(el){reactPopOn(el,'♥');} // 동결 앵커 — 부르는 자리가 넷이라 이름을 남긴다
 function initSpotBubbleClass(){
   SpotBubble.prototype=new google.maps.OverlayView();
   SpotBubble.prototype.onAdd=function(){
@@ -660,7 +687,7 @@ function initSpotBubbleClass(){
   };
   /* 하트가 한 번 튄다 — 연출은 공용 heartPopOn 이 한다 (v2.34: 피드 핀과 나눠 쓴다). */
   // v2.40 — 라벨 기준으로 튄다 (라벨이 아직 없으면 여태처럼 말풍선 전체)
-  SpotBubble.prototype._heartBurst=function(){heartPopOn(this.heartEl||this.div);};
+  SpotBubble.prototype._heartBurst=function(){heartPopOn(this.tagH||this.heartEl||this.div);}; // v2.47 하트 칸 위에서
   SpotBubble.prototype._onDown=function(e){
     var self=this,m=self.getMap();
     if(!canEditSpot(self.spot))return;
@@ -721,7 +748,7 @@ function initSpotBubbleClass(){
        (v1.63 부터의 규칙 — 라벨이 하나가 되어도 그대로다).
        색은 JS 가 인라인으로 박는다: 모드 규칙·스킨 3종을 공짜로 타려고. */
     if(this.tagEl){
-      paintReactTag(this.tagEl,this.tagH,this.tagC,s.id,hexToRgba(baseCol,1));
+      paintReactTag(this.tagEl,this.tagH,this.tagC,s.id,tagBg(baseCol)); // v2.47 연한 톤 (관리자 설정)
       this.bubbleEl.appendChild(this.tagEl);
     }
     this.bubbleEl.style.display=t?'':'none';
@@ -888,7 +915,7 @@ function initFeedThumbClass(){
       if(typeof openContentPop==='function')openContentPop('feed',self.item);
     },360);
   };
-  FeedThumb.prototype._heartBurst=function(){heartPopOn(this.heartEl||this.div);};
+  FeedThumb.prototype._heartBurst=function(){heartPopOn(this.tagH||this.heartEl||this.div);}; // v2.47 하트 칸 위에서
   // 온도색(트렌드 모드에서만 CSS body.mode-trend 스코프로 발현): 개별 수동 온도(temp) 우선, 자동=좋아요 온도. 클러스터=멤버 중 최고
   // v2.6: 존 온도를 중심으로 항목마다 흩는다 (존 밖이면 좋아요 온도가 중심). 클러스터=멤버 최고
   FeedThumb.prototype._paintHeat=function(){
@@ -896,6 +923,9 @@ function initFeedThumbClass(){
     var ht=0;this.members.forEach(function(m){var f=m.f||m,p=m.pos||{};
       var t2=contentHeatT(f,p.lat,p.lng,feedHeatT(f.id));if(t2>ht)ht=t2;});
     this.div.style.setProperty('--heat',heatColor(ht));
+    /* 미니 라벨은 **연한 톤**이라 알파가 붙은 짝을 따로 싣는다 (v2.47) — CSS 는 `--heat` 가
+       hex 라 거기에 알파를 못 얹는다. 관리자 설정(mapPinView.tag.op)이 이 값을 정한다. */
+    this.div.style.setProperty('--heat-a',tagBg(heatColor(ht)));
   };
   /* 같은 멤버 구성의 핀을 **그대로 이어 쓴다** (v2.16).
      줌마다 renderFeedMarkers 가 전부 지우고 새로 만들면 `<img>` 도 새로 붙는다 —
@@ -4372,7 +4402,7 @@ function applyExtraSettings(s){
   if(APP_SKINS.indexOf(s.appSkin)>=0){appSkin=s.appSkin;applySkin();} // setAppSkin 은 저장까지 한다 — 여기는 값 적용만
   if(s.spotMapBg&&typeof s.spotMapBg==='object'){spotMapBg.op=Number(s.spotMapBg.op)||0;spotMapBg.scaleM=Number(s.spotMapBg.scaleM)||100;}
   if(s.feedIconSize!=null&&isFinite(Number(s.feedIconSize)))feedIconSize=Math.max(0,Math.round(Number(s.feedIconSize)));
-  if(s.mapPinView&&typeof s.mapPinView==='object')mergePinView(s.mapPinView); // v2.15 — 값만, 갱신은 부르는 쪽
+  if(s.mapPinView&&typeof s.mapPinView==='object'){mergePinView(s.mapPinView);applyPinStyle();} // v2.15 값만(갱신은 부르는 쪽) · v2.47 색·투명도는 CSS 변수라 즉시
   if(s.uiScale&&typeof s.uiScale==='object'){mergeUiScale(s.uiScale);applyUiScale();} // v2.27 — CSS 변수라 즉시 적용해도 안전(재렌더 없음)
   // 상단 지면 타입 (v2.11) — 화면 갱신은 부르는 쪽의 renderNews 가 한다 (이 함수의 규칙 그대로).
   var _ncv=parseInt(s.newsCardVer,10);
@@ -5251,16 +5281,46 @@ function feedIconBase(){return feedIconSize>0?feedIconSize:(Number(spotConfig.em
    size(핀 배율 %, Request·딜만 — CSS 고정 크기라 배율로 조절), label(딜 %라벨)}.
    feedIconSize 와 같은 즉시 적용·additive 클라우드 동기 패턴(왕복 6지점 전부 배선).
    피드 크기는 기존 feedIconSize(0=스팟 따름)가, 스팟 스타일은 spotConfig 블록이 담당. */
-var mapPinView={spot:{show:true},feed:{show:true},req:{show:true,size:100},deal:{show:true,size:100,label:true,name:true}};
+/* v2.47: 표시 on/off·크기에 더해 **색과 투명도**까지 여기서 정한다 (사용자 요청).
+   지도 위에 뜨는 것 중 스타일 손잡이가 없던 둘이 대상이다 — **가게 이름표**(name)와
+   **Request 아이콘**(req.color/op), 그리고 리액션 미니 라벨의 톤(tag.op).
+   스팟 말풍선은 진작 자기 블록(s-spot)이 있고, 동·존 라벨은 s-region·s-zone 이 든다.
+   적용은 CSS 변수 한 벌(applyPinStyle)이라 재렌더가 필요 없다 — 스킨 3종에도 그대로 걸린다. */
+var mapPinView={
+  spot:{show:true},feed:{show:true},
+  req:{show:true,size:100,color:'',op:100},
+  deal:{show:true,size:100,label:true,name:true},
+  name:{size:100,color:'#ffffff',bg:'#1a1a1a',op:88}, // 가게 이름표 (DealLabel 의 상호칩)
+  tag:{op:72}                                          // 리액션·답글 미니 라벨의 배경 톤(%)
+};
+/** 색 칸 하나 — `#rrggbb` 만 받는다(빈 문자열=스킨 기본을 쓴다는 뜻). */
+function pvColor(s,cur){return (typeof s==='string'&&(/^#[0-9a-fA-F]{6}$/.test(s)||s===''))?s:cur;}
 function mergePinView(v){ // additive 병합 — 모르는 키 무시, 빠진 키는 기본값 유지(옛 문서 호환)
-  ['spot','feed','req','deal'].forEach(function(k){
+  ['spot','feed','req','deal','name','tag'].forEach(function(k){
     var s=v&&v[k];if(!s||typeof s!=='object')return;var t=mapPinView[k];
     if(typeof s.show==='boolean')t.show=s.show;
     if(s.size!=null&&isFinite(Number(s.size)))t.size=Math.max(40,Math.min(200,Math.round(Number(s.size))));
     if(typeof s.label==='boolean')t.label=s.label;
     if(typeof s.name==='boolean')t.name=s.name; // v2.32 가게 이름표 (deal 하위 키라 위 배열은 그대로다)
+    if(s.op!=null&&isFinite(Number(s.op)))t.op=Math.max(0,Math.min(100,Math.round(Number(s.op))));
+    if(s.color!=null)t.color=pvColor(s.color,t.color);
+    if(s.bg!=null)t.bg=pvColor(s.bg,t.bg);
   });
 }
+/* 색·투명도를 body 의 CSS 변수로 흘린다 (v2.47).
+   지도 오버레이는 폰 안(폰 지도)에도 PC 지도에도 그려지므로 **body 한 곳**에 두면 둘 다 탄다.
+   빈 색은 변수를 지운다 — 그래야 CSS 의 폴백(스킨 기본값)이 되살아난다. */
+function applyPinStyle(){
+  if(!document.body)return;
+  var b=document.body.style,N=mapPinView.name,R=mapPinView.req;
+  b.setProperty('--tag-a',String(Math.max(0,Math.min(1,(mapPinView.tag.op!=null?mapPinView.tag.op:72)/100))));
+  b.setProperty('--dln-c',N.color||'#ffffff');
+  b.setProperty('--dln-bg',hexToRgba(N.bg||'#1a1a1a',Math.max(0,Math.min(1,(N.op!=null?N.op:88)/100))));
+  if(R.color)b.setProperty('--rq-c',R.color);else b.removeProperty('--rq-c');
+  b.setProperty('--rq-o',String(Math.max(0,Math.min(1,(R.op!=null?R.op:100)/100))));
+}
+/** 가게 이름표 배율 — `labelScale` 위에 관리자 설정을 곱한다 (크기의 단일 출입구). */
+function nameScale(){return Math.max(0.4,Math.min(2,(mapPinView.name.size||100)/100));}
 try{var _mpv=JSON.parse(localStorage.getItem('nowhere_pinview')||'null');if(_mpv)mergePinView(_mpv);}catch(e){}
 function savePinView(){try{localStorage.setItem('nowhere_pinview',JSON.stringify(mapPinView));}catch(e){}}
 /* v2.27 [M09/M11] 폰 셸 UI 크기 — 모드 토글(.pa-mode)·하단 네비(.phone-navbar) 배율(%).
@@ -5298,6 +5358,7 @@ function initUiScaleUI(){ // 표시 옵션(s-view) 컨트롤 — admin.html 에�
 }
 function pinScale(kind){var s=mapPinView[kind];return s&&s.size?s.size/100:1;}
 function renderAllPins(){ // 표시 설정 변경 후 4종 재렌더 — Request 가 끝에서 딜·declutter 까지 연쇄한다
+  applyPinStyle();                                        // v2.47 색·투명도는 CSS 변수라 렌더보다 먼저
   if(typeof renderSpots==='function')renderSpots();       // (renderSpots 는 피드 핀도 같이 부른다)
   if(typeof renderRequestMarkers==='function')renderRequestMarkers();
 }
@@ -5308,6 +5369,21 @@ function syncPinViewUI(){ // s-pins 컨트롤 ← mapPinView (admin.html 에만 
   v('pv-req-show',mapPinView.req.show);v('pv-req-size',mapPinView.req.size);
   v('pv-deal-show',mapPinView.deal.show);v('pv-deal-size',mapPinView.deal.size);
   v('pv-deal-label',mapPinView.deal.label);v('pv-deal-name',mapPinView.deal.name!==false);
+  // v2.47 색·투명도·이름표 크기
+  v('pv-req-op',mapPinView.req.op);v('pv-name-size',mapPinView.name.size);
+  v('pv-name-op',mapPinView.name.op);v('pv-tag-op',mapPinView.tag.op);
+  if(typeof paintPvColor==='function')paintPvColor();
+}
+/* 색 트리거 3개의 스와치를 지금 값으로 (v2.47) — 기존 `makeColorControl` 문법을 그대로 쓴다. */
+function paintPvColor(){
+  [['ct-pv-req',mapPinView.req.color||''],
+   ['ct-pv-name-fg',mapPinView.name.color],
+   ['ct-pv-name-bg',mapPinView.name.bg]].forEach(function(p){
+    var el=document.getElementById(p[0]);if(!el)return;
+    var f=el.querySelector('.ct-fill');if(!f)return;
+    f.style.background=p[1]||'transparent';
+    el.classList.toggle('ct-none',!p[1]); // 빈 값 = 스킨 기본
+  });
 }
 function initPinViewUI(){
   if(!document.getElementById('pv-spot-show'))return;
@@ -5323,6 +5399,31 @@ function initPinViewUI(){
   on('pv-deal-name',function(el){mapPinView.deal.name=!!el.checked;}); // v2.32 가게 이름표
   on('pv-req-size',function(el){mapPinView.req.size=Math.max(40,Math.min(200,parseInt(el.value,10)||100));el.value=String(mapPinView.req.size);});
   on('pv-deal-size',function(el){mapPinView.deal.size=Math.max(40,Math.min(200,parseInt(el.value,10)||100));el.value=String(mapPinView.deal.size);});
+  // v2.47 투명도·이름표 크기 (0~100 / 40~200)
+  function pct(el,lo,hi){return Math.max(lo,Math.min(hi,parseInt(el.value,10)||100));}
+  on('pv-req-op',function(el){mapPinView.req.op=pct(el,0,100);el.value=String(mapPinView.req.op);});
+  on('pv-name-size',function(el){mapPinView.name.size=pct(el,40,200);el.value=String(mapPinView.name.size);});
+  on('pv-name-op',function(el){mapPinView.name.op=pct(el,0,100);el.value=String(mapPinView.name.op);});
+  on('pv-tag-op',function(el){mapPinView.tag.op=pct(el,0,100);el.value=String(mapPinView.tag.op);});
+  /* 색 트리거 — s-pins 는 **즉시 적용** 패널이라 `makeColorControl`(드래프트→적용)을 안 쓴다.
+     팝업만 빌리고 저장·동기·재렌더는 이 패널의 규칙(위 `on` 과 같은 줄)으로 한다. */
+  function onColor(id,get,set){
+    var btn=document.getElementById(id);if(!btn)return;
+    btn.addEventListener('click',function(e){e.stopPropagation();
+      openColorPopup(btn,{color:get()||'#ffffff',alpha:null,onInput:function(hex){
+        set(hex);paintPvColor();savePinView();
+        if(typeof markCloudDirty==='function')markCloudDirty();renderAllPins();}});
+    });
+  }
+  onColor('ct-pv-req',function(){return mapPinView.req.color;},function(h){mapPinView.req.color=h;});
+  onColor('ct-pv-name-fg',function(){return mapPinView.name.color;},function(h){mapPinView.name.color=h;});
+  onColor('ct-pv-name-bg',function(){return mapPinView.name.bg;},function(h){mapPinView.name.bg=h;});
+  /* Request 아이콘 색은 **비울 수 있어야** 한다 — 빈 값이 "스킨 기본을 쓴다" 는 뜻이고,
+     색을 한 번 고르면 그 뜻으로 돌아갈 길이 팝업에는 없다(팔레트에 '없음' 이 없다). */
+  var rqc=document.getElementById('pv-req-color-clear');
+  if(rqc)rqc.addEventListener('click',function(){
+    mapPinView.req.color='';paintPvColor();savePinView();
+    if(typeof markCloudDirty==='function')markCloudDirty();renderAllPins();});
   var st=document.getElementById('pv-spot-style'); // 스팟 스타일 풀셋은 기존 s-spot 드래프트 블록으로
   if(st)st.addEventListener('click',function(){if(typeof openAdminMenu==='function')openAdminMenu('s-spot');});
 }
@@ -6102,6 +6203,11 @@ function initReqPinClass(){
     this._paintAns();
     d.title=this.rq.place+' · 현장 Request';
     d.style.setProperty('--heat',heatColor(zoneHeatT(this.rq.lat,this.rq.lng))); // 트렌드 모드 온도색(속한 존 열기) — 베이직은 CSS 무채색
+    d.style.setProperty('--heat-a',tagBg(heatColor(zoneHeatT(this.rq.lat,this.rq.lng)))); // 미니 라벨용 연한 톤 (v2.47)
+    /* 아이콘 색은 **인라인**이다 (v2.47) — 스킨 3종이 `.rp-drop` 의 background 를 각자 덮으므로
+       (v3=검정 원, new=액센트) style.css 의 변수로는 못 이긴다. 비워 두면 안 박아서 스킨 기본이다.
+       설정을 바꾸면 renderAllPins 가 핀을 다시 만들어 여기를 새로 지난다. */
+    if(mapPinView.req.color){var _rd=d.querySelector('.rp-drop');if(_rd)_rd.style.background=mapPinView.req.color;}
     d.addEventListener('click',function(e){
       e.stopPropagation();
       if(self._dragged){self._dragged=false;return;} // 방금 끌어 옮긴 손은 팝업을 열지 않는다
@@ -6121,8 +6227,13 @@ function initReqPinClass(){
     if(!this.tagEl)return;
     var rq=(typeof reqById==='function'&&reqById(this.rq.id))||this.rq;
     var n=(rq&&rq.answers||[]).length;
-    this.tagEl.textContent=n?('💬'+n):'';
-    this.tagEl.style.display=n?'':'none';
+    var was=this._ansN;
+    paintTagCell(this.tagEl,'💬',n); // v2.47 이모지·숫자를 나눠 담는다(숫자는 흰색)
+    /* 답이 하나 붙는 순간 튄다 (v2.47) — 컨텐츠의 의견 수와 **같은 사건**이라 같은 연출이다.
+       첫 페인트(was 가 없음)에는 안 튄다: 이미 답이 달려 있는 핀이 화면에 들어올 때마다
+       터지면 "지금 왔다" 가 거짓말이 된다. */
+    if(was!=null&&n>was&&typeof reactPopOn==='function')reactPopOn(this.tagEl,'💬');
+    this._ansN=n;
   };
   // 이동: 터치=롱프레스 후 드래그 / 마우스=즉시 (스팟 말풍선과 같은 문법)
   ReqPin.prototype._onDown=function(e){
@@ -6595,7 +6706,7 @@ function initDealLabelClass(){
     this._ax=q.x;this._ay=q.y;                 // declutter 규약 — 앵커는 제 좌표 (v2.27)
     this.div.style.left=(q.x+(this._ndx||0))+'px';this.div.style.top=(q.y+(this._ndy||0))+'px';
     var m=this.getMap(),z=(m&&m.getZoom&&m.getZoom())||15;
-    this.div.style.transform='translate(-50%,0) scale('+labelScale(z)+')';
+    this.div.style.transform='translate(-50%,0) scale('+(labelScale(z)*nameScale())+')'; // v2.47 관리자 크기 배율
     this.div.classList.toggle('dl-quiet',z<DEAL_MSG_MIN_Z); // 멀면 한마디만 접는다
   };
   DealLabel.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
@@ -8469,10 +8580,14 @@ function nhReact(kind,item,hn,cn,ms,token){
          돌리면 50개짜리 단계에서 지도가 오십 번 다시 그려진다. */
       if(k===tot-1&&kind==='feed'&&typeof renderFeedMarkers==='function')renderFeedMarkers();
       if(kind==='spot'&&typeof refreshSpotStyles==='function'&&what==='c')refreshSpotStyles();
-      // 하트만 튄다 — 의견은 숫자가 오르는 것이 전부다 (튀는 말풍선까지 만들면 화면이 시끄럽다)
-      if(what==='h'){
-        var ov=nhLikeVisible(nhLikeOverlays(kind,item));
-        if(ov&&typeof heartPopOn==='function')heartPopOn(ov.heartEl||ov.div);
+      /* v2.47: **둘 다 튄다, 각자 제 이모지 위에서.** 여태는 하트만 튀고 의견은 숫자만
+         올랐는데, 같은 라벨에서 같은 일이 벌어지는 두 수 중 하나만 반응하면 오르는 것을
+         놓친다. 칸(tagH/tagC)을 넘겨 `❤3 💬2` 가 나란히 선 라벨에서도 어느 쪽이 올랐는지
+         자리로 읽히게 한다. */
+      var ov=nhLikeVisible(nhLikeOverlays(kind,item));
+      if(ov&&typeof reactPopOn==='function'){
+        if(what==='h')reactPopOn(ov.tagH||ov.heartEl||ov.div,'♥');
+        else reactPopOn(ov.tagC||ov.heartEl||ov.div,'💬');
       }
     },80+k*gap);
   })(k,seq[k],seq[k]==='h'?hk++:ck++);
@@ -9466,7 +9581,7 @@ function nhAct(st,token){
            그 갱신은 전체 렌더뿐이다(_adopt 가 핀을 이어 쓰므로 DOM 은 안 새로 만든다). */
         if(lkK==='feed'&&typeof renderFeedMarkers==='function')renderFeedMarkers();
         var lkOv=nhLikeVisible(nhLikeOverlays(lkK,f)); // 렌더 뒤에 다시 찾는다 — 하트가 살아 있는 div 에 앉게
-        if(lkOv)heartPopOn(lkOv.heartEl||lkOv.div); // v2.40 — 미니 라벨에서 튄다
+        if(lkOv)heartPopOn(lkOv.tagH||lkOv.heartEl||lkOv.div); // v2.40 미니 라벨에서 · v2.47 하트 칸 위에서
         /* e = 몇 개까지 (v2.40). **내 손은 한 번뿐이다** — 위에서 이미 켰다. 2 이상이면
            나머지는 남들이 얹는 것으로 빠르게 오른다(D131 이 지킨 뜻: 나는 한 번 누른다).
            숫자가 목표까지 차오르는 장면이라 하트는 안 튀긴다 — 내 손짓과 구분된다. */
@@ -9565,9 +9680,10 @@ function nhAct(st,token){
 }
 
 var nhRunToken=0;
+var nhPlaying=false; // v2.47 — 지금 대본이 도는 중인가 (nh:peek 이 이 값을 본다)
 // 회차가 끝나면 말풍선 시간도 액션 기본으로 (v2.30), 박자도 제 속도로 (v2.39) —
 // 사람이 손으로 만지는 화면이 마지막 단계의 배율을 물려받으면 앱이 이상하게 느려진다.
-function nhStop(){nhRunToken++;nhBubbleMs=null;nhRateSet(null,0);}
+function nhStop(){nhRunToken++;nhPlaying=false;nhBubbleMs=null;nhRateSet(null,0);}
 
 /* 재생 전 초기화 — 시연은 몇 번을 돌려도 같은 곳에서 시작해야 한다.
    앞 시나리오가 열어둔 팝업·드로어가 남으면 다음 회차가 그 뒤에서 조용히 흘러간다. */
@@ -9853,6 +9969,44 @@ function nhLayDeal(d,i,c,stamp){
     secs:secs,ts:Date.now(),seed:false});
   nhTempIds.deal.push(id);
   return id;
+}
+/* ── 방금 만든 것을 지금 화면에 세워 본다 (v2.47, 콘솔 D162) ────────────────
+   컨텐츠 탭에서 매장을 추가하면 목록에는 한 줄이 생기는데 **화면에는 아무 일도 없었다** —
+   재생을 한 번 돌려야 그 가게가 지도에 섰고, 그전까지는 "추가했는데 어디 있냐" 였다.
+   `nh:peek` 은 지금 보고 있는 지도 **한가운데**에 이름표를 세운다.
+
+   **임시다**, 세 가지 뜻에서: ①하나만 선다(다음 peek 이 앞의 것을 지운다) ②`nhTempIds.deal`
+   에 적혀 재생·리셋이 무대와 같이 걷어간다 ③저장소에 안 남는다(무대 배열은 콘솔이 들고 있다).
+   그래서 이걸로 만든 이름표가 다음 회차에 유령으로 남지 않는다.
+   끌어 옮기면 `DealLabel._onDown` 이 여느 이름표처럼 자리를 기억한다 — 추가하고 바로
+   자리를 잡는 손이 이어진다. */
+var nhPeekId=null;
+function nhPeekClear(){
+  if(!nhPeekId)return;
+  if(typeof timeDeals!=='undefined')timeDeals=timeDeals.filter(function(d){return d.id!==nhPeekId;});
+  var k=nhTempIds.deal.indexOf(nhPeekId);if(k>=0)nhTempIds.deal.splice(k,1);
+  nhPeekId=null;
+  if(typeof renderDealMarkers==='function')renderDealMarkers();
+}
+function nhPeek(raw){
+  if(typeof timeDeals==='undefined')return false;
+  nhPeekClear();
+  var m=(typeof phoneMap!=='undefined'&&phoneMap)||map;
+  var c=m&&m.getCenter&&m.getCenter();if(!c)return false;
+  var d=(raw&&typeof raw==='object')?raw:{};
+  /* 이름이 없으면 **'추가된 매장'** 이다 — 방금 만든 줄은 상호가 비어 있는데,
+     `dealShopName` 은 빈 이름에 이름표를 안 건다(v2.32). 그러면 "추가했는데 아무것도
+     안 뜬다" 가 그대로 남는다. 무엇이 생겼는지 자리로 보여 주는 것이 이 기능의 전부다. */
+  var id='pk_'+Date.now();
+  timeDeals.push({id:id,lat:c.lat(),lng:c.lng(),
+    e:String(d.e||'🍴').slice(0,4),
+    title:'',shop:String(d.shop||'').trim().slice(0,30)||'추가된 매장',
+    msg:d.msg?String(d.msg).slice(0,60):undefined,
+    store:true,secs:1800,ts:Date.now(),seed:false});
+  nhPeekId=id;nhTempIds.deal.push(id);
+  if(typeof nhBounceMark==='function')nhBounceMark(id,1); // 방금 생긴 것 — 뿅 하고 앉는다
+  if(typeof renderDealMarkers==='function')renderDealMarkers();
+  return true;
 }
 /* 무대에 상단 지면 카드 하나 (v2.2, 콘솔 D90).
    좌표를 안 남긴다 — 캐러셀은 지도가 아니다. `c` 는 place 가 비었을 때 지도 중심의
@@ -10595,12 +10749,13 @@ function nhRun(id,reply,inline){
   nhStop();nhReset();
   nhCoinsMark(); // 이 회차가 시작하는 잔액 — 끝나면(다음 nhReset) 여기로 돌아온다 (v2.19)
   var token=++nhRunToken, i=0;
+  nhPlaying=true; // v2.47 — 재생 중에는 nh:peek(목록 편집의 미리보기)을 안 받는다
   nhSeedScenario(sc,token); // 이 시나리오가 성립하려면 화면에 있어야 하는 것부터 깐다
   nhStageHome(sc);          // 그리고 **그 자리에 선다** (v2.46) — 아래 설명 참고
   nhPost(reply,{type:'nh:begin',id:sc.id,name:sc.name,total:sc.steps.length,concern:!!sc.concern});
   (function next(){
     if(token!==nhRunToken)return;            // 새 재생/중지가 들어오면 이 회차는 조용히 끝난다
-    if(i>=sc.steps.length){nhPost(reply,{type:'nh:done',id:sc.id});return;}
+    if(i>=sc.steps.length){nhPlaying=false;nhPost(reply,{type:'nh:done',id:sc.id});return;}
     var st=sc.steps[i];
     var ok=nhAct(st,token)!==false; // 화면이 실제로 따라왔는가 (v1.94, 콘솔 D72)
     if(st.concern)nhConcernBeat();  // 막힌 순간이 화면에서도 한 박자 보이게
@@ -10643,6 +10798,12 @@ function initScenarioBridge(){
        끝까지 본 회차(nh:done)는 안 건드린다: 데모의 결말이 곧 보여줄 것이라, 끝나자마자
        치우면 방금 만든 글을 볼 수가 없다. */
     else if(d.type==='nh:stop'){nhStop();nhReset();nhPost(reply,{type:'nh:stopped'});}
+    /* 방금 만든 것을 지금 세워 본다 (v2.47) — 재생 중에는 안 받는다: 그때 지도 위에서
+       벌어지는 일은 대본이고, 거기에 목록 편집이 끼어들면 시연이 거짓말을 한다. */
+    else if(d.type==='nh:peek'){
+      if(nhPlaying)nhPost(reply,{type:'nh:error',message:'재생 중에는 미리 세울 수 없습니다.'});
+      else if(d.clear===true){nhPeekClear();nhPost(reply,{type:'nh:peeked',ok:true});}
+      else nhPost(reply,{type:'nh:peeked',ok:nhPeek(d.item)!==false});}
   });
   // 부모가 언제 붙을지 모르므로 준비되면 알린다 (시나리오 목록은 비밀이 아니다)
   if(window.parent&&window.parent!==window){
@@ -10688,7 +10849,7 @@ function startEmbed(){
   loadFileDefaults(); // repo 백스톱 설정(settings-default.json) — 공장값 캡처 후 비동기 적용, 클라우드가 오면 그쪽 우선
   initSettingsExport();
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();initUiScaleUI();syncCoinUI();initSeedGen();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();applyPinStyle();initUiScaleUI();syncCoinUI();initSeedGen();
   window.addEventListener('resize',layoutTabPages);
   nhViewWatch();
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)
