@@ -8260,9 +8260,11 @@ function nhAddTap(kind,fast){
     /* 표식이 사는 동안 팝업을 붙잡고, 눌린 항목에 표시를 남긴다 (v2.37).
        그래야 "눌렀다 → 반응했다 → 닫혔다" 가 순서대로 보인다 — 여태는 닫기가 0ms 라
        표식이 아직 커지는 중인데 가리키던 메뉴가 이미 없었다. */
-    addMenuHoldFor(NH_ADD_HOLD);
+    // 붙잡는 시간도 단계의 박자를 탄다 (v2.39) — 표식이 늘어나면 팝업도 그만큼 남아야 한다.
+    var hold=nhT(NH_ADD_HOLD);
+    addMenuHoldFor(hold);
     try{it.classList.add('nh-press');
-      setTimeout(function(){try{it.classList.remove('nh-press');}catch(e){}},NH_ADD_HOLD);}catch(e){}
+      setTimeout(function(){try{it.classList.remove('nh-press');}catch(e){}},hold);}catch(e){}
   }
   return true;
 }
@@ -8312,7 +8314,7 @@ function nhShutter(){
     var f=document.createElement('div');f.className='nh-flash';
     scr.appendChild(f);
     if(typeof nhSfxPlay==='function')nhSfxPlay('shot');
-    setTimeout(function(){try{f.remove();}catch(e){}},420);
+    setTimeout(function(){try{f.remove();}catch(e){}},nhT(420));
   }catch(e){}
 }
 /* 찍힌 사진이 **지도 위 그 핀에서 하단 피드 탭으로** 날아간다 (v2.38).
@@ -8335,17 +8337,20 @@ function nhPhotoFly(src,from,to){
     el.style.setProperty('--dx',(x1-x0)+'px');
     el.style.setProperty('--dy',(y1-y0)+'px');
     scr.appendChild(el);
-    setTimeout(function(){try{el.remove();}catch(e){}},900);
+    setTimeout(function(){try{el.remove();}catch(e){}},nhT(900));
   }catch(e){}
 }
-function nhAddFeedCard(which,desc,theme,fast){ // which: 'photo'(라이브 카메라) | 'post'(Feed 작성)
+/* img (v2.39) — 콘솔이 올려 둔 **진짜 사진**의 주소. 없으면 여태처럼 테마 색으로 그린다.
+   라이브 카메라는 사진을 올리는 장면인데 정작 올릴 사진이 없었다 — 컨텐츠 탭의 피드
+   카드가 v2.10 에 얻은 길(Storage 에 두고 주소만 싣는다)을 단계도 그대로 쓴다. */
+function nhAddFeedCard(which,desc,theme,fast,img){ // which: 'photo'(라이브 카메라) | 'post'(Feed 작성)
   var at=nhAddAt();
   if(!nhAddTap(which,fast))return false;
   at=at||nhAddAt();
   nhAddDone();
   var d=String(desc||'').slice(0,120);
   var id=nhLayFeed({desc:d,label:d||(which==='photo'?'지금 여기':'오늘의 기록'),
-      theme:String(theme||'')||'cafe',
+      theme:String(theme||'')||'cafe',img:img,
       // 내가 올린 카드다 — 이름은 이 기기의 계정 이름(앱 feedAdd 과 같은 값)
       name:(typeof chatName==='function'?chatName():'나'),
       kind:(which==='photo'?'cam':'post'),at:at},
@@ -8380,9 +8385,9 @@ function nhAddFeedCard(which,desc,theme,fast){ // which: 'photo'(라이브 카�
       if(to)setTimeout(function(){
         var t2=nhFeedTabEl();if(!t2)return;
         t2.classList.add('nh-catch');
-        setTimeout(function(){try{t2.classList.remove('nh-catch');}catch(e){}},620);
-      },560);
-    },140);
+        setTimeout(function(){try{t2.classList.remove('nh-catch');}catch(e){}},nhT(620));
+      },nhT(560));
+    },nhT(140));
   }
   return true;
 }
@@ -8809,6 +8814,47 @@ function nhScrollTarget(){
   return able[0]||null;
 }
 
+/* ── 단계의 시간이 연출의 **속도**가 된다 (v2.39, 콘솔 D145) ─────────────
+   여태 손짓·팝업·셔터는 제 길이가 고정이었다. 그래서 단계를 길게 주면 연출이 끝난
+   화면이 남은 시간을 그냥 서 있었고(대기), 짧게 주면 연출이 다음 단계로 넘쳐 흘렀다 —
+   사용자가 "동작 자체 속도는 그대로고 남은 시간은 대기하는 형식" 이라고 한 것이 이것이다.
+
+   이제 액션마다 **제 속도로 다 보이는 길이**(NH_NAT)를 적어 두고, 단계의 ms 와의 비율을
+   그 액션의 고정 시간 전부에 곱한다. 길게 주면 손이 느긋해지고, 짧게 주면 빨라진다.
+
+   ⚠️ **배율은 `nhT()` 를 지나는 고정 시간에만 붙는다.** 이미 ms 로 제 길이를 재는 것
+   (타이핑 창·커밋 시각·카메라 트윈·쏟아지는 시간)은 여기를 안 지난다 — 거기에 또 곱하면
+   창이 두 배로 늘어 커밋이 스텝 밖으로 나간다(D115 가 막아 둔 자리).
+   그래서 write·burst·zoom 처럼 **전부** ms 로 재는 액션은 표에 없고, ai·add* 처럼
+   **손짓만 고정이고 나머지는 ms 가 재는** 액션은 표에 있다. 두 시간은 나란히 흐른다
+   (팝업이 닫히는 동안 컴포저는 이미 열려 있다).
+
+   범위를 [0.4, 2.2] 로 자른다: 그 밖은 손짓이 눈에 안 띄게 짧거나(0.2초짜리 표식),
+   6초짜리 단계에서 손가락 하나가 화면에 5초를 머무는 꼴이 된다.
+
+   여기 있는 것은 **실제로 늘어나고 줄어드는 것이 있는 액션**뿐이다. 표식도 팝업도 없는
+   액션(dim·reward·shopsay…)은 적어 봐야 곱할 데가 없어서, 적어 두면 화면이 거짓말을 한다 —
+   그것들의 ms 는 여태처럼 순수한 "머무는 시간" 이다. */
+var NH_NAT={
+  like:820,                                          // 두 번 두드리는 손 (240ms 간격)
+  addmenu:760,addbtn:760,                            // 누르는 손 + 팝업이 뜨는 0.34초
+  addspot:820,addreq:820,addpost:820,addphoto:1500,  // 항목을 누르는 손 (addphoto 는 찰칵·날아가기까지)
+  tab:640,scope:640,ai:640,popclose:640,pop:640,page:640 // 표식 하나 (pop 은 Request 핀을 누를 때만 선다)
+};
+var NH_RATE_MIN=0.4, NH_RATE_MAX=2.2;
+var nhRate=1;
+/** 이 단계의 배율을 정한다 — 연출이 고정인 액션에만 뜻이 있다. */
+function nhRateSet(a,ms){
+  var nat=NH_NAT[a];
+  nhRate=(!nat||!isFinite(ms)||ms<=0)?1
+    :Math.min(NH_RATE_MAX,Math.max(NH_RATE_MIN,ms/nat));
+  /* CSS 로도 내보낸다 — 표식·번쩍임·날아가는 사진은 keyframes 라 JS 가 못 늘인다.
+     각 규칙이 animation-duration 을 calc(기본 × var(--nh-rate)) 로 적어 두고 여기를 본다. */
+  try{document.documentElement.style.setProperty('--nh-rate',String(Math.round(nhRate*100)/100));}catch(e){}
+}
+/** 고정 시간 하나를 이 단계의 배율로 — 연출 안의 모든 setTimeout 이 이걸 지난다. */
+function nhT(ms){return Math.max(1,Math.round((ms|0)*nhRate));}
+
 /* 손가락 자국 — 상태가 "스스로" 바뀌면 유령이 조작하는 것처럼 보인다.
    .phone-screen 좌표계에 점 하나를 확장-소멸로 띄운다. */
 /* 화면의 한 **점**을 누르는 손 (v2.34) — 요소가 없는 손짓(지도를 꾹 누르기)에도 표식이 서게.
@@ -8822,7 +8868,7 @@ function nhTouchAt(cx,cy,delay){
     d.style.left=(cx-s.left)+'px';d.style.top=(cy-s.top)+'px';
     scr.appendChild(d);
     nhSfxPlay('tap'); // 누르는 손이 나는 소리 (v2.25) — 표식이 뜨는 자리가 곧 "지금 눌렀다" 다
-    setTimeout(function(){try{d.remove();}catch(e){}},600);
+    setTimeout(function(){try{d.remove();}catch(e){}},nhT(600)); // 표식이 사는 시간도 단계의 박자다 (v2.39)
   }catch(e){}
 }
 function nhTouch(el,times){
@@ -8832,8 +8878,8 @@ function nhTouch(el,times){
     if(!r.width&&!r.height)return;
     var cx=r.left+r.width/2,cy=r.top+r.height/2;
     var n=Math.max(1,times|0||1);
-    // 두 번 이상이면 같은 자리에 240ms 간격으로 — 사람이 연달아 두드리는 박자다.
-    for(var k=0;k<n;k++)nhTouchAt(cx,cy,k*240);
+    // 두 번 이상이면 같은 자리에 240ms 간격으로 — 사람이 연달아 두드리는 박자다 (v2.39: 단계 배율).
+    for(var k=0;k<n;k++)nhTouchAt(cx,cy,k?nhT(k*240):0);
   }catch(e){}
 }
 /* 액션이 "누르는" 요소 — 표식이 뜰 자리. 못 찾으면 null (표식만 생략, 실행은 그대로). */
@@ -8904,6 +8950,10 @@ function nhAct(st,token){
      액션별 분기 안이 아니라 여기, 실행 전에 한 번 둔다. 실행 직후에 지우지 않는 이유는
      말풍선이 액션보다 늦게 뜨는 경우가 있어서다(ai 의 답은 ms*0.4 뒤). 다음 단계가 덮는다. */
   nhBubbleSet(st&&st.bh);
+  /* 이 단계의 **박자**를 정한다 (v2.39) — 아래 연출의 고정 시간이 전부 이 배율을 지난다.
+     말풍선과 같은 이유로 여기, 실행 전에 한 번 둔다: 액션 분기 안에 두면 표식을 먼저
+     띄우는 갈래(nhTouch)가 옛 배율로 돈다. 빨리 감기는 연출 자체가 없으니 1 이다. */
+  nhRateSet(st&&st.a,st&&!st.fast?st.ms:0);
   function exec(){
     try{
       if(st.a==='tab'){if(typeof switchTab!=='function')return false;switchTab(st.v);return true;}
@@ -8973,8 +9023,9 @@ function nhAct(st,token){
       if(st.a==='addbtn')return nhAddMenu('btn',st.fast)!==false;
       if(st.a==='addspot')return nhAddSpot(st.v||st.say,st.e,token,st.ms,st.fast)!==false;
       if(st.a==='addreq')return nhAddReq(st.v||st.say,token,st.ms,st.fast)!==false;
-      if(st.a==='addphoto')return nhAddFeedCard('photo',st.v||st.say,st.e,st.fast)!==false;
-      if(st.a==='addpost')return nhAddFeedCard('post',st.v||st.say,st.e,st.fast)!==false;
+      // sp = 사진 주소 (v2.39) — 비면 테마 색으로 그린다 (여태 동작)
+      if(st.a==='addphoto')return nhAddFeedCard('photo',st.v||st.say,st.e,st.fast,st.sp)!==false;
+      if(st.a==='addpost')return nhAddFeedCard('post',st.v||st.say,st.e,st.fast,st.sp)!==false;
       if(st.a==='write'){if(typeof switchTab==='function')switchTab('map');
         // e = 이모지 (v2.12) — post 와 같은 자리, 같은 뜻이다.
         return nhWriteSpot(st.v||st.say,token,st.ms,st.e,st.fast)!==false;}
@@ -9008,7 +9059,7 @@ function nhAct(st,token){
       // e (v2.21): drop v:feed 만 본다 — 'keep' 이면 상단 지면에 카드를 얹지 않는다.
       if(st.a==='drop')return nhDrop(st.v,st.i,st.e,st.fast)!==false;
       if(st.a==='post')return nhPostSpot(st.v,st.e,st.fast);
-      if(st.a==='postfeed')return nhPostFeed(st.v,st.e,st.n,st.fast);
+      if(st.a==='postfeed')return nhPostFeed(st.v,st.e,st.n,st.fast,st.sp);
       if(st.a==='burst')return nhBurst(st.v,st.i,st.e,st.ms,token,st.n,st.sp);
       if(st.a==='page')return nhPage(st.v);
       if(st.a==='zoom')return nhZoom(st.v,st.ms,token)!==false;
@@ -9036,7 +9087,9 @@ function nhAct(st,token){
 }
 
 var nhRunToken=0;
-function nhStop(){nhRunToken++;nhBubbleMs=null;} // 회차가 끝나면 말풍선 시간도 액션 기본으로 (v2.30)
+// 회차가 끝나면 말풍선 시간도 액션 기본으로 (v2.30), 박자도 제 속도로 (v2.39) —
+// 사람이 손으로 만지는 화면이 마지막 단계의 배율을 물려받으면 앱이 이상하게 느려진다.
+function nhStop(){nhRunToken++;nhBubbleMs=null;nhRateSet(null,0);}
 
 /* 재생 전 초기화 — 시연은 몇 번을 돌려도 같은 곳에서 시작해야 한다.
    앞 시나리오가 열어둔 팝업·드로어가 남으면 다음 회차가 그 뒤에서 조용히 흘러간다. */
@@ -9419,9 +9472,10 @@ function nhPostSpot(v,e,fast){
 /* 남이 방금 올린 **피드 카드** (v2.1). post 와 같은 이유로 있다 — 무대에 적고 hold 를
    켜고 번호를 맞추는 세 손을 없앤다. 사진은 seedImg(테마 색 + 라벨)로 그려서 외부
    이미지에 기대지 않는다(nhLayFeed 안). e = 테마, n = 올린 사람. */
-function nhPostFeed(v,e,n,fast){
+function nhPostFeed(v,e,n,fast,img){
   var d=String(v||'').slice(0,120);if(!d)return false;
-  var id=nhLayFeed({desc:d,label:d,theme:String(e||'')||'cafe',name:String(n||'')||'동네주민'},
+  // img (v2.39) — 콘솔이 올린 사진. 없으면 여태대로 테마 색이다 (nhLayFeed 안).
+  var id=nhLayFeed({desc:d,label:d,theme:String(e||'')||'cafe',name:String(n||'')||'동네주민',img:img},
                    NH_POST_FROM+(nhPostN++),nhPostCenter(),nhHeld.stamp||Date.now());
   if(!id)return false;
   if(!fast)nhBounceMark(id,2); // "방금 올라온 카드" 는 뿅 하고 나타난다 (v2.11 — PC·폰 두 지도)
@@ -9876,7 +9930,10 @@ function nhSanitize(raw){
       e:String(s.e||'').slice(0,12),n:String(s.n||'').slice(0,20),
       /* sp (v2.38, 콘솔 D142) — 곁들이는 값 **둘째 칸**. 지금은 burst 의 밀집도만 쓴다.
          `e` 가 이미 줌에 쓰이고 있어서 자리가 없었다 — 옛 콘솔은 안 보내고 옛 앱은 모른다. */
-      sp:String(s.sp||'').slice(0,12),
+      /* v2.39 — 12자였다. `addphoto`·`addpost`·`postfeed` 가 이 칸에 **사진 주소**를
+         싣는다(Storage URL 은 300자대다). 뜻은 액션이 정한다: burst 면 밀집도, 카드를
+         만드는 액션이면 사진 — 한 액션이 두 뜻을 갖지 않으므로 갈릴 일이 없다. */
+      sp:String(s.sp||'').slice(0,400),
       /* fast (v2.21, 콘솔 D117) — 콘솔의 "이 단계만 보기" 가 앞 단계를 화면 조립용으로
          지나갈 때 붙인다. 연출(터치 표식·타이핑·바운스)을 접고 **그 자리에서 커밋**한다 —
          ms 바닥을 기다리지 않아도 사슬(i:-1)이 안 끊긴다. 옛 콘솔은 안 보낸다. */

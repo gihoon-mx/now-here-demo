@@ -698,7 +698,8 @@ body.mode-trend .add-pin .apn-ring{border-color:rgba(255,90,60,0.6);}
    (app.js NH_ADD_HOLD) — 여태는 표식이 커지는 중에 메뉴가 먼저 사라졌다. */
 .content-add-menu .cam-item.nh-press{background:var(--acc,#3b6ef5);border-color:transparent;color:#fff;transform:scale(.97);}
 .content-add-menu .cam-item{transition:background .12s ease,color .12s ease,transform .12s ease;}
-.content-add-menu.open{display:flex;animation:aiPop .34s cubic-bezier(.2,1.5,.4,1) both;transform-origin:14% bottom;}
+/* 뜨는 속도도 단계의 박자를 탄다 (v2.39) — 재생 밖에서는 --nh-rate 가 1 이라 그대로다. */
+.content-add-menu.open{display:flex;animation:aiPop calc(.34s*var(--nh-rate,1)) cubic-bezier(.2,1.5,.4,1) both;transform-origin:14% bottom;}
 .cam-item{display:flex;align-items:center;gap:2cqw;padding:2.4cqw 3.2cqw;border:none;border-radius:2.4cqw;background:transparent;color:var(--ink);font-family:inherit;font-size:3.2cqw;font-weight:600;white-space:nowrap;cursor:pointer;text-align:left;transition:background .15s ease;}
 .cam-item:hover,.cam-item:active{background:var(--hover);}
 .cam-item .cam-ic{font-size:3.9cqw;line-height:1;}
@@ -1401,13 +1402,15 @@ body.embed-mode .phone-screen{width:100%;height:100%;aspect-ratio:auto;border-ra
    화면이 한 번 하얗게 번쩍하고, 찍힌 사진이 뷰파인더 가운데서 부풀었다 지도 위 제자리로
    날아가 앉는다. 쿠폰(.coupon-fly)·코인과 같은 문법이다 — .phone-screen 에 붙었다 걷히고
    이동은 --dx/--dy 로 준다. 폰 컨테이너 안이라 크기는 cqw 다 (v1.82 규칙). */
+/* 길이는 **단계의 박자**를 탄다 (v2.39) — 앱이 매 단계 --nh-rate 를 다시 적는다.
+   keyframes 는 JS 가 못 늘이므로 시간만 calc 로 밖에서 받는다 (nhRateSet). */
 .nh-flash{position:absolute;inset:0;z-index:9200;pointer-events:none;background:#fff;
-  animation:nhFlash .4s ease-out forwards;}
+  animation:nhFlash calc(.4s*var(--nh-rate,1)) ease-out forwards;}
 @keyframes nhFlash{0%{opacity:0}12%{opacity:.92}100%{opacity:0}}
 .nh-shot{position:absolute;z-index:9150;width:26cqw;height:26cqw;margin:-13cqw 0 0 -13cqw;
   border-radius:2.6cqw;background:#dfe3ea;overflow:hidden;pointer-events:none;
   box-shadow:0 1.2cqw 3cqw rgba(15,23,42,.32);border:0.5cqw solid #fff;
-  animation:nhShot .78s cubic-bezier(.3,.9,.3,1) forwards;}
+  animation:nhShot calc(.78s*var(--nh-rate,1)) cubic-bezier(.3,.9,.3,1) forwards;}
 .nh-shot img{width:100%;height:100%;object-fit:cover;display:block;}
 @keyframes nhShot{
   0%{transform:translate(0,0) scale(.5);opacity:0}
@@ -1419,7 +1422,7 @@ body.embed-mode .phone-screen{width:100%;height:100%;aspect-ratio:auto;border-ra
 .pn-item.nh-catch{position:relative;}
 .pn-item.nh-catch::after{content:'';position:absolute;left:50%;top:50%;width:2cqw;height:2cqw;
   margin:-1cqw 0 0 -1cqw;border-radius:50%;pointer-events:none;
-  border:0.5cqw solid var(--acc,#3b6ef5);animation:nhCatch .6s ease-out forwards;}
+  border:0.5cqw solid var(--acc,#3b6ef5);animation:nhCatch calc(.6s*var(--nh-rate,1)) ease-out forwards;}
 @keyframes nhCatch{0%{transform:scale(.4);opacity:.9}100%{transform:scale(4.2);opacity:0}}
 @media (prefers-reduced-motion:reduce){.nh-flash,.nh-shot{animation-duration:.01ms;}}
 
@@ -1428,7 +1431,7 @@ body.embed-mode .phone-screen{width:100%;height:100%;aspect-ratio:auto;border-ra
    유령 조작으로 보인다 — 사람 손가락이 있었다는 흔적 하나가 그 인상을 바꾼다. */
 .nh-touch{position:absolute;z-index:9000;width:calc(34px*var(--nh-k,1));height:calc(34px*var(--nh-k,1));margin:calc(-17px*var(--nh-k,1)) 0 0 calc(-17px*var(--nh-k,1));
   border-radius:50%;pointer-events:none;background:rgba(25,28,34,.16);
-  border:2px solid rgba(25,28,34,.34);animation:nhTouch .55s ease forwards;}
+  border:2px solid rgba(25,28,34,.34);animation:nhTouch calc(.55s*var(--nh-rate,1)) ease forwards;}
 @keyframes nhTouch{0%{transform:scale(.45);opacity:.95}
   60%{transform:scale(1.1);opacity:.45}100%{transform:scale(1.35);opacity:0}}
 /* concern 한 박자: 막힌 스텝에서 화면 가장자리가 잠깐 어두워진다. 타임라인의 빨간
