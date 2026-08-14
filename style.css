@@ -1001,6 +1001,17 @@ body.mode-trend .req-pin .rp-ring{border-color:rgba(255,90,60,0.55);}
 .req-pin.rp-pop .rp-ring{animation:rpPopRing .44s ease-out forwards;}
 .req-pin.rp-pop .rp-ring.r2{animation-delay:.06s;}
 @keyframes rpPopOut{0%{transform:scale(1);opacity:1;}35%{transform:scale(1.45);opacity:1;}100%{transform:scale(.2);opacity:0;}}
+/* 터질 때 **불꽃이 흩어진다** (v2.48) — 채택하면 그 Request 가 끝난다는 것을 자리로 말한다.
+   물음표 원이 오그라드는 것만으로는 "사라졌다" 인지 "가려졌다" 인지 안 읽혔다.
+   각 조각은 `--dx/--dy`(비산 방향)를 인라인으로 받는다 — 코인 버스트와 같은 문법이고,
+   지도 오버레이라 단위는 px 다(폰 밖 PC 지도에도 그려진다 — v1.82 규칙). */
+.rp-spark{position:absolute;left:50%;top:16px;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;
+  border-radius:50%;background:var(--sp-c,#ffd23f);pointer-events:none;z-index:2;
+  box-shadow:0 0 6px var(--sp-c,#ffd23f);animation:rpSpark .58s cubic-bezier(.16,.84,.44,1) forwards;}
+@keyframes rpSpark{
+  0%{opacity:0;transform:translate(0,0) scale(.4);}
+  15%{opacity:1;transform:translate(calc(var(--dx,0px)*.3),calc(var(--dy,0px)*.3)) scale(1.25);}
+  100%{opacity:0;transform:translate(var(--dx,0px),calc(var(--dy,0px) + 10px)) scale(.35);}}
 @keyframes rpPopRing{0%{transform:scale(1);opacity:.85;border-width:2px;}100%{transform:scale(2.8);opacity:0;border-width:1px;}}
 
 /* 내 Request 카드: 뱃지(내 Request/상태) + 답변 목록 펼침 */

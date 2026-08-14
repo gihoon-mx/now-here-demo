@@ -1790,10 +1790,13 @@ function initSpotComposerClass(){
     setTimeout(function(){if(self.textEl)self.textEl.focus();},30);
   };
   SpotComposer.prototype.draw=function(){var p=this.getProjection();if(!p||!this.div)return;var px=p.fromLatLngToContainerPixel(this.position);if(!px)return;var w=this.div.offsetWidth||214,h=this.div.offsetHeight||190;this.div.style.left=(px.x-w/2)+'px';this.div.style.top=(px.y-h-24)+'px';}; // 팝업 하단(점)이 생성점에 오도록
-  SpotComposer.prototype.commit=function(){
+  /* `opts.hold` (v2.48) — 등록하되 **카드는 닫지 않는다.** 무대(nhWriteSpot)만 쓴다:
+     닫는 시점을 `popclose` 가 정하게 하려는 것이라, 사람이 직접 쓰는 길(버튼·Enter)은
+     인자 없이 불러 여태처럼 그 자리에서 닫힌다. */
+  SpotComposer.prototype.commit=function(opts){
     var text=(this.textEl?this.textEl.value:'').trim();
     var spot={id:'sp_'+Date.now(),lat:this.position.lat(),lng:this.position.lng(),text:text,emoji:this.emoji||'💬'};
-    currentSpotEmoji=this.emoji;this.close();
+    currentSpotEmoji=this.emoji;if(!(opts&&opts.hold))this.close();
     if(currentRole==='admin'){adminSpots.push(spot);rebuildSpots();markCloudDirty();}
     else if(hasLive()){fbDb.collection('liveSpots').doc(spot.id).set(liveSpotDoc(spot)).catch(liveWriteErr);} // 스냅샷이 반영
     else{spot.live=true;spot.by=myUid();spot.byEmail=myEmail();demoSpots.push(spot);rebuildSpots();saveLocalSpots();}
@@ -2624,6 +2627,25 @@ var lastAnsweredReqId=null; // v2.29 방금 답한 Request — 리워드 지급�
    "아직 답을 기다린다" 고 말하는 핀이 된다. 핀을 **터뜨려** 걷는다: 지웠다는 사실이
    보여야 사용자가 자기 답이 닫혔음을 안다(조용히 사라지면 렌더 사고처럼 읽힌다).
    데이터는 남긴다(rq.rewarded) — 답변 목록·드로어에는 그대로 있어야 한다. */
+/* Request 핀이 걷힐 때 흩어지는 불꽃 (v2.48) — 핀 안(`.req-pin`)에 붙인다:
+   핀이 렌더에서 걷히면 조각도 같이 사라져 따로 치울 손이 필요 없다.
+   자리는 물음표 원의 한가운데(top:16px)이고, 방향은 결정적이 아니어도 된다 —
+   불꽃은 무대가 고르는 값이 아니라 그 순간의 장식이다. */
+function reqSparkBurst(el){
+  try{
+    if(!el)return;
+    var C=['#ffd23f','#ff8a3d','#ff5c78','#8fd0ff','#9be36a'];
+    for(var i=0;i<10;i++){
+      var s=document.createElement('span');s.className='rp-spark';
+      var ang=(i/10)*Math.PI*2+0.3, d=16+Math.random()*12;
+      s.style.setProperty('--dx',(Math.cos(ang)*d).toFixed(1)+'px');
+      s.style.setProperty('--dy',(Math.sin(ang)*d).toFixed(1)+'px');
+      s.style.setProperty('--sp-c',C[i%C.length]);
+      s.style.animationDelay=(Math.random()*0.06)+'s';
+      el.appendChild(s);
+    }
+  }catch(e){}
+}
 function reqPopAway(id){
   if(!id)return;
   var rq=(typeof reqById==='function')?reqById(id):null;if(!rq)return;
@@ -2631,7 +2653,8 @@ function reqPopAway(id){
   rq.rewarded=1;
   if(ov&&ov.div){
     ov.div.classList.add('rp-pop');
-    setTimeout(function(){if(typeof renderRequestMarkers==='function')renderRequestMarkers();},480); // 터짐이 끝나고 걷는다
+    reqSparkBurst(ov.div); // v2.48 불꽃이 흩어진다 — "끝났다" 를 자리로 말한다
+    setTimeout(function(){if(typeof renderRequestMarkers==='function')renderRequestMarkers();},620); // 터짐이 끝나고 걷는다
   }else if(typeof renderRequestMarkers==='function')renderRequestMarkers();
 }
 function showRewardBubble(msg,reqId){ // msg 비우면 기본 문구 — 시나리오('reward' 액션의 v)가 바꾼다
@@ -6308,8 +6331,11 @@ function commitFieldRequest(ll,q,opts){
   if(opts.stage)rq.stage=true;
   if(hasLive()){fbDb.collection('liveRequests').doc(rq.id).set({id:rq.id,lat:rq.lat,lng:rq.lng,q:rq.q,place:rq.place,answers:[],by:myUid(),ts:rq.ts}).catch(liveWriteErr);}
   else{fieldRequests.unshift(rq);saveRequests();if(!opts.quiet)renderRequestMarkers();}
-  // 수신 팝업은 타겟 지역의 '다른' 사용자에게만(실시간 리스너) — 요청자 본인에겐 안 띄움
-  aiSay('📍 Request 전송! 근처 현장 유저에게 알림이 갑니다. (10분간 답변 수신)',2600);
+  /* 수신 팝업은 타겟 지역의 '다른' 사용자에게만(실시간 리스너) — 요청자 본인에겐 안 띄움.
+     v2.48: 무대(`quiet`)에서는 여기서 말하지 않는다 — 컴포저 카드가 아직 열려 있고,
+     그 말은 **카드가 닫힌 뒤**에 온다(nhRequestTyped 가 nhAfterClose 로 적어 둔다).
+     사람이 직접 올리는 길은 카드가 그 자리에서 닫히므로 여태처럼 지금 말한다. */
+  if(!opts.quiet)aiSay('📍 Request 전송! 근처 현장 유저에게 알림이 갑니다. (10분간 답변 수신)',2600);
   return rq;
 }
 /* ── Request 컴포저 오버레이 (v2.18) ──
@@ -8614,7 +8640,8 @@ var NH_ANS_WHO=['근처 주민','방금 지나감','단골','산책 중','퇴근
 function nhAnsPlan(v){
   return String(v||'').split('\n').map(function(line){
     var p=line.split('\t');
-    return {t:String(p[0]||'').trim(),img:nhImgSrc(p[1]||'')};
+    // v2.48: 세 번째 칸이 **응답자 이름**이다. 안 적으면 앱이 고른다(NH_ANS_WHO).
+    return {t:String(p[0]||'').trim(),img:nhImgSrc(p[1]||''),who:String(p[2]||'').trim().slice(0,20)};
   });
 }
 /** 답 하나를 그 Request 에 얹는다 — 회차가 끝나면 무대 Request 와 함께 걷힌다. */
@@ -8623,7 +8650,8 @@ function nhAnswerAdd(rq,k,plan){
   var i=Math.abs((k|0)+String(rq.id||'').length);
   var p=(plan&&plan[k])||{};
   rq.answers=rq.answers||[];
-  var ans={ts:Date.now(),by:'nh_other',who:NH_ANS_WHO[i%NH_ANS_WHO.length]};
+  // 이름도 사람이 정할 수 있다 (v2.48) — 안 적은 줄만 앱이 고른다(글·사진과 같은 규칙).
+  var ans={ts:Date.now(),by:'nh_other',who:p.who||NH_ANS_WHO[i%NH_ANS_WHO.length]};
   /* 안 적은 줄은 앱이 채운다 — "개수만 정하고 내용은 알아서" 가 가장 흔한 쓰임이다.
      ⚠️ 사진만 적은 줄은 **글을 안 채운다**: 사진으로 답한 장면이 따로 있고,
      거기에 지어낸 문장을 얹으면 화면이 없는 말을 한다 (팝업이 '사진으로 답했어요' 로 그린다). */
@@ -8657,9 +8685,11 @@ function nhAnswers(rq,count,ms,token,plan){
       if(!nhAnswerAdd(rq,k,plan))return;
       nhReqRepaint(rq.id);
       /* 내가 모르는 일이 일어났으니 알린다 — 다만 **처음 한 번**이다 (v2.29 의 규칙:
-         곧 뒤따를 말을 미리 하지 않는다). 뒤의 답들은 핀의 숫자가 말한다. */
+         곧 뒤따를 말을 미리 하지 않는다). 뒤의 답들은 핀의 숫자가 말한다.
+         v2.48: **답의 내용은 안 읽는다.** 알림은 "가서 봐라" 까지가 제 몫이고, 무엇이라
+         답했는지는 팝업이 말한다 — 말풍선이 미리 읽어 주면 다음 단계(팝업 열기)가 할 일이 없다. */
       if(k===0&&typeof aiSay==='function')
-        aiSay('📍 '+(rq.place||'현장')+' 답변 도착: '+rq.answers[rq.answers.length-1].t,nhBubbleMs||5000);
+        aiSay('💬 Request 답변이 달렸어요!',nhBubbleMs||5000);
     },80+k*gap);
   })(k);
   return true;
@@ -8677,15 +8707,17 @@ function nhAdopt(rq,idx,token){
   rq.answers[i].best=1;
   rq.adopted=1;
   nhReqRepaint(rq.id);
-  if(typeof aiSay==='function')
-    aiSay('✅ 답변을 채택했어요 — 🪙 '+(typeof REQ_COIN!=='undefined'?REQ_COIN:500)+' 코인이 '+
-      (rq.answers[i].who||'답변자')+'님께 전달됐어요.',nhBubbleMs||5200);
-  /* 채택하면 그 Request 는 끝난다 — 기존 리워드 지급과 같은 자리다(핀이 터지며 걷힌다).
-     token 을 보는 이유: 새 재생이 시작됐는데 옛 회차의 핀이 뒤늦게 터지면 안 된다. */
-  setTimeout(function(){
+  /* v2.48: 채택 **표시**는 지금 팝업 안에 남고(✅), **말과 핀 걷기는 팝업이 닫힌 뒤**다.
+     여태는 900ms 타이머라 팝업이 열려 있는 채로 뒤에서 핀이 터졌다 — 채택한 답을 다시
+     읽을 틈도 없었고, 무엇보다 그 시간을 대본이 정할 수 없었다.
+     token 을 보는 이유는 그대로다: 새 재생이 시작됐는데 옛 회차의 핀이 터지면 안 된다. */
+  nhAfterClose(function(){
     if(token!==nhRunToken)return;
+    if(typeof aiSay==='function')
+      aiSay('✅ 답변을 채택했어요 — 🪙 '+(typeof REQ_COIN!=='undefined'?REQ_COIN:500)+' 코인이 '+
+        (rq.answers[i].who||'답변자')+'님께 전달됐어요.',nhBubbleMs||5200);
     if(typeof reqPopAway==='function')reqPopAway(rq.id);
-  },900);
+  });
   return true;
 }
 
@@ -9097,7 +9129,9 @@ function nhWriteSpot(text,token,ms,emoji,fast,at){
     // 중단 없이 왔으면 전체 문자열로 보정하고 커밋한다 — 잘린 글이 등록되지 않게.
     if(ov.textEl)ov.textEl.value=typed;
     var before=(typeof demoSpots!=='undefined')?demoSpots.length:0;
-    try{ov.commit();}catch(e){}
+    // v2.48: 등록해도 카드는 남는다 — 닫는 것은 popclose 다 (addreq 와 같은 규칙).
+    try{ov.commit({hold:true});}catch(e){}
+    nhAfterClose(function(){try{ov.close();}catch(e){}});
     if(typeof demoSpots!=='undefined')
       for(var i=before;i<demoSpots.length;i++){
         nhTempIds.spot.push(demoSpots[i].id);
@@ -9169,8 +9203,15 @@ function nhRequestTyped(text,token,ms,fast,at){
     if(ov.closed)return; // 사람이 취소했거나 이미 등록했다 (v2.19) — 타이머가 한 번 더 올리지 않는다
     var rq=null;
     try{rq=commitFieldRequest(ll,typed,{stage:true,quiet:true});}catch(e){}
-    try{ov.close();}catch(e){}
-    if(!rq)return;
+    if(!rq){try{ov.close();}catch(e){}return;}
+    /* v2.48: **등록해도 카드는 남는다.** 닫는 것은 `popclose` 이고, 닫히고 나서야
+       "전송했다" 는 말풍선이 온다 — 카드가 떠 있는 동안 그 말을 하면 아직 손에 든
+       것을 이미 보냈다고 말하는 셈이다. 얼마나 보여줄지는 대본이 정한다. */
+    nhAfterClose(function(){
+      try{ov.close();}catch(e){}
+      if(typeof aiSay==='function')
+        aiSay('📍 Request 전송! 근처 현장 유저에게 알림이 갑니다. (10분간 답변 수신)',nhBubbleMs||2600);
+    });
     nhTempIds.req.push(rq.id); // 회차가 걷는다 — 두 번째 재생에 내 Request 가 이미 있으면 안 된다
     nhReqIds[rq.id]=wi;
     nhBounceMark(rq.id,1); // 렌더 **전에** 적어야 onAdd 가 본다 (v2.11)
@@ -9563,6 +9604,10 @@ function nhAct(st,token){
         if(typeof closeDealSheet==='function'){closeDealSheet();did=true;}
         if(typeof closeStorePage==='function'){closeStorePage();did=true;}
         if(typeof closeContentPop==='function'){closeContentPop();did=true;}
+        /* 컴포저도 **이 손이** 닫는다 (v2.48) — 등록해도 카드는 남아 있다. */
+        if(typeof closeReqComposer==='function'){closeReqComposer();did=true;}
+        if(typeof closeComposer==='function'){closeComposer();did=true;}
+        nhRunAfterClose(); // 닫히고 나서야 하는 일 (말풍선·핀 걷기)
         return did;}
       // 꾹 누르기 → 컴포저 → 타이핑 → 등록 — 묻는 손이 화면에 보인다 (v2.18).
       if(st.a==='request')return nhRequestTyped(st.v||st.say,token,st.ms,st.fast)!==false;
@@ -9681,6 +9726,22 @@ function nhAct(st,token){
 
 var nhRunToken=0;
 var nhPlaying=false; // v2.47 — 지금 대본이 도는 중인가 (nh:peek 이 이 값을 본다)
+/* ── 팝업은 **사람이 닫는다** (v2.48, 콘솔 D163) ──────────────────────────
+   여태 컴포저는 등록이 끝나면 스스로 닫혔고(`addreq`·`addspot`), 채택은 900ms 뒤에
+   핀을 터뜨렸다(`adopt`). 그래서 **그 화면을 얼마나 보여줄지를 단계가 정할 수 없었다** —
+   사용자가 "팝업창을 띄우는 시간을 자유롭게 조절하고 싶다" 고 한 자리다.
+
+   이제 뒷일을 여기 **적어 두고** `popclose` 가 실행한다. 그래서 `ms` 를 늘리든 사이에
+   다른 단계를 끼우든, 닫는 시점은 대본이 정한다.
+   ⚠️ 회차의 것이다 — `nhReset` 이 **실행하지 않고 버린다**(앞 회차의 뒷일이 새 회차의
+   화면에서 터지면 안 된다). */
+var nhOnClose=[];
+function nhAfterClose(fn){if(typeof fn==='function')nhOnClose.push(fn);}
+function nhRunAfterClose(){
+  var q=nhOnClose;nhOnClose=[];
+  q.forEach(function(fn){try{fn();}catch(e){}});
+  return q.length>0;
+}
 // 회차가 끝나면 말풍선 시간도 액션 기본으로 (v2.30), 박자도 제 속도로 (v2.39) —
 // 사람이 손으로 만지는 화면이 마지막 단계의 배율을 물려받으면 앱이 이상하게 느려진다.
 function nhStop(){nhRunToken++;nhPlaying=false;nhBubbleMs=null;nhRateSet(null,0);}
@@ -10445,6 +10506,9 @@ function nhReset(){
     if(typeof nhContentKRestore==='function')nhContentKRestore(); // 컨텐츠 크기 배율도 (v2.46)
     nhSweepTemp();
     nhCoinsRestore(); // 이 회차가 적립한 코인도 되돌린다 (v2.19)
+    /* 앞 회차가 적어 둔 "닫히면 할 일" 은 **실행하지 않고 버린다** (v2.48) —
+       이 판은 그 회차의 화면에 대한 약속이라, 새 회차에서 터지면 없던 말풍선이 뜬다. */
+    nhOnClose=[];
     if(typeof nhUndim==='function')nhUndim(); // dim 액션의 흐림도 회차와 함께 걷는다 (v2.21)
     /* 빈 무대는 **매 회차 처음부터 빈다** (v2.12, 콘솔 D95). nhSweepTemp 는 이번 회차가
        만든 것(nhTempIds)만 걷으므로, 다른 경로로 새어 들어온 것은 걷을 사람이 없었다 —
