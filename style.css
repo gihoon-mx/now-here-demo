@@ -178,7 +178,9 @@ button:focus:not(:focus-visible){outline:none;}
 .spot-marker.dragging{cursor:grabbing;}
 .spot-marker.spot-admin{cursor:grab;}
 /* 줌아웃 시 점으로만 약하게 표시 */
-.spot-dotmark{display:none;width:calc(8px*var(--nh-k,1));height:calc(8px*var(--nh-k,1));border-radius:50%;box-shadow:0 0 0 1.5px rgba(255,255,255,0.55);}
+/* --nh-c = 기능 데모의 컨텐츠 크기 배율 (v2.46). JS 가 `cd.px` 로 직접 재는 피드 점은
+   공짜로 따라오지만, 이 둘은 CSS 상수라 여기서 태워야 같은 자로 잰다. */
+.spot-dotmark{display:none;width:calc(8px*var(--nh-k,1)*var(--nh-c,1));height:calc(8px*var(--nh-k,1)*var(--nh-c,1));border-radius:50%;box-shadow:0 0 0 1.5px rgba(255,255,255,0.55);}
 .spot-marker.spot-dot{transform:translate(-50%,-50%);opacity:.6;}
 .spot-marker.spot-dot .spot-bubble,.spot-marker.spot-dot .spot-emoji{display:none!important;}
 .spot-marker.spot-dot .spot-dotmark{display:block;}
@@ -1594,7 +1596,8 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
 /* 축소 시 점 (v2.11) — 피드 .fp-dot 과 같은 문법: 12px 고정, 라벨 숨김. 색은 모드 규칙 그대로. */
 .deal-pin.dl-dot{opacity:.75;gap:0;}
 .deal-pin.dl-dot .dp-pct{display:none;}
-.deal-pin.dl-dot .dp-circle{width:12px;height:12px;font-size:0;border-width:1.5px;box-shadow:0 1px 3px rgba(15,23,42,0.25);}
+/* v2.46 — `--nh-k`(화면 폭)조차 안 타고 있었다. 다른 점들과 같은 자로 맞춘다. */
+.deal-pin.dl-dot .dp-circle{width:calc(12px*var(--nh-k,1)*var(--nh-c,1));height:calc(12px*var(--nh-k,1)*var(--nh-c,1));font-size:0;border-width:1.5px;box-shadow:0 1px 3px rgba(15,23,42,0.25);}
 
 /* ── 가게 이름표 + 가게 한마디 (v2.32) ────────────────────────────────────────
    앵커 **아래**에 [한마디▲][상호칩] 순으로 선다. 핀은 `translate(-50%,-100%)` 로 앵커

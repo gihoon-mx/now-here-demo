@@ -229,8 +229,17 @@ function nhViewSync(){
 function contentDot(m,z,basePx,dotPx){
   // 점 크기와 점 전환 임계(축척자 64px)도 화면 폭을 탄다 — 안 그러면 큰 칸에서 12px 점이
   // 광활한 지도 위 먼지가 되고, 점이 되는 시점도 칸마다 달라진다 (v2.35).
-  var k=nhViewK(),dp=dotPx*k;
-  var s=contentScale(z),floor=(basePx>0?dp/basePx:0);
+  /* 회차 배율 (v2.46) — 기능 데모가 "지도 위 컨텐츠를 몇 % 로 볼까" 를 정한다.
+     여기 한 곳인 이유: `contentScale` 의 호출부가 이 함수뿐이고, 이 함수의 소비자가
+     스팟·피드·Request·딜 **넷뿐**이다. 즉 지도 위 컨텐츠 전부가 이 문을 지난다.
+     ⚠️ **`s` 와 `dp`(점 크기) 양쪽에 곱한다.** `dot` 판정이 `s<=floor` 이고
+     `floor=dp/basePx` 이므로 양변에 같은 배가 곱해져 **점이 되는 시점이 안 움직인다.**
+     `s` 에만 곱하면 램프 경사가 배율만큼 가팔라져 v2.16 이 없앤 "툭 끊김" 이 부분 재발한다.
+     ⚠️ 반대로 `r`(점 전환 임계)에는 **넣지 않는다** — 넣으면 같은 데모가 배율에 따라
+     다른 줌에서 점이 된다. 크기를 바꾸는 것이지 언제 점이 될지를 바꾸는 것이 아니다. */
+  var kc=nhContentK();
+  var k=nhViewK(),dp=dotPx*k*kc;
+  var s=contentScale(z)*kc,floor=(basePx>0?dp/basePx:0);
   var mpp=mapMpp(m),far,t;
   if(mpp){
     var r=(mpp*64*k)/spotDotScaleM(); // 1 = 딱 임계값, >1 = 점
@@ -980,7 +989,9 @@ function clusterFeedPins(m){ // 현재 줌의 월드픽셀 기준 근접(56px) �
   var z=m.getZoom();if(z==null)z=15; // v1.88: 숨김 컨텐츠는 아래 루프에서 제외된다
   // 묶이는 거리도 화면 폭을 탄다 (v2.35) — 56px 은 340px 칸에서 가로의 16% 지만
   // 680px 칸에서는 8% 라, 보정 없이는 큰 칸에서 같은 무리가 안 묶이고 흩어져 보인다.
-  var s=256*Math.pow(2,z),TH=56*nhViewK();
+  // 컨텐츠 배율도 같이 탄다 (v2.46) — 안 그러면 200% 에서 눈으로는 겹치는데 56px 임계에
+  // 안 걸려 클러스터가 안 된다. 크기와 묶이는 거리가 같은 자로 재야 한다.
+  var s=256*Math.pow(2,z),TH=56*nhViewK()*nhContentK();
   function px(p){
     var sin=Math.max(-0.9999,Math.min(0.9999,Math.sin(p.lat*Math.PI/180)));
     return {x:(p.lng/360+0.5)*s,y:(0.5-Math.log((1+sin)/(1-sin))/(4*Math.PI))*s};
@@ -1349,7 +1360,8 @@ function declutterOn(m,spots,feeds,reqs,deals,labels){
 
   spots.forEach(function(o){
     if(!o.div||o._ax==null)return;
-    if(o.div.classList.contains('spot-dot')){items.push({fixed:true,ax:o._ax,ay:o._ay,w:14,h:14});return;} // 점=고정
+    // 점=고정. 상자도 컨텐츠 배율을 탄다 (v2.46) — 그림만 커지고 상자가 그대로면 겹친다
+    if(o.div.classList.contains('spot-dot')){var dw=14*nhContentK();items.push({fixed:true,ax:o._ax,ay:o._ay,w:dw,h:dw});return;}
     var r=o.bubbleEl.getBoundingClientRect(),w=r.width||60,h=r.height||24;
     var known=spotDirById[o.spot.id];
     if(known){ // v2.6: 이미 자리를 정한 말풍선은 **안 움직인다** — 장애물로만 센다
@@ -8179,6 +8191,25 @@ var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],heart:[],cmt:[],deal:[],pa
 /* 회차가 고른 존 카드 모양 (v2.26) — 코인·소리와 같은 규칙이다: **되돌릴 값을 적어 두고**
    회차가 끝나면(nhReset) 원래대로 돌린다. 시연이 이 기기의 관리자 설정을 영구히 바꾸면 안 된다.
    저장(localStorage)은 안 건드린다 — 화면에 걸리는 값만 바꾼다. */
+/* **지도 위 컨텐츠 크기 배율** (v2.46) — 존 카드와 같은 규칙이다: 회차가 정한 값을 걸고
+   끝나면(nhReset) 되돌린다. 관리자 설정(`settingsSnapshotFull`)에는 **넣지 않는다** —
+   넣으면 localStorage 캐시와 `shared/publicSettings` 로 새어 나가 실앱이 영구히 바뀐다.
+   시연이 이 기기의 설정을 바꾸면 안 된다.
+   ⚠️ 관리자 설정과 **곱해진다** (대체가 아니다). 스팟은 `spotConfig.emojiSize`, Request·딜은
+   `pinScale(kind)` 가 밑값이고 이 배율이 그 위에 얹힌다. 대체로 만들면 회차가 끝날 때
+   되돌릴 값이 둘이 된다. */
+var nhContentKv=1;
+function nhContentK(){
+  var v=nhContentKv;
+  return (typeof v==='number'&&isFinite(v)&&v>0)?v:1;
+}
+function nhContentKSet(v){
+  var n=Number(v);
+  // 콘솔과 **같은 범위**로 자른다 — 한쪽만 넓으면 화면이 조용히 거짓말한다
+  nhContentKv=(isFinite(n)&&n>0)?Math.max(0.4,Math.min(2,n)):1;
+  try{document.documentElement.style.setProperty('--nh-c',String(nhContentKv));}catch(e){}
+}
+function nhContentKRestore(){nhContentKSet(1);}
 var nhZoneCard0=null;
 function nhZoneCardSet(v){
   var want=String(v||'');
@@ -8210,6 +8241,30 @@ var NH_AREA_ZOOM=14;
 /* 임베드가 처음 서는 곳 — 시나리오가 area 로 옮기기 전까지 시연 세계의 기본값이다.
    GPS 대신 이걸 쓴다(initMyLocation): 첫 화면부터 시드가 깔린 동네여야 콘텐츠가 보인다. */
 var NH_HOME_AREA='gangnam';
+/* **재생은 무대의 시작 위치에서 선다** (v2.46).
+
+   여태 이것이 없었다. `nhRun` 은 `nhReset()` → `nhGoHome()` 으로 카메라를 **강남**에 놓고,
+   `nhSeedScenario` 는 `SEED_AREAS[sc.area]` 에 **컨텐츠만** 깔았다 — 카메라는 한 줄도 안
+   건드린다. 그래서 시작 위치를 아무리 저장해도 화면은 늘 강남에서 시작했고, 그 동네로
+   가는 유일한 길은 `area` **단계**뿐이었다. 사용자가 "저장을 해도 계속 강남쪽으로
+   초기화된다" 고 한 것이 이것이다 — **저장이 안 된 게 아니라 카메라가 안 따라갔다.**
+
+   D81 이 반대 방향(최상위 area 없이 area 단계만 있으면 카메라만 가고 무대는 강남에 남는다)을
+   적어 뒀는데, 역방향은 아무 데도 안 적혀 있었다. 이제 둘 다 성립한다.
+
+   ⚠️ `nhGoHome` 을 고치지 않는다. 그 함수는 **청소**의 일부이고(임베드 부팅·`nh:stop`·
+   회차 리셋이 같이 쓴다), 거기에 시나리오 상태를 기억시키면 "멈추기를 눌렀는데 앞 회차
+   동네에 서 있다" 가 된다. 청소는 청소로 두고 **시작을 새로 만든다.**
+   ⚠️ **즉시**(instant) 간다. 연출이 아니라 시작 화면이라, 흐르면 첫 단계가 움직이는
+   카메라 위에서 시작한다(`nhGoHome` 이 v2.36 에 같은 이유로 정한 규칙). */
+function nhStageHome(sc){
+  var k=String((sc&&sc.area)||'');
+  var c=k&&SEED_AREAS[k];
+  if(!c||typeof nhCamGo!=='function')return false;
+  nhAreaKey=k;
+  nhCamGo(c.lat,c.lng,nhZ(c.z||NH_AREA_ZOOM),0,0,null,{instant:true});
+  return true;
+}
 function nhGoHome(){
   var c=SEED_AREAS[NH_HOME_AREA]||SEED_AREAS.gangnam;
   nhAreaKey=NH_HOME_AREA;
@@ -10088,6 +10143,8 @@ function nhSeedScenario(sc,token){
   /* 존 카드 모양 (v2.26) — 회차가 정한 값을 걸고, 원래 값은 되돌리려고 적어 둔다.
      이 기기의 관리자 설정을 시연이 영구히 바꾸면 안 된다(소리·코인과 같은 규칙). */
   nhZoneCardSet(sc&&sc.seed&&sc.seed.zoneCard);
+  // 컨텐츠 크기 배율도 회차 값이다 (v2.46) — seed 가 없어도 걸어야 한다(아래 return 위)
+  nhContentKSet(sc&&sc.seed&&sc.seed.contentScale);
   if(!sc||!sc.seed)return;
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
   var stamp=Date.now();
@@ -10231,6 +10288,7 @@ function nhReset(){
     if(typeof nhViewSync==='function')nhViewSync();
     if(typeof nhSfxSet==='function')nhSfxSet(null);
     if(typeof nhZoneCardRestore==='function')nhZoneCardRestore(); // 회차가 바꾼 카드 모양도 되돌린다 (v2.26)
+    if(typeof nhContentKRestore==='function')nhContentKRestore(); // 컨텐츠 크기 배율도 (v2.46)
     nhSweepTemp();
     nhCoinsRestore(); // 이 회차가 적립한 코인도 되돌린다 (v2.19)
     if(typeof nhUndim==='function')nhUndim(); // dim 액션의 흐림도 회차와 함께 걷는다 (v2.21)
@@ -10495,8 +10553,14 @@ function nhSanitize(raw){
        지면 캐러셀이 아니라 존 카드 자리다(renderSummaryZones). 그 모양은 여태 관리자
        설정이라 시연마다 바꿀 수 없었다. 안 주면 앱 설정 그대로다. */
     var zcard=(ZONE_CARD_STYLES.indexOf(String(rs.zoneCard||''))>=0)?String(rs.zoneCard):'';
-    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length||sfxBank||zcard)
-      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns,sfx:sfxBank,zoneCard:zcard};
+    /* 컨텐츠 크기 배율 (v2.46) — 콘솔과 **같은 범위**(0.4~2)로 자른다. 0 은 "안 정했다" 라
+       기본값 1 과 구별되지 않으므로 그대로 떨군다.
+       ⚠️ 아래 게이트 조건에도 넣어야 한다 — 안 넣으면 컨텐츠가 하나도 없는 데모에서
+       seed 자체가 null 이 되어 배율이 **조용히 사라진다**(zcard 가 조건에 든 이유와 같다). */
+    var cscale=Number(rs.contentScale);
+    cscale=(isFinite(cscale)&&cscale>0)?Math.max(0.4,Math.min(2,cscale)):0;
+    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length||sfxBank||zcard||cscale)
+      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns,sfx:sfxBank,zoneCard:zcard,contentScale:cscale};
   }
   /* 사람이 옮긴 자리 (v2.20) — 콘솔이 들고 있다가 재생마다 실어 보낸다. 여태 이 값은
      localStorage 뿐이라 **다른 PC 에서는 없는 값**이었다(같은 데모인데 자리가 달랐다).
@@ -10513,7 +10577,14 @@ function nhSanitize(raw){
   }
   return {id:String(raw.id||'inline'),name:String(raw.name||'시나리오').slice(0,80),
     persona:String(raw.persona||'').slice(0,80),concern:!!raw.concern,
-    area:(SEED_AREAS[String(raw.area||'')]?String(raw.area):''),seed:seed,pos:pos,steps:steps};
+    /* 무대가 설 동네 (v2.46 보강) — 아는 키만 지나간다. **다만 비어 있고 시작 위치가
+       왔으면 `custom` 으로 본다.** 여태는 `area` 가 비면 그대로 '' 가 되어, 콘솔이 좌표를
+       분명히 보냈는데도 무대가 `nhAreaKey`(회차 리셋 직후라 **강남**)에 깔렸다 — 옛 데모나
+       `area` 가 어딘가에서 지워진 데모가 정확히 이 길로 강남에 섰다.
+       `nhCustomArea`(위에서 이미 돌았다)가 `areaPlaces[0]` 을 `custom` 으로 심어 두므로,
+       그 칸이 있다는 것은 곧 "사람이 시작 위치를 정했다" 는 뜻이다. */
+    area:(SEED_AREAS[String(raw.area||'')]?String(raw.area):(SEED_AREAS.custom?'custom':'')),
+    seed:seed,pos:pos,steps:steps};
 }
 
 function nhRun(id,reply,inline){
@@ -10525,6 +10596,7 @@ function nhRun(id,reply,inline){
   nhCoinsMark(); // 이 회차가 시작하는 잔액 — 끝나면(다음 nhReset) 여기로 돌아온다 (v2.19)
   var token=++nhRunToken, i=0;
   nhSeedScenario(sc,token); // 이 시나리오가 성립하려면 화면에 있어야 하는 것부터 깐다
+  nhStageHome(sc);          // 그리고 **그 자리에 선다** (v2.46) — 아래 설명 참고
   nhPost(reply,{type:'nh:begin',id:sc.id,name:sc.name,total:sc.steps.length,concern:!!sc.concern});
   (function next(){
     if(token!==nhRunToken)return;            // 새 재생/중지가 들어오면 이 회차는 조용히 끝난다
