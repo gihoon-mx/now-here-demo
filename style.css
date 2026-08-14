@@ -1322,27 +1322,33 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
    오버레이 자체는 남긴다(바깥 클릭으로 닫는 자리 · 레이어). 관리자 모달은 안 건드린다. */
 #content-pop{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;}
 
-/* ── v1.63 스팟 의견 수 뱃지 (버블 우상단, 색=모드 규칙) ── */
-.spot-cmt{position:absolute;right:-8px;top:-9px;font-size:9px;font-weight:800;color:#fff;border-radius:999px;padding:2px 5px;line-height:1;box-shadow:0 0 0 1.5px #fff;white-space:nowrap;}
-/* ── 좋아요 수 뱃지 (v2.33) — 의견 수(.spot-cmt)와 같은 문법, 반대쪽 어깨에 앉는다.
+/* ── 리액션 미니 라벨 (v2.40) — 하트 수와 의견 수가 **한 알약**에 산다 ──
+   v1.63(의견 우측)·v2.33(하트 좌측)이 양쪽 어깨에 따로 앉던 것을 우측 상단 하나로 모았다.
    말풍선의 자식이라 draw 의 CSS zoom 을 그대로 타서 px 로 써도 줌에 맞게 커진다.
-   색은 JS 가 인라인으로 박는다(모드 규칙·스킨 3종을 공짜로 타려고 — .spot-cmt 와 같은 이유).
-   내가 누른 것은 하트만 붉게: 숫자까지 물들이면 남의 좋아요와 구분이 안 된다. */
-.spot-heart{position:absolute;left:-8px;top:-9px;font-size:9px;font-weight:800;color:#fff;border-radius:999px;padding:2px 5px;line-height:1;box-shadow:0 0 0 1.5px #fff;white-space:nowrap;}
-.spot-heart.mine{color:#ffd2dc;}
+   배경색은 JS 가 인라인으로 박는다(모드 규칙·스킨 3종을 공짜로 타려고).
+   `position:relative` 는 하트가 **이 라벨 기준으로** 튀게 하는 자리다 (.spot-heartpop). */
+.spot-tag{position:absolute;right:-8px;top:-9px;display:flex;align-items:center;gap:3px;
+  font-size:9px;font-weight:800;color:#fff;border-radius:999px;padding:2px 5px;line-height:1;
+  box-shadow:0 0 0 1.5px #fff;white-space:nowrap;}
+.spot-tag>b{font-weight:800;}
+/* 내가 누른 것은 **하트 쪽만** 붉게 — 라벨 전체를 물들이면 옆의 의견 수까지 내 것처럼 보인다. */
+.spot-tag .tg-h.mine{color:#ffd2dc;}
 /* 더블탭한 순간 하트가 한 번 튄다 — 피드 카드의 .fc-heart 와 같은 연출·같은 곡선.
    지도 오버레이는 폰 컨테이너 밖(PC 지도)에도 그려지므로 cqw 가 아니라 px 다 (v1.82 규칙). */
 .spot-heartpop{position:absolute;left:50%;top:0;font-size:20px;color:#ff4d6d;pointer-events:none;
   text-shadow:0 2px 10px rgba(0,0,0,0.25);animation:heartPop 1.15s cubic-bezier(.22,1,.36,1) forwards;}
-/* 피드 핀의 좋아요 수 (v2.34) — 클러스터 개수(.fp-n)와 같은 어깨 문법이되 **왼쪽**이다
-   (둘이 같이 뜨는 핀은 없지만, 자리를 나눠 두면 나중에 겹칠 일이 없다).
-   말풍선 뱃지(.spot-heart)와 달리 핀은 CSS zoom 을 안 타므로 크기가 고정이다 — 점 모드에선 감춘다. */
-.feed-pin .fp-heart{position:absolute;left:-5px;top:-5px;min-width:16px;height:16px;box-sizing:border-box;
-  display:flex;align-items:center;justify-content:center;padding:0 4px;border-radius:9px;background:#8a919d;
+/* 피드 핀의 리액션 라벨 (v2.40) — 말풍선(.spot-tag)과 **같은 자리·같은 순서**(우측 상단,
+   하트 다음 의견)다. v2.34 는 하트만 왼쪽 어깨에 뒀는데, 종류마다 규칙이 다르면 시연을
+   보는 사람이 매번 어디를 볼지 다시 배운다. 클러스터 개수(.fp-n)와 어깨가 같지만 둘이
+   함께 뜨는 핀은 없다 — 클러스터는 탭의 뜻이 '펼치기' 라 좋아요·의견이 없다.
+   말풍선과 달리 핀은 CSS zoom 을 안 타므로 크기가 고정이다 — 점 모드에선 감춘다. */
+.feed-pin .fp-tag{position:absolute;right:-5px;top:-5px;min-width:16px;height:16px;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;gap:3px;padding:0 4px;border-radius:9px;background:#8a919d;
   border:1.5px solid #fff;color:#fff;font-size:10px;font-weight:800;line-height:1;white-space:nowrap;}
-.feed-pin .fp-heart.mine{color:#ffd2dc;}
-body.mode-trend .feed-pin .fp-heart{background:var(--heat,#f2862e);}
-.feed-pin.fp-dot .fp-heart{display:none;}
+.feed-pin .fp-tag>b{font-weight:800;}
+.feed-pin .fp-tag .tg-h.mine{color:#ffd2dc;}
+body.mode-trend .feed-pin .fp-tag{background:var(--heat,#f2862e);}
+.feed-pin.fp-dot .fp-tag{display:none!important;} /* 점 모드 — paintReactTag 의 인라인 display 를 이긴다 */
 /* 핀 위에서 튀는 하트 — 말풍선과 같은 연출을 쓰되 원의 위 가장자리에서 시작한다. */
 .feed-pin .spot-heartpop{top:-6px;font-size:18px;}
 

@@ -555,8 +555,33 @@ function guardDblClick(el){
   if(!el)return;
   el.addEventListener('dblclick',function(e){e.stopPropagation();if(e.cancelable)e.preventDefault();});
 }
+/* ── 리액션 미니 라벨 (v2.40) ─────────────────────────────
+   지도 위 컨텐츠의 **우측 상단 라벨 하나**가 하트 수와 의견 수를 같이 든다 (`❤3 💬2`).
+   말풍선(SpotBubble)과 피드 핀(FeedThumb)이 **같은 함수**로 칠한다 — v2.33 까지는 둘이
+   각자 자기 뱃지를 만들고 각자 칠해서, 하나를 고치면 다른 쪽이 뒤처졌다.
+
+   `bg` 를 주면 배경을 인라인으로 박는다(말풍선: 모드 색을 따라간다). 피드 핀은 CSS 가
+   색을 들고 있어 안 준다. 둘 다 0 이면 라벨째 감춘다 — 빈 알약이 떠 있으면 그것이 무슨
+   수인지 물어보게 된다. */
+function paintReactTag(tag,hEl,cEl,id,bg){
+  if(!tag)return;
+  var L=(typeof likeInfo==='function')?likeInfo(id):{n:0,me:0};
+  var cn=(typeof contentComments==='function')?contentComments(id).length:0;
+  if(hEl){
+    hEl.textContent=L.n?('❤'+L.n):'';
+    hEl.style.display=L.n?'':'none';
+    hEl.classList.toggle('mine',!!L.me); // 내가 누른 하트만 붉게 — 숫자까지 물들이면 남의 것과 구분이 안 된다
+  }
+  if(cEl){
+    cEl.textContent=cn?('💬'+cn):'';
+    cEl.style.display=cn?'':'none';
+  }
+  tag.style.display=(L.n||cn)?'':'none';
+  if(bg)tag.style.background=bg;
+}
 /* 하트가 한 번 튄다 — 말풍선·피드 핀이 같이 쓴다 (v2.34: 있던 SpotBubble._heartBurst 를 꺼냈다).
-   `.fc-heart`(피드 카드)와 같은 곡선·같은 1200ms 다. */
+   `.fc-heart`(피드 카드)와 같은 곡선·같은 1200ms 다.
+   v2.40 부터 **미니 라벨을 기준으로** 튄다 — 부르는 쪽이 라벨 요소를 넘긴다. */
 function heartPopOn(el){
   if(!el)return;
   var h=document.createElement('span');h.className='spot-heartpop';h.textContent='♥';
@@ -571,10 +596,18 @@ function initSpotBubbleClass(){
     var bubble=document.createElement('div');bubble.className='spot-bubble';
     var emoji=document.createElement('div');emoji.className='spot-emoji';
     var dot=document.createElement('div');dot.className='spot-dotmark';
-    var cmt=document.createElement('span');cmt.className='spot-cmt';bubble.appendChild(cmt);this.cmtEl=cmt; // 의견 수 뱃지 (v1.63)
-    /* 좋아요 수 뱃지 (v2.33) — 의견 수와 같은 문법이다. **말풍선의 자식**이라 draw 의
-       CSS zoom(배율)을 그대로 타므로 px 로 써도 줌에 맞게 커진다. */
-    var hrt=document.createElement('span');hrt.className='spot-heart';bubble.appendChild(hrt);this.heartEl=hrt;
+    /* 리액션 미니 라벨 (v2.40) — 하트 수와 의견 수가 **한 라벨**에 산다.
+       v1.63~v2.33 에는 둘이 양쪽 어깨에 따로 앉았는데(의견=오른쪽·하트=왼쪽), 그러면
+       ①같은 것을 세는 두 뱃지가 서로 다른 자리에 있어 눈이 두 번 움직이고 ②피드 핀은
+       왼쪽 어깨만 쓰고 오른쪽은 클러스터 개수가 쓰는 등 종류마다 규칙이 달랐다.
+       이제 **우측 상단 하나**에 `❤n 💬n` 순서로 든다 — 없는 쪽은 빠진다.
+       **말풍선의 자식**이라 draw 의 CSS zoom(배율)을 그대로 타므로 px 로 써도 줌에 맞게 커진다. */
+    var tag=document.createElement('span');tag.className='spot-tag';
+    var tgH=document.createElement('b');tgH.className='tg-h';tag.appendChild(tgH);
+    var tgC=document.createElement('b');tgC.className='tg-c';tag.appendChild(tgC);
+    bubble.appendChild(tag);
+    this.tagEl=tag;this.tagH=tgH;this.tagC=tgC;
+    this.heartEl=tag; // 하트가 튀는 자리 = 이 라벨 (v2.40)
     wrap.appendChild(bubble);wrap.appendChild(emoji);wrap.appendChild(dot);
     wrap.addEventListener('pointerdown',function(e){self._onDown(e);}); // 포인터 = 마우스+터치(모바일 데모 드래그)
     guardDblClick(wrap); // 마우스 더블클릭이 지도 줌으로 새지 않게 (v2.34)
@@ -617,7 +650,8 @@ function initSpotBubbleClass(){
     },360);
   };
   /* 하트가 한 번 튄다 — 연출은 공용 heartPopOn 이 한다 (v2.34: 피드 핀과 나눠 쓴다). */
-  SpotBubble.prototype._heartBurst=function(){heartPopOn(this.div);};
+  // v2.40 — 라벨 기준으로 튄다 (라벨이 아직 없으면 여태처럼 말풍선 전체)
+  SpotBubble.prototype._heartBurst=function(){heartPopOn(this.heartEl||this.div);};
   SpotBubble.prototype._onDown=function(e){
     var self=this,m=self.getMap();
     if(!canEditSpot(self.spot))return;
@@ -673,20 +707,13 @@ function initSpotBubbleClass(){
     var baseCol=mono?MONO_PIN:heatColor(contentHeatT(s,s.lat,s.lng,0));
     if(this.dotEl)this.dotEl.style.background=hexToRgba(baseCol,1); // 점 색상 = 버블 색상 규칙과 동일
     this.bubbleEl.textContent=t;
-    if(this.cmtEl){ // 의견 수 뱃지 — textContent 대입이 자식을 지우므로 다시 부착 (색=모드 규칙과 동일)
-      var cn=(typeof spotComments==='function')?spotComments(s.id).length:0;
-      this.cmtEl.textContent=cn?('💬'+cn):'';
-      this.cmtEl.style.display=cn?'':'none';
-      this.cmtEl.style.background=hexToRgba(baseCol,1);
-      this.bubbleEl.appendChild(this.cmtEl);
-    }
-    if(this.heartEl){ // 좋아요 수 뱃지 — 의견 수와 같은 규칙(대입이 자식을 지우므로 다시 부착)
-      var L=(typeof likeInfo==='function')?likeInfo(s.id):{n:0,me:0};
-      this.heartEl.textContent=L.n?('❤'+L.n):'';
-      this.heartEl.style.display=L.n?'':'none';
-      this.heartEl.classList.toggle('mine',!!L.me);
-      this.heartEl.style.background=hexToRgba(baseCol,1);
-      this.bubbleEl.appendChild(this.heartEl);
+    /* 리액션 라벨 (v2.40) — 하트·의견을 한 자리에서 칠한다.
+       ⚠️ 위 `bubbleEl.textContent=t` 가 자식을 통째로 지우므로 **매번 다시 부착**한다
+       (v1.63 부터의 규칙 — 라벨이 하나가 되어도 그대로다).
+       색은 JS 가 인라인으로 박는다: 모드 규칙·스킨 3종을 공짜로 타려고. */
+    if(this.tagEl){
+      paintReactTag(this.tagEl,this.tagH,this.tagC,s.id,hexToRgba(baseCol,1));
+      this.bubbleEl.appendChild(this.tagEl);
     }
     this.bubbleEl.style.display=t?'':'none';
     this.bubbleEl.style.color=hexToRgba(mono?MONO_INK:'#ffffff',txA(c)); // 색조=모드 규칙, 투명도=설정(textOpacity) 존중 (v1.65)
@@ -785,7 +812,15 @@ function initFeedThumbClass(){
       var b=document.createElement('span');b.className='fp-n';b.textContent=n;d.appendChild(b);
       d.addEventListener('click',function(e){e.stopPropagation();mapDblGuard(self.getMap());self._expand();});
     }else{ // 단일 핀: 탭 한 번=상세 팝업 · 두 번=좋아요 (v2.34) — 편집 권한자는 드래그 이동도
-      var hrt=document.createElement('span');hrt.className='fp-heart';d.appendChild(hrt);this.heartEl=hrt;
+      /* 리액션 미니 라벨 (v2.40) — 말풍선과 **같은 구조·같은 자리**(우측 상단)다.
+         클러스터의 개수 뱃지(.fp-n)와 어깨가 겹치지만 둘이 같이 뜨는 핀은 없다
+         (클러스터는 탭의 뜻이 '펼치기' 라 좋아요·의견이 없다). */
+      var tag=document.createElement('span');tag.className='fp-tag';
+      var tgH=document.createElement('b');tgH.className='tg-h';tag.appendChild(tgH);
+      var tgC=document.createElement('b');tgC.className='tg-c';tag.appendChild(tgC);
+      d.appendChild(tag);
+      this.tagEl=tag;this.tagH=tgH;this.tagC=tgC;
+      this.heartEl=tag; // 하트가 튀는 자리 = 이 라벨
       this._paintLikes();
       if(this._canEdit()){d.classList.add('editable');d.addEventListener('pointerdown',function(e){self._onDown(e);});}
       d.addEventListener('click',function(e){e.stopPropagation();
@@ -796,14 +831,13 @@ function initFeedThumbClass(){
     }
     this.getPanes().overlayMouseTarget.appendChild(d); // 전 핀 탭 가능 (v1.60 상세 팝업)
   };
-  /* 좋아요 수 뱃지 (v2.34) — 말풍선의 `.spot-heart` 와 같은 문법이다. 클러스터에는 안 붙는다
-     (그 핀은 개수 뱃지가 이미 어깨를 쓰고, 탭의 뜻도 '펼치기' 라 좋아요가 없다). */
+  /* 리액션 라벨 페인트 (v2.40) — 말풍선과 **같은 함수**를 쓴다. 색은 CSS 가 들고 있어
+     배경을 안 넘긴다(말풍선만 모드 색을 인라인으로 박는다). 이름은 `_paintLikes` 그대로다:
+     부르는 자리가 여섯 곳(_adopt·_tap·nhLikeRepaint·feedPinsFor…)이라 이름을 바꾸면
+     그 여섯을 다 따라다녀야 하는데, 하는 일은 여전히 "이 핀의 리액션을 지금 값으로" 다. */
   FeedThumb.prototype._paintLikes=function(){
-    if(!this.heartEl)return;
-    var L=(typeof likeInfo==='function')?likeInfo(this.item.id):{n:0,me:0};
-    this.heartEl.textContent=L.n?('❤'+L.n):'';
-    this.heartEl.style.display=L.n?'':'none';
-    this.heartEl.classList.toggle('mine',!!L.me);
+    if(!this.tagEl)return;
+    paintReactTag(this.tagEl,this.tagH,this.tagC,this.item.id,null);
   };
   /* 탭 한 번 = 상세 팝업 · 두 번 = 좋아요 (v2.34).
      말풍선(SpotBubble._tap)과 **같은 상수**를 쓴다 — 340ms/360ms 는 피드 카드가 오래 쓰던 값이다.
@@ -832,7 +866,7 @@ function initFeedThumbClass(){
       if(typeof openContentPop==='function')openContentPop('feed',self.item);
     },360);
   };
-  FeedThumb.prototype._heartBurst=function(){heartPopOn(this.div);};
+  FeedThumb.prototype._heartBurst=function(){heartPopOn(this.heartEl||this.div);};
   // 온도색(트렌드 모드에서만 CSS body.mode-trend 스코프로 발현): 개별 수동 온도(temp) 우선, 자동=좋아요 온도. 클러스터=멤버 중 최고
   // v2.6: 존 온도를 중심으로 항목마다 흩는다 (존 밖이면 좋아요 온도가 중심). 클러스터=멤버 최고
   FeedThumb.prototype._paintHeat=function(){
@@ -1329,7 +1363,12 @@ function declutterOn(m,spots,feeds,reqs,deals,labels){
 // 스팟 의견(v1.61): liveChat 컬렉션을 room='spot:<id>'로 재사용(⚠️M06/M12 스키마 공유, 규칙 변경 불필요).
 // 소셜 탭은 local:/topic:/private만 노출하므로 spot: 방은 채팅 UI에 안 섞임. 폴백=socMsgs(localStorage).
 var cpopRefresh=null; // 라이브 스냅샷 갱신 시 열려 있는 팝업의 의견 리스트 재렌더 훅
-function spotComments(id){var k='spot:'+id;return hasLive()?(socLiveMsgs[k]||[]):(socMsgs[k]||[]);}
+/* 의견은 **컨텐츠 종류를 안 가린다** (v2.40) — 방 이름의 `spot:` 은 옛 접두어일 뿐이고
+   키는 컨텐츠 id 다. 스팟 id(sps_/spn_)와 피드 id(fs_/fdn_/f_)는 네임스페이스가 안 겹치므로
+   (feedLikes 가 진작부터 한 표를 나눠 쓰는 것과 같은 이유) 한 저장소로 족하다.
+   접두어를 안 바꾼 이유: 이미 쌓인 스팟 의견과 firestore.rules 의 liveChat 규칙이 그대로 산다. */
+function contentComments(id){var k='spot:'+id;return hasLive()?(socLiveMsgs[k]||[]):(socMsgs[k]||[]);}
+function spotComments(id){return contentComments(id);} // 옛 이름 — 부르는 자리가 여럿이라 남긴다
 function addSpotComment(id,t){
   var k='spot:'+id;
   if(hasLive()){
@@ -1338,7 +1377,9 @@ function addSpotComment(id,t){
     return;
   }
   (socMsgs[k]=socMsgs[k]||[]).push({me:true,who:chatName(),t:t});saveChat();
-  if(typeof refreshSpotStyles==='function')refreshSpotStyles(); // 로컬 폴백: 버블 뱃지 즉시 갱신
+  // 로컬 폴백: 라벨을 즉시 갱신한다 — v2.40 부터 피드 핀도 의견 수를 들므로 둘 다 부른다
+  if(typeof refreshSpotStyles==='function')refreshSpotStyles();
+  if(typeof renderFeedMarkers==='function')renderFeedMarkers();
 }
 /* 닫는 소리는 **열려 있던 것을 닫을 때만** 운다 (v2.25) — popclose·nhReset 은 열렸든 아니든
    부르므로, 그냥 울리면 아무 일도 없는 자리에서 소리가 난다. */
@@ -1504,6 +1545,34 @@ function cpopOpenEntry(it){ // 피드 리스트 항목 → 상세 팝업 (v1.62 
   var src=feedItems.find(function(x){return x.id===it.id;});
   openContentPop('feed',src||it);
 }
+/* 의견(댓글) 리스트 + 입력줄 (v2.40) — **스팟과 피드가 같은 UI 를 쓴다.**
+   v1.61 부터 스팟 팝업 안에 인라인으로 있던 것을 꺼냈다: 피드 핀에도 의견 수 라벨이
+   생겼는데(v2.40) 열어 보면 아무것도 없으면 화면이 거짓말을 한다.
+   `cpopRefresh` 훅은 라이브 스냅샷이 들어올 때 열려 있는 팝업을 다시 그린다. */
+function cpopComments(body,id){
+  var cbox=document.createElement('div');cbox.className='cps-comments';
+  function renderCms(){
+    cbox.innerHTML='';
+    var arrC=contentComments(id);
+    if(!arrC.length){var e0=document.createElement('div');e0.className='cps-noc';e0.textContent='아직 의견이 없어요 — 첫 의견을 남겨보세요 💬';cbox.appendChild(e0);}
+    arrC.forEach(function(msg){
+      var b=document.createElement('div');b.className='cpc-bub'+(msg.me?' me':'');
+      var w=document.createElement('i');w.className='cpc-who';w.textContent=msg.who||'이웃';
+      var tx=document.createElement('span');tx.className='cpc-t';tx.textContent=msg.t;
+      b.appendChild(w);b.appendChild(tx);cbox.appendChild(b);
+    });
+    cbox.scrollTop=cbox.scrollHeight;
+  }
+  renderCms();cpopRefresh=renderCms;
+  body.appendChild(cbox);
+  var ir=document.createElement('div');ir.className='cps-inputrow';
+  ir.innerHTML='<input type="text" maxlength="120" placeholder="의견 남기기 (Enter)" /><button type="button" class="action-btn accent small">보내기</button>';
+  var cin=ir.querySelector('input');
+  function sendCm(){var t2=(cin.value||'').trim();if(!t2)return;cin.value='';addSpotComment(id,t2);if(!hasLive())renderCms();}
+  ir.querySelector('button').addEventListener('click',sendCm);
+  cin.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();sendCm();}});
+  body.appendChild(ir);
+}
 function openContentPop(kind,data){
   var m=document.getElementById('content-pop'),body=document.getElementById('cpop-body'),tt=document.getElementById('cpop-title');
   if(!m||!body||!data)return;
@@ -1522,29 +1591,7 @@ function openContentPop(kind,data){
     body.querySelector('.cps-text').textContent=data.text||'(빈 메시지)';
     body.querySelector('.cps-region').textContent='📍 '+(dongAt(data.lat,data.lng)||'지정 위치');
     if(canEditSpot(data))headAct('✏️ 수정',function(){closeContentPop();openSpotEditor(data.id);},true); // 권한자: 헤더에서 편집 진입
-    // 의견(댓글): 메시지 버블 리스트 + 입력 (liveChat room='spot:<id>' 실시간 공유)
-    var cbox=document.createElement('div');cbox.className='cps-comments';
-    function renderCms(){
-      cbox.innerHTML='';
-      var arrC=spotComments(data.id);
-      if(!arrC.length){var e0=document.createElement('div');e0.className='cps-noc';e0.textContent='아직 의견이 없어요 — 첫 의견을 남겨보세요 💬';cbox.appendChild(e0);}
-      arrC.forEach(function(msg){
-        var b=document.createElement('div');b.className='cpc-bub'+(msg.me?' me':'');
-        var w=document.createElement('i');w.className='cpc-who';w.textContent=msg.who||'이웃';
-        var tx=document.createElement('span');tx.className='cpc-t';tx.textContent=msg.t;
-        b.appendChild(w);b.appendChild(tx);cbox.appendChild(b);
-      });
-      cbox.scrollTop=cbox.scrollHeight;
-    }
-    renderCms();cpopRefresh=renderCms;
-    body.appendChild(cbox);
-    var ir=document.createElement('div');ir.className='cps-inputrow';
-    ir.innerHTML='<input type="text" maxlength="120" placeholder="의견 남기기 (Enter)" /><button type="button" class="action-btn accent small">보내기</button>';
-    var cin=ir.querySelector('input');
-    function sendCm(){var t2=(cin.value||'').trim();if(!t2)return;cin.value='';addSpotComment(data.id,t2);if(!hasLive())renderCms();}
-    ir.querySelector('button').addEventListener('click',sendCm);
-    cin.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();sendCm();}});
-    body.appendChild(ir);
+    cpopComments(body,data.id); // 의견(댓글) — 스팟·피드가 같은 UI 를 쓴다 (v2.40)
   }else if(kind==='feed'){
     tt.textContent='피드 컨텐츠';
     var L=likeInfo(data.id);
@@ -1561,6 +1608,9 @@ function openContentPop(kind,data){
     r2.querySelector('.cpf-time').textContent=data.ts?timeAgo(data.ts):'';
     wrap.appendChild(r2);
     body.appendChild(wrap); // 지도 보기 버튼은 헤더 공통(headAct)
+    /* 피드에도 의견을 연다 (v2.40) — 미니 라벨이 💬N 을 말하는데 열어 보면 아무것도 없으면
+       화면이 거짓말이다. 저장소는 스팟과 같다(contentComments — 키는 컨텐츠 id). */
+    cpopComments(body,data.id);
   }else if(kind==='req'){
     tt.textContent='현장 Request';
     var mineR=(typeof isMyReq==='function')&&isMyReq(data),act=reqActive(data),n=(data.answers||[]).length;
@@ -7970,7 +8020,7 @@ function nhPosNote(id,lat,lng){
 /* 이번 회차가 만든 것들 — 시나리오 seed 와 재생 중 쓴 글, 그리고 전역 카드에 남긴
    좋아요(v1.94 — 회차를 넘어 살아남으면 두 번째 재생에서 하트가 이미 차 있다).
    nhReset 이 전부 걷어낸다. */
-var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],heart:[],deal:[],page:[],zone:[]};
+var nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],heart:[],cmt:[],deal:[],page:[],zone:[]};
 /* 무대에서 받은 코인은 회차가 끝나면 돌려놓는다 (v2.19) — 잔액은 이 기기에 남는 값이라
    재생할 때마다 500 씩 쌓여서, 두 번째 회차의 프로필이 첫 회차와 다른 숫자로 시작했다.
    시연은 몇 번을 돌려도 같은 곳에서 시작해야 한다 (nhReset 의 규칙 그대로). */
@@ -8146,35 +8196,84 @@ function nhHeartAdd(kind,item,mine){
   nhTempIds.heart.push(id); // 하나에 하나씩 적는다 — sweep 이 같은 수만큼 뺀다
   return true;
 }
-/* `hearts` — 남들이 하나둘 누른다 (v2.34). n 개를 이 단계의 ms 에 고르게 펴서 올린다.
-   하트는 **처음과 마지막을 뺀 사이**에 뜬다: 0ms 에 몰아 두면 단계가 시작하자마자 끝나고,
-   ms 끝에 두면 다음 단계에 걸쳐 뜬다. 매 틱 토큰을 본다 — 새 재생이 시작되면 그 자리에서 멈춘다. */
-/** `hearts` 가 한 번에 올릴 수 있는 개수 — 콘솔의 MAX_HEARTS 와 같은 값이어야 한다. */
+/** 리액션 한 단계가 올릴 수 있는 개수 — 콘솔의 MAX_HEARTS 와 같은 값이어야 한다. */
 var NH_HEARTS_MAX=50;
-function nhHearts(kind,item,count,ms,token){
+/* 남이 다는 의견의 문구·이름 (v2.40) — **결정적**이다 (Math.random 금지, v1.72 규칙).
+   시연은 몇 번을 돌려도 같은 글이 같은 순서로 달려야 한다. */
+var NH_CMT_TEXT=['저도 방금 봤어요','여기 진짜 좋더라구요','오 정보 감사합니다','지금 가는 중이에요',
+  '어제도 그랬어요','저녁에 가면 한산해요','사진 잘 나오는 곳이에요','저만 몰랐나 봐요',
+  '주차는 어떤가요?','다음에 같이 가요'];
+var NH_CMT_WHO=['동네주민','근처사는사람','산책러','퇴근길','주말러','단골','옆동네','오늘처음'];
+/** 의견 하나를 남긴다 — 회차가 끝나면 `nhSweepTemp` 가 같은 수만큼 걷는다. */
+function nhCommentAdd(item,k){
+  if(!item||!item.id)return false;
+  var key='spot:'+item.id;
+  if(typeof socMsgs==='undefined')return false;
+  var i=Math.abs((k|0)+String(item.id).length);
+  (socMsgs[key]=socMsgs[key]||[]).push({
+    me:false,who:NH_CMT_WHO[i%NH_CMT_WHO.length],t:NH_CMT_TEXT[i%NH_CMT_TEXT.length]});
+  nhTempIds.cmt.push(key); // 하나에 하나씩 — sweep 이 같은 수만큼 뺀다 (하트와 같은 규칙)
+  return true;
+}
+/* `react` — **남들이 리액션을 단다** (v2.40, 콘솔 D152). 하트 hn 개 + 의견 cn 개를
+   이 단계의 ms 안에 고르게 펴서 올린다. v2.34 의 `hearts` 를 넓힌 것이고, 그때의 규칙은
+   그대로다: 처음과 마지막을 뺀 사이에 뜨고(0ms 에 몰면 단계가 시작하자마자 끝난다),
+   매 틱 토큰을 보고(새 재생이 오면 그 자리에서 멈춘다), 이 단계 안에서 끝난다.
+
+   **둘이 같이 오를 때 순서는 섞인다** — 하트를 다 올리고 의견을 다 올리면 "봇이 두 번
+   돌았다" 로 보인다. 다만 섞는 방식은 **결정적**이다(v1.72 규칙): 컨텐츠 id 로 씨를 얹은
+   작은 LCG 라, 같은 데모는 몇 번을 돌려도 같은 순서로 달린다.
+   내 하트(me)는 안 켠다 — 그건 다른 사람들의 손이다. */
+function nhReact(kind,item,hn,cn,ms,token){
   if(!item)return false;
-  count=Math.min(NH_HEARTS_MAX,Math.max(1,count|0||1));
+  hn=Math.min(NH_HEARTS_MAX,Math.max(0,hn|0));
+  cn=Math.min(NH_HEARTS_MAX,Math.max(0,cn|0));
+  if(hn+cn<=0)return false;
   ms=Math.max(200,ms|0||1500);
-  /* **이 단계 안에서 끝난다.** 넘치면 다음 단계로 하트가 흘러가 엉뚱한 화면 위에서 오른다.
-     너무 촘촘하면 숫자가 안 읽히므로 60ms 를 박자의 바닥으로 두고, 그 박자로도 안 들어가는
+  /* 너무 촘촘하면 숫자가 안 읽히므로 60ms 를 박자의 바닥으로 두고, 그 박자로도 안 들어가는
      개수는 들어갈 만큼으로 줄인다 (콘솔이 '몇 개'와 '단계 길이'를 같이 보여 주므로,
-     짧은 단계에 큰 수를 적으면 화면에서 바로 보인다). */
-  var win=Math.max(60,ms-140);
-  count=Math.min(count,Math.floor(win/60)+1);
-  var gap=Math.max(1,Math.floor(win/count));
-  for(var k=0;k<count;k++)(function(k){
+     짧은 단계에 큰 수를 적으면 화면에서 바로 보인다). 줄일 때는 **비율을 지킨다** —
+     하트만 깎으면 "의견이 하트보다 많은" 없는 장면이 된다. */
+  var win=Math.max(60,ms-140), room=Math.floor(win/60)+1, tot=hn+cn;
+  if(tot>room){
+    var keep=room/tot;
+    hn=Math.max(hn?1:0,Math.round(hn*keep));
+    cn=Math.max(cn?1:0,Math.round(cn*keep));
+    tot=hn+cn;
+  }
+  // 섞인 순서 — 'h'/'c' 를 늘어놓고 결정적으로 흩는다 (Fisher-Yates + id 씨 LCG)
+  var seq=[],j;
+  for(j=0;j<hn;j++)seq.push('h');
+  for(j=0;j<cn;j++)seq.push('c');
+  var seed=0,sid=String(item.id||'');
+  for(j=0;j<sid.length;j++)seed=(seed*31+sid.charCodeAt(j))>>>0;
+  for(j=seq.length-1;j>0;j--){
+    seed=(seed*1664525+1013904223)>>>0;
+    var q=seed%(j+1),tmp=seq[j];seq[j]=seq[q];seq[q]=tmp;
+  }
+  var gap=Math.max(1,Math.floor(win/tot)),hk=0,ck=0;
+  for(var k=0;k<tot;k++)(function(k,what,ci){
     setTimeout(function(){
       if(token!==nhRunToken)return;
-      if(!nhHeartAdd(kind,item,false))return;
-      nhLikeRepaint(kind,item);
-      /* 온도(전체 대비 비율)는 **마지막 한 번만** 다시 칠한다 — 하트마다 전체 렌더를
+      if(what==='h'){ if(!nhHeartAdd(kind,item,false))return; }
+      else if(!nhCommentAdd(item,ci))return;
+      nhLikeRepaint(kind,item); // 라벨 하나가 둘 다 든다 (v2.40) — 한 번 칠하면 양쪽이 맞는다
+      /* 온도(전체 대비 비율)는 **마지막 한 번만** 다시 칠한다 — 리액션마다 전체 렌더를
          돌리면 50개짜리 단계에서 지도가 오십 번 다시 그려진다. */
-      if(k===count-1&&kind==='feed'&&typeof renderFeedMarkers==='function')renderFeedMarkers();
-      var ov=nhLikeVisible(nhLikeOverlays(kind,item));
-      if(ov&&ov.div&&typeof heartPopOn==='function')heartPopOn(ov.div);
+      if(k===tot-1&&kind==='feed'&&typeof renderFeedMarkers==='function')renderFeedMarkers();
+      if(kind==='spot'&&typeof refreshSpotStyles==='function'&&what==='c')refreshSpotStyles();
+      // 하트만 튄다 — 의견은 숫자가 오르는 것이 전부다 (튀는 말풍선까지 만들면 화면이 시끄럽다)
+      if(what==='h'){
+        var ov=nhLikeVisible(nhLikeOverlays(kind,item));
+        if(ov&&typeof heartPopOn==='function')heartPopOn(ov.heartEl||ov.div);
+      }
     },80+k*gap);
-  })(k);
+  })(k,seq[k],seq[k]==='h'?hk++:ck++);
   return true;
+}
+/** 옛 `hearts` 단계 — 하트만 올리는 `react` 다 (저장된 단계가 계속 돈다). */
+function nhHearts(kind,item,count,ms,token){
+  return nhReact(kind,item,Math.max(1,count|0||1),0,ms,token);
 }
 
 /* ── 컨텐츠 추가 팝업 (v2.34, 콘솔 D132) ────────────────────────────
@@ -9009,13 +9108,25 @@ function nhAct(st,token){
            그 갱신은 전체 렌더뿐이다(_adopt 가 핀을 이어 쓰므로 DOM 은 안 새로 만든다). */
         if(lkK==='feed'&&typeof renderFeedMarkers==='function')renderFeedMarkers();
         var lkOv=nhLikeVisible(nhLikeOverlays(lkK,f)); // 렌더 뒤에 다시 찾는다 — 하트가 살아 있는 div 에 앉게
-        if(lkOv&&lkOv.div)heartPopOn(lkOv.div);
+        if(lkOv)heartPopOn(lkOv.heartEl||lkOv.div); // v2.40 — 미니 라벨에서 튄다
+        /* e = 몇 개까지 (v2.40). **내 손은 한 번뿐이다** — 위에서 이미 켰다. 2 이상이면
+           나머지는 남들이 얹는 것으로 빠르게 오른다(D131 이 지킨 뜻: 나는 한 번 누른다).
+           숫자가 목표까지 차오르는 장면이라 하트는 안 튀긴다 — 내 손짓과 구분된다. */
+        var lkN=Math.min(NH_HEARTS_MAX,Math.max(1,parseInt(st.e,10)||1));
+        if(lkN>1)nhReact(lkK,f,lkN-1,0,Math.max(200,Math.round((st.ms||1200)*0.7)),token);
         return true;}
       /* 남들이 하나둘 누른다 (v2.34) — v=종류 · i=몇 번째 · e=몇 개 · ms=오르는 시간.
          내 하트(me)는 안 켠다: 그건 다른 사람들의 손이다. */
       if(st.a==='hearts'){var hK=nhLikeKind(st.v),hf=nhPick(hK,st.i);
         if(!hf)return false;
         return nhHearts(hK,hf,parseInt(st.e,10)||5,st.ms,token)!==false;}
+      /* 리액션 추가 (v2.40) — 남들이 하트와 의견을 단다. e=하트 수 · sp=의견 수,
+         비우면 각각 1 이다. 둘 다 0 이면 할 일이 없으므로 실패로 남는다(화면에 표시된다). */
+      if(st.a==='react'){var rK=nhLikeKind(st.v),rf=nhPick(rK,st.i);
+        if(!rf)return false;
+        var rH=(st.e===''||st.e==null)?1:Math.max(0,parseInt(st.e,10)||0);
+        var rC=(st.sp===''||st.sp==null)?1:Math.max(0,parseInt(st.sp,10)||0);
+        return nhReact(rK,rf,rH,rC,st.ms,token)!==false;}
       /* 컨텐츠 추가 팝업 (v2.34) — v:'btn'=하단 + 버튼 · 'hold'=지도를 꾹.
          꾹 누른 자리에는 마커가 서고, 끌어 옮기면 다음 재생도 그 자리다. */
       if(st.a==='addmenu')return nhAddMenu(st.v,st.fast)!==false;
@@ -9155,8 +9266,21 @@ function nhSweepTemp(){
       if(typeof renderFeedMarkers==='function')renderFeedMarkers();
       if(typeof refreshSpotStyles==='function')refreshSpotStyles();
     }
+    /* `react` 가 남긴 의견도 되돌린다 (v2.40) — 하트와 **같은 규칙**이다: 표에 하나에
+       하나씩 적어 두었으므로 방마다 그 수만큼 뒤에서 뺀다. 앞에서 빼면 원래 있던 의견이
+       지워진다 (무대가 깐 것은 늘 뒤에 붙는다). */
+    if(nhTempIds.cmt&&nhTempIds.cmt.length&&typeof socMsgs!=='undefined'){
+      var cn={};
+      nhTempIds.cmt.forEach(function(k){cn[k]=(cn[k]||0)+1;});
+      Object.keys(cn).forEach(function(k){
+        var arr=socMsgs[k];if(arr&&arr.length)arr.splice(Math.max(0,arr.length-cn[k]),cn[k]);
+      });
+      if(typeof saveChat==='function')saveChat();
+      if(typeof refreshSpotStyles==='function')refreshSpotStyles();
+      if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+    }
   }catch(e){console.warn('[M16] sweep',e);}
-  nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],heart:[],deal:[],page:[],zone:[]};
+  nhTempIds={spot:[],feed:[],req:[],chat:[],like:[],heart:[],cmt:[],deal:[],page:[],zone:[]};
 }
 
 /* 시나리오가 선언한 seed 를 깐다 — "이 시나리오가 성립하려면 화면에 무엇이 있어야 하나".
@@ -9851,7 +9975,8 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'shopsay', // v2.32: 가게가 한마디 한다 — 지도 이름표에 말풍선을 붙인다 (i=어느 가게·v=문구, 비우면 걷는다)
   'hearts', // v2.34: 남들이 하나둘 하트를 누른다 (v=종류·i=몇 번째·e=몇 개·ms=오르는 시간)
   // v2.34: 컨텐츠 추가 팝업 — 여는 손(addmenu v = btn|hold)과 네 항목을 누르는 손
-  'addmenu','addbtn','addspot','addphoto','addpost','addreq'];
+  'addmenu','addbtn','addspot','addphoto','addpost','addreq',
+  'react'];
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
