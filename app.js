@@ -9608,6 +9608,13 @@ function nhAct(st,token){
         openContentPop(st.v,d);return true;}
       if(st.a==='popclose'){
         var did=false;
+        /* v2.50: 무엇을 닫을까 — `''`(기본)=팝업·시트·글쓰기 카드 · `'bubble'`=우하단 말풍선 ·
+           `'all'`=둘 다. 여태 말풍선은 `bubbleclose` 라는 **다른 액션**이었는데, 둘은
+           "지금 걷는다" 라는 한 손짓의 대상만 다른 것이라 목록에서 두 칸을 쓸 일이 아니다.
+           `bubbleclose` 는 저장된 단계를 위해 계속 받는다. */
+        var pcV=String(st.v||'').toLowerCase();
+        if(pcV==='bubble'||pcV==='all'){if(typeof nhHush==='function'){nhHush();did=true;}}
+        if(pcV==='bubble')return did;
         /* 딜 시트를 안 닫으면 다음 단계들 위에 그대로 얹힌다 (v2.2). 매장 페이지도 같다 (v2.15). */
         if(typeof closeDealSheet==='function'){closeDealSheet();did=true;}
         if(typeof closeStorePage==='function'){closeStorePage();did=true;}
@@ -9693,7 +9700,9 @@ function nhAct(st,token){
       if(st.a==='ai')return nhAi(token,st.ms,st.fast)!==false;
       // 투명도 연출 (v2.21, 콘솔 D117) — 지금 깔린 지도 컨텐츠를 흐리게 / 원복.
       // dim 이후에 뜨는 것은 제 불투명도로 온다 — "이 다음 것만 봐 달라" 는 연출이다.
-      if(st.a==='dim')return nhDim(st.v)!==false;
+      /* v2.50: `dim v:'off'` = 원래 밝기로. 흐리기와 되돌리기는 **한 축의 양끝**이라
+         액션을 둘로 두면 목록만 길어진다 — `undim` 은 저장된 단계를 위해 계속 받는다. */
+      if(st.a==='dim')return (String(st.v||'').toLowerCase()==='off'?nhUndim():nhDim(st.v))!==false;
       if(st.a==='undim')return nhUndim()!==false;
       // 말풍선 닫기 (v2.31) — 유지 시간(bh)을 기다리지 않고 **지금** 걷는다.
       if(st.a==='bubbleclose')return nhHush()!==false;
