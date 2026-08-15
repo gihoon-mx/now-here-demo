@@ -1889,3 +1889,44 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
   .nh-pop-in .dl-msg,.nh-pop-in .dl-name,
   .cp-slide.nh-pop-in img{animation:none;}
 }
+
+/* ══ 조작 잠금 (v2.53, 콘솔 D172) ══════════════════════════════════
+   잠긴 것을 눌렀을 때 **흔든다.** 조용히 무시하면 응답자가 고장인 줄 알고,
+   누를 때마다 문구를 띄우면 시끄럽다 — 반복해서 누르면 그때 한 줄 알린다(nhLockHint). */
+@keyframes nh-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+.nh-shake { animation: nh-shake .38s ease; }
+
+/* 잠긴 자리는 손 모양을 안 준다 — 눌러도 되는 것처럼 보이지 않게. */
+.nh-lock-tabs .phone-navbar .pn-item,
+.nh-lock-add .pn-add,
+.nh-lock-mode #phone-mode .pm-btn,
+.nh-lock-drawer #phone-hamburger,
+.nh-lock-drawer .pn-ai,
+.nh-lock-page #phone-content-page { cursor: default; }
+
+/* 안내 한 줄 — 폰 화면 안쪽 아래에 잠깐 떴다 사라진다. */
+.nh-lock-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%) translateY(6px);
+  max-width: 86%;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(28, 28, 32, .92);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .18s ease, transform .18s ease;
+  z-index: 40;
+}
+.nh-lock-hint.on { opacity: 1; transform: translateX(-50%) translateY(0); }

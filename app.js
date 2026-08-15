@@ -11067,6 +11067,141 @@ function nhPost(target,msg){
   try{target.win.postMessage(msg,target.origin);}catch(e){}
 }
 
+/* ══ 조작 잠금 (v2.53, 콘솔 D172) ══════════════════════════════════════
+   서베이 문항이 "이 화면에서 응답자가 만질 수 있는 것" 을 정한다. 콘솔에서 덮개를
+   씌우는 것으로는 **부분 허용**이 안 된다 — 덮개는 전부 막거나 전부 여는 것뿐이라
+   "지도만 움직이게" 를 못 만든다. 그래서 앱이 제 UI 를 잠근다.
+
+   **일곱 단위**다. 화면에서 사람이 실제로 만질 수 있는 곳을 센 것이고, 콘솔의 토글과
+   1:1 이다 (`check:contract` 가 두 목록을 대조한다):
+     map     지도 이동·줌          tabs  하단 지도/피드/소셜
+     mode    베이직/트렌드          content 핀·카드를 눌러 열기
+     add     ＋ 컨텐츠 올리기       drawer  ☰ 메뉴 서랍 · AI Agent
+     page    상단 지면 스와이프
+
+   ⚠️ **모르는 키는 버린다** (nhSanitize 와 같은 규칙). 그리고 **잠금이 아예 안 오면
+   전부 허용**이다 — 옛 게시본에는 이 값이 없고, 없다고 잠가 버리면 지금 도는 서베이가
+   조용히 먹통이 된다.
+
+   재생(nh:run)은 이 잠금을 안 탄다. 대본은 앱 내부에서 도는 것이지 사람의 손이 아니다. */
+var NH_LOCK_KEYS=['map','tabs','mode','content','add','drawer','page'];
+/** null = 잠금 없음(전부 허용). 배열이면 **그 안의 것만** 허용. */
+var nhAllow=null;
+function nhLockSet(list){
+  if(!Array.isArray(list)){nhAllow=null;nhLockPaint();return;}
+  var out=[];
+  list.forEach(function(k){
+    var s=String(k||'');
+    if(NH_LOCK_KEYS.indexOf(s)>=0&&out.indexOf(s)<0)out.push(s);
+  });
+  nhAllow=out;
+  nhLockPaint();
+}
+/** 이 조작이 허용되나 — 잠금이 없으면 늘 참. */
+function nhCan(k){return !nhAllow||nhAllow.indexOf(k)>=0;}
+/** 잠긴 곳에 표시를 건다 (커서·투명도) — CSS 가 `.nh-locked` 를 받는다. */
+function nhLockPaint(){
+  try{
+    var b=document.body;if(!b)return;
+    NH_LOCK_KEYS.forEach(function(k){b.classList.toggle('nh-lock-'+k,!nhCan(k));});
+    b.classList.toggle('nh-locked-any',!!nhAllow);
+  }catch(e){}
+  nhLockMap();
+}
+
+/* 잠긴 것을 눌렀을 때 (v2.53) — **흔들고, 계속 누르면 말한다.**
+   조용히 무시하면 응답자가 고장인 줄 안다. 그렇다고 한 번 누를 때마다 문구를 띄우면
+   시끄럽다. 그래서 흔들기가 기본이고, 짧은 시간에 여러 번 누르면 그때 한 줄 알린다. */
+var NH_LOCK_HINT_AT=3;      // 이만큼 누르면 안내가 뜬다
+var NH_LOCK_HINT_WINDOW=4000; // 이 시간 안에 센다
+var nhLockHits=0,nhLockHitAt=0,nhLockHintEl=null,nhLockHintT=null;
+function nhLockBump(el){
+  var now=Date.now();
+  nhLockHits=(now-nhLockHitAt>NH_LOCK_HINT_WINDOW)?1:nhLockHits+1;
+  nhLockHitAt=now;
+  if(el&&el.classList){
+    el.classList.remove('nh-shake');
+    void el.offsetWidth;              // 리플로우 — 같은 것을 연달아 눌러도 다시 흔들린다
+    el.classList.add('nh-shake');
+    setTimeout(function(){try{el.classList.remove('nh-shake');}catch(e){}},420);
+  }
+  if(nhLockHits>=NH_LOCK_HINT_AT){nhLockHits=0;nhLockHint();}
+}
+function nhLockHint(){
+  try{
+    if(!nhLockHintEl){
+      nhLockHintEl=document.createElement('div');
+      nhLockHintEl.className='nh-lock-hint';
+      nhLockHintEl.setAttribute('role','status');
+      (document.querySelector('.phone-screen')||document.body).appendChild(nhLockHintEl);
+    }
+    /* 무엇이 되는지를 말한다 — "안 됩니다" 만 하면 응답자가 할 일을 모른다. */
+    var names={map:'지도 움직이기',tabs:'탭 바꾸기',mode:'렌즈 바꾸기',
+      content:'컨텐츠 열기',add:'올리기',drawer:'메뉴',page:'상단 지면'};
+    var ok=(nhAllow||[]).map(function(k){return names[k];}).filter(Boolean);
+    nhLockHintEl.textContent=ok.length
+      ? '이 문항에서는 '+ok.join(' · ')+'만 할 수 있어요'
+      : '이 문항에서는 화면을 보기만 합니다';
+    nhLockHintEl.classList.add('on');
+    if(nhLockHintT)clearTimeout(nhLockHintT);
+    nhLockHintT=setTimeout(function(){try{nhLockHintEl.classList.remove('on');}catch(e){}},2600);
+  }catch(e){}
+}
+
+/* 어느 잠금 단위에 속한 자리인가 — DOM 에서 위로 올라가며 찾는다. 못 찾으면 null(안 막는다). */
+function nhLockHitFor(el){
+  if(!el||!el.closest)return null;
+  if(el.closest('.pn-add'))return 'add';
+  if(el.closest('.phone-navbar'))return 'tabs';
+  if(el.closest('#phone-mode'))return 'mode';
+  if(el.closest('#phone-hamburger')||el.closest('.pn-ai')||el.closest('#phone-drawer'))return 'drawer';
+  if(el.closest('#phone-content-page'))return 'page';
+  /* 컨텐츠(핀·카드)는 지도 위 오버레이다 — 지도 자체(#phone-map)보다 안쪽이라 먼저 잡는다.
+     지도 이동·줌은 클릭이 아니라 제스처라 여기서 안 막는다 (nhLockMap 이 Maps 옵션으로 막는다). */
+  if(el.closest('.fp-dot,.deal-pin,.deal-label,.req-pin,.spot-bubble,.feed-pin,.add-pin'))return 'content';
+  return null;
+}
+
+/*
+ * 잠금 문지기 (v2.53) — **캡처 단계에서 한 번에 거른다.**
+ *
+ * 일곱 곳에 각자 게이트를 넣으면 하나를 빠뜨리기 쉽고, 새 버튼이 생길 때마다 또 넣어야
+ * 한다. 폰 화면 뿌리에서 캡처로 받으면 **원래 핸들러가 돌기 전에** 가로챌 수 있다.
+ *
+ * ⚠️ **재생 중에는 안 막는다.** 대본이 시키는 손짓은 사람의 손이 아니다 — 여기서 막으면
+ * 시나리오가 제 화면을 못 만든다.
+ */
+function initLockGuard(){
+  var root=document.querySelector('.phone-screen')||document.body;
+  if(!root||root.dataset.nhLockGuard)return;
+  root.dataset.nhLockGuard='1';
+  ['click','pointerdown','touchstart'].forEach(function(type){
+    root.addEventListener(type,function(e){
+      if(!nhAllow)return;            // 잠금 없음 — 여태처럼 전부 열려 있다
+      if(typeof nhPlaying!=='undefined'&&nhPlaying)return; // 재생 중은 대본의 시간이다
+      var hit=nhLockHitFor(e.target);
+      if(!hit||nhCan(hit))return;
+      e.stopPropagation();
+      if(e.cancelable)e.preventDefault();
+      // 흔들기는 click 에서 한 번만 — 세 이벤트에 다 걸면 세 번 흔들린다.
+      if(type==='click')nhLockBump(e.target.closest?e.target.closest('button,[role="button"],.pn-item')||e.target:e.target);
+    },true);
+  });
+}
+
+/** 지도 제스처 잠금 — 클릭이 아니라 Maps 옵션이라 따로 건다. */
+function nhLockMap(){
+  try{
+    if(typeof phoneMap==='undefined'||!phoneMap||!phoneMap.setOptions)return;
+    var on=nhCan('map');
+    phoneMap.setOptions({
+      gestureHandling:on?'greedy':'none',
+      disableDoubleClickZoom:!on,
+      keyboardShortcuts:on,
+    });
+  }catch(e){}
+}
+
 function initScenarioBridge(){
   window.addEventListener('message',function(e){
     if(EMBED_ORIGINS.indexOf(e.origin)<0)return;                 // 허용 오리진만
@@ -11092,11 +11227,18 @@ function initScenarioBridge(){
     else if(d.type==='nh:stop'){nhStop();nhReset();nhPost(reply,{type:'nh:stopped'});}
     /* 방금 만든 것을 지금 세워 본다 (v2.47) — 재생 중에는 안 받는다: 그때 지도 위에서
        벌어지는 일은 대본이고, 거기에 목록 편집이 끼어들면 시연이 거짓말을 한다. */
+    /* 조작 잠금 (v2.53) — `allow` 가 배열이면 그 안의 것만 허용, 없으면 전부 허용.
+       재생과 무관하게 언제든 바꿀 수 있다 (문항을 넘길 때마다 온다). */
+    else if(d.type==='nh:lock'){
+      nhLockSet(Array.isArray(d.allow)?d.allow:null);
+      nhPost(reply,{type:'nh:locked',allow:nhAllow});
+    }
     else if(d.type==='nh:peek'){
       if(nhPlaying)nhPost(reply,{type:'nh:error',message:'재생 중에는 미리 세울 수 없습니다.'});
       else if(d.clear===true){nhPeekClear();nhPost(reply,{type:'nh:peeked',ok:true});}
       else nhPost(reply,{type:'nh:peeked',ok:nhPeek(d.item)!==false});}
   });
+  initLockGuard(); // 조작 잠금 문지기 (v2.53) — 잠금이 없으면 아무것도 안 막는다
   // 부모가 언제 붙을지 모르므로 준비되면 알린다 (시나리오 목록은 비밀이 아니다)
   if(window.parent&&window.parent!==window){
     try{window.parent.postMessage({source:'now-here',type:'nh:ready',
