@@ -10289,20 +10289,31 @@ function nhBurstPhoto(theme,salt,k){
   }catch(e){return '';}
 }
 var NH_BURST_NAMES=['동네주민','골목탐험가','산책러','단골손님','뚜벅이','로컬큐레이터'];
+/* 쏟아지는 현장 Request (v2.51, 콘솔 D167) — **묻는 말**이라 스팟과 어투가 다르다.
+   여기 깔리는 것은 전부 `mine:false`(남이 올린 것)다: 엔딩에서 쏟아지는 물음이 전부
+   내 것이면 "동네가 묻는다" 가 아니라 "내가 도배했다" 가 된다. */
+var NH_BURST_REQS=['지금 거기 사람 많아요?','주차 자리 있나요?','아직 문 열었어요?',
+  '웨이팅 얼마나 되나요?','지금 비 와요?','자리 있는 카페 있을까요?',
+  '이 근처 조용한 곳 있나요?','지금 가면 바로 먹을 수 있어요?'];
 var NH_BURST_DEALS=[['마감 직전 딜','🥐','베이커리',40],['오늘만 이 가격','☕','카페',30],
   ['라스트 오더','🍜','분식집',25],['깜짝 타임딜','🛍️','편집숍',35]];
 /** burst 가 한 번에 만들 수 있는 개수 — 콘솔의 MAX_BURST_COUNT 와 같은 값이어야 한다.
     v2.38: 50 → 100. 등장 시각을 ms 에 고르게 펴므로 개수가 늘어도 리듬은 유지된다. */
 var NH_BURST_MAX=100;
 /** `v` 를 종류 목록으로 — "spot+feed" 처럼 이어 붙일 수 있다 (v2.12). */
+/* v2.51 (콘솔 D167): 쏟아지는 종류가 여섯이다 — **지도에 뜨는 것은 전부** 고를 수 있어야
+   한다는 규칙이 섰다. `req`(현장 Request)가 여태 빠져 있었고, 타임딜은 아이콘과 이름표를
+   갈라 고를 수 없었다(늘 둘 다).
+     deal    = ⏰ 아이콘 + 가게 이름표
+     dealpin = ⏰ 아이콘만 (상호를 안 줘서 dealShopName 이 빈 값이 된다)
+     store   = 이름표만 (dealActive 가 빼므로 핀이 안 선다) */
 function nhBurstKinds(v){
   var out=[];
   String(v||'').split(/[+,\s]+/).forEach(function(x){
-    // v2.49: `store`(딜 없이 이름표만 서는 가게)도 쏟아진다 — 상권이 깨어나는 그림
-    if((x==='spot'||x==='feed'||x==='deal'||x==='store')&&out.indexOf(x)<0)out.push(x);
+    if((x==='spot'||x==='feed'||x==='req'||x==='deal'||x==='dealpin'||x==='store')&&out.indexOf(x)<0)out.push(x);
   });
-  /* 빈 값·모르는 값은 **여태 셋**이다 (store 를 넣지 않는다) — 저장된 데모의 `v` 가
-     대개 비어 있어서, 여기에 끼우면 옛 엔딩에 없던 가게 이름표가 갑자기 깔린다. */
+  /* 빈 값·모르는 값은 **여태 셋**이다 (뒤에 늘어난 것들을 넣지 않는다) — 저장된 데모의 `v`
+     가 대개 비어 있어서, 여기에 끼우면 옛 엔딩에 없던 것이 갑자기 깔린다. */
   return out.length?out:['spot','feed','deal'];
 }
 /* 밀집도 (v2.38) — 같은 개수라도 **얼마나 좁게 몰아넣을까**.
@@ -10384,11 +10395,27 @@ function nhBurst(v,n,e,ms,token,look,sp){
           if(typeof renderFeedMarkers==='function')renderFeedMarkers();
           if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
           if(typeof renderNews==='function')renderNews();}
+      }else if(kind==='req'){
+        /* 현장 Request (v2.51, 콘솔 D167) — 엔딩에 **묻는 말**도 쏟아진다.
+           전부 `mine:false` 다: 다 내 것이면 "동네가 묻는다" 가 아니라 "내가 도배했다" 가 된다.
+           nhLayReq 는 자리를 스스로 잡으므로(nhPosGet||nhSpread) 셋째 인자에 이 점을 준다 —
+           nhLayDeal 과 같은 규칙이다. */
+        var rq=pick(NH_BURST_REQS);
+        if(nhLayReq({q:rq,mine:false},idx,p,stamp,token)
+           &&typeof renderRequestMarkers==='function')renderRequestMarkers();
       }else if(kind==='store'){
         /* 매장 (v2.49) — 딜 없이 **이름표만** 선다. 상호는 딜 표본의 가게 이름을 빌리되
            `title` 을 안 준다: title 이 있으면 딜로 읽혀 ⏰ 핀이 서고 "마감 직전" 이 뜬다. */
         var st2=pick(NH_BURST_DEALS);
         if(nhLayDeal({e:st2[1],shop:st2[2],store:true},idx,p,stamp)
+           &&typeof renderDealMarkers==='function')renderDealMarkers();
+      }else if(kind==='dealpin'){
+        /* 타임딜 — **아이콘만** (v2.51, 콘솔 D167).
+           `shop` 을 안 준다: nhLayDeal 이 '근처 매장' 을 채우는데 dealShopName 이 그 값을
+           "콘솔이 안 줬다" 로 읽어 이름표를 안 건다(v2.32). ⏰ 핀은 dealActive 가 받으므로
+           그대로 선다 — 딜이 몇 개나 떴는지만 보여주고 상호로 화면을 덮지 않는 그림이다. */
+        var dp=pick(NH_BURST_DEALS);
+        if(nhLayDeal({title:dp[0],e:dp[1],pct:dp[3],secs:600+120*(k%5)},idx,p,stamp)
            &&typeof renderDealMarkers==='function')renderDealMarkers();
       }else{
         var dl=pick(NH_BURST_DEALS);
