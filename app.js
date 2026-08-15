@@ -4406,6 +4406,9 @@ function settingsSnapshotFull(){
        임베드(REST publicSettings)가 영영 못 봤다. 스킨은 건너가는데 지면 타입만 기본(1)
        으로 뜨던 원인. */
     newsCardVer:newsCardVer,
+    /* 앱 차원 효과음 (v2.52) — 이 서비스의 소리다. 임베드도 같은 값으로 울어야 하므로
+       캐시·파일 백스톱·클라우드가 다 같은 범위로 나른다. */
+    appSfx:appSfx,
     /* 트렌드 존 목록 (v2.22) — 콘솔이 골라 가져가는 **내보내기 전용** 칸이다.
        applyFullSettings 는 이것을 안 읽는다 (applyExtraSettings 참조). */
     zoneBook:zoneBookSnapshot()};
@@ -4436,6 +4439,8 @@ function applyExtraSettings(s){
   // 상단 지면 타입 (v2.11) — 화면 갱신은 부르는 쪽의 renderNews 가 한다 (이 함수의 규칙 그대로).
   var _ncv=parseInt(s.newsCardVer,10);
   if(_ncv>=1&&_ncv<=3)newsCardVer=_ncv;
+  /* 앱 차원 효과음 (v2.52) — 빈 자리는 "관리자가 안 정했다" 라 저장소 기본이 받는다. */
+  nhSfxAppSet(s.appSfx);
   /* ⚠️ `zoneBook`(v2.22)은 **일부러 적용하지 않는다.** 그것은 콘솔이 읽어 가는 목록이지
      이 앱의 존이 아니다 — 앱의 존은 shared/mapContent 에서 온다. 여기서 적용하면
      임베드가 자기 무대(seed.zones) 위에 남의 존을 덧그린다. */
@@ -4524,6 +4529,7 @@ function applyCloudData(d){
   if(ZONE_CARD_STYLES.indexOf(d.zoneCardStyle)>=0){zoneCardStyle=d.zoneCardStyle;var _zcs=document.getElementById('zone-card-style');if(_zcs)_zcs.value=zoneCardStyle;} // v2.27 — 목록 하나로('page'·'circle' 포함)
   if(d.feedTimeMode==='ago'||d.feedTimeMode==='clock'||d.feedTimeMode==='off'){feedTimeMode=d.feedTimeMode;var _ftm=document.getElementById('feed-time');if(_ftm)_ftm.value=feedTimeMode;if(currentTab==='feed')renderFeed();}
   if(APP_SKINS.indexOf(d.appSkin)>=0){setAppSkin(d.appSkin);var _sks=document.getElementById('app-skin');if(_sks)_sks.value=appSkin;} // [M15] 디자인 스킨(관리자가 정하면 모두에게)
+  if(nhSfxAppSet(d.appSfx)&&typeof syncSfxUI==='function')syncSfxUI(); // v2.52 앱 차원 효과음
   if(d.spotMapBg&&typeof d.spotMapBg==='object'){spotMapBg.op=Number(d.spotMapBg.op)||0;spotMapBg.scaleM=Number(d.spotMapBg.scaleM)||100;saveSpotMapBg();
     var _mo=document.getElementById('spotmap-op');if(_mo)_mo.value=String(spotMapBg.op);
     var _ms=document.getElementById('spotmap-scale');if(_ms)_ms.value=String(spotMapBg.scaleM);
@@ -4769,6 +4775,50 @@ function markCloudDirty(){
   if(!fbDb||!currentUser||currentRole!=='admin')return;
   clearTimeout(cloudSaveTimer);cloudSaveTimer=setTimeout(cloudSave,1500);
 }
+/* ── 🔊 효과음 관리 (v2.52, 콘솔 D168) ────────────────────────────────
+   소리를 **이 서비스의 것**으로 만든 자리. 여태는 데모마다 따로 올려야 했다.
+   칸을 비우면 저장소의 기본음(`sfx/`)이 난다 — "안 정했다" 와 "조용히 하라" 를 가르지
+   않는다: 조용히 하고 싶으면 파일을 지우는 것이 아니라 그 자리에 다른 소리를 넣는다. */
+function syncSfxUI(){
+  NH_SFX_KEYS.forEach(function(k){
+    var el=document.getElementById('sfx-'+k);
+    if(el)el.value=appSfx[k]||'';
+  });
+}
+function initSfxPanel(){
+  if(!document.getElementById('sfx-pop'))return; // 관리자 화면이 아니다
+  syncSfxUI();
+  NH_SFX_KEYS.forEach(function(k){
+    var el=document.getElementById('sfx-'+k);
+    if(!el)return;
+    el.addEventListener('change',function(){
+      var next={};NH_SFX_KEYS.forEach(function(j){
+        var e2=document.getElementById('sfx-'+j);if(e2&&e2.value.trim())next[j]=e2.value.trim();
+      });
+      nhSfxAppSet(next);
+      /* 거른 뒤의 값을 화면에 돌려준다 — 통과 못 한 주소는 칸에서 사라진다.
+         "적었는데 왜 소리가 안 나지" 를 그 자리에서 알게 하는 것이 요점이다. */
+      syncSfxUI();
+      if(typeof saveSettingsCache==='function')saveSettingsCache();
+    });
+  });
+  // ▶ 미리듣기 — 은행을 안 거치고 그 주소를 바로 운다 (칸에 방금 적은 것을 들어봐야 한다)
+  Array.prototype.forEach.call(document.querySelectorAll('.sfx-try'),function(b){
+    b.addEventListener('click',function(){
+      var k=b.getAttribute('data-sfx');
+      var el=document.getElementById('sfx-'+k);
+      var u=nhSfxSrc((el&&el.value.trim())||'')||nhSfxApp(k);
+      if(!u){b.textContent='✕';setTimeout(function(){b.textContent='▶';},1200);return;}
+      try{var a=new Audio(u);var p=a.play();if(p&&p.catch)p.catch(function(){});}catch(e){}
+    });
+  });
+  var rb=document.getElementById('sfx-reset');
+  if(rb)rb.addEventListener('click',function(){
+    nhSfxAppSet({});syncSfxUI();
+    if(typeof saveSettingsCache==='function')saveSettingsCache();
+    rb.textContent='✅ 기본 소리';setTimeout(function(){rb.textContent='↺ 기본 소리로';},1400);
+  });
+}
 function initSettingsExport(){ // 현재 적용 설정 → JSON 복사 (repo settings-default.json 백업용)
   var btn=document.getElementById('settings-export');if(!btn)return;
   btn.addEventListener('click',function(){
@@ -4780,6 +4830,7 @@ function initSettingsExport(){ // 현재 적용 설정 → JSON 복사 (repo set
     snap.spotMapBg={op:spotMapBg.op,scaleM:spotMapBg.scaleM};snap.feedIconSize=feedIconSize;
     snap.mapPinView=mapPinView; // v2.15 지도 컨텐츠별 표시
     snap.uiScale=uiScale; // v2.27 폰 셸 UI 크기
+    snap.appSfx=appSfx; // v2.52 앱 차원 효과음 — settings-default.json 으로 나가야 임베드도 같은 소리다
     var json=JSON.stringify(snap,null,1);
     function done(){btn.textContent='✅ 복사됨';setTimeout(function(){btn.textContent='📋 설정 JSON 복사';},1600);}
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(json).then(done,function(){prompt('아래 JSON을 복사하세요',json);});
@@ -4798,7 +4849,8 @@ function cloudSave(){
     zoneCardStyle:zoneCardStyle,feedTimeMode:feedTimeMode,appSkin:appSkin,spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},
     feedIconSize:feedIconSize, // v2.3 — additive(옛 클라이언트는 모르고 지나간다)
     mapPinView:mapPinView,     // v2.15 — 지도 컨텐츠별 표시 방식 (additive)
-    uiScale:uiScale};          // v2.27 — 폰 셸 UI 크기 (additive)
+    uiScale:uiScale,           // v2.27 — 폰 셸 UI 크기 (additive)
+    appSfx:appSfx};            // v2.52 — 앱 차원 효과음 (additive)
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
   /* 공개 설정 문서 (v2.5) — persona-vc 임베드가 비로그인 REST 로 읽는다. json 문자열
@@ -6122,15 +6174,60 @@ function nhBounceMark(id,n){
 // v2.37: 'shot' = 카메라 셔터 (라이브 카메라 액션). 파일을 안 올리면 조용히 지나간다.
 var NH_SFX_KEYS=['pop','tap','open','close','mode','type','shot'];
 var NH_SFX_GAP={pop:120,tap:90,open:140,close:140,mode:150,type:55,shot:200};
+/* ── 앱 차원의 기본 소리 (v2.52, 콘솔 D168) ─────────────────────────────
+   여태 소리는 **데모마다** 붙는 값이었다(콘솔의 seed.sfx). 같은 서비스를 보여주는
+   데모가 여럿인데 소리는 하나씩 따로 올려야 했고, 안 올린 데모는 조용했다.
+   이제 소리는 **이 서비스의 것**이다 — 관리자 콘솔에서 한 번 정하면 모든 데모가 그 소리로 난다.
+   데모가 제 소리를 올리면 그 자리만 덮어쓴다 (아래 nhSfxSet 참조).
+
+   기본값은 저장소에 담긴 합성음이다 — 외부 호스팅에 안 기댄다(시연 중에 죽으면 조용해진다). */
+var NH_SFX_DEFAULT={pop:'sfx/pop.wav',tap:'sfx/tap.wav',open:'sfx/open.wav',
+  close:'sfx/close.wav',mode:'sfx/mode.wav',type:'sfx/type.wav',shot:'sfx/shot.wav'};
+/** 관리자가 정한 앱 소리. 비어 있는 자리는 NH_SFX_DEFAULT 가 받는다. */
+var appSfx={};
+/** 지금 이 서비스의 소리 한 자리 — 관리자 값 > 저장소 기본. */
+function nhSfxApp(k){return nhSfxSrc(appSfx[k])||nhSfxSrc(NH_SFX_DEFAULT[k]);}
+/**
+ * 설정에서 온 소리 표를 건다 (v2.52) — **거른 값만** 담는다.
+ *
+ * 클라우드·로컬 캐시·repo 파일·관리자 화면이 **전부 이 문 하나**를 지난다. 네 곳이 각자
+ * 거르면 한 곳만 고쳐지는 일이 생긴다(이 저장소가 applyExtraSettings 를 만든 이유와 같다).
+ * 통과 못 한 주소는 아예 안 담기므로 재생할 때 다시 검사할 필요가 없다.
+ */
+function nhSfxAppSet(o){
+  if(!o||typeof o!=='object')return false;
+  var next={};
+  NH_SFX_KEYS.forEach(function(k){var u=nhSfxSrc(o[k]);if(u)next[k]=u;});
+  appSfx=next;
+  /* 은행을 비운다 — nhSfxPlay 가 다음 소리부터 새 값으로 다시 채운다. 관리자가 소리를
+     바꾸고 새로고침 없이 확인할 수 있어야 한다. (재생 중에 설정이 바뀌면 그 회차의
+     데모 덮어쓰기를 잃지만, 임베드에는 관리자 화면이 없어서 그 일이 안 난다.) */
+  nhSfxBank={};nhSfxAt={};
+  return true;
+}
 var nhSfxBank={},nhSfxAt={};
+/**
+ * 청소 중에는 소리를 안 낸다 (v2.25 의 뜻을 v2.52 에서도 지킨다).
+ *
+ * `nhReset` 이 부르는 것들(모드 되돌리기·팝업 닫기·탭 전환)은 연출이 아니라 청소인데
+ * 그 자리들이 전부 `nhSfxPlay` 를 부른다. v2.25 는 **은행을 비우는 것**으로 조용히 했지만,
+ * v2.52 부터 `nhSfxPlay` 가 비어 있으면 앱 소리를 스스로 채우므로 그 방법이 더는 안 통한다 —
+ * 회차를 끝낼 때마다 "삐- 딸깍 스윽" 하고 울게 된다. 그래서 **문을 따로 잠근다.**
+ */
+var nhSfxMute=false;
+/**
+ * 이 회차에 쓸 소리를 건다.
+ *
+ * **앱이 바닥, 데모가 그 위** (v2.52, 콘솔 D168). 데모가 안 준 자리는 앱 소리가 난다 —
+ * 여태는 데모가 안 주면 그 자리가 통째로 조용했다. 인자가 비어 있어도 **끄지 않는다**:
+ * 그것이 "이 데모는 소리 설정이 없다" 이지 "조용히 하라" 가 아니다.
+ */
 function nhSfxSet(v){
   nhSfxBank={};nhSfxAt={};
-  if(!v)return;
   // 옛 계약: 문자열 하나 = 등장음 (v2.23)
-  var map=(typeof v==='string')?{pop:v}:(v&&typeof v==='object'?v:null);
-  if(!map)return;
+  var map=(typeof v==='string')?{pop:v}:(v&&typeof v==='object'?v:{});
   NH_SFX_KEYS.forEach(function(k){
-    var u=nhSfxSrc(map[k]);
+    var u=nhSfxSrc(map[k])||nhSfxApp(k);
     if(!u)return;
     try{
       var a=new Audio(u);
@@ -6147,12 +6244,26 @@ function nhSfxSrc(v){
   if(!s)return '';
   if(/^https:\/\//i.test(s))return s.slice(0,2000);
   if(/^data:audio\/[a-z0-9.+-]+;base64,/i.test(s))return s.slice(0,2000000);
+  /* 저장소에 담긴 기본음 (v2.52) — `sfx/pop.wav` 처럼 **이 사이트 안의 파일**만 받는다.
+     패턴을 아주 좁게 잡는다: 폴더는 `sfx/` 하나, 이름은 영숫자, 확장자는 넷.
+     그래야 `javascript:`·`//evil.com`(프로토콜 상대)·`../` 가 들어올 자리가 아예 없다. */
+  if(/^sfx\/[a-z0-9_-]+\.(wav|mp3|ogg|m4a)$/i.test(s))return s;
   return '';
 }
 function nhSfxPlay(key){
+  if(nhSfxMute)return; // 청소 중 (nhReset) — 위 nhSfxMute 주석 참조
   key=key||'pop'; // 자리를 안 적으면 등장음 (v2.23 호출부가 그대로 산다)
   var el=nhSfxBank[key];
-  if(!el)return;
+  /* 은행이 비어 있으면 **그 자리에서 앱 소리를 채운다** (v2.52, 콘솔 D168).
+     이 함수는 재생 밖에서도 불린다 — 시트·팝업·렌즈 전환·타이핑·셔터가 전부 여기로 온다.
+     여태는 `nhSfxSet` 이 회차 시작에서만 은행을 채워서 **평소의 앱은 조용했다.**
+     늦게 채우면 설정이 언제 도착하든(캐시·파일 백스톱·클라우드) 알아서 맞는다 —
+     부팅 순서에 기대지 않는 것이 이 방식의 요점이다. */
+  if(!el){
+    var u=nhSfxApp(key);
+    if(!u)return;
+    try{el=new Audio(u);el.preload='auto';el.load();nhSfxBank[key]=el;}catch(e){return;}
+  }
   var now=Date.now();
   if(now-(nhSfxAt[key]||0)<(NH_SFX_GAP[key]||120))return;
   nhSfxAt[key]=now;
@@ -10601,10 +10712,13 @@ function nhDrop(v,i,e,fast){
 }
 
 function nhReset(){
+  /* **되돌리는 동안은 무음이다** (v2.25). 여기서 부르는 것들(모드 되돌리기·팝업 닫기)은
+     연출이 아니라 청소인데, 그 소리가 나면 회차를 끝낼 때마다 "삐-" 하고 운다.
+     v2.52: 은행을 비우는 것만으로는 이제 안 조용하다 — nhSfxPlay 가 비면 앱 소리를 스스로
+     채운다. 그래서 문을 잠그고, **무슨 일이 있어도** finally 에서 연다(중간에 던지면
+     앱이 영영 조용해진다). */
+  nhSfxMute=true;
   try{
-    /* **되돌리는 동안은 무음이다** (v2.25). 여기서 부르는 것들(모드 되돌리기·팝업 닫기)은
-       연출이 아니라 청소인데, 앞 회차의 소리가 아직 걸려 있으면 회차를 시작할 때마다
-       "삐-" 하고 한 번 운다. 다음 회차의 소리는 nhSeedScenario 가 다시 건다. */
     /* 회차를 시작하며 배율을 맞춘다 (v2.35). 감시(resize·ResizeObserver)가 놓친 변화가
        있어도 **재생은 늘 옳은 카메라에서 출발한다** — 전체화면으로 들어간 직후·기기를
        돌린 직후가 정확히 그 순간이다.
@@ -10658,6 +10772,7 @@ function nhReset(){
     if(typeof switchTab==='function')switchTab('map');
     if(typeof switchMode==='function'&&currentMode!=='local')switchMode('local');
   }catch(e){console.warn('[M16] reset',e);}
+  finally{nhSfxMute=false;} // 청소 끝 — 여기서 안 열면 앱이 영영 조용해진다 (v2.52)
 }
 
 /* 콘솔이 보내온 시나리오를 받아들인다 (v1.68) — 서베이에서 뽑은 시나리오는 여기 상수에
@@ -11025,6 +11140,7 @@ function startEmbed(){
   FACTORY_SETTINGS=snapshotSettings();initDraft(); // 공장 기본값 + 설정 편집 버퍼(DRAFT)
   loadFileDefaults(); // repo 백스톱 설정(settings-default.json) — 공장값 캡처 후 비동기 적용, 클라우드가 오면 그쪽 우선
   initSettingsExport();
+  initSfxPanel(); // v2.52 앱 차원 효과음
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
   loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();applyPinStyle();initUiScaleUI();syncCoinUI();initSeedGen();
   window.addEventListener('resize',layoutTabPages);

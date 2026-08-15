@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=2.51.0" />
+  <link rel="stylesheet" href="style.css?v=2.52.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.51.0" />
+  <link rel="stylesheet" href="skin-new.css?v=2.52.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.51.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.52.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -36,7 +36,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.51.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.52.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -593,6 +593,25 @@
             </div>
           </div>
 
+          <!-- ── 🔊 효과음 (v2.52) ──
+               소리는 **이 서비스의 것**이다. 여태는 데모마다(persona-vc 콘솔의 seed.sfx)
+               따로 올려야 했고 안 올린 데모는 조용했다. 여기서 한 번 정하면 모든 데모와
+               실제 앱이 같은 소리로 난다 — 데모가 제 소리를 올리면 그 자리만 덮어쓴다. -->
+          <div class="adm-sys" data-adm="y-sfx">
+            <h4>🔊 효과음</h4>
+            <div class="settings-section">
+              <div class="setting-row"><label>컨텐츠 등장</label><input type="text" class="sfx-in" id="sfx-pop" placeholder="sfx/pop.wav 또는 https://…" /><button type="button" class="action-btn small sfx-try" data-sfx="pop">▶</button></div>
+              <div class="setting-row"><label>누르는 손</label><input type="text" class="sfx-in" id="sfx-tap" placeholder="sfx/tap.wav 또는 https://…" /><button type="button" class="action-btn small sfx-try" data-sfx="tap">▶</button></div>
+              <div class="setting-row"><label>팝업 열림</label><input type="text" class="sfx-in" id="sfx-open" placeholder="sfx/open.wav 또는 https://…" /><button type="button" class="action-btn small sfx-try" data-sfx="open">▶</button></div>
+              <div class="setting-row"><label>팝업 닫힘</label><input type="text" class="sfx-in" id="sfx-close" placeholder="sfx/close.wav 또는 https://…" /><button type="button" class="action-btn small sfx-try" data-sfx="close">▶</button></div>
+              <div class="setting-row"><label>렌즈 전환</label><input type="text" class="sfx-in" id="sfx-mode" placeholder="sfx/mode.wav 또는 https://…" /><button type="button" class="action-btn small sfx-try" data-sfx="mode">▶</button></div>
+              <div class="setting-row"><label>글자 입력</label><input type="text" class="sfx-in" id="sfx-type" placeholder="sfx/type.wav 또는 https://…" /><button type="button" class="action-btn small sfx-try" data-sfx="type">▶</button></div>
+              <div class="setting-row"><label>카메라 셔터</label><input type="text" class="sfx-in" id="sfx-shot" placeholder="sfx/shot.wav 또는 https://…" /><button type="button" class="action-btn small sfx-try" data-sfx="shot">▶</button></div>
+              <div class="setting-row"><button id="sfx-reset" class="action-btn small" type="button">↺ 기본 소리로</button></div>
+              <p class="section-hint">비워 두면 저장소의 기본 소리(<b>sfx/</b> 폴더)가 납니다. 받는 주소는 <b>sfx/이름.wav</b>(저장소 파일) · <b>https://…</b> · <b>data:audio/…</b> 셋입니다. 정한 값은 <b>📋 설정 JSON 복사</b> → <b>settings-default.json</b> 으로 넣어야 처음 여는 기기·데모 임베드에도 갑니다. 개별 데모가 persona-vc 콘솔에서 제 소리를 올리면 <b>그 자리만</b> 덮어씁니다.</p>
+            </div>
+          </div>
+
           <!-- ── 🛠 시스템 ── -->
           <div class="adm-sys" data-adm="y-preview">
             <h4>미리보기 · 설정 백업</h4>
@@ -682,7 +701,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.51.0"></script>
-  <script src="app.js?v=2.51.0"></script>
+  <script src="config.js?v=2.52.0"></script>
+  <script src="app.js?v=2.52.0"></script>
 </body>
 </html>
