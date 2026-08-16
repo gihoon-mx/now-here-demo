@@ -6721,7 +6721,10 @@ function dealRemain(d){ // 남은 초
    넣으므로 가게만 있는 항목도 30분 동안 "진행 중" 이 되고 그 뒤 조용히 뒤집힌다 —
    그러면 "⏰ 타임딜 N" 카운트·관리자 표·쿠폰 액션·`pop e:'sheet'` 가 전부 거짓말을 한다.
    한 술어를 좁히는 것으로 그 다섯 자리가 손대지 않고 정직해진다. */
-function dealActive(d){return !!d&&!d.store&&(d.seed||dealRemain(d)>0);}
+/* v2.59 (콘솔 D190): `off` 가 하나 더 붙는다 — **아직 안 켠 딜**이다. 값이 다 있는데도
+   진행 중이 아니어야 하는 상태라, 여기 한 술어를 좁히는 것으로 강조·미니 라벨·쿠폰·
+   `nDeal` 카운트가 전부 무수정으로 정직해진다 (v2.32 가 `store` 로 한 것과 같은 자리). */
+function dealActive(d){return !!d&&!d.store&&!d.off&&(d.seed||dealRemain(d)>0);}
 /* 지도에 **보일** 것인가 (v2.58) — 이제 전부 보인다: 이 배열의 항목은 **가게**이고,
    딜이 끝나는 것은 그 가게가 사라지는 일이 아니다. 여태는 딜이 0초가 되면 핀도 이름표도
    통째로 걷혔는데, 통합(D189) 뒤에는 그것이 "마감 순간 가게가 증발한다" 로 보인다.
@@ -6802,11 +6805,15 @@ function initDealLabelClass(){
       this.tagEl=tag;this.tagD=tgD;this.tagI=tgI;
     }
     el.title=dealName(d)+(dealActive(d)?' · 타임딜':'');
-    /* 이름표를 누르면 **매장 전용 페이지**로 간다 (요청 3). 딜이 있든 없든 같은 페이지다 —
-       storeView 가 없는 값(가격·남은 시간)을 화면에서 빼 준다. */
+    /* 이름표를 누르면 **그 가게의 화면**이 열린다.
+       v2.59 (콘솔 D190): 딜 중이면 **타임딜 팝업**(쿠폰 시트)이고, 아니면 여태처럼 매장
+       전용 페이지다 — 사용자 요구다. 이름표가 딜이라고 외치고 있는데 눌렀더니 딜이 없는
+       페이지가 열리면, 강조가 가리킨 것과 열린 것이 다르다.
+       ⚠️ `dealActive` 를 **누를 때** 묻는다 — 딜이 끝난 뒤에 누르면 매장 페이지다. */
     el.querySelector('.dl-name').addEventListener('click',function(e){
       e.stopPropagation();
       if(self._dragged){self._dragged=false;return;} // 방금 끌어 옮긴 손은 페이지를 안 연다
+      if(dealActive(d)&&typeof openDealSheet==='function'){openDealSheet(d.id);return;}
       if(typeof openStorePage==='function')openStorePage(d.id);
     });
     /* 끌어 옮기기 (v2.43) — 지도 위 컨텐츠는 **전부** 옮길 수 있어야 한다.
@@ -7047,8 +7054,15 @@ function claimDeal(d,opts){
   /* 티켓이 **먼저** 난다 (v2.31) — 출발점이 누른 버튼이라 말풍선을 기다릴 이유가 없다.
      opts.from = 부르는 쪽이 시트를 닫기 전에 재 둔 버튼 자리(dealClaimAt). 없으면 화면 가운데. */
   couponFly(opts.from);
+  return couponSay(d,opts.say,hard);
+}
+/* 쿠폰 문구만 (v2.59) — 티켓과 갈랐다.
+   `coupon` 액션이 **말풍선을 popclose 까지 미루기** 때문이다 (콘솔 D190): 티켓은 누른
+   버튼에서 그 자리에 날아야 하고(그게 누름의 대답이다), 문구는 시트를 닫는 순간에 온다.
+   사람이 손으로 받는 길(ds-claim 클릭)은 여태처럼 둘이 붙어 있다 — claimDeal 이 다 한다. */
+function couponSay(d,say,hard){
   if(hard!=null&&hard<=0)return true; // e:0 = 문구를 아예 안 띄운다 (쿠폰은 그래도 날아갔다)
-  aiSay(String(opts.say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요 — 매장에서 제시하세요.')).slice(0,160),
+  aiSay(String(say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요 — 매장에서 제시하세요.')).slice(0,160),
     4000,(hard==null)?null:Math.min(hard,20000));
   return true;
 }
@@ -8606,6 +8620,12 @@ function nhOwn(kind){
   var arr=nhStore(kind),out=[],i,j;
   for(i=0;i<ids.length;i++)for(j=0;j<arr.length;j++)
     if(arr[j]&&arr[j].id===ids[i]){out.push(arr[j]);break;}
+  /* 매장은 **선언 순서**로 돌려준다 (v2.59, 콘솔 D190).
+     까는 것은 매장부터 도는데(딜의 `of` 가 붙으려면 매장이 먼저 서야 한다) 생성 순서를
+     그대로 번호로 쓰면 콘솔의 목록 순서와 어긋난다 — `매장 2번` 이 1번을 집는 자리다.
+     `si`(선언 순번)는 nhLayDeal 이 적는다. 없는 것(옛 항목·burst)은 뒤로 민다. */
+  if(kind==='deal')out.sort(function(a,b){
+    return (a&&a.si!=null?a.si:1e9)-(b&&b.si!=null?b.si:1e9);});
   return out;
 }
 /* i 는 시나리오가 선언한 순서. **음수면 뒤에서부터** — i:-1 = 방금 만든 것(직접 쓴 글).
@@ -8626,6 +8646,10 @@ function nhAt(arr,i){
    다 같은 이야기가 된다 (v1.71까지 "매번 똑같이 보이던" 원인).
    시나리오가 아무것도 안 깔았을 때만 전역 시드로 간다 — 그때는 지역 반경으로 거른다. */
 function nhPick(kind,i){
+  /* `store` 는 `deal` 의 **다른 이름**이다 (v2.59, 콘솔 D190) — 매장과 타임딜이 한 종류가
+     되면서 목록도 하나가 됐다. 딜인지 아닌지는 그 항목의 상태(`store`/`off`)이지 종류가
+     아니다. 옛 시나리오의 `v:'store'` 도 이 한 줄로 같은 목록을 집는다. */
+  if(kind==='store')kind='deal';
   var own=nhOwn(kind);
   if(own.length)return nhAt(own,i);
   var arr=nhStore(kind);
@@ -9491,10 +9515,45 @@ function nhCoupon(i,say,e,token,ms,fast){
   var wait=Math.min(900,Math.max(260,Math.round((ms||1500)*0.45)));
   setTimeout(function(){
     if(token!==nhRunToken)return;
-    // 사람이 누르는 길과 같은 순서다 (v2.31) — 티켓이 버튼에서 뜬 뒤에 시트를 닫는다
-    claimDeal(d,{ms:nhCouponMs(e),say:say,from:btn});
-    if(typeof closeDealSheet==='function')closeDealSheet();
+    /* **시트를 안 닫는다** (v2.59, 콘솔 D190) — 닫는 시점은 `popclose` 가 정한다
+       (현장 Request 컴포저가 v2.48 에 배운 것과 같은 규칙). 여태는 받자마자 스스로 닫아서
+       "쿠폰을 받은 화면" 을 얼마나 보여줄지 대본이 정할 수 없었다.
+       티켓은 지금 난다 — 누른 버튼에서 나와야 그 버튼의 대답이 된다(v2.31).
+       문구는 시트가 닫히는 순간에 온다 — 시트에 가려진 채로 뜨면 아무도 못 읽는다. */
+    claimDeal(d,{ms:0,say:say,from:btn});
+    nhAfterClose(function(){
+      if(token!==nhRunToken)return;
+      couponSay(d,say,nhCouponMs(e));
+    });
   },wait);
+  return true;
+}
+
+/* 매장의 **타임딜을 켠다** (v2.59, `dealon` 액션 · 콘솔 D190).
+
+   컨텐츠 탭에서 매장을 만들고 딜을 `단계에서 켠다` 로 둔 항목이 대상이다 — 그때까지는
+   이름표만 서 있다가(`off:true`), 이 단계에서 딜이 시작된다: 강조색·미니 라벨·남은 시간
+   ·쿠폰이 한꺼번에 붙는다. 딜은 종류가 아니라 **매장의 상태**라는 것이 이 액션의 뜻이다.
+
+   남은 시간은 **여기서부터** 센다(`ts` 를 지금으로) — 무대를 깐 시각부터 세면, 앞 단계가
+   길었던 데모는 켜자마자 이미 몇 분이 지나 있다.
+   여는 것은 이 액션의 일이 아니다 — 팝업은 `pop v:'deal'` 이 연다. */
+function nhDealOn(i,fast){
+  if(typeof nhPick!=='function')return false;
+  var d=nhPick('deal',i);
+  if(!d||d.store)return false;      // 딜 값이 없는 가게는 켤 것이 없다
+  if(!d.off)return false;           // 이미 켜져 있으면 실패로 드러난다 (조용한 성공 금지)
+  d.off=undefined;d.ts=Date.now();
+  /* 등장 바운스 — 이름표는 이미 서 있으므로 `nhBounceMark` 의 표가 아니라 그 자리에서
+     직접 건다 (shopsay 와 같은 자리·같은 이유: 표는 소비형이라 새로 나는 것의 몫이다). */
+  if(typeof renderDealMarkers==='function')renderDealMarkers();
+  if(!fast){
+    var ov=(typeof dealLabels!=='undefined'?dealLabels:[]).find(function(o){return o.d&&o.d.id===d.id;});
+    if(ov&&ov.div){var el=ov.div;el.classList.remove('nh-pop-in');void el.offsetWidth;el.classList.add('nh-pop-in');
+      setTimeout(function(){el.classList.remove('nh-pop-in');},1200);}
+    if(typeof nhSfxPlay==='function')nhSfxPlay(); // 컨텐츠가 뜨는 그 순간과 같은 소리
+  }
+  if(typeof renderDrawerDemo==='function')renderDrawerDemo(); // 관리자 표의 '진행 중' 도 따라온다
   return true;
 }
 
@@ -9872,6 +9931,8 @@ function nhAct(st,token){
       if(st.a==='bubbleclose')return nhHush()!==false;
       // 가게 한마디 (v2.32) — 지도 이름표 옆 말풍선. i=어느 가게 · v=문구(비우면 걷는다)
       if(st.a==='shopsay')return nhShopSay(st.i,st.v)!==false;
+      // 타임딜 켜기 (v2.59) — '단계에서 켠다' 로 둔 매장의 딜이 이 순간 시작된다
+      if(st.a==='dealon')return nhDealOn(st.i,fast)!==false;
       if(st.a==='scope'){if(typeof switchTab==='function')switchTab('feed');
         return nhScope(st.v)!==false;}
       // ── v1.75 카메라 연출 ──
@@ -10254,6 +10315,12 @@ function nhLayDeal(d,i,c,stamp){
     msg:inh('msg')?String(inh('msg')).slice(0,60):undefined,
     store:!!d.store,
     lab:d.lab||undefined,   // 미니 라벨의 한 칸 (v2.58) — 없으면 남은 시간
+    /* 딜을 **단계에서 켠다** (v2.59, 콘솔 D190) — 이름표는 지금 서지만 딜은 아직 아니다.
+       `dealon` 액션이 이 칸을 걷는 순간 강조·미니 라벨·쿠폰이 한꺼번에 붙는다. */
+    off:(!d.store&&!!d.later)||undefined,
+    /* 선언 순번 (v2.59) — 까는 순서(매장 먼저)가 아니라 **콘솔 목록의 순서**가 번호다.
+       nhOwn 이 이 값으로 정렬한다. */
+    si:i,
     secs:secs,ts:Date.now(),seed:false});
   nhTempIds.deal.push(id);
   nhDealIds[i]=id; // v2.49 — 뒤에 오는 딜이 `of` 로 이 항목을 가리킬 수 있다
@@ -10604,13 +10671,14 @@ function nhBurst(v,n,e,ms,token,look,sp){
 /* v2.49: `store` 가 제 칸을 갖는다. 저장은 여태처럼 `deals` 한 배열이지만(D155),
    **보관함은 갈라야 한다** — 콘솔의 고르개는 딜과 매장을 두 목록으로 세는데 여기서
    한 통에 담으면 "타임딜 1번" 이 매장을 집는다(사용자가 본 그 자리다). */
-var nhHeld={spot:[],feed:[],req:[],deal:[],store:[],page:[],c:null,stamp:0,token:0};
+/* v2.59 (콘솔 D190): `store` 칸이 빠졌다 — 매장과 딜이 한 종류가 되어 보관함도 하나다. */
+var nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:0};
 /* 이 회차의 딜/매장 원본과 깔린 id — 딜을 매장에 **붙이는**(`of`) 데 쓴다 (v2.49). */
 var nhSeedDeals=[],nhDealIds={};
 
 function nhSeedScenario(sc,token){
   // 회차마다 0 부터 — write 의 "옮긴 자리" 키가 회차를 넘어 같아야 한다 (v2.12).
-  nhHeld={spot:[],feed:[],req:[],deal:[],store:[],page:[],c:null,stamp:0,token:token};nhPostN=0;nhWriteN=0;nhWriteIds={};nhReqN=0;nhReqIds={};
+  nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:token};nhPostN=0;nhWriteN=0;nhWriteIds={};nhReqN=0;nhReqIds={};
   nhSeedDeals=[];nhDealIds={}; // v2.49 딜↔매장 연동의 출입구 (회차마다 비운다)
   nhAddN=0;nhAddIdx=-1;nhAddAtPinned=false; // 추가 팝업의 순번도 회차마다 0 부터 (자리 기억 키가 어긋나지 않게, v2.34 · 콕 집음 표시는 v2.45)
   /* 등장 효과음 (v2.23) — 회차를 시작할 때 건다(소리가 없는 시나리오면 빈 값으로 꺼서
@@ -10652,21 +10720,16 @@ function nhSeedScenario(sc,token){
      "60+순번" 으로 가격을 매겨 원가가 30만 원대로 튄다(모자가 30만 원짜리가 된다).
      그래서 보관하는 i 는 배열 순번 그대로 — nhLayReq 와 같은 방식이다. */
   /* v2.49: **매장은 매장 보관함으로.** 저장은 한 배열이지만 세는 곳은 둘이라(콘솔의
-     타임딜 목록·매장 목록), 여기서 갈라 두어야 `drop v:'deal' i:0` 이 첫 **딜**을 집는다.
+     타임딜 목록·매장 목록), v2.59 (콘솔 D190) 에 **다시 하나로 합쳤다** — 매장과 딜이 한
+     종류가 됐기 때문이다(딜은 그 매장의 상태다). 보관함도 하나이고 번호는 **선언 순서**다.
      `i` 는 여전히 **배열 순번 그대로**다 — 자리(NH_BAND)와 원가(9900+i*5000)가 그것으로
      정해지고, `of`(딜이 붙을 매장)도 이 번호로 가리킨다.
-     매장을 **먼저** 깐다: 딜이 `of` 로 매장을 가리키면 그 매장이 이미 서 있어야 붙는다. */
+     **까는 것만** 두 번 돈다: 딜이 `of` 로 매장을 가리키면 그 매장이 이미 서 있어야 붙는다.
+     보관은 한 번에 선언 순서로 담는다 — 그래야 `drop` 의 번호가 콘솔 목록과 같다. */
   nhSeedDeals=(sc.seed.deals||[]).slice(0,NH_MAX.deal);
-  nhSeedDeals.forEach(function(d,i){
-    if(!d||!d.store)return;
-    if(d.hold){nhHeld.store.push({v:d,i:i});return;}
-    nhLayDeal(d,i,c,stamp);
-  });
-  nhSeedDeals.forEach(function(d,i){
-    if(!d||d.store)return;
-    if(d.hold){nhHeld.deal.push({v:d,i:i});return;}
-    nhLayDeal(d,i,c,stamp);
-  });
+  nhSeedDeals.forEach(function(d,i){ if(d&&d.hold)nhHeld.deal.push({v:d,i:i}); });
+  nhSeedDeals.forEach(function(d,i){ if(d&&!d.hold&&d.store)nhLayDeal(d,i,c,stamp); });
+  nhSeedDeals.forEach(function(d,i){ if(d&&!d.hold&&!d.store)nhLayDeal(d,i,c,stamp); });
   /* 상단 지면 (v2.2) — 좌표가 없으니 base 도 없다. 상한은 관리자 화면의
      NEWS_MAX_COUNT(6)보다 클 수 있다 — 그 상한은 렌더에 안 걸리고, 무대는 관리자가
      올린 지면이 아니라 이 회차가 깔았다 걷는 것이다. */
@@ -10704,8 +10767,11 @@ function nhSeedScenario(sc,token){
 function nhDrop(v,i,e,fast){
   /* 모르는 종류를 spot 으로 떨어뜨리지 않는다 (v2.2) — 전에는 삼항의 else 가 spot 이라
      `drop:deal` 이 조용히 스팟을 집었다. 아는 것만 받고 나머지는 실패다. */
-  // v2.49: `store`(매장) 가 제 종류로 선다 — 보관함도 갈려 있어 번호가 딜과 안 섞인다
-  var kind=(v==='feed'||v==='req'||v==='deal'||v==='store'||v==='page')?v:(v==='spot'?'spot':'');
+  /* v2.49 는 `store` 를 제 종류로 세웠다(보관함까지 갈랐다). v2.59 (콘솔 D190) 에 다시
+     하나로 접는다 — 매장과 딜은 한 종류이고, 딜인지는 그 항목의 상태다. 옛 시나리오의
+     `v:'store'` 도 같은 목록을 집는다(콘솔이 번호를 이미 전체 배열 기준으로 옮겼다). */
+  if(v==='store')v='deal';
+  var kind=(v==='feed'||v==='req'||v==='deal'||v==='page')?v:(v==='spot'?'spot':'');
   if(!kind)return false;
   var list=nhHeld[kind]||[],n=(i|0);
   if(n<0||n>=list.length)return false;
@@ -10747,11 +10813,6 @@ function nhDrop(v,i,e,fast){
     if(!laid)return false;if(!fast)nhBounceMark(laid,1);
     if(typeof renderDealMarkers==='function')renderDealMarkers();
     if(typeof syncStorePage==='function')syncStorePage(); // 딜이 매장에 붙었으면 열린 페이지도 따라온다 (v2.49)
-  }else if(kind==='store'){
-    // 매장도 같은 손으로 깐다 (v2.49) — `nhLayDeal` 이 store 칸을 보고 이름표만 세운다
-    laid=nhLayDeal(item.v,item.i,c,nhHeld.stamp);
-    if(!laid)return false;if(!fast)nhBounceMark(laid,1);
-    if(typeof renderDealMarkers==='function')renderDealMarkers();
   }else if(kind==='req'){
     laid=nhLayReq(item.v,item.i,c,nhHeld.stamp,nhHeld.token);
     if(!laid)return false;if(!fast)nhBounceMark(laid,1);
@@ -10850,6 +10911,7 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'reward', // v2.27: 현장 답변 리워드 지급 — answer 와 분리. 우하단 agent 말풍선 + 코인 버스트 (v=문구)
   'bubbleclose', // v2.31: 우하단 말풍선을 지금 닫는다 (agent 말풍선 + 현장 Request 수신 카드 + 프리셋)
   'shopsay', // v2.32: 가게가 한마디 한다 — 지도 이름표에 말풍선을 붙인다 (i=어느 가게·v=문구, 비우면 걷는다)
+  'dealon', // v2.59: 그 매장의 타임딜을 지금 켠다 — '단계에서 켠다' 로 둔 항목만 (i=어느 매장)
   'hearts', // v2.34: 남들이 하나둘 하트를 누른다 (v=종류·i=몇 번째·e=몇 개·ms=오르는 시간)
   // v2.34: 컨텐츠 추가 팝업 — 여는 손(addmenu v = btn|hold)과 네 항목을 누르는 손
   'addmenu','addbtn','addspot','addphoto','addpost','addreq',
@@ -11007,6 +11069,11 @@ function nhSanitize(raw){
         /* 미니 라벨에 무엇을 띄울까 (v2.58, 콘솔 D189) — 딜에만 뜻이 있다.
            모르는 값은 기본(남은 시간)으로 떨어뜨린다: 콘솔 toSeed 와 같은 규칙이다. */
         lab:(!d.store&&['time','pct','both','none'].indexOf(String(d.lab))>=0)?String(d.lab):undefined,
+        /* 딜을 **단계에서 켠다** (v2.59, 콘솔 D190) — 딜에만 뜻이 있다.
+           이 칸이 여기서 걷히면 무대는 딜을 **처음부터 켠 채로** 깔고, `dealon` 단계는
+           "이미 켜져 있다" 로 실패한다 — 콘솔이 보내도 도착 못 하던 v2.15 의 addr/desc 와
+           같은 자리다(무대만 뚫고 sanitize 를 안 뚫었다). */
+        later:(!d.store&&d.later===true)?true:undefined,
         /* `of` (v2.49) — 이 딜이 붙을 **매장의 번호**(같은 배열의 자리). 딜에만 뜻이 있다:
            매장에 달려 오면 자기 자신을 가리키는 고리가 되므로 버린다. */
         of:(!d.store&&d.of!=null&&isFinite(Number(d.of)))?Math.max(0,Math.round(Number(d.of))):undefined,
