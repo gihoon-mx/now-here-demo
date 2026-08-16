@@ -721,15 +721,11 @@ body[data-skin="v3"].page-admin .toggle-slider{background:var(--v3-line2);}
 body[data-skin="v3"].page-admin .auth-card{border:none;border-radius:20px;background:var(--v3-surface);box-shadow:var(--v3-sh-float);}
 body[data-skin="v3"].page-admin .google-btn{border-radius:9999px;}
 
-/* ── 타임딜 (v1.89) ── 기본형이 이미 시안 값이라 v3 에서는 **온도 팔레트만 맞춘다**.
-   Basic 에서 핀이 흰색으로 가라앉는 규칙은 사진 핀과 같다. */
-body[data-skin="v3"] .deal-pin .dp-circle{border-width:3.5px;box-shadow:var(--v3-sh-pin);}
-/* 점일 때는 두꺼운 테두리를 물려받지 않는다 (v2.11) — 12px 점에 3.5px 테두리면 도넛이 된다. */
-body[data-skin="v3"] .deal-pin.dl-dot .dp-circle{border-width:1.5px;box-shadow:0 1px 3px rgba(15,23,42,0.25);}
-body[data-skin="v3"]:not(.mode-trend) .deal-pin .dp-circle{background:#fff;border-color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.1);}
-body[data-skin="v3"]:not(.mode-trend) .deal-pin .dp-pct{background:#fff;color:var(--v3-ink3);box-shadow:0 3px 10px rgba(0,0,0,.1);}
-body[data-skin="v3"].mode-trend .deal-pin .dp-circle{background:var(--v3-yellow);border-color:#E8A92B;}
-body[data-skin="v3"].mode-trend .deal-pin .dp-pct{background:var(--v3-red);color:#fff;}
+/* ── 타임딜 (v1.89 → v2.58) ── ⏰ 원형 핀 규칙은 핀과 함께 없어졌다 (콘솔 D189).
+   남은 것은 **딜 중인 가게 이름표**의 색이고, 이 스킨은 제 빨강(--v3-red)으로 맞춘다.
+   Basic·Trend 두 모드가 같은 색인 것은 의도다: 모드는 지도가 무엇을 보여주느냐이고,
+   딜인지 아닌지는 그와 무관한 가게의 사정이다. */
+body[data-skin="v3"] .deal-label.dl-live .dl-name{--dl-live-bg:var(--v3-red);}
 /* v2.29: 이 스킨도 유리 시트를 그대로 쓴다 — 불투명 면(--v3-surface)으로 덮으면
    style.css 가 세운 팝업 문법 통일이 이 스킨에서만 깨진다(v3 가 기본 스킨이다). */
 body[data-skin="v3"] .deal-sheet .ds-card{background:var(--frost);}

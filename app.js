@@ -141,7 +141,7 @@ function labelScale(z){
    반환 {dot, scale} — scale 은 점이 아닐 때 쓰는 배율(점 크기 아래로는 안 내려간다). */
 var SPOT_DOT_PX = 8;   // .spot-dotmark
 var FEED_DOT_PX = 12;  // .feed-pin.fp-dot
-var PIN_DOT_PX  = 12;  // .deal-pin.dl-dot .dp-circle / Request 드롭 하한
+var PIN_DOT_PX  = 12;  // 점이 된 컨텐츠의 지름 / Request 드롭 하한
 var DOT_RAMP = 0.5;    // 임계값 대비 이 비율(=한 줌 레벨)부터 점 크기로 당기기 시작
 
 /* ══ 화면이 커져도 **같은 그림** (v2.35, 콘솔 D133) ═══════════════════════
@@ -1328,9 +1328,10 @@ var _declTimer=null;
 function declutterMarkers(){ // 디바운스 — idle/렌더 후 한 번만
   if(_declTimer)return;
   _declTimer=setTimeout(function(){_declTimer=null;try{
-    // v2.9: 타임딜 핀도 넣는다 — 전에는 빠져 있어 딜 위에 사진 핀이 그대로 얹혔다.
-    declutterOn(map,spotOverlays,feedThumbOverlays,[],[],[]);
-    declutterOn(phoneMap,phoneSpotOverlays,phoneFeedThumbOverlays,reqMarkers,dealMarkers,dealLabels);
+    /* v2.9: 타임딜 핀도 넣는다 — 전에는 빠져 있어 딜 위에 사진 핀이 그대로 얹혔다.
+       v2.58: 그 ⏰ 핀이 없어졌다 — 딜은 이제 **이름표**로 서므로 labels 쪽이 다 든다. */
+    declutterOn(map,spotOverlays,feedThumbOverlays,[],[]);
+    declutterOn(phoneMap,phoneSpotOverlays,phoneFeedThumbOverlays,reqMarkers,dealLabels);
     spotDirForget();
   }catch(e){}},60);
 }
@@ -1342,13 +1343,14 @@ function spotDirForget(){
 }
 /* 한 지도의 마커를 겹치지 않게 놓는다 (v2.9).
 
-   순서 = 우선순위다. **드물고 시간에 묶인 것부터** 자리를 잡는다: 타임딜 → Request →
-   사진 핀 → 말풍선. 딜·Request 는 몇 개 안 되고 그 자리에 있다는 것 자체가 정보라
-   밀리면 안 되고, 말풍선은 앵커 둘레 어디든 놓을 수 있어 가장 유연하다. */
-function declutterOn(m,spots,feeds,reqs,deals,labels){
+   순서 = 우선순위다. **드물고 시간에 묶인 것부터** 자리를 잡는다: Request → 사진 핀 →
+   가게 이름표 → 말풍선. Request 는 몇 개 안 되고 그 자리에 있다는 것 자체가 정보라
+   밀리면 안 되고, 말풍선은 앵커 둘레 어디든 놓을 수 있어 가장 유연하다.
+   v2.58: 딜 핀 자리가 빠졌다 — 딜은 이름표로 서므로 `labels` 가 그 몫까지 든다. */
+function declutterOn(m,spots,feeds,reqs,labels){
   if(!m||typeof google==='undefined')return;
-  reqs=reqs||[];deals=deals||[];labels=labels||[];
-  var all=spots.concat(feeds).concat(reqs).concat(deals).concat(labels),proj=null;
+  reqs=reqs||[];labels=labels||[];
+  var all=spots.concat(feeds).concat(reqs).concat(labels),proj=null;
   for(var i=0;i<all.length&&!proj;i++)proj=all[i].getProjection&&all[i].getProjection();
   if(!proj)return;
   var ctr=proj.fromLatLngToDivPixel(m.getCenter());if(!ctr)return;
@@ -1366,16 +1368,18 @@ function declutterOn(m,spots,feeds,reqs,deals,labels){
     items.push({fixed:true,ax:o._ax,ay:o._ay,w:r.width||dw,h:r.height||dh});
     if(o._ndx||o._ndy){o._ndx=0;o._ndy=0;o.draw();}
   }
-  deals.forEach(function(o){addPin(o,34,46);});
   reqs.forEach(function(o){addPin(o,34,46);});
   feeds.forEach(function(o){addPin(o,30,30);});
   /* 가게 이름표 (v2.32) — 자리는 안 옮긴다(핀과 같은 규칙). 대신 **이름표끼리 겹치면
      뒤에 온 것을 숨긴다**: 자리를 밀면 어느 가게의 이름인지가 사라지고, 글자벽은 줌아웃에서
      지도를 통째로 덮는다. 숨김은 자리를 안 건드리므로 줌인하면 그대로 돌아온다.
-     훑는 순서가 곧 우선순위다 — ①지금 매장 페이지가 열린 것 ②한마디가 있는 것 ③나머지. */
+     훑는 순서가 곧 우선순위다 — ①지금 매장 페이지가 열린 것 ②딜 중인 가게 ③한마디가
+     있는 것 ④나머지. 딜을 앞에 둔 것은 v2.58 이다: 딜 이름표가 이 데모의 **주인공**인데
+     먼저 온 평범한 가게에 가려 숨는 일이 있었다(⏰ 핀이 있을 때는 핀이 대신 서 줬다). */
   var kept=[]; // boxOverlap 은 [x0,y0,x1,y1] 배열을 받는다 (930줄)
   labels.slice().sort(function(a,b){
-    function rank(o){var d=o.d||{};return (storePageId===d.id?0:(String(d.msg||'').trim()?1:2));}
+    function rank(o){var d=o.d||{};
+      return storePageId===d.id?0:(dealActive(d)?1:(String(d.msg||'').trim()?2:3));}
     return rank(a)-rank(b);
   }).forEach(function(o){
     if(!o.div||o._ax==null)return;
@@ -3752,7 +3756,7 @@ function switchMode(mode,opts){
 /* ========== [M01] 초기화 ========== */
 function initMap(){
   initMapLabelClass();
-  initReqPinClass();initDealPinClass();initDealLabelClass();initAddPinClass();
+  initReqPinClass();initDealLabelClass();initAddPinClass(); // v2.58: DealPin 은 없어졌다
   initSpotBubbleClass();
   initFeedThumbClass();
   initSpotComposerClass();
@@ -5427,6 +5431,9 @@ function feedIconBase(){return feedIconSize>0?feedIconSize:(Number(spotConfig.em
 var mapPinView={
   spot:{show:true},feed:{show:true},
   req:{show:true,size:100,color:'',op:100},
+  /* deal — v2.58 부터 뜻이 옮겨졌다 (⏰ 핀이 없어졌다): `size` = 딜 중인 가게 이름표의
+     추가 배율 · `label` = ⏰타임딜 미니 라벨 · `name` = 가게 이름표 자체. 키를 그대로 둔 것은
+     저장된 설정(localStorage·클라우드·settings-default.json)이 이 이름들을 쓰기 때문이다. */
   deal:{show:true,size:100,label:true,name:true},
   name:{size:100,color:'#ffffff',bg:'#1a1a1a',op:88}, // 가게 이름표 (DealLabel 의 상호칩)
   tag:{op:72}                                          // 리액션·답글 미니 라벨의 배경 톤(%)
@@ -6366,7 +6373,7 @@ function nhDimApply(){
       .concat(typeof phoneFeedThumbOverlays!=='undefined'?phoneFeedThumbOverlays:[])
       .forEach(function(o){if(o&&o.div)nhDimFeed(o.div,o.members);});
     (typeof reqMarkers!=='undefined'?reqMarkers:[]).forEach(function(o){if(o&&o.div&&o.rq)nhDimEl(o.div,o.rq.id);});
-    (typeof dealMarkers!=='undefined'?dealMarkers:[]).forEach(function(o){if(o&&o.div&&o.d)nhDimEl(o.div,o.d.id);});
+    // v2.58: ⏰ 핀이 없어져 딜도 이름표 한 줄로 흐려진다 (아래 dealLabels 루프가 든다)
     // 가게 이름표도 같은 딜의 것이다 (v2.32) — 핀만 흐리면 이름표가 혼자 또렷하게 남는다
     (typeof dealLabels!=='undefined'?dealLabels:[]).forEach(function(o){if(o&&o.div&&o.d)nhDimEl(o.div,o.d.id);});
   }catch(e){}
@@ -6681,7 +6688,10 @@ function renderRequestMarkers(){
    장치다 — 시연 중에 콘텐츠가 사라지면 안 된다. 대신 남은 시간은 **계속 흐르는 것처럼**
    보여야 하므로 벽시계를 주기로 접어서 쓴다(`secs - (now % secs)`). 30분짜리 딜이면
    30분마다 처음으로 돌아가며 계속 카운트다운한다. */
-var timeDeals=[], dealMarkers=[], dealLabels=[], dealSheetId=null, dealTicker=null;
+/* v2.58: `dealMarkers`(⏰ 핀) 가 빠졌다 — 지도 위의 가게는 이름표 하나다.
+   `dealLabelTicker` 는 딜 라벨의 남은 시간을 1초마다 고쳐 쓴다 (쿠폰 시트의 dealTicker 와
+   다른 물건이다: 저쪽은 열려 있는 시트 하나, 이쪽은 지도 위 이름표 전부). */
+var timeDeals=[], dealLabels=[], dealSheetId=null, dealTicker=null, dealLabelTicker=null;
 var DEAL_KEY='nowhere_deals';
 /* v2.3: 시드 딜(SEED_DEALS·ensureDealSeed) 폐지 — "추가하지 않았는데 딜 2개가 기본으로
    떠 있다"(사용자). 딜은 이제 **까는 쪽이 명시한 것만** 뜬다: 무대(nhLayDeal)·시드
@@ -6712,99 +6722,27 @@ function dealRemain(d){ // 남은 초
    그러면 "⏰ 타임딜 N" 카운트·관리자 표·쿠폰 액션·`pop e:'sheet'` 가 전부 거짓말을 한다.
    한 술어를 좁히는 것으로 그 다섯 자리가 손대지 않고 정직해진다. */
 function dealActive(d){return !!d&&!d.store&&(d.seed||dealRemain(d)>0);}
-/* 지도에 **보일** 것인가 — 딜이거나, 딜 없는 가게이거나. 렌더만 이 술어를 쓴다. */
-function dealShown(d){return !!d&&(!!d.store||dealActive(d));}
-/* 이름표를 걸 만한 상호인가 — nhLayDeal 의 기본값('근처 매장')은 "콘솔이 안 줬다" 는 뜻이라
-   그것까지 지도에 박으면 모든 무대 딜에 뜻 없는 이름표가 생긴다 (v2.32). */
+/* 지도에 **보일** 것인가 (v2.58) — 이제 전부 보인다: 이 배열의 항목은 **가게**이고,
+   딜이 끝나는 것은 그 가게가 사라지는 일이 아니다. 여태는 딜이 0초가 되면 핀도 이름표도
+   통째로 걷혔는데, 통합(D189) 뒤에는 그것이 "마감 순간 가게가 증발한다" 로 보인다.
+   끝나면 강조와 미니 라벨만 걷힌다 — 그 자체가 쓸 만한 마감 연출이다. */
+function dealShown(d){return !!d;}
+/* 이름표에 쓸 이름 — 상호가 먼저다. nhLayDeal 의 기본값('근처 매장')은 "콘솔이 안 줬다" 는
+   뜻이라 상호로 치지 않는다 (v2.32). v2.58: ⏰ 핀이 없어져 이름표가 그 가게의 **유일한**
+   자리가 됐으므로, 상호가 없으면 딜 제목으로, 그것도 없으면 기본값으로 떨어진다 —
+   여기서 빈 값을 내면 항목이 지도에서 통째로 사라진다. */
 var DEAL_SHOP_FALLBACK='근처 매장';
 function dealShopName(d){var s=String((d&&d.shop)||'').trim();return (s&&s!==DEAL_SHOP_FALLBACK)?s:'';}
+function dealName(d){return dealShopName(d)||String((d&&d.title)||'').trim().slice(0,24)||DEAL_SHOP_FALLBACK;}
 function dealClock(sec){var m=Math.floor(sec/60),s=sec%60;return m+':'+String(s).padStart(2,'0');}
 function dealById(id){return timeDeals.filter(function(d){return d.id===id;})[0]||null;}
 
-function DealPin(d,m){this.d=d;this.position=new google.maps.LatLng(d.lat,d.lng);this.div=null;this.setMap(m);}
-function initDealPinClass(){
-  DealPin.prototype=new google.maps.OverlayView();
-  DealPin.prototype.onAdd=function(){
-    var self=this;
-    var el=document.createElement('div');el.className='deal-pin';
-    el.innerHTML='<span class="dp-circle">⏰</span><span class="dp-pct">'+escHtml(String(this.d.pct))+'%</span>';
-    el.classList.toggle('no-pct',!mapPinView.deal.label); // v2.15 %라벨 표시 설정
-    el.title=this.d.title;
-    // v2.15: 핀 탭=매장 전용 페이지. 쿠폰 시트는 그 페이지의 '타임딜 쿠폰받기'가 연다.
-    el.addEventListener('click',function(e){e.stopPropagation();
-      if(self._dragged){self._dragged=false;return;} // 방금 끌어 옮긴 손은 페이지를 열지 않는다
-      openStorePage(self.d.id);});
-    /* 끌어 옮기기 (v2.30.1) — 스팟·피드·Request 가 하던 것을 딜도 한다(같은 문법:
-       터치는 롱프레스 뒤, 마우스는 즉시). 무대 항목이면 옮긴 자리가 nhPosNote 에 남아
-       **다음 재생에도 그 자리**다 — `dln_` id 를 읽는 그 계약은 v2.3 부터 있었고
-       nhLayDeal 도 nhPosGet 으로 읽고 있었는데, 정작 **끄는 손이 없어** 죽어 있었다
-       (Request 가 v2.20 에 겪은 것과 똑같은 자리다). */
-    el.addEventListener('pointerdown',function(e){self._onDown(e);});
-    if(nhBounceTake(this.d.id))el.classList.add('nh-pop-in'); // drop 으로 지금 생긴 것 (v2.11)
-    if(typeof nhDimEl==='function')nhDimEl(el,this.d.id); // dim 액션의 흐림 유지 (v2.21)
-    this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
-  };
-  // 이동 (v2.30.1) — ReqPin._onDown 과 같은 규칙: 터치=롱프레스 후 드래그 / 마우스=즉시
-  DealPin.prototype._onDown=function(e){
-    var self=this,m=self.getMap();if(!m)return;
-    var isTouch=(e.pointerType==='touch');
-    var moved=false,dragging=false,lpTimer=null,sx=e.clientX,sy=e.clientY,mapEl=m.getDiv();
-    var prevDrag=m.get('draggable');
-    function startDrag(){
-      dragging=true;
-      m.setOptions({draggable:false});
-      self.div.classList.add('dragging');
-      try{self.div.setPointerCapture(e.pointerId);}catch(_){}
-      if(isTouch&&navigator.vibrate)try{navigator.vibrate(15);}catch(_){}
-    }
-    if(isTouch){lpTimer=setTimeout(function(){lpTimer=null;if(!moved)startDrag();},LP_MS);}
-    else{e.stopPropagation();if(e.cancelable)e.preventDefault();startDrag();}
-    function mv(ev){
-      if(ev.pointerId!==e.pointerId)return;
-      if(!dragging){ // 롱프레스 대기 중 크게 움직이면 = 지도 팬 → 취소
-        if(Math.abs(ev.clientX-sx)>LP_TOL||Math.abs(ev.clientY-sy)>LP_TOL){moved=true;cleanup(false);}
-        return;
-      }
-      if(!moved&&(Math.abs(ev.clientX-sx)>3||Math.abs(ev.clientY-sy)>3))moved=true;
-      if(!moved)return;
-      var proj=self.getProjection();if(!proj)return;
-      var r=mapEl.getBoundingClientRect();
-      var ll=proj.fromContainerPixelToLatLng(new google.maps.Point(ev.clientX-r.left,ev.clientY-r.top));
-      if(ll){self.position=ll;self.draw();}
-    }
-    function up(ev){if(ev.pointerId!==e.pointerId)return;cleanup(true);}
-    function cleanup(fin){
-      document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
-      if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}
-      if(dragging){m.setOptions({draggable:prevDrag!==false});if(self.div)self.div.classList.remove('dragging');}
-      if(!fin||!dragging||!moved)return;
-      self._dragged=true; // 직후 click 은 매장 페이지 대신 무시
-      var lat=self.position.lat(),lng=self.position.lng();
-      moveDeal(self.d.id,lat,lng);
-      if(typeof nhPosNote==='function')nhPosNote(self.d.id,lat,lng); // 무대 항목이면 다음 재생에도 그 자리 (v2.3 dln_)
-    }
-    document.addEventListener('pointermove',mv); // 팬 중 핀이 손가락에서 벗어나도 추적되게 document 에
-    document.addEventListener('pointerup',up);
-    document.addEventListener('pointercancel',up);
-  };
-  DealPin.prototype.draw=function(){var p=this.getProjection();if(!p)return;var pos=p.fromLatLngToDivPixel(this.position);if(this.div&&pos){
-    this._ax=pos.x;this._ay=pos.y; // 앵커=원래 좌표 (declutter 규약 v1.59)
-    // v2.9: 겹침 방지가 밀어낸 만큼(_ndx·_ndy)을 얹어 그린다. 앵커는 그대로 둔다.
-    this.div.style.left=(pos.x+(this._ndx||0))+'px';this.div.style.top=(pos.y+(this._ndy||0))+'px';
-    /* 점 전환 (v2.11) — 스팟·피드와 **같은 기준**(contentDot)이다. 딜만 축소에서
-       원래 크기로 남아 지도를 덮었다. 점일 때는 앵커를 중심으로(피드 점과 같은 문법). */
-    // v1.95 컨텐츠 공통 배율 × v2.15 종류별 배율(관리자 s-pins, 곡선은 공통 유지)
-    var m=this.getMap(),z=m?m.getZoom():15,cdD=contentDot(m,z,34,PIN_DOT_PX);
-    var sc=cdD.scale*pinScale('deal'),isDot=cdD.dot;
-    this.div.classList.toggle('dl-dot',isDot);
-    if(isDot){
-      this.div.style.transformOrigin='50% 50%';this.div.style.transform='translate(-50%,-50%)';
-    }else{
-      this.div.style.transformOrigin='50% 100%';this.div.style.transform='translate(-50%,-100%) scale('+sc+')';
-    }
-  }};
-  DealPin.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
-}
+/* ⏰ 원형 딜 핀(DealPin) 은 v2.58 에서 없앴다 (콘솔 D189).
+   "매장과 타임딜을 통합하고, 동그란 아이콘 표시는 삭제" — 사용자 요구다. 한 가게가 지도에
+   **두 번**(핀 하나 + 이름표 하나) 서던 것이 그 병의 뿌리였다: 같은 가게인데 둘이 각자 자리를
+   잡아 겹치고, 딜을 하는 가게인지는 핀 쪽만 알고 이름표는 몰랐다.
+   이제 지도 위의 가게는 **이름표 하나**이고, 딜은 그 이름표의 강조색과 미니 라벨이다
+   (DealLabel 아래). 딜의 상세는 여태처럼 매장 페이지(openStorePage)가 연다. */
 
 /* ── 가게 이름표 + 가게 한마디 (v2.32) ───────────────────────────────────────
    요청: "가게 이름 라벨이 맵에 계속 표시되고, 가게용 스팟메시지가 이름에 말풍선 붙는 느낌으로."
@@ -6815,9 +6753,15 @@ function initDealPinClass(){
    `deal` 은 그 열두 자리에 이미 전부 등록돼 있고, 가게는 그 항목의 칸 두 개로 산다:
    `shop`(이미 있던 것) · `msg`(한마디) · `store`(딜 없는 순수 가게).
 
-   **앵커 아래**에 선다. `.deal-pin` 은 `translate(-50%,-100%)` 라 앵커 위를 다 쓰고 그 높이가
-   `contentDot` 배율로 변한다 — 위에 두면 줌마다 핀과의 사이가 흔들린다. 아래로 두면
-   핀 배율과 무관하게 충돌이 구조적으로 불가능하다.
+   **v2.58 (콘솔 D189): 이것이 지도 위 가게의 유일한 자리다.** ⏰ 원형 핀이 없어지면서
+   "딜 중인가" 도 여기서 말한다 — 상호칩이 강조색으로 서고(`.dl-live`), 어깨에 미니 라벨
+   (`⏰타임딜` + 남은 시간·할인율)이 붙는다. 라벨의 문법은 컨텐츠의 `❤3 💬2`(`.spot-tag`)와
+   **같다**: 같은 자리(우측 상단)·같은 칸 구조(`paintTagCell`)·같은 배경 톤(`tagBg`).
+   지도에서 눈이 배우는 규칙을 하나로 두려는 것이다.
+
+   **앵커 아래**에 선다. 여태 그 위는 `.deal-pin` 이 `translate(-50%,-100%)` 로 다 썼고 그
+   높이가 `contentDot` 배율로 변해서, 위에 두면 줌마다 핀과의 사이가 흔들렸다. 핀이 없어진
+   지금도 아래로 둔다 — 옮겨 둔 자리(nhPosNote)가 그 규칙으로 저장돼 있다.
 
    **배율은 이름표의 것**(`labelScale` 0.7~1.6)이지 컨텐츠 곡선(`contentDot`, 0.02~40)이 아니다.
    후자를 태우면 멀어질 때 12px 점이 되는데, 그러면 "계속 표시" 라는 요청 자체가 깨진다.
@@ -6826,6 +6770,10 @@ function initDealPinClass(){
    `.spot-bubble` 에는 color 가 없다(SpotBubble 이 인라인으로 준다) — 클래스만 빌리면
    투명 배경 위 흰 글씨, 폴백 파란 말풍선이 된다. */
 var DEAL_MSG_MIN_Z=14;   // 이보다 멀면 한마디는 접고 이름만 남긴다 (관리자 설정과 무관한 상수)
+/* 딜 미니 라벨의 바탕색 (v2.58) — 트렌드 모드 딜 핀이 쓰던 그 붉은색이다(.dp-pct).
+   핀은 없어졌지만 "딜은 이 색" 이라는 약속은 지도에 남는다. 톤(알파)은 리액션 라벨과
+   같은 자(`tagBg` → 관리자 설정 tag.op)를 쓴다 — 지도 위 미니 라벨은 다 같은 밝기여야 한다. */
+var DEAL_TAG_BG='#e8574a';
 function DealLabel(d,m){this.d=d;this.position=new google.maps.LatLng(d.lat,d.lng);this.div=null;this.setMap(m);}
 function initDealLabelClass(){
   DealLabel.prototype=new google.maps.OverlayView();
@@ -6837,10 +6785,23 @@ function initDealLabelClass(){
     if(msg)el.querySelector('.dl-msg').textContent=msg.slice(0,60);
     /* 이름표에 이모지를 앞세운다 (v2.42) — 실서비스 지도가 그렇게 생겼다(🍴 강남원주추어탕).
        종류가 한 글자로 먼저 읽혀서, 이름표가 스무 개 깔려도 훑어볼 수 있다.
-       `e` 는 딜의 이모지와 같은 칸이다 — 딜에는 ⏰ 핀이 그것을 쓰고, 가게에는 이름표가 쓴다. */
+       v2.58: 글자는 **자식 노드**에 담는다 — 미니 라벨이 같은 칩 안에 사는데 textContent 로
+       통째로 쓰면 그 라벨이 매초 지워진다. */
+    var nameEl=el.querySelector('.dl-name');
     var dlE=String(d.e||'').trim().slice(0,4);
-    el.querySelector('.dl-name').textContent=(dlE?dlE+' ':'')+dealShopName(d);
-    el.title=dealShopName(d)+(d.store?'':' · 타임딜');
+    var txt=document.createElement('span');txt.className='dl-t';
+    txt.textContent=(dlE?dlE+' ':'')+dealName(d);
+    nameEl.appendChild(txt);
+    /* 딜 미니 라벨 (v2.58) — 칸 둘: `⏰타임딜` 과 사람이 고른 정보(`lab`).
+       칩의 자식이라 이름표 배율(labelScale)을 그대로 탄다. 관리자가 끄면(deal.label) 안 만든다. */
+    if(!mapPinView.deal||mapPinView.deal.label!==false){
+      var tag=document.createElement('span');tag.className='dl-tag';
+      var tgD=document.createElement('b');tgD.className='tg-d';tag.appendChild(tgD);
+      var tgI=document.createElement('b');tgI.className='tg-i';tag.appendChild(tgI);
+      nameEl.appendChild(tag);
+      this.tagEl=tag;this.tagD=tgD;this.tagI=tgI;
+    }
+    el.title=dealName(d)+(dealActive(d)?' · 타임딜':'');
     /* 이름표를 누르면 **매장 전용 페이지**로 간다 (요청 3). 딜이 있든 없든 같은 페이지다 —
        storeView 가 없는 값(가격·남은 시간)을 화면에서 빼 준다. */
     el.querySelector('.dl-name').addEventListener('click',function(e){
@@ -6854,15 +6815,30 @@ function initDealLabelClass(){
        옮긴 자리는 `nhPosNote` 가 `dln_<순번>` 으로 남겨 다음 재생에도 그 자리다 (v2.3 규약). */
     el.querySelector('.dl-name').addEventListener('pointerdown',function(e){self._onDown(e);});
     if(typeof nhDimEl==='function')nhDimEl(el,d.id); // dim 액션의 흐림을 핀과 함께 (v2.21)
-    /* 등장 바운스 (v2.41) — **가게만** 항목(store)에는 ⏰ 핀이 안 서므로(dealActive 가 뺀다)
-       표를 소비할 손이 여기밖에 없다. 여태 `drop` 으로 가게를 띄우면 소리는 나는데 아무것도
-       안 튀었다. 딜이 있는 항목은 핀이 먼저 가져가므로(DealPin.onAdd) 여기서 또 안 뺀다 —
-       표는 소비형이라 둘이 부르면 한쪽이 빈손이 된다. */
-    if(d.store&&typeof nhBounceTake==='function'&&nhBounceTake(d.id))el.classList.add('nh-pop-in');
+    /* 등장 바운스 (v2.41) — 표를 소비할 손이 **여기 하나**다 (v2.58: ⏰ 핀이 없어졌다).
+       표는 소비형이라 둘이 부르면 한쪽이 빈손이 되는데, 이제 부르는 곳이 하나뿐이라
+       `store` 여부를 가릴 이유도 없어졌다. */
+    if(typeof nhBounceTake==='function'&&nhBounceTake(d.id))el.classList.add('nh-pop-in');
     this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
+    this.paintDeal(); // 강조·미니 라벨을 지금 값으로 (티커가 이어 받는다)
   };
-  /* 이름표의 드래그 — `DealPin._onDown` 과 **같은 문법**이다 (터치=롱프레스 뒤 · 마우스=즉시).
-     둘이 같은 딜을 옮기므로 끝에서 하는 일도 같다: `moveDeal` + `nhPosNote`. */
+  /* 딜 상태를 칩에 칠한다 (v2.58) — `onAdd` 와 1초 티커가 같이 부른다.
+     **`dealActive` 를 매번 다시 묻는다**: 남은 시간이 0 이 되는 순간 강조와 라벨이 스스로
+     걷혀야 한다. 재렌더를 기다리면 끝난 딜이 계속 붉게 서 있다. */
+  DealLabel.prototype.paintDeal=function(){
+    var d=this.d,live=dealActive(d);
+    if(this.div)this.div.classList.toggle('dl-live',live);
+    if(!this.tagEl)return;
+    this.tagEl.style.display=live?'':'none';
+    if(!live)return;
+    paintTagCell(this.tagD,'⏰','타임딜');
+    var lab=String(d.lab||'time'),pct=(d.pct|0)+'%',clk=dealClock(dealRemain(d));
+    paintTagCell(this.tagI,'',
+      lab==='none'?'':lab==='pct'?pct:lab==='both'?(clk+' · '+pct):clk);
+    this.tagEl.style.background=tagBg(DEAL_TAG_BG); // 리액션 라벨과 같은 톤 자(tag.op)
+  };
+  /* 이름표의 드래그 — Request 핀(`ReqPin._onDown`)과 **같은 문법**이다
+     (터치=롱프레스 뒤 · 마우스=즉시). 끝에서 하는 일: `moveDeal` + `nhPosNote`. */
   DealLabel.prototype._onDown=function(e){
     var self=this,m=self.getMap();if(!m||!self.div)return;
     var isTouch=(e.pointerType==='touch');
@@ -6909,7 +6885,11 @@ function initDealLabelClass(){
     this._ax=q.x;this._ay=q.y;                 // declutter 규약 — 앵커는 제 좌표 (v2.27)
     this.div.style.left=(q.x+(this._ndx||0))+'px';this.div.style.top=(q.y+(this._ndy||0))+'px';
     var m=this.getMap(),z=(m&&m.getZoom&&m.getZoom())||15;
-    this.div.style.transform='translate(-50%,0) scale('+(labelScale(z)*nameScale())+')'; // v2.47 관리자 크기 배율
+    /* v2.58: 딜 중인 가게는 **한 번 더** 배율을 탄다 — 관리자의 딜 크기(pv-deal-size)가
+       ⏰ 핀을 키우던 손잡이였는데, 핀이 없어진 지금은 "딜을 얼마나 도드라지게" 를 잡는다.
+       딜이 아닌 가게는 여태 그대로(labelScale × 이름표 크기)다. */
+    var k=labelScale(z)*nameScale()*(dealActive(this.d)?pinScale('deal'):1);
+    this.div.style.transform='translate(-50%,0) scale('+k+')'; // v2.47 관리자 크기 배율
     this.div.classList.toggle('dl-quiet',z<DEAL_MSG_MIN_Z); // 멀면 한마디만 접는다
   };
   DealLabel.prototype.onRemove=function(){if(this.div&&this.div.parentNode){this.div.parentNode.removeChild(this.div);this.div=null;}};
@@ -6924,17 +6904,30 @@ function storeView(id){
     hasDeal:!d.store};                          // 가격·남은 시간·쿠폰이 있는가
 }
 function renderDealMarkers(){
-  dealMarkers.forEach(function(o){o.setMap(null);});dealMarkers=[];
   dealLabels.forEach(function(o){o.setMap(null);});dealLabels=[];
-  if(!phoneMap||typeof google==='undefined'||!google.maps)return;
-  if(!mapPinView.deal.show)return; // v2.15 컨텐츠별 표시 설정
-  /* ⏰ 핀은 **딜에만** 붙는다 — 가게만 있는 항목(store)은 시간이 없으니 시계가 거짓말이다.
-     이름표는 둘 다 붙는다: 요청이 "가게 이름 라벨은 맵에 계속 표시" 다 (v2.32). */
-  timeDeals.filter(dealActive).forEach(function(d){dealMarkers.push(new DealPin(d,phoneMap));});
-  if(mapPinView.deal.name!==false)
-    timeDeals.filter(function(d){return dealShown(d)&&dealShopName(d);})
+  /* 이름표가 하나도 안 서는 길에서도 **티커는 반드시 지난다** (v2.58) — 여기서 일찍
+     빠져나가면 방금 비운 배열 위로 1초짜리가 영영 돈다(설정을 끄면 그렇게 된다). */
+  if(phoneMap&&typeof google!=='undefined'&&google.maps&&
+     mapPinView.deal.show&&mapPinView.deal.name!==false){
+    /* 지도 위의 가게는 **이름표 하나**다 — 딜이든 아니든 같은 물건이 서고, 딜인 것만
+       강조색·미니 라벨이 얹힌다. `dealName` 이 상호→제목→기본값으로 떨어지므로
+       이름이 없어 못 서는 항목은 없다. */
+    timeDeals.filter(function(d){return dealShown(d)&&dealName(d);})
       .forEach(function(d){dealLabels.push(new DealLabel(d,phoneMap));});
+  }
+  dealLabelTick();
   if(typeof declutterMarkers==='function')declutterMarkers();
+}
+/* 지도 위 딜 이름표의 1초 티커 (v2.58).
+   **필요할 때만 돈다** — 딜이 하나도 없으면 세우고, 생기면 건다. 재생 중에는 렌더가 잦아
+   여기서 매번 새 interval 을 만들면 티커가 겹쳐 쌓인다(같은 초에 여러 번 그린다).
+   남은 시간을 안 띄우는 데모(lab:'pct'·'none')도 돈다 — 딜이 **끝나는 순간** 강조를 걷는
+   손이 이것뿐이라서다. */
+function dealLabelTick(){
+  dealLabels.forEach(function(o){if(o&&o.paintDeal)o.paintDeal();});
+  var need=timeDeals.some(dealActive)&&dealLabels.length>0;
+  if(need&&!dealLabelTicker)dealLabelTicker=setInterval(dealLabelTick,1000);
+  else if(!need&&dealLabelTicker){clearInterval(dealLabelTicker);dealLabelTicker=null;}
 }
 /* 시트를 **지도 화면**에 맞춰 세운다 (v2.30.1).
    폰 화면 전체(inset:0) 한가운데면 헤더·상단 캐러셀이 차지한 만큼 위로 치우쳐 모드 전환
@@ -9516,9 +9509,9 @@ function nhShopSay(i,say){
   var t=String(say==null?'':say).trim().slice(0,60);
   d.msg=t||undefined;
   if(typeof renderDealMarkers==='function')renderDealMarkers();
-  /* 등장 바운스는 **표를 안 쓴다** — `nhBounceTake` 는 한 번 읽으면 지워지는 소비형이라
-     DealPin.onAdd 가 먼저 가져가면 이름표는 안 튀고, 반대면 핀이 안 튄다.
-     여기서는 방금 만든 이름표에 직접 건다. */
+  /* 등장 바운스는 **표를 안 쓴다** — `nhBounceTake` 는 한 번 읽으면 지워지는 소비형이고,
+     이 액션은 새로 생긴 것이 아니라 **있던 이름표**에 말풍선을 다는 일이다.
+     여기서는 방금 고친 이름표에 직접 건다. */
   if(t){
     var ov=(typeof dealLabels!=='undefined'?dealLabels:[]).find(function(o){return o.d&&o.d.id===d.id;});
     if(ov&&ov.div){var el=ov.div;el.classList.remove('nh-pop-in');void el.offsetWidth;el.classList.add('nh-pop-in');
@@ -10196,7 +10189,8 @@ function nhLayFeed(f,i,c,stamp){
    **`seed:false` 다** — dealRemain 이 이 값을 보고 갈린다. `seed:true` 는 벽시계를
    주기로 접어 안 끝나지만 화면의 남은시간이 여는 순간의 벽시계에 달린다. 무대가
    "남은시간" 을 받는 이상 적은 값에서 정직하게 줄어야 "마감 1분 전" 이 성립한다.
-   짧게 적으면 재생 중 dealActive 가 false 가 되며 핀이 사라진다 — 연출로 쓸 수 있다.
+   짧게 적으면 재생 중 dealActive 가 false 가 되며 **강조와 미니 라벨이 걷힌다** (v2.58 —
+   여태는 핀째로 사라졌다). 가게는 그대로 남는다 — 연출로 쓸 수 있다.
    가격 3칸은 만든다(사람은 5칸만 적는다). **결정적**이어야 한다 — Math.random 금지. */
 function nhLayDeal(d,i,c,stamp){
   if(typeof timeDeals==='undefined')return null;
@@ -10212,8 +10206,9 @@ function nhLayDeal(d,i,c,stamp){
   if(host&&host.store){
     var pctH=Math.min(90,Math.max(5,(d.pct|0)||20));
     var wasH=9900+(i%8)*5000, nowH=Math.floor(wasH*(100-pctH)/100/100)*100;
-    host.store=false;                                   // 이제 ⏰ 핀이 선다 (dealActive 가 받는다)
+    host.store=false;                                   // 이제 딜로 선다 (dealActive 가 받는다)
     host.pct=pctH;host.secs=Math.min(7200,Math.max(30,(d.secs|0)||1800));
+    if(d.lab)host.lab=d.lab;                             // 미니 라벨의 한 칸 (v2.58)
     host.price=nowH.toLocaleString('ko-KR')+'원';host.was=wasH.toLocaleString('ko-KR')+'원';
     host.stock=Math.max(3,20-Math.round(pctH/5))+'개';host.ts=Date.now();
     if(d.title)host.title=String(d.title).slice(0,40);
@@ -10258,6 +10253,7 @@ function nhLayDeal(d,i,c,stamp){
        아무도 그것을 '진행 중' 으로 읽지 않는다(뒷날 딜을 붙일 때 자리도 그대로다). */
     msg:inh('msg')?String(inh('msg')).slice(0,60):undefined,
     store:!!d.store,
+    lab:d.lab||undefined,   // 미니 라벨의 한 칸 (v2.58) — 없으면 남은 시간
     secs:secs,ts:Date.now(),seed:false});
   nhTempIds.deal.push(id);
   nhDealIds[i]=id; // v2.49 — 뒤에 오는 딜이 `of` 로 이 항목을 가리킬 수 있다
@@ -10485,15 +10481,16 @@ var NH_BURST_DEALS=[['마감 직전 딜','🥐','베이커리',40],['오늘만 �
 var NH_BURST_MAX=100;
 /** `v` 를 종류 목록으로 — "spot+feed" 처럼 이어 붙일 수 있다 (v2.12). */
 /* v2.51 (콘솔 D167): 쏟아지는 종류가 여섯이다 — **지도에 뜨는 것은 전부** 고를 수 있어야
-   한다는 규칙이 섰다. `req`(현장 Request)가 여태 빠져 있었고, 타임딜은 아이콘과 이름표를
-   갈라 고를 수 없었다(늘 둘 다).
-     deal    = ⏰ 아이콘 + 가게 이름표
-     dealpin = ⏰ 아이콘만 (상호를 안 줘서 dealShopName 이 빈 값이 된다)
-     store   = 이름표만 (dealActive 가 빼므로 핀이 안 선다) */
+   한다는 규칙이 섰다. `req`(현장 Request)가 여태 빠져 있었다.
+     deal  = 타임딜 중인 가게 (이름표가 강조색으로 서고 미니 라벨이 얹힌다)
+     store = 딜 없는 가게 (이름표만)
+   **`dealpin` 은 v2.58 에서 값째로 뺐다** (콘솔 D189): 그 값의 뜻이 "⏰ 아이콘만" 이었는데
+   그 아이콘이 없어졌다. 남겨 두면 고를 수는 있는데 아무것도 안 뜨는 값이 된다.
+   ⚠️ 콘솔의 `ACTION_INFO.burst.values` 와 **같은 목록**이어야 한다 (check:contract ⑥). */
 function nhBurstKinds(v){
   var out=[];
   String(v||'').split(/[+,\s]+/).forEach(function(x){
-    if((x==='spot'||x==='feed'||x==='req'||x==='deal'||x==='dealpin'||x==='store')&&out.indexOf(x)<0)out.push(x);
+    if((x==='spot'||x==='feed'||x==='req'||x==='deal'||x==='store')&&out.indexOf(x)<0)out.push(x);
   });
   /* 빈 값·모르는 값은 **여태 셋**이다 (뒤에 늘어난 것들을 넣지 않는다) — 저장된 데모의 `v`
      가 대개 비어 있어서, 여기에 끼우면 옛 엔딩에 없던 것이 갑자기 깔린다. */
@@ -10587,18 +10584,10 @@ function nhBurst(v,n,e,ms,token,look,sp){
         if(nhLayReq({q:rq,mine:false},idx,p,stamp,token)
            &&typeof renderRequestMarkers==='function')renderRequestMarkers();
       }else if(kind==='store'){
-        /* 매장 (v2.49) — 딜 없이 **이름표만** 선다. 상호는 딜 표본의 가게 이름을 빌리되
-           `title` 을 안 준다: title 이 있으면 딜로 읽혀 ⏰ 핀이 서고 "마감 직전" 이 뜬다. */
+        /* 매장 (v2.49) — 딜 없는 가게가 **이름표만** 세운다. 상호는 딜 표본의 가게 이름을
+           빌리되 `title` 을 안 준다: title 이 있으면 딜로 읽혀 "마감 직전" 이 뜬다. */
         var st2=pick(NH_BURST_DEALS);
         if(nhLayDeal({e:st2[1],shop:st2[2],store:true},idx,p,stamp)
-           &&typeof renderDealMarkers==='function')renderDealMarkers();
-      }else if(kind==='dealpin'){
-        /* 타임딜 — **아이콘만** (v2.51, 콘솔 D167).
-           `shop` 을 안 준다: nhLayDeal 이 '근처 매장' 을 채우는데 dealShopName 이 그 값을
-           "콘솔이 안 줬다" 로 읽어 이름표를 안 건다(v2.32). ⏰ 핀은 dealActive 가 받으므로
-           그대로 선다 — 딜이 몇 개나 떴는지만 보여주고 상호로 화면을 덮지 않는 그림이다. */
-        var dp=pick(NH_BURST_DEALS);
-        if(nhLayDeal({title:dp[0],e:dp[1],pct:dp[3],secs:600+120*(k%5)},idx,p,stamp)
            &&typeof renderDealMarkers==='function')renderDealMarkers();
       }else{
         var dl=pick(NH_BURST_DEALS);
@@ -11012,17 +11001,21 @@ function nhSanitize(raw){
           .map(nhImgSrc).filter(Boolean),
         pct:Math.min(90,Math.max(5,(d.pct|0)||20)),
         secs:Math.min(7200,Math.max(30,(d.secs|0)||1800)),
-        // 가게 (v2.32) — 지도 이름표의 한마디 · 딜 없이 가게만인가
+        // 가게 (v2.32) — 지도 이름표의 한마디 · 딜 없는 가게인가
         msg:String(d.msg||'').slice(0,60),
         store:!!d.store,
+        /* 미니 라벨에 무엇을 띄울까 (v2.58, 콘솔 D189) — 딜에만 뜻이 있다.
+           모르는 값은 기본(남은 시간)으로 떨어뜨린다: 콘솔 toSeed 와 같은 규칙이다. */
+        lab:(!d.store&&['time','pct','both','none'].indexOf(String(d.lab))>=0)?String(d.lab):undefined,
         /* `of` (v2.49) — 이 딜이 붙을 **매장의 번호**(같은 배열의 자리). 딜에만 뜻이 있다:
            매장에 달려 오면 자기 자신을 가리키는 고리가 되므로 버린다. */
         of:(!d.store&&d.of!=null&&isFinite(Number(d.of)))?Math.max(0,Math.round(Number(d.of))):undefined,
         hold:!!d.hold};
-    /* 딜은 제목이 있어야 하고, **가게는 상호가 있으면 된다** (v2.32) — store 항목에는
-       팔 물건이 없으므로 title 을 요구하면 항목이 앱에 도착조차 못 한다.
+    /* **상호나 딜 제목 중 하나면 된다** (v2.58, 콘솔 D189) — 매장과 딜이 한 항목이 되면서
+       "상호만 적고 딜을 켠" 항목이 흔해졌다. 여태 규칙(딜은 title 필수)이면 그런 항목이
+       조용히 사라진다. 이름표는 상호→제목 순으로 떨어지므로(dealName) 어느 쪽이든 선다.
        ⚠️ 콘솔 toSeed 의 필터도 같은 규칙이어야 한다(한쪽만 넓히면 신호 없이 사라진다). */
-    }).filter(function(d){return d.store?d.shop:d.title;});
+    }).filter(function(d){return d.shop||d.title;});
     /* 상단 지면 (v2.2). theme 은 SEED_PAL 의 키 — 모르는 값이면 seedImg 가 cafe 로 떨어진다.
        상한은 콘솔의 MAX_SEED_PAGES 와 같은 값이어야 한다. */
     var pgs=(Array.isArray(rs.pages)?rs.pages:[]).slice(0,NH_MAX.page).map(function(p){
@@ -11248,7 +11241,7 @@ function nhLockHitFor(el){
   if(el.closest('#phone-content-page'))return 'page';
   /* 컨텐츠(핀·카드)는 지도 위 오버레이다 — 지도 자체(#phone-map)보다 안쪽이라 먼저 잡는다.
      지도 이동·줌은 클릭이 아니라 제스처라 여기서 안 막는다 (nhLockMap 이 Maps 옵션으로 막는다). */
-  if(el.closest('.fp-dot,.deal-pin,.deal-label,.req-pin,.spot-bubble,.feed-pin,.add-pin'))return 'content';
+  if(el.closest('.fp-dot,.deal-label,.req-pin,.spot-bubble,.feed-pin,.add-pin'))return 'content';
   return null;
 }
 

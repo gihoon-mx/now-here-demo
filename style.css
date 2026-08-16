@@ -1473,11 +1473,9 @@ body.mode-trend .feed-pin .fp-tag{background:var(--heat-a,var(--heat,#f2862e));}
    left/top 은 뺀다 — 팬할 때마다 핀이 지도를 쫓아오며 미끄러진다. */
 .feed-pin{transition:width .22s cubic-bezier(.22,1,.36,1),height .22s cubic-bezier(.22,1,.36,1),opacity .22s ease;}
 .feed-pin .fp-im{transition:border-width .22s ease;}
-.deal-pin{transition:opacity .22s ease;}
-.deal-pin .dp-circle{transition:width .22s cubic-bezier(.22,1,.36,1),height .22s cubic-bezier(.22,1,.36,1),border-width .22s ease;}
 .spot-marker{transition:opacity .22s ease;}
 @media (prefers-reduced-motion:reduce){
-  .feed-pin,.feed-pin .fp-im,.deal-pin,.deal-pin .dp-circle,.spot-marker{transition:none;}
+  .feed-pin,.feed-pin .fp-im,.spot-marker{transition:none;}
 }
 
 /* ── v1.63 베이직↔트렌드 전환 트랜스폼(지도 펄스 — AI 아이콘은 기존 aiSpin 재사용) ── */
@@ -1677,23 +1675,10 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
 .ct-foot{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;
   border-top:1px solid var(--line-soft);font-size:.7rem;color:var(--ink3);}
 
-/* ── [M17] v1.89 타임딜 — 지도 ⏰ 핀 + 바텀시트 ────────────────────────────
-   핀은 **폰 컨테이너 밖**(PC 지도에도 그려진다)이라 px. 시트는 폰 안이라 cqw. */
-.deal-pin{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:4px;
-  pointer-events:auto;cursor:pointer;z-index:5;-webkit-user-select:none;user-select:none;}
-.deal-pin .dp-circle{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;
-  background:#fff;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(15,23,42,0.28);font-size:16px;cursor:grab;} /* v2.30.1 끌어 옮기기 */
-.deal-pin.dragging .dp-circle{cursor:grabbing;filter:brightness(1.06);}
-.deal-pin .dp-pct{padding:2px 8px;border-radius:9999px;background:#fff;color:#4a4a4a;
-  font-size:10px;font-weight:800;line-height:1.3;box-shadow:0 1px 5px rgba(15,23,42,0.24);white-space:nowrap;}
-body.mode-trend .deal-pin .dp-circle{background:#f2c33c;border-color:#e8a92b;}
-body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
-.deal-pin.no-pct .dp-pct{display:none;} /* v2.15 관리자 표시 설정: %라벨 끔 */
-/* 축소 시 점 (v2.11) — 피드 .fp-dot 과 같은 문법: 12px 고정, 라벨 숨김. 색은 모드 규칙 그대로. */
-.deal-pin.dl-dot{opacity:.75;gap:0;}
-.deal-pin.dl-dot .dp-pct{display:none;}
-/* v2.46 — `--nh-k`(화면 폭)조차 안 타고 있었다. 다른 점들과 같은 자로 맞춘다. */
-.deal-pin.dl-dot .dp-circle{width:calc(12px*var(--nh-k,1)*var(--nh-c,1));height:calc(12px*var(--nh-k,1)*var(--nh-c,1));font-size:0;border-width:1.5px;box-shadow:0 1px 3px rgba(15,23,42,0.25);}
+/* ── [M17] v1.89 타임딜 — 바텀시트 ────────────────────────────────────────
+   ⏰ 원형 핀(`.deal-pin`)은 **v2.58 에서 없앴다** (콘솔 D189): 한 가게가 지도에 핀과
+   이름표로 두 번 서던 것을 이름표 하나로 합쳤다. 딜이라는 사실은 아래 `.dl-live` 가
+   말한다. 시트는 폰 안이라 cqw. */
 
 /* ── 가게 이름표 + 가게 한마디 (v2.32) ────────────────────────────────────────
    앵커 **아래**에 [한마디▲][상호칩] 순으로 선다. 핀은 `translate(-50%,-100%)` 로 앵커
@@ -1715,7 +1700,8 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
 .deal-label.dragging .dl-name{cursor:grabbing;filter:brightness(1.1);}
 /* 색·투명도는 관리자 설정이 정한다 (v2.47 — `--dln-c`/`--dln-bg`, applyPinStyle 이 싣는다).
    변수가 없으면 여태 값이 그대로 폴백이라 설정을 안 만진 화면은 하나도 안 바뀐다. */
-.deal-label .dl-name{pointer-events:auto;cursor:grab;touch-action:none;order:1;
+/* `position:relative` 는 v2.58 — 미니 라벨(.dl-tag)이 **이 칩의 어깨**에 앉는 자리다. */
+.deal-label .dl-name{position:relative;pointer-events:auto;cursor:grab;touch-action:none;order:1;
   padding:3px 10px;border-radius:20px;font-family:inherit;font-size:11px;font-weight:700;
   color:var(--dln-c,#fff);background:var(--dln-bg,rgba(26,26,26,0.88));white-space:nowrap;letter-spacing:.01em;
   box-shadow:0 2px 10px rgba(0,0,0,0.35),0 0 0 1px rgba(255,255,255,0.16);
@@ -1727,6 +1713,41 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
    아래에 있는 상호칩을 문다 — 꼬리 6px 이 gap 6px 을 정확히 채운다. */
 .deal-label .dl-msg{order:2;--spot-bg:rgba(26,26,26,0.88);color:#fff;max-width:150px;font-size:11px;
   box-shadow:0 2px 10px rgba(0,0,0,0.28);}
+
+/* ── 타임딜 중인 가게 (v2.58, 콘솔 D189) ──────────────────────────────────
+   ⏰ 원형 핀이 없어진 자리를 이 두 가지가 대신한다: **강조색 칩**과 **미니 라벨**.
+
+   `.dl-name` 은 위에서 `--dln-bg`(관리자 설정)를 배경으로 쓴다 — 딜일 때만 그 위를
+   딜 색으로 덮는다. 관리자가 이름표 색을 바꿔도 "딜은 붉다" 는 규칙은 남아야 한다:
+   딜인지 아닌지가 색 설정에 따라 사라지면 이 화면의 주인공이 안 보인다.
+
+   맥동은 **테두리(box-shadow)로만** 한다 — transform 을 건드리면 JS 가 draw 마다 쓰는
+   `scale()`(labelScale × 이름표 크기 × 딜 크기)과 싸운다. 그림자는 레이아웃도 안 흔든다. */
+.deal-label.dl-live .dl-name{color:#fff;background:var(--dl-live-bg,#e8574a);
+  box-shadow:0 2px 12px rgba(232,87,74,0.45),0 0 0 1px rgba(255,255,255,0.22);
+  animation:dlPulse 2.4s ease-in-out infinite;}
+.deal-label.dl-live .dl-t{font-weight:800;}
+@keyframes dlPulse{
+  0%,100%{box-shadow:0 2px 12px rgba(232,87,74,0.45),0 0 0 1px rgba(255,255,255,0.22);}
+  50%{box-shadow:0 2px 16px rgba(232,87,74,0.6),0 0 0 4px rgba(232,87,74,0.28);}
+}
+/* 미니 라벨 — 컨텐츠의 `.spot-tag` 와 **같은 자리·같은 값**이다 (우측 상단, 9px/800,
+   흰 링). 배경만 JS 가 인라인으로 박는다(딜 색 × 관리자 톤) — 리액션 라벨과 같은 문법. */
+.deal-label .dl-tag{position:absolute;right:-6px;top:-9px;display:flex;align-items:center;gap:3px;
+  font-size:9px;font-weight:800;color:#fff;border-radius:999px;padding:2px 5px;line-height:1;
+  box-shadow:0 0 0 1.5px #fff;white-space:nowrap;pointer-events:none;}
+.dl-tag>b{font-weight:800;}
+.tg-d,.tg-i{position:relative;display:inline-flex;align-items:center;gap:2px;}
+.tg-i .tg-e{display:none;}                    /* 정보 칸에는 이모지가 없다 (칸 구조만 빌린다) */
+.tg-i .tg-n{opacity:.92;font-variant-numeric:tabular-nums;} /* 1초마다 바뀌는 숫자가 안 흔들리게 */
+/* 등장 바운스와 겹칠 때 (v2.58) — `.nh-pop-in .dl-name` 은 animation 을 통째로 덮어쓴다.
+   딜 이름표는 **둘 다** 필요하다: 튀어 오르고, 그 뒤로 계속 맥동한다. */
+.deal-label.dl-live.nh-pop-in .dl-name{
+  animation:nhPopIn .55s cubic-bezier(.3,1.4,.5,1) both,dlPulse 2.4s ease-in-out infinite;}
+@media (prefers-reduced-motion:reduce){
+  .deal-label.dl-live .dl-name,
+  .deal-label.dl-live.nh-pop-in .dl-name{animation:none;} /* 색은 남는다 — 그것이 정보다 */
+}
 
 /* v2.29 팝업 문법 통일: 스크림을 걷고 시트를 유리로 — 컨텐츠 추가 메뉴(.content-add-menu)·
    에이전트 말풍선(.ai-bubble/.req-bubble)과 같은 프로스트·헤어라인·상단 광택이다.
@@ -1932,15 +1953,13 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
 }
 .nh-pop-in .spot-bubble,.nh-pop-in .spot-emoji,.nh-pop-in .spot-dotmark,
 .nh-pop-in .fp-im,.nh-pop-in .fp-n,
-.nh-pop-in .dp-circle,.nh-pop-in .dp-pct,
 .nh-pop-in .rp-drop,
 .nh-pop-in .dl-msg,.nh-pop-in .dl-name,
 .cp-slide.nh-pop-in img{animation:nhPopIn .55s cubic-bezier(.3,1.4,.5,1) both;}
 @media (prefers-reduced-motion:reduce){
   .nh-pop-in .spot-bubble,.nh-pop-in .spot-emoji,.nh-pop-in .spot-dotmark,
   .nh-pop-in .fp-im,.nh-pop-in .fp-n,
-  .nh-pop-in .dp-circle,.nh-pop-in .dp-pct,
-  .nh-pop-in .rp-drop,
+    .nh-pop-in .rp-drop,
   .nh-pop-in .dl-msg,.nh-pop-in .dl-name,
   .cp-slide.nh-pop-in img{animation:none;}
 }

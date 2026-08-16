@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=2.57.1" />
+  <link rel="stylesheet" href="style.css?v=2.58.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.57.1" />
+  <link rel="stylesheet" href="skin-new.css?v=2.58.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.57.1" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.58.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -36,7 +36,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.57.1</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.58.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -512,10 +512,13 @@
               <!-- v2.47 아이콘 색·투명도 — 색은 인라인이라 스킨 기본(v3=검정 원)을 이긴다 -->
               <div class="setting-row"><label>아이콘 색</label><button type="button" class="color-trigger" id="ct-pv-req" title="Request 아이콘 색"><span class="ct-swatch"><span class="ct-fill"></span></span></button><button type="button" class="action-btn small" id="pv-req-color-clear">스킨 기본</button></div>
               <div class="setting-row"><label>투명도</label><input type="number" id="pv-req-op" min="0" max="100" step="5" value="100" class="num-in" /><span class="num-hint">% (기본 100)</span></div>
-              <div class="row-cap">타임딜</div>
+              <!-- v2.58: ⏰ 원형 핀이 없어졌다 — 딜은 가게 이름표의 강조와 미니 라벨로 산다.
+                   그래서 '핀 크기'는 **딜 매장만** 더 키우는 손잡이가, '할인율 라벨'은
+                   그 미니 라벨의 스위치가 됐다 (칸 이름은 그대로 — 저장된 설정이 그 키를 쓴다). -->
+              <div class="row-cap">매장 · 타임딜</div>
               <div class="setting-row"><label>지도에 표시</label><label class="toggle-switch"><input type="checkbox" id="pv-deal-show" checked /><span class="toggle-slider"></span></label></div>
-              <div class="setting-row"><label>핀 크기</label><input type="number" id="pv-deal-size" min="40" max="200" step="5" value="100" class="num-in" /><span class="num-hint">% (기본 100)</span></div>
-              <div class="setting-row"><label>할인율 라벨</label><label class="toggle-switch"><input type="checkbox" id="pv-deal-label" checked /><span class="toggle-slider"></span></label></div>
+              <div class="setting-row"><label>딜 매장 크기</label><input type="number" id="pv-deal-size" min="40" max="200" step="5" value="100" class="num-in" /><span class="num-hint">% (기본 100 — 딜 중인 가게만)</span></div>
+              <div class="setting-row"><label>⏰타임딜 라벨</label><label class="toggle-switch"><input type="checkbox" id="pv-deal-label" checked /><span class="toggle-slider"></span></label></div>
               <div class="setting-row"><label>가게 이름표</label><label class="toggle-switch"><input type="checkbox" id="pv-deal-name" checked /><span class="toggle-slider"></span></label></div>
               <!-- v2.47 가게 이름표 스타일 — 지도에 늘 떠 있는데 손잡이가 없던 자리 -->
               <div class="row-cap">가게 이름표</div>
@@ -704,7 +707,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.57.1"></script>
-  <script src="app.js?v=2.57.1"></script>
+  <script src="config.js?v=2.58.0"></script>
+  <script src="app.js?v=2.58.0"></script>
 </body>
 </html>
