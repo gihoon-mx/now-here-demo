@@ -11201,10 +11201,64 @@ function nhLockHitFor(el){
  * ⚠️ **재생 중에는 안 막는다.** 대본이 시키는 손짓은 사람의 손이 아니다 — 여기서 막으면
  * 시나리오가 제 화면을 못 만든다.
  */
+/**
+ * 사람이 무엇을 만졌는지 부모에게 알린다 (v2.56, 콘솔 D186).
+ *
+ * 서베이 응답 화면이 이것을 **응답의 로그로** 남긴다 — 어디서 헤맸는지가 답만으로는
+ * 안 보이기 때문이다. 보내는 것은 **무엇을 만졌나(단위)와 곁들이는 값**뿐이다:
+ * 좌표도, 화면에 적은 글도, 시각도 안 싣는다 (시각은 받는 쪽이 제 시계로 적는다 —
+ * 두 시계를 맞출 이유가 없다).
+ *
+ * 재생 중에는 안 보낸다: 그때 화면을 움직이는 것은 대본이지 사람이 아니다.
+ */
+function nhTouch(unit,v){
+  try{
+    if(typeof nhPlaying!=='undefined'&&nhPlaying)return;
+    if(!window.parent||window.parent===window)return;
+    window.parent.postMessage({source:'now-here',type:'nh:touch',
+      unit:String(unit||'other'),v:String(v||'')},'*');
+  }catch(e){}
+}
+
+/**
+ * 지도 제스처는 클릭이 아니다 — Maps 이벤트에서 따로 잡는다 (v2.56).
+ *
+ * 지도는 이 함수보다 늦게 만들어질 수 있어(임베드 부팅 순서) **생길 때까지 몇 번 더
+ * 두드린다**. 한 번만 부르고 마는 구조였다면 지도 조작만 조용히 안 남았을 것이다.
+ */
+function initTouchReport(tries){
+  try{
+    if(typeof phoneMap==='undefined'||!phoneMap||!phoneMap.addListener){
+      var n=(tries||0)+1;
+      if(n<20)setTimeout(function(){initTouchReport(n);},500);
+      return;
+    }
+    if(phoneMap.__nhTouchWired)return;
+    phoneMap.__nhTouchWired=true;
+    phoneMap.addListener('dragend',function(){nhTouch('map','pan');});
+    phoneMap.addListener('zoom_changed',function(){
+      try{nhTouch('map','zoom'+phoneMap.getZoom());}catch(e){nhTouch('map','zoom');}
+    });
+  }catch(e){}
+}
+
 function initLockGuard(){
   var root=document.querySelector('.phone-screen')||document.body;
   if(!root||root.dataset.nhLockGuard)return;
   root.dataset.nhLockGuard='1';
+  /* 사람이 누른 것을 부모에게 알린다 (v2.56) — 잠금과 **무관하게** 언제나.
+     문지기와 같은 자리에 붙이는 이유: 어느 단위를 눌렀는지 아는 코드가 여기뿐이다.
+     캡처 단계라 잠긴 자리를 눌러 막히는 경우도 함께 잡힌다 (막힌 것도 사람이 시도한 일이다). */
+  root.addEventListener('click',function(e){
+    if(!e.isTrusted)return;
+    var hit=nhLockHitFor(e.target);
+    var v='';
+    try{
+      if(hit==='tabs'){var it=e.target.closest&&e.target.closest('.pn-item');v=it&&it.dataset?it.dataset.nav||'':'';}
+      else if(hit==='mode'){var mb=e.target.closest&&e.target.closest('.pm-btn');v=mb?(mb.textContent||'').trim().slice(0,10):'';}
+    }catch(x){}
+    nhTouch(hit||'other',v);
+  },true);
   ['click','pointerdown','touchstart'].forEach(function(type){
     root.addEventListener(type,function(e){
       /* 재생 중에는 **사람의 손을 통째로 막는다** (v2.54).
@@ -11285,6 +11339,7 @@ function initScenarioBridge(){
       else nhPost(reply,{type:'nh:peeked',ok:nhPeek(d.item)!==false});}
   });
   initLockGuard(); // 조작 잠금 문지기 (v2.53) — 잠금이 없으면 아무것도 안 막는다
+  initTouchReport(); // 지도 제스처도 알린다 (v2.56)
   // 부모가 언제 붙을지 모르므로 준비되면 알린다 (시나리오 목록은 비밀이 아니다)
   if(window.parent&&window.parent!==window){
     try{window.parent.postMessage({source:'now-here',type:'nh:ready',
