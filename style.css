@@ -1902,6 +1902,16 @@ body.mode-trend .deal-pin .dp-pct{background:#e8574a;color:#fff;}
 }
 .nh-shake { animation: nh-shake .38s ease; }
 
+/* ══ 재생 중에는 사람 손이 안 닿는다 (v2.54) ═══════════════════════
+   대본이 도는 동안 옆에서 눌러 대면 화면이 대본과 다른 곳에 가 있고, 그 뒤 단계는
+   엉뚱한 자리에서 벌어진다 — 시연이 거짓말을 한다.
+
+   **왜 pointer-events 인가**: 문지기(initLockGuard)는 click·pointerdown·touchstart 만
+   본다. 지도 제스처(끌기·핀치)와 스크롤은 그 그물에 안 걸린다. 여기서 통째로 막으면
+   그것들까지 멈춘다. 대본이 누르는 `el.click()` 은 히트 테스트를 안 거치므로 그대로 돈다.
+   (키보드로 누르는 것은 신뢰된 click 이라 문지기가 잡는다 — 두 겹이 서로를 메운다.) */
+body.nh-playing .phone-screen { pointer-events: none; }
+
 /* 잠긴 자리는 손 모양을 안 준다 — 눌러도 되는 것처럼 보이지 않게. */
 .nh-lock-tabs .phone-navbar .pn-item,
 .nh-lock-add .pn-add,

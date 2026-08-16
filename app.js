@@ -9874,7 +9874,19 @@ function nhRunAfterClose(){
 }
 // 회차가 끝나면 말풍선 시간도 액션 기본으로 (v2.30), 박자도 제 속도로 (v2.39) —
 // 사람이 손으로 만지는 화면이 마지막 단계의 배율을 물려받으면 앱이 이상하게 느려진다.
-function nhStop(){nhRunToken++;nhPlaying=false;nhBubbleMs=null;nhRateSet(null,0);}
+/**
+ * 재생 상태를 **한 자리에서** 바꾼다 (v2.54).
+ *
+ * 이 값이 바뀔 때마다 따라와야 하는 것이 둘 있다: 폰 화면의 `pointer-events`(사람 손을
+ * 막는다)와 지도 제스처. 대입을 여기저기 흩어 두면 한 자리를 빠뜨려 "재생 중인데
+ * 눌린다" 가 다시 난다.
+ */
+function nhPlaySet(v){
+  nhPlaying=!!v;
+  try{document.body.classList.toggle('nh-playing',nhPlaying);}catch(e){}
+  nhLockMap();
+}
+function nhStop(){nhRunToken++;nhPlaySet(false);nhBubbleMs=null;nhRateSet(null,0);}
 
 /* 재생 전 초기화 — 시연은 몇 번을 돌려도 같은 곳에서 시작해야 한다.
    앞 시나리오가 열어둔 팝업·드로어가 남으면 다음 회차가 그 뒤에서 조용히 흘러간다. */
@@ -11041,13 +11053,13 @@ function nhRun(id,reply,inline){
   nhStop();nhReset();
   nhCoinsMark(); // 이 회차가 시작하는 잔액 — 끝나면(다음 nhReset) 여기로 돌아온다 (v2.19)
   var token=++nhRunToken, i=0;
-  nhPlaying=true; // v2.47 — 재생 중에는 nh:peek(목록 편집의 미리보기)을 안 받는다
+  nhPlaySet(true); // v2.47 — 재생 중에는 nh:peek 을 안 받고, v2.54 부터 사람 손도 안 받는다
   nhSeedScenario(sc,token); // 이 시나리오가 성립하려면 화면에 있어야 하는 것부터 깐다
   nhStageHome(sc);          // 그리고 **그 자리에 선다** (v2.46) — 아래 설명 참고
   nhPost(reply,{type:'nh:begin',id:sc.id,name:sc.name,total:sc.steps.length,concern:!!sc.concern});
   (function next(){
     if(token!==nhRunToken)return;            // 새 재생/중지가 들어오면 이 회차는 조용히 끝난다
-    if(i>=sc.steps.length){nhPlaying=false;nhPost(reply,{type:'nh:done',id:sc.id});return;}
+    if(i>=sc.steps.length){nhPlaySet(false);nhPost(reply,{type:'nh:done',id:sc.id});return;}
     var st=sc.steps[i];
     var ok=nhAct(st,token)!==false; // 화면이 실제로 따라왔는가 (v1.94, 콘솔 D72)
     if(st.concern)nhConcernBeat();  // 막힌 순간이 화면에서도 한 박자 보이게
@@ -11115,16 +11127,19 @@ function nhLockPaint(){
 var NH_LOCK_HINT_AT=3;      // 이만큼 누르면 안내가 뜬다
 var NH_LOCK_HINT_WINDOW=4000; // 이 시간 안에 센다
 var nhLockHits=0,nhLockHitAt=0,nhLockHintEl=null,nhLockHintT=null;
+/** 흔들기만 (v2.54) — 재생 중 막을 때 쓴다. 안내 문구는 안 띄운다. */
+function nhLockBumpQuiet(el){
+  if(!el||!el.classList)return;
+  el.classList.remove('nh-shake');
+  void el.offsetWidth;               // 리플로우 — 연달아 눌러도 다시 흔들린다
+  el.classList.add('nh-shake');
+  setTimeout(function(){try{el.classList.remove('nh-shake');}catch(e){}},420);
+}
 function nhLockBump(el){
   var now=Date.now();
   nhLockHits=(now-nhLockHitAt>NH_LOCK_HINT_WINDOW)?1:nhLockHits+1;
   nhLockHitAt=now;
-  if(el&&el.classList){
-    el.classList.remove('nh-shake');
-    void el.offsetWidth;              // 리플로우 — 같은 것을 연달아 눌러도 다시 흔들린다
-    el.classList.add('nh-shake');
-    setTimeout(function(){try{el.classList.remove('nh-shake');}catch(e){}},420);
-  }
+  nhLockBumpQuiet(el);
   if(nhLockHits>=NH_LOCK_HINT_AT){nhLockHits=0;nhLockHint();}
 }
 function nhLockHint(){
@@ -11177,8 +11192,22 @@ function initLockGuard(){
   root.dataset.nhLockGuard='1';
   ['click','pointerdown','touchstart'].forEach(function(type){
     root.addEventListener(type,function(e){
+      /* 재생 중에는 **사람의 손을 통째로 막는다** (v2.54).
+         대본이 도는 동안 옆에서 눌러 대면 화면이 대본과 다른 곳에 가 있고, 그 뒤 단계는
+         엉뚱한 자리에서 벌어진다 — 시연이 거짓말을 한다.
+         대본이 누르는 것은 `el.click()` 이라 `isTrusted:false` 다: 그것만 지나간다.
+         (여태는 재생 중이면 문지기를 통째로 비켰다 — 그래서 재생 중에 다 눌렸다.)
+         흔들기만 하고 안내는 안 띄운다: 화면이 눈에 보이게 도는 중이라 이유가 분명하고,
+         안내 문구는 서베이 문항을 전제로 쓴 말이라 여기서는 맞지 않는다. */
+      if(typeof nhPlaying!=='undefined'&&nhPlaying){
+        if(!e.isTrusted)return;
+        e.stopPropagation();
+        if(e.cancelable)e.preventDefault();
+        if(type==='click'&&e.target&&e.target.closest)
+          nhLockBumpQuiet(e.target.closest('button,[role="button"],.pn-item')||e.target);
+        return;
+      }
       if(!nhAllow)return;            // 잠금 없음 — 여태처럼 전부 열려 있다
-      if(typeof nhPlaying!=='undefined'&&nhPlaying)return; // 재생 중은 대본의 시간이다
       var hit=nhLockHitFor(e.target);
       if(!hit||nhCan(hit))return;
       e.stopPropagation();
@@ -11193,7 +11222,9 @@ function initLockGuard(){
 function nhLockMap(){
   try{
     if(typeof phoneMap==='undefined'||!phoneMap||!phoneMap.setOptions)return;
-    var on=nhCan('map');
+    /* 재생 중에는 지도도 사람 손을 안 받는다 (v2.54) — 제스처는 문지기의 그물
+       (click·pointerdown·touchstart)에 안 걸려서 여기서 따로 막아야 한다. */
+    var on=nhCan('map')&&!(typeof nhPlaying!=='undefined'&&nhPlaying);
     phoneMap.setOptions({
       gestureHandling:on?'greedy':'none',
       disableDoubleClickZoom:!on,
