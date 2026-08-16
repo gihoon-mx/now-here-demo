@@ -11045,17 +11045,32 @@ function nhSanitize(raw){
     seed:seed,pos:pos,steps:steps};
 }
 
-function nhRun(id,reply,inline){
+/**
+ * @param keep **화면을 그대로 두고 이어 단다** (v2.55, 콘솔 D184).
+ *
+ * 기본은 무대를 리셋하고 시드부터 다시 깐다 — 콘솔이 단계를 앞으로 넘길 때마다 앞 단계를
+ * 통째로 다시 조립해야 했던 이유다. 이미 그 자리에 서 있으면 다시 세울 것이 없으므로,
+ * 콘솔이 **남은 단계만** 보내면서 이 값을 켠다.
+ *
+ * 이때 건너뛰는 것: `nhStop`(화면 되돌리기) · `nhReset` · `nhCoinsMark`(잔액 기준점) ·
+ * `nhSeedScenario`(무대 깔기) · `nhStageHome`(그 자리로 카메라). 돌던 회차는 아래
+ * `++nhRunToken` 이 끊으므로 `nhStop` 없이도 겹치지 않는다.
+ */
+function nhRun(id,reply,inline,keep){
   var sc=inline?nhSanitize(inline):nhScenario(id);
   if(!sc){nhPost(reply,{type:'nh:error',message:inline?'시나리오 형식이 올바르지 않습니다.':'없는 시나리오: '+id});return;}
   nhScenarioKey=String(sc.id||id||''); // 사람이 옮긴 무대 자리의 저장 단위 (v2.3)
   nhPosRecv=(sc&&sc.pos)||{};          // 콘솔이 들고 있던 자리 (v2.20) — 이 회차에 쓴다
-  nhStop();nhReset();
-  nhCoinsMark(); // 이 회차가 시작하는 잔액 — 끝나면(다음 nhReset) 여기로 돌아온다 (v2.19)
+  if(!keep){
+    nhStop();nhReset();
+    nhCoinsMark(); // 이 회차가 시작하는 잔액 — 끝나면(다음 nhReset) 여기로 돌아온다 (v2.19)
+  }
   var token=++nhRunToken, i=0;
   nhPlaySet(true); // v2.47 — 재생 중에는 nh:peek 을 안 받고, v2.54 부터 사람 손도 안 받는다
-  nhSeedScenario(sc,token); // 이 시나리오가 성립하려면 화면에 있어야 하는 것부터 깐다
-  nhStageHome(sc);          // 그리고 **그 자리에 선다** (v2.46) — 아래 설명 참고
+  if(!keep){
+    nhSeedScenario(sc,token); // 이 시나리오가 성립하려면 화면에 있어야 하는 것부터 깐다
+    nhStageHome(sc);          // 그리고 **그 자리에 선다** (v2.46) — 아래 설명 참고
+  }
   nhPost(reply,{type:'nh:begin',id:sc.id,name:sc.name,total:sc.steps.length,concern:!!sc.concern});
   (function next(){
     if(token!==nhRunToken)return;            // 새 재생/중지가 들어오면 이 회차는 조용히 끝난다
@@ -11240,8 +11255,8 @@ function initScenarioBridge(){
     var reply={win:e.source,origin:e.origin};
     // clean 은 additive 다 — 옛 콘솔은 모르는 필드를 무시하고, 새 콘솔은 이 값으로
     // "빈 무대를 요청했는데 앱이 안 비웠다"(= 앱 배포가 뒤졌다)를 화면에 드러낸다.
-    if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList(),clean:IS_CLEAN_EMBED});
-    else if(d.type==='nh:run')nhRun(d.id,reply,d.scenario);
+    if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList(),clean:IS_CLEAN_EMBED,keep:true});
+    else if(d.type==='nh:run')nhRun(d.id,reply,d.scenario,d.keep===true);
     /* "지금 보고 있는 지도를 알려 달라" (v1.99). 콘솔이 지도 링크를 파싱하는 대신
        **사람이 임베드 안에서 직접 맞춘 화면**을 그대로 가져가는 길이다 — 단축 주소·
        카카오 링크처럼 못 읽는 주소가 많아서 좌표를 얻는 것 자체가 관문이었다. */
@@ -11273,7 +11288,9 @@ function initScenarioBridge(){
   // 부모가 언제 붙을지 모르므로 준비되면 알린다 (시나리오 목록은 비밀이 아니다)
   if(window.parent&&window.parent!==window){
     try{window.parent.postMessage({source:'now-here',type:'nh:ready',
-      version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList(),clean:IS_CLEAN_EMBED},'*');}catch(e){}
+      version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList(),clean:IS_CLEAN_EMBED,
+      /* 이어 달리기를 아는 앱이다 (v2.55, 콘솔 D184) — 콘솔은 이 값을 보고 길을 고른다. */
+      keep:true},'*');}catch(e){}
   }
 }
 function nhVersion(){var el=document.getElementById('app-version');return el?el.textContent:'';}
