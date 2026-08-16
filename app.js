@@ -8620,12 +8620,9 @@ function nhOwn(kind){
   var arr=nhStore(kind),out=[],i,j;
   for(i=0;i<ids.length;i++)for(j=0;j<arr.length;j++)
     if(arr[j]&&arr[j].id===ids[i]){out.push(arr[j]);break;}
-  /* 매장은 **선언 순서**로 돌려준다 (v2.59, 콘솔 D190).
-     까는 것은 매장부터 도는데(딜의 `of` 가 붙으려면 매장이 먼저 서야 한다) 생성 순서를
-     그대로 번호로 쓰면 콘솔의 목록 순서와 어긋난다 — `매장 2번` 이 1번을 집는 자리다.
-     `si`(선언 순번)는 nhLayDeal 이 적는다. 없는 것(옛 항목·burst)은 뒤로 민다. */
-  if(kind==='deal')out.sort(function(a,b){
-    return (a&&a.si!=null?a.si:1e9)-(b&&b.si!=null?b.si:1e9);});
+  /* **생성 순서 그대로 돌려준다** — 이 목록은 이제 `i:-1`(방금 생긴 것)만 쓴다 (v2.60).
+     v2.59 는 여기서 선언 순번으로 정렬했는데, 그러면 "방금" 의 뜻이 깨진다. 선언 번호로
+     집는 일은 `nhSeedIds` 가 맡는다(콘솔 D191). */
   return out;
 }
 /* i 는 시나리오가 선언한 순서. **음수면 뒤에서부터** — i:-1 = 방금 만든 것(직접 쓴 글).
@@ -8650,6 +8647,16 @@ function nhPick(kind,i){
      되면서 목록도 하나가 됐다. 딜인지 아닌지는 그 항목의 상태(`store`/`off`)이지 종류가
      아니다. 옛 시나리오의 `v:'store'` 도 이 한 줄로 같은 목록을 집는다. */
   if(kind==='store')kind='deal';
+  /* **번호는 컨텐츠 탭의 줄 번호다** (v2.60, 콘솔 D191) — `hold` 를 켰든 안 켰든, 앞 단계가
+     띄웠든 처음부터 깔렸든 같은 번호다. 여태는 '깔린 것 중 몇 번째' 라 그 둘이 어긋났다.
+     음수(-1 = 방금 생긴 것)는 이 표를 안 탄다 — 그건 선언이 아니라 **생성 순서**의 말이다. */
+  if(i>=0&&nhSeedIds[kind]&&Object.prototype.hasOwnProperty.call(nhSeedIds[kind],i)){
+    var sid=nhSeedIds[kind][i];
+    if(!sid)return null;                  // 선언은 됐는데 아직 안 깔렸다 → 실패로 드러난다
+    var all=nhStore(kind);
+    for(var si=0;si<all.length;si++)if(all[si]&&all[si].id===sid)return all[si];
+    return null;                          // 걷힌 것 (nhReset·삭제) — 역시 실패다
+  }
   var own=nhOwn(kind);
   if(own.length)return nhAt(own,i);
   var arr=nhStore(kind);
@@ -9515,15 +9522,15 @@ function nhCoupon(i,say,e,token,ms,fast){
   var wait=Math.min(900,Math.max(260,Math.round((ms||1500)*0.45)));
   setTimeout(function(){
     if(token!==nhRunToken)return;
-    /* **시트를 안 닫는다** (v2.59, 콘솔 D190) — 닫는 시점은 `popclose` 가 정한다
-       (현장 Request 컴포저가 v2.48 에 배운 것과 같은 규칙). 여태는 받자마자 스스로 닫아서
-       "쿠폰을 받은 화면" 을 얼마나 보여줄지 대본이 정할 수 없었다.
-       티켓은 지금 난다 — 누른 버튼에서 나와야 그 버튼의 대답이 된다(v2.31).
-       문구는 시트가 닫히는 순간에 온다 — 시트에 가려진 채로 뜨면 아무도 못 읽는다. */
-    claimDeal(d,{ms:0,say:say,from:btn});
+    /* **시트를 안 닫고, 받는 연출도 미룬다** (v2.59.1, 콘솔 D190) — 닫는 시점은 `popclose`
+       가 정한다 (현장 Request 컴포저가 v2.48 에 배운 것과 같은 규칙).
+       v2.59 는 티켓만 지금 날렸는데, 그러면 **시트에 가려진 채로 날아간다** — 쿠폰이
+       지갑으로 들어가는 그림이 이 장면의 핵심인데 아무도 못 본다. 티켓도 문구도
+       시트가 걷히는 순간에 함께 온다.
+       버튼은 누르는 것까지가 지금이다(`nhTouch`) — 눌림은 그 자리에서 보여야 한다. */
     nhAfterClose(function(){
       if(token!==nhRunToken)return;
-      couponSay(d,say,nhCouponMs(e));
+      claimDeal(d,{ms:nhCouponMs(e),say:say,from:btn});
     });
   },wait);
   return true;
@@ -10318,9 +10325,6 @@ function nhLayDeal(d,i,c,stamp){
     /* 딜을 **단계에서 켠다** (v2.59, 콘솔 D190) — 이름표는 지금 서지만 딜은 아직 아니다.
        `dealon` 액션이 이 칸을 걷는 순간 강조·미니 라벨·쿠폰이 한꺼번에 붙는다. */
     off:(!d.store&&!!d.later)||undefined,
-    /* 선언 순번 (v2.59) — 까는 순서(매장 먼저)가 아니라 **콘솔 목록의 순서**가 번호다.
-       nhOwn 이 이 값으로 정렬한다. */
-    si:i,
     secs:secs,ts:Date.now(),seed:false});
   nhTempIds.deal.push(id);
   nhDealIds[i]=id; // v2.49 — 뒤에 오는 딜이 `of` 로 이 항목을 가리킬 수 있다
@@ -10675,11 +10679,21 @@ function nhBurst(v,n,e,ms,token,look,sp){
 var nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:0};
 /* 이 회차의 딜/매장 원본과 깔린 id — 딜을 매장에 **붙이는**(`of`) 데 쓴다 (v2.49). */
 var nhSeedDeals=[],nhDealIds={};
+/* ── 선언 번호 → 깔린 id (v2.60, 콘솔 D191) ────────────────────────────────
+   **번호는 컨텐츠 탭의 줄 번호다.** 여태 단계의 `i` 는 '깔린 것 중 몇 번째' 였는데,
+   같은 항목이라도 `hold`(단계로 뿅)를 켜면 그 목록에서 빠져 번호가 통째로 밀렸다 —
+   그래서 `drop` 으로 띄운 매장은 `dealon`·`pop` 이 아예 못 집었다(사용자가 본 자리).
+   이제 이 표가 선언 번호를 들고 있고 `nhPick` 이 그것으로 집는다. 값이 null 이면
+   **선언은 됐는데 아직 안 깔린 것**이라 그 단계는 실패로 드러난다(조용한 성공 금지).
+   burst 가 만드는 것은 안 적는다 — 선언된 물건이 아니라 그 자리에서 지어낸 것이다. */
+var nhSeedIds={spot:{},feed:{},req:{},deal:{},page:{}};
+function nhSeedNote(kind,i,id){if(nhSeedIds[kind]&&i>=0)nhSeedIds[kind][i]=id||null;}
 
 function nhSeedScenario(sc,token){
   // 회차마다 0 부터 — write 의 "옮긴 자리" 키가 회차를 넘어 같아야 한다 (v2.12).
   nhHeld={spot:[],feed:[],req:[],deal:[],page:[],c:null,stamp:0,token:token};nhPostN=0;nhWriteN=0;nhWriteIds={};nhReqN=0;nhReqIds={};
   nhSeedDeals=[];nhDealIds={}; // v2.49 딜↔매장 연동의 출입구 (회차마다 비운다)
+  nhSeedIds={spot:{},feed:{},req:{},deal:{},page:{}}; // v2.60 선언 번호 표
   nhAddN=0;nhAddIdx=-1;nhAddAtPinned=false; // 추가 팝업의 순번도 회차마다 0 부터 (자리 기억 키가 어긋나지 않게, v2.34 · 콕 집음 표시는 v2.45)
   /* 등장 효과음 (v2.23) — 회차를 시작할 때 건다(소리가 없는 시나리오면 빈 값으로 꺼서
      앞 회차의 소리가 따라오지 않게). **무대를 까는 동안에는 안 운다** — 여기서 깔리는
@@ -10696,22 +10710,22 @@ function nhSeedScenario(sc,token){
   var stamp=Date.now();
   nhHeld.c=c;nhHeld.stamp=stamp;
   (sc.seed.reqs||[]).slice(0,NH_MAX.req).forEach(function(r,i){
-    if(r&&r.hold){nhHeld.req.push({v:r,i:i});return;}
-    nhLayReq(r,i,c,stamp,token);
+    if(r&&r.hold){nhHeld.req.push({v:r,i:i});nhSeedNote('req',i,null);return;}
+    nhSeedNote('req',i,nhLayReq(r,i,c,stamp,token));
   });
   /* 보관하는 번호는 **배열 순번 그대로**다 (v2.10). 전에는 스팟만 `10+i`, 피드만 `20+i`
      로 대역을 미리 얹어서, 같은 항목이라도 hold 를 켠 것과 안 켠 것이 다른 자리에
      깔렸다 — 대역은 nhLay* 안에서 한 번만 붙는다(NH_BAND). */
   (sc.seed.spots||[]).slice(0,NH_MAX.spot).forEach(function(s,i){
-    if(s&&s.hold){nhHeld.spot.push({v:s,i:i});return;}
-    nhLaySpot(s,i,c,stamp);
+    if(s&&s.hold){nhHeld.spot.push({v:s,i:i});nhSeedNote('spot',i,null);return;}
+    nhSeedNote('spot',i,nhLaySpot(s,i,c,stamp));
   });
   /* 피드도 시나리오가 깐다 (v1.72) — 없으면 `like`·`scroll`·`scope` 가 늘 같은 전역 카드를
      건드려서 "이 사람이 무엇에 반응했나" 가 시나리오마다 같아진다.
      사진은 seedImg 로 그린다(테마 색 + 라벨) — 외부 이미지에 기대지 않아 회차마다 똑같이 뜬다. */
   (sc.seed.feeds||[]).slice(0,NH_MAX.feed).forEach(function(f,i){
-    if(f&&f.hold){nhHeld.feed.push({v:f,i:i});return;}
-    nhLayFeed(f,i,c,stamp);
+    if(f&&f.hold){nhHeld.feed.push({v:f,i:i});nhSeedNote('feed',i,null);return;}
+    nhSeedNote('feed',i,nhLayFeed(f,i,c,stamp));
   });
   /* 타임딜 (v2.2) — **여기서는 60 을 더하지 않는다.** nhLayDeal 안에서 이미
      nhSpread(c,60+i) 로 스팟(10+i)·피드(20+i)·post(40+n)와 자리를 가른다.
@@ -10727,15 +10741,15 @@ function nhSeedScenario(sc,token){
      **까는 것만** 두 번 돈다: 딜이 `of` 로 매장을 가리키면 그 매장이 이미 서 있어야 붙는다.
      보관은 한 번에 선언 순서로 담는다 — 그래야 `drop` 의 번호가 콘솔 목록과 같다. */
   nhSeedDeals=(sc.seed.deals||[]).slice(0,NH_MAX.deal);
-  nhSeedDeals.forEach(function(d,i){ if(d&&d.hold)nhHeld.deal.push({v:d,i:i}); });
-  nhSeedDeals.forEach(function(d,i){ if(d&&!d.hold&&d.store)nhLayDeal(d,i,c,stamp); });
-  nhSeedDeals.forEach(function(d,i){ if(d&&!d.hold&&!d.store)nhLayDeal(d,i,c,stamp); });
+  nhSeedDeals.forEach(function(d,i){ if(d&&d.hold){nhHeld.deal.push({v:d,i:i});nhSeedNote('deal',i,null);} });
+  nhSeedDeals.forEach(function(d,i){ if(d&&!d.hold&&d.store)nhSeedNote('deal',i,nhLayDeal(d,i,c,stamp)); });
+  nhSeedDeals.forEach(function(d,i){ if(d&&!d.hold&&!d.store)nhSeedNote('deal',i,nhLayDeal(d,i,c,stamp)); });
   /* 상단 지면 (v2.2) — 좌표가 없으니 base 도 없다. 상한은 관리자 화면의
      NEWS_MAX_COUNT(6)보다 클 수 있다 — 그 상한은 렌더에 안 걸리고, 무대는 관리자가
      올린 지면이 아니라 이 회차가 깔았다 걷는 것이다. */
   (sc.seed.pages||[]).slice(0,NH_MAX.page).forEach(function(p,i){
-    if(p&&p.hold){nhHeld.page.push({v:p,i:i});return;}
-    nhLayNews(p,i,c,stamp);
+    if(p&&p.hold){nhHeld.page.push({v:p,i:i});nhSeedNote('page',i,null);return;}
+    nhSeedNote('page',i,nhLayNews(p,i,c,stamp));
   });
   /* 무대 트렌드 존 (v2.21) — hold 가 없다: 존은 면이라 "뿅 하고 뜨는" 연출 대상이 아니고,
      mode:trend 로 넘어가는 순간 기존 게이트가 한꺼번에 그린다. */
@@ -10774,15 +10788,20 @@ function nhDrop(v,i,e,fast){
   var kind=(v==='feed'||v==='req'||v==='deal'||v==='page')?v:(v==='spot'?'spot':'');
   if(!kind)return false;
   var list=nhHeld[kind]||[],n=(i|0);
-  if(n<0||n>=list.length)return false;
+  if(n<0)return false;
   /* **번호를 회차 내내 고정한다** (v2.36).
      여태는 `list.splice(n,1)` 로 꺼내서, 한 번 띄울 때마다 뒤 항목의 번호가 앞으로
      당겨졌다. 그런데 콘솔의 고르개(indexChoices)는 보관 목록을 **정적으로** 세어 0·1·2 를
      저장한다 — 그래서 같은 종류를 두 번 이상 띄우는 데모는 **두 번째부터 엉뚱한 것이 뜨고
      마지막은 조용히 실패**했다("컨텐츠 탭에 등록한 걸 액션이 못 알아본다" 의 정체다).
-     이제 자리를 그대로 두고 쓴 것만 표시한다. 이미 띄운 것을 또 고르면 다른 게 뜨는 대신
-     **실패로 드러난다** — 조용한 거짓말보다 낫다. */
-  var item=list[n];
+     이제 자리를 그대로 두고 쓴 것만 표시한다.
+
+     **번호는 컨텐츠 탭의 줄 번호다** (v2.60, 콘솔 D191) — 보관 목록 안의 순번이 아니다.
+     여태는 그 둘이 달라서, 같은 항목이 다른 액션에서 다른 번호로 불렸다. 그 항목이
+     보관물이 아니면(처음부터 깔린 것) 여기서 못 찾고 **실패로 드러난다** — 이미 화면에
+     있는 것을 "지금 띄운다" 고 할 수는 없다. */
+  var item=null;
+  for(var li=0;li<list.length;li++)if(list[li]&&list[li].i===n){item=list[li];break;}
   if(!item||item.used)return false;
   item.used=true;
   var c=nhHeld.c||SEED_AREAS[nhAreaKey]||SEED_AREAS.gangnam;
@@ -10830,6 +10849,10 @@ function nhDrop(v,i,e,fast){
   }else{
     return false;
   }
+  /* **띄운 것을 선언 번호에 적는다** (v2.60, 콘솔 D191) — 이 한 줄이 없으면 `drop` 으로
+     띄운 것을 뒤 단계가 못 집는다. `drop` 으로 매장을 띄운 뒤 `타임딜 켜기` 가 헛돌던
+     자리가 정확히 여기였다(사용자가 본 것). */
+  nhSeedNote(kind,item.i,laid);
   return true;
 }
 
