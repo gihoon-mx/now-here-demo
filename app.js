@@ -9939,7 +9939,9 @@ function nhAct(st,token){
       // 가게 한마디 (v2.32) — 지도 이름표 옆 말풍선. i=어느 가게 · v=문구(비우면 걷는다)
       if(st.a==='shopsay')return nhShopSay(st.i,st.v)!==false;
       // 타임딜 켜기 (v2.59) — '단계에서 켠다' 로 둔 매장의 딜이 이 순간 시작된다
-      if(st.a==='dealon')return nhDealOn(st.i,fast)!==false;
+      // ⚠️ `st.fast` 다. v2.59 는 `fast` 로 적어 이 줄이 ReferenceError 를 던졌고, 감싼
+      //    try/catch 가 그것을 삼켜 **단계가 조용히 실패**했다 (함수는 멀쩡했다).
+      if(st.a==='dealon')return nhDealOn(st.i,st.fast)!==false;
       if(st.a==='scope'){if(typeof switchTab==='function')switchTab('feed');
         return nhScope(st.v)!==false;}
       // ── v1.75 카메라 연출 ──
