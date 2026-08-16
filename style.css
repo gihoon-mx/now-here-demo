@@ -1484,38 +1484,32 @@ body.mode-trend .feed-pin .fp-tag{background:var(--heat-a,var(--heat,#f2862e));}
 #map.mode-morph,#phone-map.mode-morph{animation:mapMorph .55s cubic-bezier(.22,1,.36,1);}
 @keyframes mapMorph{0%{transform:scale(1);}38%{transform:scale(1.02);}100%{transform:scale(1);}}
 
-/* ── v2.57 모드 전환 = 컬러 와이프 스윕 ──
-   z-index 4 = 지도·탭 페이지(3) 위, 헤더·모드 토글(5) **아래**. 지도만 칠해지고 누른 버튼은
-   그 위에 살아 있어야 "이 버튼이 화면을 칠했다"로 읽힌다.
-   방향: 트렌드 버튼이 토글 오른쪽이므로 →트렌드는 좌→우, →베이직은 우→좌.
-   색은 JS 가 --wipe-a/--wipe-b 로 넣는다(토글 알약의 그라디언트와 같은 색). */
-#mode-wipe{position:absolute;inset:0;z-index:4;pointer-events:none;opacity:0;overflow:hidden;}
-#mode-wipe::before{content:'';position:absolute;top:-10%;bottom:-10%;left:0;width:170%;
-  background:linear-gradient(100deg,
-    rgba(255,255,255,0) 0%,
-    var(--wipe-a,#4a8bff) 26%,
-    var(--wipe-b,#2b6ff0) 52%,
-    rgba(255,255,255,0) 88%);
-  transform:translateX(-140%);}
-#mode-wipe.run{opacity:1;}
-#mode-wipe.run::before{animation:modeWipeR .62s cubic-bezier(.5,0,.2,1) both;}
-#mode-wipe.run.rev::before{animation-name:modeWipeL;}
-@keyframes modeWipeR{
-  0%{transform:translateX(-140%);opacity:0;}
-  22%{opacity:.92;}
-  70%{opacity:.92;}
-  100%{transform:translateX(140%);opacity:0;}}
-@keyframes modeWipeL{
-  0%{transform:translateX(140%);opacity:0;}
-  22%{opacity:.92;}
-  70%{opacity:.92;}
-  100%{transform:translateX(-140%);opacity:0;}}
+/* ── v2.57.1 모드 전환 = 머테리얼 원형 리빌 ──
+   v2.57 은 색 띠가 화면을 가로지르는 와이프였는데 **느리고 잘 안 보였다**(0.62s 동안 띠의
+   앞뒤가 투명해 실제로 칠해지는 순간이 짧다). 누른 자리에서 원이 터져 화면을 **꽉 덮고**
+   흩어지는 쪽으로 바꾼다 — 덮이는 순간이 확실하고, 확산은 0.29s 만에 끝난다.
+   z-index 4 = 지도·탭 페이지(3) 위, 헤더·모드 토글(5) **아래**. 누른 버튼은 원 위에 살아
+   있어야 "이 버튼에서 퍼졌다"로 읽힌다.
+   원점(--rv-x/y)과 반지름(--rv-r = 원점에서 가장 먼 모서리까지)은 JS 가 실측해 넣는다.
+   width/height 가 아니라 **transform:scale** 로 큰다 — 레이아웃을 안 건드려야 지도 위에서 안 끊긴다. */
+#mode-reveal{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden;}
+#mode-reveal::before{content:'';position:absolute;
+  left:var(--rv-x,50%);top:var(--rv-y,50%);
+  width:calc(var(--rv-r,60cqw)*2);height:calc(var(--rv-r,60cqw)*2);
+  margin-left:calc(var(--rv-r,60cqw)*-1);margin-top:calc(var(--rv-r,60cqw)*-1);
+  border-radius:50%;transform:scale(0);opacity:0;
+  background:radial-gradient(circle at center,var(--rv-b,#2b6ff0) 0%,var(--rv-a,#4a8bff) 100%);}
+#mode-reveal.run::before{animation:modeReveal .5s cubic-bezier(.2,.8,.3,1) both;}
+@keyframes modeReveal{
+  0%{transform:scale(0);opacity:.97;}
+  58%{transform:scale(1);opacity:.97;}   /* 0.29s — 여기서 화면이 완전히 덮인다 */
+  100%{transform:scale(1.04);opacity:0;}} /* 덮은 채로 흩어지며 새 모드가 드러난다 */
 
 /* 모션 최소화 설정을 켠 기기에서는 전환 연출을 끈다 (v2.57) — 상태 전환 자체는 그대로 일어난다 */
 @media (prefers-reduced-motion:reduce){
   .tab-page.tp-in-r,.tab-page.tp-in-l,.tab-page.tp-out-r,.tab-page.tp-out-l,
-  #phone-map.tab-settle,#mode-wipe.run::before{animation:none!important;}
-  #mode-wipe.run{opacity:0;}
+  #phone-map.tab-settle,#mode-reveal.run::before{animation:none!important;}
+  #mode-reveal::before{opacity:0;}
   .pa-mode,#phone-scale{transition:none;}
 }
 

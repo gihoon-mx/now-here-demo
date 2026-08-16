@@ -3677,27 +3677,40 @@ function loadZonesFromStorage(){
 }
 
 /* ========== [M01] 모드 전환 ========== */
-/* v2.57 모드 전환 와이프 — 색 띠가 지도 위를 한 번 쓸고 지나가고, 그 뒤로 새 모드가 드러난다.
-   방향은 토글 알약의 자리를 따른다(트렌드가 오른쪽 버튼) — →트렌드는 좌→우, →베이직은 우→좌.
-   색도 그 버튼의 그라디언트와 같다: 누른 버튼이 화면을 칠했다는 인과가 보여야 한다.
-   오버레이는 헤더/토글(z5) 아래(z4)라 누른 버튼은 띠 위에 살아 있다. */
-var modeWipeTimer=null;
-function runModeWipe(mode){
-  var el=document.getElementById('mode-wipe');if(!el)return;
+/* v2.57.1 모드 전환 리빌 — 누른 토글 자리에서 그 모드의 색 원이 터져 화면을 덮고 흩어진다.
+   (v2.57 의 가로 와이프 교체: 느린 데다 띠의 앞뒤가 투명해 칠해지는 순간이 짧았다.)
+   원점은 **폰 토글의 해당 버튼**에서 실측한다 — 부르는 쪽이 폰 토글이든 PC 사이드바든
+   시연 대본이든, 사람의 눈이 가 있는 자리는 늘 폰 토글이다(전달 인자로 안 받는 이유).
+   반지름은 원점에서 가장 먼 모서리까지 — 어느 자리에서 터져도 화면을 다 덮는다.
+   오버레이는 헤더/토글(z5) 아래(z4)라 누른 버튼은 원 위에 살아 있다. */
+var modeRevealTimer=null;
+function runModeReveal(mode){
+  var el=document.getElementById('mode-reveal');if(!el)return;
+  var scr=el.parentNode;if(!scr||!scr.getBoundingClientRect)return;
+  var sb=scr.getBoundingClientRect();if(!sb.width||!sb.height)return;
   var trend=(mode==='trend');
+  var btn=document.querySelector('#phone-mode .pm-btn[data-mode="'+(trend?'trend':'local')+'"]');
+  var x=sb.width/2,y=sb.height*0.28; // 토글을 못 찾을 때(숨김 등)의 폴백 — 지도 상단 한가운데
+  if(btn){var bb=btn.getBoundingClientRect();
+    if(bb.width){x=bb.left+bb.width/2-sb.left;y=bb.top+bb.height/2-sb.top;}}
+  var r=Math.ceil(Math.max( // 원점 → 네 모서리 중 가장 먼 거리
+    Math.hypot(x,y),Math.hypot(sb.width-x,y),
+    Math.hypot(x,sb.height-y),Math.hypot(sb.width-x,sb.height-y)));
   var cs=getComputedStyle(document.documentElement);
   var a=trend?((cs.getPropertyValue('--hot1')||'').trim()||'#ff7a45'):'#4a8bff';
   var b=trend?((cs.getPropertyValue('--hot2')||'').trim()||'#ff4d67'):'#2b6ff0';
-  el.style.setProperty('--wipe-a',a);el.style.setProperty('--wipe-b',b);
-  el.classList.remove('run','rev');void el.offsetWidth; // 연타 시 재시작
-  el.classList.add('run');if(!trend)el.classList.add('rev');
-  clearTimeout(modeWipeTimer);
-  modeWipeTimer=setTimeout(function(){el.classList.remove('run','rev');},660);
+  el.style.setProperty('--rv-x',x+'px');el.style.setProperty('--rv-y',y+'px');
+  el.style.setProperty('--rv-r',r+'px');
+  el.style.setProperty('--rv-a',a);el.style.setProperty('--rv-b',b);
+  el.classList.remove('run');void el.offsetWidth; // 연타 시 재시작
+  el.classList.add('run');
+  clearTimeout(modeRevealTimer);
+  modeRevealTimer=setTimeout(function(){el.classList.remove('run');},540);
 }
 function switchMode(mode,opts){
   if(mode===currentMode) return; if(editingZoneId) finishEditZone();
   if(typeof nhSfxPlay==='function')nhSfxPlay('mode'); // 렌즈가 바뀌는 순간 (v2.25) — 실제로 바뀔 때만
-  runModeWipe(mode);
+  runModeReveal(mode);
   var noNearby=opts&&opts.noNearby;
   currentMode=mode;
   removeLocalLabel(); selectedFeatureName=null; selectedFeatureId=null;
