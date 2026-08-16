@@ -669,16 +669,23 @@ body.mode-trend .add-pin .apn-ring{border-color:rgba(255,90,60,0.6);}
    노치 기기에서는 헤더가 safe-area 만큼 내려가므로 그만큼 같이 내린다.
    v2.27 크기 배율(--ui-mode-s): 관리자 '표시 옵션 › UI 크기'(uiScale, 기본 88%).
    CSS zoom 은 left/top 을 곱해 앵커가 밀린다(v1.64 교훈) — transform scale 로만 줄인다. */
-.pa-mode{position:absolute;top:calc(69cqw + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%) scale(var(--ui-mode-s,1));transform-origin:top center;z-index:5;display:flex;gap:0.5cqw;padding:0.7cqw;border-radius:5cqw;
+.pa-mode{position:absolute;top:calc(69cqw + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%) scale(var(--ui-mode-s,1));transform-origin:top center;z-index:5;display:flex;gap:0.5cqw;padding:0.7cqw;border-radius:5cqw;transition:top .3s cubic-bezier(.22,1,.36,1);
   background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-line);box-shadow:0 1cqw 3cqw rgba(16,24,40,0.14),var(--glass-hi);}
 .pm-btn{display:inline-flex;align-items:center;gap:1cqw;border:none;background:transparent;color:#646b76;font-family:inherit;font-weight:700;font-size:2.9cqw;letter-spacing:-0.01em;padding:1cqw 3cqw;border-radius:4cqw;cursor:pointer;white-space:nowrap;transition:background .22s ease,color .22s ease,box-shadow .22s ease;}
 .pm-btn.active[data-mode="local"]{background:linear-gradient(160deg,#4a8bff,#2b6ff0);color:#fff;box-shadow:0 0.6cqw 2cqw rgba(47,123,255,0.4),inset 0 1px 0 rgba(255,255,255,0.28);}
 .pm-btn.active[data-mode="trend"]{background:linear-gradient(150deg,var(--hot1),var(--hot2));color:#fff;box-shadow:0 0.6cqw 2cqw rgba(255,77,103,0.4),inset 0 1px 0 rgba(255,255,255,0.28);}
 /* 축척: 모드 토글과 같은 고정 자리 (v2.27 — 위 .pa-mode 주석 참조) · 배경/테두리 없이 자+수치 */
 #phone-scale{position:absolute;top:calc(70.1cqw + env(safe-area-inset-top,0px));left:4cqw;z-index:3;
-  display:inline-flex;align-items:flex-end;gap:1.5cqw;pointer-events:none;}
+  display:inline-flex;align-items:flex-end;gap:1.5cqw;pointer-events:none;transition:top .3s cubic-bezier(.22,1,.36,1);}
 #phone-scale .psc-bar{height:1.4cqw;min-width:6cqw;border:1.4px solid #4b5158;border-top:none;box-sizing:border-box;}
 #phone-scale .psc-txt{font-size:2.6cqw;font-weight:700;color:#3f454c;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.02em;}
+/* v2.57 지면을 접으면 그만큼 같이 올라온다 — 접힘은 지면을 44cqw→15cqw 로 줄이므로 정확히 29cqw.
+   토글/축척을 화면에 못 박은 v2.28 규칙(위 주석)은 그대로다: 캐러셀 종류·존 카드 높이 변화에는
+   여전히 안 움직이고, **사용자가 명시적으로 접은 경우에만** 딱 그 높이만큼 따라 올라온다.
+   `:not(.mode-trend)` 가드 — 트렌드 지도 탭은 지면(#cp-frame) 대신 존 리스트(#cp-zones, 44cqw)가
+   서기 때문에, 접힘 상태가 남아 있으면 토글이 존 카드 위로 파고든다(존 요약은 접기 자체가 없다). */
+body.sum-folded:not(.mode-trend) .pa-mode{top:calc(40cqw + env(safe-area-inset-top,0px));}
+body.sum-folded:not(.mode-trend) #phone-scale{top:calc(41.1cqw + env(safe-area-inset-top,0px));}
 
 /* 프로필 메뉴 (우상단 P 클릭 → 계정/로그아웃) */
 #phone-profile-menu{position:absolute;top:calc(env(safe-area-inset-top,0px) + 15.5cqw);right:4cqw;z-index:22;width:60cqw;max-width:74cqw;
@@ -1142,6 +1149,25 @@ body.role-user #allowlist-btn{display:none!important;}
 .tab-page{position:absolute;left:0;right:0;bottom:0;z-index:3;display:none;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .tab-page.open{display:block;}
 #social-page.open{display:flex;flex-direction:column;overflow:hidden;}
+/* ── v2.57 탭 전환 = 방향성 슬라이드 (지도 0 · 피드 1 · 소셜 2) ──
+   나가는 페이지는 애니메이션이 끝날 때까지 화면에 남아야 하므로 `.tp-exiting` 이 display 를
+   대신 잡는다(.open 은 이미 떨어진 뒤다). 클릭은 먹지 않는다 — 사라지는 중인 화면이다.
+   `.open` 의 display 규칙을 그대로 복제하는 이유: #social-page 만 flex 라 하나로 못 묶는다. */
+.tab-page.tp-exiting{display:block;pointer-events:none;}
+#social-page.tp-exiting{display:flex;flex-direction:column;overflow:hidden;}
+.tab-page.tp-in-r{animation:tpInR .34s cubic-bezier(.22,1,.36,1) both;}
+.tab-page.tp-in-l{animation:tpInL .34s cubic-bezier(.22,1,.36,1) both;}
+.tab-page.tp-out-r{animation:tpOutR .34s cubic-bezier(.22,1,.36,1) both;}
+.tab-page.tp-out-l{animation:tpOutL .34s cubic-bezier(.22,1,.36,1) both;}
+@keyframes tpInR{from{transform:translateX(14%);opacity:0;}to{transform:none;opacity:1;}}
+@keyframes tpInL{from{transform:translateX(-14%);opacity:0;}to{transform:none;opacity:1;}}
+@keyframes tpOutR{from{transform:none;opacity:1;}to{transform:translateX(10%);opacity:0;}}
+@keyframes tpOutL{from{transform:none;opacity:1;}to{transform:translateX(-10%);opacity:0;}}
+/* 지도로 돌아올 때 지도가 뒤에서 살짝 확대되며 드러난다.
+   ⚠️ 구글맵 div 에 **영구 transform 을 남기면 안 된다**(좌표 투영·히트테스트가 밀린다) —
+   mapMorph 와 같은 규칙으로, 반드시 identity 로 끝나는 one-shot 만 건다. */
+#phone-map.tab-settle{animation:mapSettle .3s cubic-bezier(.22,1,.36,1);}
+@keyframes mapSettle{from{transform:scale(.985);}to{transform:none;}}
 /* 피드 그리드 */
 #feed-tools{display:flex;align-items:center;justify-content:space-between;gap:1cqw;padding:2cqw 3cqw 0;}
 #feed-tools .fsc-group{display:flex;gap:1cqw;align-items:center;}
@@ -1457,6 +1483,41 @@ body.mode-trend .feed-pin .fp-tag{background:var(--heat-a,var(--heat,#f2862e));}
 /* ── v1.63 베이직↔트렌드 전환 트랜스폼(지도 펄스 — AI 아이콘은 기존 aiSpin 재사용) ── */
 #map.mode-morph,#phone-map.mode-morph{animation:mapMorph .55s cubic-bezier(.22,1,.36,1);}
 @keyframes mapMorph{0%{transform:scale(1);}38%{transform:scale(1.02);}100%{transform:scale(1);}}
+
+/* ── v2.57 모드 전환 = 컬러 와이프 스윕 ──
+   z-index 4 = 지도·탭 페이지(3) 위, 헤더·모드 토글(5) **아래**. 지도만 칠해지고 누른 버튼은
+   그 위에 살아 있어야 "이 버튼이 화면을 칠했다"로 읽힌다.
+   방향: 트렌드 버튼이 토글 오른쪽이므로 →트렌드는 좌→우, →베이직은 우→좌.
+   색은 JS 가 --wipe-a/--wipe-b 로 넣는다(토글 알약의 그라디언트와 같은 색). */
+#mode-wipe{position:absolute;inset:0;z-index:4;pointer-events:none;opacity:0;overflow:hidden;}
+#mode-wipe::before{content:'';position:absolute;top:-10%;bottom:-10%;left:0;width:170%;
+  background:linear-gradient(100deg,
+    rgba(255,255,255,0) 0%,
+    var(--wipe-a,#4a8bff) 26%,
+    var(--wipe-b,#2b6ff0) 52%,
+    rgba(255,255,255,0) 88%);
+  transform:translateX(-140%);}
+#mode-wipe.run{opacity:1;}
+#mode-wipe.run::before{animation:modeWipeR .62s cubic-bezier(.5,0,.2,1) both;}
+#mode-wipe.run.rev::before{animation-name:modeWipeL;}
+@keyframes modeWipeR{
+  0%{transform:translateX(-140%);opacity:0;}
+  22%{opacity:.92;}
+  70%{opacity:.92;}
+  100%{transform:translateX(140%);opacity:0;}}
+@keyframes modeWipeL{
+  0%{transform:translateX(140%);opacity:0;}
+  22%{opacity:.92;}
+  70%{opacity:.92;}
+  100%{transform:translateX(-140%);opacity:0;}}
+
+/* 모션 최소화 설정을 켠 기기에서는 전환 연출을 끈다 (v2.57) — 상태 전환 자체는 그대로 일어난다 */
+@media (prefers-reduced-motion:reduce){
+  .tab-page.tp-in-r,.tab-page.tp-in-l,.tab-page.tp-out-r,.tab-page.tp-out-l,
+  #phone-map.tab-settle,#mode-wipe.run::before{animation:none!important;}
+  #mode-wipe.run{opacity:0;}
+  .pa-mode,#phone-scale{transition:none;}
+}
 
 /* ========== v1.65 페이지 분리: 서비스(page-app) / 관리자(page-admin) ========== */
 /* ── 서비스 페이지 데스크톱: PC 지도·설정 숨김, 폰 앱을 무대 중앙에 ── */

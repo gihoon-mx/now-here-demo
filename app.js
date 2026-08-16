@@ -3677,9 +3677,27 @@ function loadZonesFromStorage(){
 }
 
 /* ========== [M01] 모드 전환 ========== */
+/* v2.57 모드 전환 와이프 — 색 띠가 지도 위를 한 번 쓸고 지나가고, 그 뒤로 새 모드가 드러난다.
+   방향은 토글 알약의 자리를 따른다(트렌드가 오른쪽 버튼) — →트렌드는 좌→우, →베이직은 우→좌.
+   색도 그 버튼의 그라디언트와 같다: 누른 버튼이 화면을 칠했다는 인과가 보여야 한다.
+   오버레이는 헤더/토글(z5) 아래(z4)라 누른 버튼은 띠 위에 살아 있다. */
+var modeWipeTimer=null;
+function runModeWipe(mode){
+  var el=document.getElementById('mode-wipe');if(!el)return;
+  var trend=(mode==='trend');
+  var cs=getComputedStyle(document.documentElement);
+  var a=trend?((cs.getPropertyValue('--hot1')||'').trim()||'#ff7a45'):'#4a8bff';
+  var b=trend?((cs.getPropertyValue('--hot2')||'').trim()||'#ff4d67'):'#2b6ff0';
+  el.style.setProperty('--wipe-a',a);el.style.setProperty('--wipe-b',b);
+  el.classList.remove('run','rev');void el.offsetWidth; // 연타 시 재시작
+  el.classList.add('run');if(!trend)el.classList.add('rev');
+  clearTimeout(modeWipeTimer);
+  modeWipeTimer=setTimeout(function(){el.classList.remove('run','rev');},660);
+}
 function switchMode(mode,opts){
   if(mode===currentMode) return; if(editingZoneId) finishEditZone();
   if(typeof nhSfxPlay==='function')nhSfxPlay('mode'); // 렌즈가 바뀌는 순간 (v2.25) — 실제로 바뀔 때만
+  runModeWipe(mode);
   var noNearby=opts&&opts.noNearby;
   currentMode=mode;
   removeLocalLabel(); selectedFeatureName=null; selectedFeatureId=null;
@@ -4925,8 +4943,33 @@ function layoutTabPages(){ // 헤더/네비 사이에 페이지 배치 (+ 헤더
   ['feed-page','social-page'].forEach(function(id){var el=document.getElementById(id);if(!el)return;
     el.style.top=(hd?hd.offsetHeight-2:0)+'px';el.style.paddingTop=padTop+'px';el.style.paddingBottom=(ins.bottom+12)+'px';}); // 하단 여백 = 네비 + 12px (입력바 기준)
 }
+/* v2.57 탭 전환 연출 — 방향성 슬라이드.
+   하단 네비 순서(지도 0 · 피드 1 · 소셜 2)를 그대로 방향으로 쓴다: 오른쪽 탭으로 가면 새
+   화면이 오른쪽에서 들어오고 이전 화면은 왼쪽으로 빠진다. 되돌아오면 반대다 — 그래야
+   '어디로 갔는지'가 손에 남는다.
+   지도 탭에는 대응하는 .tab-page 가 없다(지도가 바탕이다) → out/inn 한쪽이 null 인 것이 정상.
+   호출 시점은 .open 토글 **뒤**다: display:none 인 채로 애니메이션을 걸면 시작 프레임을 놓친다. */
+var TAB_ORDER={map:0,feed:1,social:2};
+var tabAnimTimer=null;
+function clearTabAnim(){ // 연타 대비: 이전 전환의 흔적을 먼저 지운다
+  ['feed-page','social-page'].forEach(function(id){var el=document.getElementById(id);
+    if(el)el.classList.remove('tp-exiting','tp-in-r','tp-in-l','tp-out-r','tp-out-l');});
+  var pm=document.getElementById('phone-map');if(pm)pm.classList.remove('tab-settle');
+}
+function animateTabSwap(prev,next){
+  if(prev===next)return;
+  var fwd=(TAB_ORDER[next]>TAB_ORDER[prev]);
+  clearTimeout(tabAnimTimer);clearTabAnim();
+  var out=document.getElementById(prev+'-page'),inn=document.getElementById(next+'-page');
+  if(out)out.classList.add('tp-exiting',fwd?'tp-out-l':'tp-out-r'); // .open 은 이미 떨어졌다 — display 는 tp-exiting 이 잡는다
+  if(inn){void inn.offsetWidth;inn.classList.add(fwd?'tp-in-r':'tp-in-l');}
+  if(next==='map'){var pm=document.getElementById('phone-map');
+    if(pm){void pm.offsetWidth;pm.classList.add('tab-settle');}} // 지도가 뒤에서 살짝 확대되며 드러난다
+  tabAnimTimer=setTimeout(clearTabAnim,360);
+}
 function switchTab(tab){
   if(tab!=='map'&&tab!=='feed'&&tab!=='social')return;
+  var prevTab=currentTab;
   currentTab=tab;
   /* v1.83: 네비 표시도 **여기서** 옮긴다.
      v1.82 까지는 `setNavActive(x); switchTab(x);` 를 호출부마다 짝지어 불렀고
@@ -4946,6 +4989,7 @@ function switchTab(tab){
   var pm=document.querySelector('.pa-mode');if(pm)pm.style.display=(tab==='map')?'':'none';
   document.getElementById('feed-page').classList.toggle('open',tab==='feed');
   document.getElementById('social-page').classList.toggle('open',tab==='social');
+  animateTabSwap(prevTab,tab);
   layoutTabPages();
   if(tab==='feed'){feedLimit=12;renderFeed();}
   if(tab==='social')renderSocial();
@@ -5710,6 +5754,9 @@ function initSummaryCollapse(){ // 요약 카드 접기: 컴팩트 카드(1/3 �
     setTimeout(function(){frame.classList.remove('anim');},360);
     frame.classList.toggle('folded',fold);
     btn.classList.toggle('folded',fold);
+    /* v2.57: 접힌 만큼(44cqw→15cqw = 29cqw) 축척·모드 토글도 같이 올라온다.
+       둘은 화면에 못 박힌 자리라 CSS 가 body 클래스로만 그 예외를 안다 (style.css `body.sum-folded`). */
+    document.body.classList.toggle('sum-folded',fold);
     updateFoldBtnTone();
     btn.title=fold?'지면 펼치기':'지면 접기';
     try{localStorage.setItem('nowhere_sumfold',fold?'1':'0');}catch(e){}
