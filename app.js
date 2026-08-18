@@ -2984,6 +2984,7 @@ function initPhoneMirror(){
     isFractionalZoomEnabled:true};
   if(CONFIG.MAP_ID&&CONFIG.MAP_ID.length>0)opts.mapId=CONFIG.MAP_ID;else opts.styles=mapStyles();
   phoneMap=new google.maps.Map(el,opts);
+  if(typeof applyMapTint==='function')applyMapTint(); // 다크면 타일 덮개를 건다 (v2.62.6)
   phoneProjHelper=new ProjHelper(phoneMap); // 좌표 변환용
   // 카메라 단방향 미러 (PC → 폰)
   /* ⚠️ **트윈 중에는 재운다** (v2.36). setZoom 은 부를 때마다 Maps 자체 애니메이션을 새로
@@ -3824,6 +3825,7 @@ function initMap(){
   var opts={center:{lat:CONFIG.MAP_CENTER_LAT,lng:CONFIG.MAP_CENTER_LNG},zoom:CONFIG.MAP_ZOOM,disableDefaultUI:false,zoomControl:true,mapTypeControl:false,streetViewControl:false,fullscreenControl:true,isFractionalZoomEnabled:true};
   if(CONFIG.MAP_ID&&CONFIG.MAP_ID.length>0) opts.mapId=CONFIG.MAP_ID; else opts.styles=mapStyles();
   map=new google.maps.Map(document.getElementById('map'),opts);
+  if(typeof applyMapTint==='function')applyMapTint(); // 다크면 타일 덮개를 건다 (v2.62.6)
   mapProjHelper=new ProjHelper(map); // 좌표 변환용(제스처 지점→latLng)
   fetch(CONFIG.GEOJSON_PATH).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(geo){originalGeoJson=geo;applyGeoJsonToMap();fitBoundsToData();initMyLocation();loadZonesFromStorage();hideMapLoading();mapReady=true;if(cloudData)applyCloudData(cloudData);else{loadLocalSpotsInto();rebuildSpots();}}).catch(function(err){hideMapLoading();var el=document.getElementById('info-text');if(el)el.textContent='⚠️ 경계 데이터를 불러오지 못했습니다. ('+err.message+')';});
   refreshMapStyles();
@@ -4503,6 +4505,7 @@ function settingsSnapshotFull(){
     popScrim:popScrim, // v2.62.3 지도 위 팝업 뒷배경 (블러·어둡기, additive)
     appTheme:appTheme, // v2.62.4 라이트/다크 (additive)
     demoPhoto:demoPhoto, // v2.62.5 데모 프로필 사진 (additive)
+    dealOnFx:dealOnFx, // v2.62.6 딜 전환 효과 on/off (additive)
     /* 상단 지면 타입 (v2.11) — cardVer 는 shared/news(SDK 전용)로만 다녀서 persona-vc
        임베드(REST publicSettings)가 영영 못 봤다. 스킨은 건너가는데 지면 타입만 기본(1)
        으로 뜨던 원인. */
@@ -4540,6 +4543,7 @@ function applyExtraSettings(s){
   if(s.popScrim&&typeof s.popScrim==='object'){mergePopScrim(s.popScrim);applyPopScrim();} // v2.62.3 — 같은 이유로 즉시
   if(APP_THEMES.indexOf(s.appTheme)>=0){appTheme=s.appTheme;applyTheme();} // v2.62.4 — 값 적용만(setAppTheme 은 저장까지 한다)
   if(typeof s.demoPhoto==='string'){demoPhoto=s.demoPhoto.slice(0,300000);applyDemoPhoto();} // v2.62.5 — 같은 이유로 값만
+  if(typeof s.dealOnFx==='boolean'){dealOnFx=s.dealOnFx;applyDealOnFx();} // v2.62.6 — 값 적용만
   // 상단 지면 타입 (v2.11) — 화면 갱신은 부르는 쪽의 renderNews 가 한다 (이 함수의 규칙 그대로).
   var _ncv=parseInt(s.newsCardVer,10);
   if(_ncv>=1&&_ncv<=3)newsCardVer=_ncv;
@@ -4650,6 +4654,7 @@ function applyCloudData(d){
     mergePopScrim(d.popScrim);savePopScrim();syncPopScrimUI();applyPopScrim();}
   if(APP_THEMES.indexOf(d.appTheme)>=0)setAppTheme(d.appTheme,true); // v2.62.4 테마 (additive)
   if(typeof d.demoPhoto==='string'){demoPhoto=d.demoPhoto.slice(0,300000);saveDemoPhoto();applyDemoPhoto();syncDemoPhotoUI();} // v2.62.5 데모 프로필 사진 (additive)
+  if(typeof d.dealOnFx==='boolean')setDealOnFx(d.dealOnFx,true); // v2.62.6 딜 전환 효과 (additive)
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   blockDirty={};updateApplyBar();updateBlockBars(); // 클라우드본 = 적용 기준선
 }
@@ -4941,6 +4946,7 @@ function initSettingsExport(){ // 현재 적용 설정 → JSON 복사 (repo set
     snap.popScrim=popScrim; // v2.62.3 지도 위 팝업 뒷배경
     snap.appTheme=appTheme; // v2.62.4 라이트/다크
     snap.demoPhoto=demoPhoto; // v2.62.5 데모 프로필 사진
+    snap.dealOnFx=dealOnFx; // v2.62.6 딜 전환 효과
     snap.appSfx=appSfx; // v2.52 앱 차원 효과음 — settings-default.json 으로 나가야 임베드도 같은 소리다
     var json=JSON.stringify(snap,null,1);
     function done(){btn.textContent='✅ 복사됨';setTimeout(function(){btn.textContent='📋 설정 JSON 복사';},1600);}
@@ -4964,6 +4970,7 @@ function cloudSave(){
     popScrim:popScrim,         // v2.62.3 — 지도 위 팝업 뒷배경 (additive)
     appTheme:appTheme,         // v2.62.4 — 라이트/다크 (additive)
     demoPhoto:demoPhoto,       // v2.62.5 — 데모 프로필 사진 (additive)
+    dealOnFx:dealOnFx,         // v2.62.6 — 딜 전환 효과 on/off (additive)
     appSfx:appSfx};            // v2.52 — 앱 차원 효과음 (additive)
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
@@ -5664,12 +5671,100 @@ function initDemoPhotoUI(){ // 표시 옵션(s-view) — admin.html 에만 있�
 var APP_THEMES=['light','dark'];
 var appTheme='light';
 try{var _th0=localStorage.getItem('nowhere_theme');if(APP_THEMES.indexOf(_th0)>=0)appTheme=_th0;}catch(e){}
+/* ── 지도 타일을 어둡게 (v2.62.6) ────────────────────────────────────────────
+   사용자: "지도랑 일부 누락되거나 다크모드에 어울리지 않는 테마들이 아직 적용이 안 됐어."
+
+   ⚠️ **지도 스타일 자체는 못 바꾼다.** 이 지도는 클라우드 스타일(mapId)로 그리는 벡터
+   지도라 런타임 `styles` 가 무시되고 `colorScheme` 은 만들 때만 받는다 — 바꾸려면 지도
+   인스턴스를 다시 지어야 하고 그러면 오버레이·카메라·핀이 전부 재생성된다.
+
+   그래서 **타일 위에 한 겹을 덮는다.** 자리는 `getPanes().mapPane` — 이 저장소의 모든
+   오버레이는 `overlayMouseTarget`(맨 위 판)에 사는데, mapPane 은 그보다 아래이고 타일보다
+   위다. 그래서 **타일만 어두워지고 스팟·핀·이름표는 안 물든다**. 지도 div 에 필터를 걸면
+   그 안의 컨텐츠까지 같이 물드는 것과 다른 점이 이것이다.
+   덮개는 지도의 현재 범위를 넉넉히 넘겨 깐다(팬 중에도 가장자리가 안 비게).
+
+   ⚠️ **이 세션에서는 못 봤다** — 브라우저 패널이 안 떠 OverlayView 가 아예 안 그려진다.
+   그래서 실패하면 **아무 일도 안 하게** 짰다(try/catch · 투영 없으면 그냥 통과): 지도가
+   깨지는 것보다 안 어두워지는 편이 낫다. */
+var MapTint=null,mapTints=[];
+function initMapTintClass(){
+  if(MapTint||typeof google==='undefined'||!google.maps||!google.maps.OverlayView)return;
+  MapTint=function(){};
+  MapTint.prototype=new google.maps.OverlayView();
+  MapTint.prototype.onAdd=function(){
+    var d=document.createElement('div');d.className='map-tint';this.div=d;
+    try{this.getPanes().mapPane.appendChild(d);}catch(e){}
+  };
+  MapTint.prototype.draw=function(){
+    try{
+      var p=this.getProjection(),m=this.getMap();if(!p||!m)return;
+      var b=m.getBounds();if(!b)return;
+      var ne=p.fromLatLngToDivPixel(b.getNorthEast()),sw=p.fromLatLngToDivPixel(b.getSouthWest());
+      if(!ne||!sw)return;
+      var pad=Math.max(80,Math.abs(ne.x-sw.x)*0.25); // 팬 중에도 가장자리가 안 비게 넉넉히
+      var d=this.div;if(!d)return;
+      d.style.left=(Math.min(sw.x,ne.x)-pad)+'px';d.style.top=(Math.min(ne.y,sw.y)-pad)+'px';
+      d.style.width=(Math.abs(ne.x-sw.x)+pad*2)+'px';d.style.height=(Math.abs(sw.y-ne.y)+pad*2)+'px';
+    }catch(e){}
+  };
+  MapTint.prototype.onRemove=function(){
+    try{if(this.div&&this.div.parentNode)this.div.parentNode.removeChild(this.div);}catch(e){}
+    this.div=null;
+  };
+}
+function applyMapTint(){
+  try{
+    initMapTintClass();
+    if(!MapTint)return;
+    var want=(appTheme==='dark');
+    var maps=[];
+    if(typeof phoneMap!=='undefined'&&phoneMap)maps.push(phoneMap);
+    if(typeof map!=='undefined'&&map)maps.push(map);
+    // 있는 것은 걷고 다시 건다 — 지도가 늦게 생기는 경우가 있어 매번 맞춘다
+    mapTints.forEach(function(t){try{t.setMap(null);}catch(e){}});
+    mapTints=[];
+    if(!want)return;
+    maps.forEach(function(m){var t=new MapTint();try{t.setMap(m);mapTints.push(t);}catch(e){}});
+  }catch(e){}
+}
+/* 딜 전환 효과 on/off (v2.62.6) — 사용자가 "효과 on/off 옵션을 줘" 라고 적었다.
+   끄면 `nhDealOnFx` 가 아무것도 안 만든다(바운스와 소리는 남는다 — 그건 "지금 바뀌었다"
+   를 말하는 최소한이고, 이 옵션이 끄는 것은 ⏰ 와 링이다). */
+var dealOnFx=true;
+try{var _dfx=localStorage.getItem('nowhere_dealfx');if(_dfx==='0')dealOnFx=false;}catch(e){}
+function saveDealOnFx(){try{localStorage.setItem('nowhere_dealfx',dealOnFx?'1':'0');}catch(e){}}
+function applyDealOnFx(){if(document.body)document.body.classList.toggle('no-dealfx',!dealOnFx);}
+function syncDealOnFxUI(){var el=document.getElementById('deal-onfx');if(el)el.value=dealOnFx?'1':'0';}
+function setDealOnFx(v,quiet){
+  dealOnFx=!!v;saveDealOnFx();applyDealOnFx();syncDealOnFxUI();
+  if(!quiet&&typeof markCloudDirty==='function')markCloudDirty();
+}
+function initDealOnFxUI(){ // 표시 옵션(s-view) — admin.html 에만 있다
+  applyDealOnFx();
+  var el=document.getElementById('deal-onfx');if(!el)return;
+  syncDealOnFxUI();
+  el.addEventListener('change',function(){setDealOnFx(el.value==='1');});
+}
+/* 무대가 건 테마와 그 전 값 (v2.62.6) — 되돌릴 값을 여기 적어 둔다. */
+var nhThemePrev=null;
+function nhThemeSet(v){
+  var t=String(v||'').toLowerCase();
+  if(APP_THEMES.indexOf(t)<0){nhThemeRestore();return;} // 안 정했으면 앱 설정 그대로
+  if(nhThemePrev==null)nhThemePrev=appTheme;
+  appTheme=t;applyTheme();syncThemeUI();                 // **저장은 안 한다** (회차의 옷이다)
+}
+function nhThemeRestore(){
+  if(nhThemePrev==null)return;
+  appTheme=nhThemePrev;nhThemePrev=null;applyTheme();syncThemeUI();
+}
 function applyTheme(){
   if(!document.body)return;
   /* 라이트는 **속성을 지운다** — `data-theme="light"` 를 남기면 나중에 "값이 없을 때"
    와 "라이트일 때" 를 CSS 가 다르게 잡을 여지가 생긴다. 기본은 속성이 없는 상태다. */
   if(appTheme==='dark')document.body.setAttribute('data-theme','dark');
   else document.body.removeAttribute('data-theme');
+  applyMapTint(); // 지도 타일 덮개도 같이 (없으면 조용히 통과)
 }
 function setAppTheme(v,quiet){
   var t=(APP_THEMES.indexOf(String(v||''))>=0)?String(v):'light';
@@ -9994,6 +10089,7 @@ function nhDealOn(i,fast){
 function nhDealOnFx(ov){
   try{
     if(!ov||!ov.div)return;
+    if(typeof dealOnFx!=='undefined'&&!dealOnFx)return; // 관리자가 끈 연출 (v2.62.6)
     var old=ov.div.querySelector('.dl-onair');
     if(old&&old.parentNode)old.parentNode.removeChild(old); // 두 번 켜도 겹치지 않게
     var fx=document.createElement('span');fx.className='dl-onair';fx.setAttribute('aria-hidden','true');
@@ -11287,6 +11383,13 @@ function nhSeedScenario(sc,token){
   /* 존 카드 모양 (v2.26) — 회차가 정한 값을 걸고, 원래 값은 되돌리려고 적어 둔다.
      이 기기의 관리자 설정을 시연이 영구히 바꾸면 안 된다(소리·코인과 같은 규칙). */
   nhZoneCardSet(sc&&sc.seed&&sc.seed.zoneCard);
+  /* 무대가 정하는 테마 (v2.62.6) — 사용자: "dark/light mode 를 무대 옵션에서 선택할 수
+     있게". `zoneCard` 와 **같은 규칙**이다: 회차가 값을 주면 그 동안만 걸리고, 회차를
+     끝내면(`nhThemeRestore`) 앱 설정으로 돌아간다 — 시연이 이 기기의 설정을 영구히
+     바꾸면 안 된다(소리·존 카드와 같은 판단).
+     ⚠️ 단계의 `theme` 액션은 **저장한다**(그 액션의 뜻이 "이 앱은 다크가 된다" 이므로).
+     무대 값은 저장 안 한다 — 그래서 둘이 안 싸운다: 무대는 회차의 옷이고 액션은 손이다. */
+  nhThemeSet(sc&&sc.seed&&sc.seed.theme);
   // 컨텐츠 크기 배율도 회차 값이다 (v2.46) — seed 가 없어도 걸어야 한다(아래 return 위)
   nhContentKSet(sc&&sc.seed&&sc.seed.contentScale);
   if(!sc||!sc.seed)return;
@@ -11457,6 +11560,7 @@ function nhReset(){
     if(typeof nhSfxSet==='function')nhSfxSet(null);
     if(typeof nhZoneCardRestore==='function')nhZoneCardRestore(); // 회차가 바꾼 카드 모양도 되돌린다 (v2.26)
     if(typeof nhContentKRestore==='function')nhContentKRestore(); // 컨텐츠 크기 배율도 (v2.46)
+    if(typeof nhThemeRestore==='function')nhThemeRestore();     // 무대가 건 테마도 (v2.62.6)
     nhSweepTemp();
     nhCoinsRestore(); // 이 회차가 적립한 코인도 되돌린다 (v2.19)
     /* 앞 회차가 적어 둔 "닫히면 할 일" 은 **실행하지 않고 버린다** (v2.48) —
@@ -12126,7 +12230,7 @@ function startEmbed(){
   initSettingsExport();
   initSfxPanel(); // v2.52 앱 차원 효과음
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();applyPinStyle();initUiScaleUI();initPopScrimUI();initThemeUI();initDemoPhotoUI();syncCoinUI();initSeedGen();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();applyPinStyle();initUiScaleUI();initPopScrimUI();initThemeUI();initDemoPhotoUI();initDealOnFxUI();syncCoinUI();initSeedGen();
   window.addEventListener('resize',layoutTabPages);
   nhViewWatch();
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)

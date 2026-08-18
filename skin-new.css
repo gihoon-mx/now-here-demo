@@ -655,7 +655,7 @@ body[data-skin="new"] .ai-bubble{
   color:var(--nk-ink2);
   box-shadow:var(--nk-sh-card),0 4cqw 10cqw -5cqw rgba(14,20,32,.3);
 }
-body[data-skin="new"] .ai-bubble::after{border-top-color:rgba(255,255,255,.94);}
+body[data-skin="new"] .ai-bubble::after{border-top-color:var(--pop-surface);}
 body[data-skin="new"] .req-bubble{
   border-radius:5.6cqw;
   background:rgba(255,255,255,.96);
@@ -674,7 +674,7 @@ body[data-skin="new"] #content-pop .cpop-card{
      폭 326px 짜리 카드의 모서리가 뭉텅 잘려 내용이 가려졌다.
      ②지도 오버레이에서 세운 규칙과 같다: 컨테이너 밖은 px. */
   border-radius:22px;
-  background:var(--frost); /* v2.29 팝업 문법 통일 — 불투명 흰 면을 유리로 (style.css .cpop-card 와 같은 값) */
+  background:var(--pop-surface); /* v2.62.6 — 팝업 면은 한 토큰(투명도 없음) */
   box-shadow:0 24px 64px -20px rgba(14,20,32,.4);
 }
 body[data-skin="new"] #content-pop .cpop-hbtn{font-weight:800;color:var(--nk-ink3);}
@@ -740,3 +740,11 @@ body[data-skin="new"][data-theme="dark"]{
 }
 /* 이 스킨은 서랍 배경을 제 규칙으로 덮는다 — style.css 의 다크 규칙보다 뒤에 오므로 여기서 한 번 더. */
 body[data-skin="new"][data-theme="dark"] #phone-drawer{background:rgba(18,21,27,0.92);}
+
+/* 같은 이유로 이 스킨도 (v2.62.6) — 잉크를 버튼 배경으로 쓰는 자리. */
+body[data-skin="new"][data-theme="dark"] #feed-tools .fsc:not(.active){background:var(--nk-fill);color:var(--nk-ink4);}
+/* 고른 칩만 글자를 뒤집는다 — 이 스킨은 `--nk-ink` 를 **배경**으로 쓰는 자리가
+   `#feed-tools .fsc.active` 뿐이다. `.soc-tab.active` 는 `--nk-surface`(면) + `--nk-ink`
+   (글자)라 토큰만으로 이미 뒤집힌다 — 여기에 같이 걸었더니 어두운 면에 어두운 글자가
+   돼 대비가 0.04 로 떨어졌다(한 번에 묶다가 멀쩡한 쪽을 부순 자리다). */
+body[data-skin="new"][data-theme="dark"] #feed-tools .fsc.active{color:var(--nk-bg);}

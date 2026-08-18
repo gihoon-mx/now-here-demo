@@ -728,7 +728,7 @@ body[data-skin="v3"].page-admin .google-btn{border-radius:9999px;}
 body[data-skin="v3"] .deal-label.dl-live .dl-name{--dl-live-bg:var(--v3-red);}
 /* v2.29: 이 스킨도 유리 시트를 그대로 쓴다 — 불투명 면(--v3-surface)으로 덮으면
    style.css 가 세운 팝업 문법 통일이 이 스킨에서만 깨진다(v3 가 기본 스킨이다). */
-body[data-skin="v3"] .deal-sheet .ds-card{background:var(--frost);}
+body[data-skin="v3"] .deal-sheet .ds-card{background:var(--pop-surface);} /* v2.62.6 — 팝업 면은 한 토큰 */
 body[data-skin="v3"] .deal-sheet .ds-tag{background:var(--v3-yellow);color:#4A3B00;}
 body[data-skin="v3"] .deal-sheet .ds-left,
 body[data-skin="v3"] .deal-sheet .ds-pct{color:var(--v3-red);}
@@ -854,3 +854,19 @@ body[data-skin="v3"][data-theme="dark"]{
 }
 /* 프로필 원은 **잉크색 원 + 흰 글자**다 — 잉크가 밝아지면 글자도 뒤집어야 읽힌다. */
 body[data-skin="v3"][data-theme="dark"] .pa-profile #pa-profile-initial{color:#12151b;}
+
+/* ── 잉크 버튼은 다크에서 **글자를 뒤집는다** (v2.62.6) ──────────────────────
+   이 스킨은 `--v3-ink` 를 **버튼 배경**으로 쓴다(고른 칩·쿠폰 받기·매장 CTA) — 밝은
+   바탕에 흰 글자다. 다크에서 잉크를 밝게 뒤집자 배경만 밝아지고 글자는 흰 채로 남아
+   **밝은 알약 위에 흰 글자**가 됐다(실측 대비 0.08).
+   배경을 되돌리지 않고 **글자를 어둡게** 한다 — 어두운 화면에서 CTA 는 밝은 알약이
+   맞고(프로필 원과 같은 판단), 그러면 대비가 0.92 로 선다. */
+body[data-skin="v3"][data-theme="dark"] #feed-tools .fsc.active,
+body[data-skin="v3"][data-theme="dark"] .soc-tab.active,
+body[data-skin="v3"][data-theme="dark"] .deal-sheet .ds-claim,
+body[data-skin="v3"][data-theme="dark"] .store-page .stp-act.stp-cta{color:var(--v3-canvas);}
+/* 안 고른 칩은 밝은 면을 그대로 물려받았다 — 스킨 규칙이 style.css 의 다크 규칙보다 뒤에 온다.
+   ⚠️ `:not(.active)` 가 **꼭 필요하다**: `.active` 도 `.fsc` 라서, 이 줄이 뒤에 온다는
+   이유만으로 위에서 고쳐 둔 고른 칩의 배경까지 덮어썼다 — 어두운 면에 어두운 글자가 돼
+   실측 대비가 0.09 로 떨어졌다(고쳐 놓고 다시 부순 자리다). */
+body[data-skin="v3"][data-theme="dark"] #feed-tools .fsc:not(.active){background:var(--v3-fill);color:var(--v3-ink4);}

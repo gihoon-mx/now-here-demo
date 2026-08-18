@@ -20,6 +20,12 @@
   --sh-m:0 4px 16px rgba(16,24,40,0.14);
   --sh-l:0 14px 36px rgba(16,24,40,0.22);
   --nav-map:#5d8ceb;--nav-feed:#45b27c;--nav-social:#9a77dd; /* 하단 네비 3색 */
+  /* 지도 위에 뜨는 **팝업의 면** (v2.62.6) — 사용자: "팝업창의 배경은 투명도가 필요없어.
+     (스팟메시지 팝업창에 여전히 투명도가 있음, 타임딜 팝업이나 agent 팝업창과 동일한
+     테마로)". 여태 셋이 각자였다: 스팟·딜 카드는 `--frost`(0.6 — 지도가 비친다),
+     agent 말풍선은 `rgba(255,255,255,.92)` 를 박아 썼다(그래서 다크에서 흰 채로 남았다).
+     이제 **한 토큰**이다. 뒤가 안 비치므로 뒤 지도는 `--pop-blur` 가 맡는다. */
+  --pop-surface:#ffffff;
 }
 
 /* ══════ 다크 모드 (v2.62.4) ══════════════════════════════════════════════════
@@ -34,6 +40,7 @@
    바꾸려면 지도 인스턴스를 다시 지어야 한다(오버레이·카메라·핀이 전부 재생성된다).
    그래서 이 판은 **앱 UI 의 다크**다. 지도까지 어둡게 하는 것은 따로 판을 잡을 일이다. */
 body[data-theme="dark"]{
+  --pop-surface:#1b1f27;
   --ink:#e8ebf0;--ink2:#a8b0bd;--ink3:#78818f;
   --line:rgba(232,235,240,0.16);--line-soft:rgba(232,235,240,0.09);
   --card:#1b1f27;--bg:#12151b;
@@ -93,6 +100,14 @@ body[data-theme="dark"] .pn-item{color:var(--ink3);}
 body[data-theme="dark"] .pn-item:not(.active) .pn-ic{color:inherit;}
 /* 컨텐츠 추가 팝업의 항목도 같은 유리 위에 산다. */
 body[data-theme="dark"] .cam-item{color:var(--ink);}
+/* 흰 면을 박아 쓴 버튼들 (v2.62.6) — 실측으로 글자와 대비가 0.35 밑이던 자리다. */
+body[data-theme="dark"] .rqc-btn{background:var(--card);color:var(--ink2);}
+body[data-theme="dark"] .fsc:not(.active),body[data-theme="dark"] .soc-tab:not(.active){background:rgba(232,235,240,0.08);color:var(--ink3);}
+body[data-theme="dark"] .sr-tag.our{color:#12151b;}
+/* 지도 타일 덮개 (v2.62.6) — `mapPane` 에 사는 한 겹. 이 판은 앱 오버레이(overlayMouseTarget)
+   **아래**라 스팟·핀·이름표는 안 물든다. 손도 안 닿는다(pointer-events:none).
+   `multiply` 를 쓰면 밝은 타일만 눌리고 이미 어두운 곳은 덜 눌려 지형이 안 뭉갠다. */
+.map-tint{position:absolute;pointer-events:none;background:#0e1420;opacity:.62;mix-blend-mode:multiply;}
 html,body{width:100%;height:100%;overflow:hidden;font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,-apple-system,sans-serif;background:var(--bg);}
 #app-shell{display:flex;width:100%;height:100%;position:relative;}
 #map{flex:1 1 auto;height:100%;min-width:0;}
@@ -804,7 +819,7 @@ body.sum-folded:not(.mode-trend) #phone-scale{top:calc(41.1cqw + env(safe-area-i
 /* 컨텐츠 추가 팝업 (스팟 메시지 / 사진 — 화이트 카드) */
 /* v2.27 팝업 문법 통일: 현장 Request 버블(.req-bubble)과 같은 프로스트·라운드 5cqw·그림자 */
 .content-add-menu{position:absolute;left:3cqw;bottom:calc(21cqw + env(safe-area-inset-bottom,0px));z-index:7;display:none;flex-direction:column;gap:1.2cqw;padding:2cqw;border-radius:5cqw;
-  background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-line);box-shadow:0 1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);}
+  background:var(--pop-surface);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-line);box-shadow:0 1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);}
 /* 눌린 항목 (v2.37) — 무대가 누르는 동안 표시가 남는다. 팝업도 그동안 안 닫힌다
    (app.js NH_ADD_HOLD) — 여태는 표식이 커지는 중에 메뉴가 먼저 사라졌다. */
 .content-add-menu .cam-item.nh-press{background:var(--acc,#3b6ef5);border-color:transparent;color:#fff;transform:scale(.97);}
@@ -836,7 +851,7 @@ body.sum-folded:not(.mode-trend) #phone-scale{top:calc(41.1cqw + env(safe-area-i
 
 /* AI 말풍선 (클릭 시 역동적 팝업, 꼬리는 AI 아이콘 위 — 화이트 카드) */
 .ai-bubble{position:absolute;right:3cqw;bottom:calc(21cqw + env(safe-area-inset-bottom,0px));z-index:6;max-width:60cqw;padding:2.8cqw 3.6cqw;border-radius:4cqw;
-  background:rgba(255,255,255,0.92);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);color:var(--ink);font-size:3.3cqw;font-weight:700;line-height:1.4;letter-spacing:-0.01em;
+  background:var(--pop-surface);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);color:var(--ink);font-size:3.3cqw;font-weight:700;line-height:1.4;letter-spacing:-0.01em;
   border:1px solid var(--glass-line);box-shadow:var(--sh-l),var(--glass-hi);transform-origin:88% bottom;display:none;pointer-events:none;}
 /* AI 버튼 중심(우측에서 3cqw+6.7cqw≈9.7cqw) 위에 꼬리 정렬 */
 .ai-bubble::after{content:'';position:absolute;right:6.7cqw;bottom:-1.8cqw;border:2cqw solid transparent;border-top-color:rgba(255,255,255,0.92);border-bottom:0;}
@@ -1538,7 +1553,7 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 .cpop-hbtn:hover{background:rgba(15,23,42,0.06);}
 .cpop-hbtn.accent{color:var(--acc,#2f7bff);}
 /* v2.27 팝업 문법 통일: req-bubble 과 같은 프로스트·라운드(폰 밖 fixed 라 px — 5cqw≈20px)·그림자 */
-.cpop-card{background:var(--frost);backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));-webkit-backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));
+.cpop-card{background:var(--pop-surface);backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));-webkit-backdrop-filter:var(--glass-blur,blur(26px) saturate(1.8));
   border:1px solid var(--glass-line);border-radius:20px;box-shadow:0 6px 18px rgba(16,24,40,0.18),var(--glass-hi);}
 /* v2.29: **뒷배경을 어둡게 덮지 않는다.** 카드만 유리로 바꿔 놓고 뒤에 남은 `.modal-overlay`
    의 짙은 스크림(rgba(15,23,42,.42)+blur)이 화면을 눌러, 같은 유리인데도 컨텐츠 추가 메뉴·
@@ -1889,9 +1904,11 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
    ② **흰 링을 뗐다.** 지도 위에서 흰 링은 "이건 별개의 물건" 이라고 말하는데, 이 라벨은
       아래 칩과 **한 덩어리**다. 그래서 딜 칩과 같은 테두리·같은 그림자를 쓴다.
    배경만 JS 가 인라인으로 박는다(딜 색 × 관리자 톤) — 리액션 라벨과 같은 문법. */
-.deal-label .dl-tag{position:absolute;left:50%;transform:translateX(-50%);top:-16px;
-  display:flex;align-items:center;gap:3px;
-  font-size:9px;font-weight:800;color:#fff;border-radius:999px;padding:2px 5px;line-height:1;
+/* v2.62.6: **한 급 키웠다** — 사용자: "타임딜 라벨은 조금 더 커도 괜찮을 듯".
+   9 → 11px · 여백 2/5 → 3/7px. 키운 만큼 위로도 밀어야(-16 → -20px) 상호칩과 안 겹친다. */
+.deal-label .dl-tag{position:absolute;left:50%;transform:translateX(-50%);top:-20px;
+  display:flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:800;color:#fff;border-radius:999px;padding:3px 7px;line-height:1;
   box-shadow:0 2px 12px rgba(232,87,74,0.45),0 0 0 1px rgba(255,255,255,0.22);
   white-space:nowrap;pointer-events:none;}
 .dl-tag>b{font-weight:800;}
@@ -1911,8 +1928,14 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
    가 매 프레임 다시 합성돼 **글자가 떤다** (v2.58 이 맥동을 칩에서 빼낸 그 이유).
    ⚠️ `position:absolute` + 크기 0 이라 flex 줄 수를 안 바꾼다 — 이름표 자리도 안 흔들린다.
    기준점은 칩의 세로 한가운데(약 9px)다: 루트는 `order:1` 인 칩이 맨 위에 선다. */
-.deal-label .dl-onair{position:absolute;left:50%;top:0;width:0;height:0;
+/* v2.62.6 — **가게명을 안 가린다.** 사용자: "타임딜 전환 효과(dealon)가 가게명을 가리지
+   말고 타임딜 라벨에서 뜨는 방식으로". 여태 앵커가 이름표 루트의 `top:0`(=상호칩의 윗선)
+   이라 ⏰ 와 링이 **칩 위에서** 솟아 글자를 덮었다. 이제 앵커가 미니 라벨의 자리(-20px)다 —
+   위로 솟는 연출은 그대로인데 출발점이 칩 밖이라 이름이 안 가린다. */
+.deal-label .dl-onair{position:absolute;left:50%;top:-20px;width:0;height:0;
   pointer-events:none;z-index:6;}
+/* 효과를 끄면 아무것도 안 만든다 (v2.62.6) — 관리자 설정 `dealOnFx`. */
+body.no-dealfx .deal-label .dl-onair{display:none;}
 .deal-label .dl-onair .dlo-ring{position:absolute;left:0;top:9px;width:16px;height:16px;
   margin:-8px 0 0 -8px;border-radius:999px;border:2px solid var(--dl-live-bg,#e8574a);
   animation:dloRing 1.15s ease-out both;}
@@ -1953,7 +1976,7 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
 .deal-sheet{position:absolute;left:0;right:0;top:0;bottom:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:5cqw;}
 .deal-sheet .ds-scrim{position:absolute;inset:0;} /* 덮는 값은 --pop-dim/--pop-blur (v2.62.3) */
 .deal-sheet .ds-card{position:relative;width:78cqw;max-height:100%;display:flex;flex-direction:column;overflow:hidden;padding:4cqw 4.2cqw 4.6cqw;
-  background:var(--frost);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  background:var(--pop-surface);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   border:1px solid var(--glass-line);border-radius:5cqw;box-shadow:0 1.4cqw 4.5cqw rgba(16,24,40,0.18),var(--glass-hi);
   animation:dsPop .28s cubic-bezier(.2,1.5,.4,1);}
 @keyframes dsPop{from{opacity:0;transform:scale(.88);}to{opacity:1;transform:scale(1);}}
