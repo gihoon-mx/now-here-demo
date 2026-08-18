@@ -715,6 +715,16 @@ body.mode-trend .add-pin .apn-ring{border-color:rgba(255,90,60,0.6);}
 /* 데모 프로필 사진 칸 (v2.62.5) */
 .dp-url{width:100%;min-width:0;}
 .dp-prev{width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid var(--line);}
+/* 컨텐츠 표의 순서 손잡이 (v2.62.9) — 피드 카드 줄에만 선다 */
+.ct-c-ord{display:flex;gap:3px;flex:0 0 auto;}
+.ct-ord-btn{width:20px;height:20px;padding:0;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink2);font-size:.66rem;line-height:1;cursor:pointer;}
+.ct-ord-btn:hover{border-color:var(--acc);color:var(--acc);}
+/* Places 장소 사진의 출처 표기 (v2.62.9) — 표기 없이 그 사진을 쓰면 약관 위반이다.
+   폰 화면 맨 아래에 아주 작게 한 줄. 손은 안 닿는다(연출을 막지 않게). */
+.nh-place-credit{position:absolute;left:0;right:0;bottom:0;z-index:3;pointer-events:none;
+  padding:1px 4px;font-size:7px;line-height:1.3;color:rgba(255,255,255,.72);
+  background:rgba(0,0,0,.28);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nh-place-credit a{color:inherit;text-decoration:none;}
 #cp-frame.cv1 .cps-body{position:static;padding:0 1.2cqw 0.8cqw;}
 #cp-frame.cv1 .cps-title{color:var(--ink);font-size:3.7cqw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #cp-frame.cv1 .cps-place{color:var(--ink3);}

@@ -2361,7 +2361,12 @@ function feedSummaryItems(){ // 지역 컨텐츠 지면용: 현 위치 연관성
 function renderNews(){
   var frame=document.getElementById('cp-frame'),track=document.getElementById('cp-track'),dots=document.getElementById('cp-dots');
   newsView=newsItems.filter(function(it){return (it.tab||'map')===currentTab;});
-  if(currentTab==='map')newsView=newsView.concat(feedSummaryItems()); // 관리자 지면(수동) 먼저 + 연관 피드
+  /* v2.62.9 — **피드 탭도 지도 탭과 같은 지면**을 얹는다. 사용자: "Feed 로 넘어갔을 때도
+     상단에 '추천 컨텐츠 지면' 이 map 모드에서 뜰 때와 동일하게 떴으면 좋겠어 (같은 값을
+     적용)". 여태 이 줄이 `map` 만 봐서, 피드 탭 상단은 **손으로 올린 지면 중 tab:'feed'
+     인 것만** 남았고 대개 비어 있었다 — 같은 자리가 탭에 따라 다른 물건이었다.
+     소셜은 안 얹는다: 그 탭의 지면은 '커뮤니티 지면' 이라 사진 피드와 다른 것을 말한다. */
+  if(currentTab==='map'||currentTab==='feed')newsView=newsView.concat(feedSummaryItems()); // 관리자 지면(수동) 먼저 + 연관 피드
   var ph=document.getElementById('cp-placeholder');
   if(ph)ph.textContent=(currentTab==='feed'?'추천 컨텐츠 지면':(currentTab==='social'?'커뮤니티 지면':'지역 콘텐츠 지면'));
   if(frame){frame.classList.remove('cv1','cv2','cv3');frame.classList.add('cv'+newsCardVer);}
@@ -5482,7 +5487,9 @@ function allFeedEntries(){ // 라이브 사진 + 스팟 + 동네소식 → 포�
   var arr=[];
   /* v1.88: `hidden` 을 **여기서 실어 보낸다.** 매핑이 필드를 빠뜨리면 소비하는 쪽에서
      `it.hidden` 이 늘 undefined 라 필터가 조용히 통과한다 — 콘솔 표의 상태도 늘 '공개'가 된다. */
-  feedItems.forEach(function(f){var pc=feedItemLatLng(f);arr.push({id:f.id,type:'photo',src:f.src,region:f.region||'',zone:f.zone||null,kind:f.kind||'post',desc:f.desc||'',name:f.name||'',by:f.by||'',byEmail:f.byEmail||'',hidden:!!f.hidden,ts:f.ts||0,lat:pc?pc.lat:null,lng:pc?pc.lng:null});});
+  /* `ord` = 사람이 컨텐츠 탭에서 정한 순서 (v2.62.9). 없으면 undefined 로 가고 아래
+     정렬이 여태처럼 최신순으로 떨어진다 — 손대지 않은 데모는 하나도 안 바뀐다. */
+  feedItems.forEach(function(f){var pc=feedItemLatLng(f);arr.push({id:f.id,type:'photo',src:f.src,region:f.region||'',zone:f.zone||null,kind:f.kind||'post',desc:f.desc||'',name:f.name||'',by:f.by||'',byEmail:f.byEmail||'',hidden:!!f.hidden,ts:f.ts||0,ord:(f.ord!=null&&isFinite(f.ord))?Number(f.ord):null,lat:pc?pc.lat:null,lng:pc?pc.lng:null});});
   newsItems.forEach(function(n){
     /* 무대가 깐 지면 카드는 상단 캐러셀 전용이다 (v2.2). 여기 실어 보내면 피드 탭
        그리드에도 제목 없는 사진 카드로 한 번 더 뜬다 — 지면과 피드 카드는 무대에서
@@ -5491,9 +5498,16 @@ function allFeedEntries(){ // 라이브 사진 + 스팟 + 동네소식 → 포�
     var rc=regionCenterByName(n.region);arr.push({id:n.id,type:'news',src:n.src,region:n.region||'',ts:0,lat:rc?rc.lat:null,lng:rc?rc.lng:null});});
   spotMessages.forEach(function(sp){var d=regionAt(sp.lat,sp.lng);arr.push({id:sp.id,type:'spot',text:sp.text,emoji:sp.emoji,color:sp.color,region:d?d.name:'',by:sp.by||'',byEmail:sp.byEmail||'',hidden:!!sp.hidden,ts:sp.ts||0,lat:sp.lat,lng:sp.lng});});
   var foc=focusedRegionName(),nf=normRegion(foc);
+  /* v2.62.9 — **사람이 정한 순서가 최신순을 이긴다.** 사용자: "Feed 에서 뜨는 순서를
+     컨텐츠 탭에서 조절할 수 있게".
+     ⚠️ 포커스 구역 우선은 **그대로 둔다** — 그건 "지금 보고 있는 동네" 라는 화면의 약속이라
+     사람이 정한 목록보다 위다. 순서는 그 안에서 정해진다.
+     ord 를 큰 음수 대역에 놓아 ts(밀리초, 1e12 대)보다 늘 앞선다 — 안 그러면 어제 올린
+     사진에 1번을 줘도 오늘 것이 위로 올라온다. */
   arr.forEach(function(it,i){
     var match=foc&&it.region&&(it.region===foc||normRegion(it.region)===nf);
-    it._k=(match?0:1)*1e13+(it.ts?-it.ts:i); // 포커스 구역 먼저, 사진은 최신순
+    var inner=(it.ord!=null)?(-1e12+it.ord):(it.ts?-it.ts:i);
+    it._k=(match?0:1)*1e13+inner; // 포커스 구역 먼저 · 사람이 정한 순서 · 없으면 최신순
   });
   arr.sort(function(a,b){return a._k-b._k;});
   return arr;
@@ -6127,6 +6141,12 @@ function applyFeedCols(n){
 var toneCache={};
 function sampleTone(src,cb){ // 이미지 우상단 평균 밝기 → true=밝음
   if(toneCache[src]!=null){cb(toneCache[src]);return;}
+  /* v2.62.9 — **CORS 를 안 주는 곳은 아예 안 재 본다.** Google Places 의 장소 사진
+     (PhotoService.GetPhoto)이 그렇다: 카드의 `<img>` 로는 잘 뜨는데, 여기서 밝기를 재려고
+     `crossOrigin` 을 걸어 한 번 더 받으면 그 요청만 CORS 로 막혀 **콘솔에 붉은 줄**이 남고
+     요청도 헛돈다(실측). 밝기를 모르면 아래 onerror 와 같은 기본값(밝음)으로 간다 —
+     접기 아이콘의 흑백이 갈릴 뿐이라 화면이 깨지지 않는다. */
+  if(String(src||'').indexOf('/maps/api/place/')>=0){toneCache[src]=true;cb(true);return;}
   var im=new Image();im.crossOrigin='anonymous';
   im.onload=function(){
     try{
@@ -6356,6 +6376,32 @@ function ctEntries(){ // 표에 뿌릴 행 — 사진·스팟·지면(M05 통합
 }
 function ctFiltered(){return ctEntries().filter(function(r){return ctKind==='all'||r.kind===ctKind;});}
 function ctStatusClass(s){return {'공개':'ok','진행 중':'run','숨김':'off','종료':'off'}[s]||'ok';}
+/* ── 피드에 뜨는 순서를 사람이 정한다 (v2.62.9) ─────────────────────────────
+   사용자: "Feed 에서 뜨는 순서를 컨텐츠 탭에서 조절할 수 있게."
+
+   순서는 `feedItems[].ord` 에 **0,1,2…** 로 적는다(배열 자리가 아니라 값으로 적는 이유:
+   컨텐츠 표는 종류로 걸러 보여 주므로 화면의 줄 번호와 배열 자리가 다르다).
+   ⚠️ **처음 누를 때 전체에 번호를 매긴다** — 일부만 번호가 있으면 있는 것과 없는 것이
+   서로 다른 대역(ord 는 -1e12 대·ts 는 -1e12 아래)에 놓여 뒤죽박죽이 된다. */
+function ctReorder(id,dir){
+  var list=feedItems.filter(function(f){return !f.hidden;}); // 숨긴 것은 화면에도 없다
+  // 지금 순서대로 번호를 매긴다 (없던 것에도)
+  var cur=allFeedEntries().filter(function(e){return e.type==='photo';}).map(function(e){return e.id;});
+  var seq=cur.filter(function(cid){return feedItems.some(function(f){return f.id===cid;});});
+  var i=seq.indexOf(id);if(i<0)return;
+  var j=i+dir;if(j<0||j>=seq.length)return;
+  var t=seq[i];seq[i]=seq[j];seq[j]=t;
+  seq.forEach(function(cid,k){
+    var f=feedItems.find(function(x){return x.id===cid;});
+    if(f)f.ord=k;
+  });
+  saveFeed();
+  if(typeof renderFeed==='function')renderFeed();
+  if(typeof renderNews==='function')renderNews();
+  renderContentTable();
+  if(typeof markCloudDirty==='function')markCloudDirty();
+  void list;
+}
 function renderContentTable(){
   var box=document.getElementById('ct-rows');if(!box)return;
   var rows=ctFiltered();
@@ -6380,6 +6426,18 @@ function renderContentTable(){
     el.appendChild(cell('ct-c-like',r.likes?String(r.likes):'—'));
     el.appendChild(st);
     el.appendChild(cell('ct-c-ago',r.ago||'—'));
+    /* 순서 손잡이는 **사진(피드 카드)에만** 붙는다 (v2.62.9) — 스팟·Request·딜은 지도
+       위 물건이라 "피드에 뜨는 순서" 라는 말이 성립하지 않는다. */
+    var ordc=document.createElement('span');ordc.className='ct-c-ord';
+    if(r.kind==='사진'||r.kind==='피드'||r.kind==='photo'||feedItems.some(function(f){return f.id===r.id;})){
+      [['↑',-1],['↓',1]].forEach(function(p){
+        var b=document.createElement('button');b.type='button';b.className='ct-ord-btn';b.textContent=p[0];
+        b.title='피드에 뜨는 순서를 '+(p[1]<0?'앞으로':'뒤로');
+        b.addEventListener('click',function(ev){ev.stopPropagation();ctReorder(r.id,p[1]);});
+        ordc.appendChild(b);
+      });
+    }
+    el.appendChild(ordc);
     box.appendChild(el);
   });
   var cnt=document.getElementById('ct-count');
@@ -11157,9 +11215,78 @@ var NH_BURST_PHOTOS={
   pet:['dog','dogWalk'],
   run:['parkRun','parkPath']
 };
-/** 그 테마의 실사진 하나 — 없으면 빈 문자열(그러면 여태처럼 테마 색 일러스트로 그린다). */
-function nhBurstPhoto(theme,salt,k){
+/* ── 근처 **실제 장소**의 사진 (v2.62.9) ──────────────────────────────────────
+   사용자: "burst 로 표시될 때 실사 이미지는 웹에서 직접 연관된 걸로 가져와서 할 수 있을까?"
+
+   위 주석이 "웹에서 안 긁어온다" 고 적어 둔 이유는 **출처·라이선스를 그때그때 모르고,
+   시연 중에 죽으면 빈 카드가 되기 때문**이다. 그 이유는 지금도 유효하다 — 그래서 임의의
+   웹 이미지가 아니라 **Google Places 의 장소 사진**을 쓴다:
+   ①그 동네의 **실제 가게 사진**이라 "연관된" 의 가장 강한 뜻이고 ②출처 표기를 API 가
+   같이 준다(아래 `nhPlaceCredit` 이 화면에 건다) ③주소가 죽으면 **여태 묶음으로 떨어진다**.
+
+   ⚠️ **미리 받아 둔다.** burst 는 예약된 시각에 하나씩 까는데 사진은 비동기라, 그때 가서
+   부르면 카드가 먼저 서고 사진이 뒤늦게 온다. 회차가 시작될 때 한 번 긁어 캐시에 담고
+   깔 때는 **동기적으로 꺼내 쓴다**. 못 받았으면 조용히 옛 묶음이다.
+   ⚠️ Places API 가 GCP 에서 꺼져 있으면 `REQUEST_DENIED` 가 온다 — 그때도 옛 묶음이다. */
+var nhPlacePhotos={key:'',urls:[],credits:[],busy:false};
+/* 출처 표기를 **켜 둔 상태인가** (v2.62.9).
+   ⚠️ 이 칸이 없어서 버그가 났다: burst 가 시작할 때 `nhPlaceCredit(true)` 를 부르는데
+   그 순간 캐시는 비어 있어(비동기) 표기가 안 붙고, 잠시 뒤 사진이 도착해 **실제 장소
+   사진이 표기 없이** 화면에 떴다 — 그대로 두면 약관 위반이다. 이제 도착하는 자리에서
+   다시 건다. */
+var nhPlaceCreditOn=false;
+function nhPlacePhotoKey(lat,lng){return (Math.round(lat*200)/200)+','+(Math.round(lng*200)/200);}
+function nhPlacePhotoPrefetch(lat,lng){
   try{
+    if(lat==null||lng==null)return;
+    var key=nhPlacePhotoKey(lat,lng);
+    if(nhPlacePhotos.key===key&&nhPlacePhotos.urls.length)return; // 같은 동네면 다시 안 받는다
+    if(nhPlacePhotos.busy)return;
+    if(typeof google==='undefined'||!google.maps||!google.maps.places||!google.maps.places.PlacesService)return;
+    var host=(typeof phoneMap!=='undefined'&&phoneMap)||(typeof map!=='undefined'&&map)||null;
+    if(!host)return;
+    nhPlacePhotos.busy=true;
+    var svc=new google.maps.places.PlacesService(host);
+    svc.nearbySearch({location:new google.maps.LatLng(lat,lng),radius:800},function(res,status){
+      nhPlacePhotos.busy=false;
+      try{
+        var S=google.maps.places.PlacesServiceStatus;
+        if(status!==S.OK||!res||!res.length)return;   // DENIED·ZERO_RESULTS 포함 — 옛 묶음으로 간다
+        var urls=[],cr={};
+        res.forEach(function(p){
+          if(urls.length>=24||!p.photos||!p.photos.length)return;
+          try{
+            urls.push(p.photos[0].getUrl({maxWidth:640,maxHeight:640}));
+            (p.photos[0].html_attributions||[]).forEach(function(h){cr[h]=1;});
+          }catch(e){}
+        });
+        if(!urls.length)return;
+        nhPlacePhotos={key:key,urls:urls,credits:Object.keys(cr),busy:false};
+        if(nhPlaceCreditOn)nhPlaceCredit(true); // 늦게 도착한 표기를 그때 건다
+      }catch(e){}
+    });
+  }catch(e){nhPlacePhotos.busy=false;}
+}
+/* 출처 표기 (Places 필수) — 사진을 쓰는 동안 폰 화면 아래에 한 줄로 붙인다.
+   ⚠️ 표기 없이 이 사진을 쓰면 **약관 위반**이다. 그래서 사진을 고르는 자리에서 함께 건다. */
+function nhPlaceCredit(on){
+  try{
+    nhPlaceCreditOn=!!on;
+    var scr=document.querySelector('.phone-screen');if(!scr)return;
+    var el=scr.querySelector('.nh-place-credit');
+    if(!on||!nhPlacePhotos.credits.length){if(el&&el.parentNode)el.parentNode.removeChild(el);return;}
+    if(!el){el=document.createElement('div');el.className='nh-place-credit';scr.appendChild(el);}
+    el.innerHTML=nhPlacePhotos.credits.slice(0,3).join(' · ');
+  }catch(e){}
+}
+/** 그 테마의 실사진 하나 — 없으면 빈 문자열(그러면 여태처럼 테마 색 일러스트로 그린다).
+    `mode==='nearby'` 면 미리 받아 둔 **근처 실제 장소 사진**이 먼저다 (v2.62.9). */
+function nhBurstPhoto(theme,salt,k,mode){
+  try{
+    if(mode==='nearby'&&nhPlacePhotos.urls.length){
+      var n=Math.floor(heatJitter(salt+'np'+k)*nhPlacePhotos.urls.length)%nhPlacePhotos.urls.length;
+      return nhPlacePhotos.urls[n]||'';
+    }
     var pool=NH_BURST_PHOTOS[theme]||NH_BURST_PHOTOS.cafe;
     if(!pool||!pool.length)return '';
     var i=Math.floor(heatJitter(salt+'p'+k)*pool.length)%pool.length;
@@ -11303,7 +11430,11 @@ function nhBurst(v,n,e,ms,token,look,sp){
   if(typeof switchTab==='function')switchTab('map');
   var at=nhCenter()||c;
   // look:'photo' = 쏟아지는 피드를 **실사진**으로 (v2.37). 비면 여태처럼 테마 색 일러스트.
-  var realPhoto=String(look||'').toLowerCase()==='photo';
+  var lookMode=String(look||'').toLowerCase();
+  var realPhoto=(lookMode==='photo'||lookMode==='nearby');
+  /* v2.62.9 — 근처 실제 장소 사진은 **미리** 받아 둔다(비동기라 깔 때 부르면 늦는다).
+     못 받으면 아래 nhBurstPhoto 가 조용히 옛 묶음으로 떨어진다. */
+  if(lookMode==='nearby'){nhPlacePhotoPrefetch(c.lat,c.lng);nhPlaceCredit(true);}
   var spread=nhBurstSpread(sp); // 밀집도 (v2.38) — 자리 반경에 곱한다
   /* 밀집도 자리의 특별한 값 하나 (v2.61): `view` = **지금 보고 있는 지도 안에만**.
      반경을 줌에서 계산하는 대신 화면의 실제 상자를 재고, 그 안에 고르게 뿌린다 —
@@ -11385,7 +11516,7 @@ function nhBurst(v,n,e,ms,token,look,sp){
         /* 실사진 옵션 (v2.37) — `nhLayFeed` 는 `img` 가 있으면 그것을, 없으면 테마 색으로
            그린다. 그 갈래를 그대로 타므로 여기서는 주소만 고르면 된다(빈 값이면 여태와 같다). */
         if(bMark(nhLayFeed({desc:fd[0],label:fd[0],theme:fd[1],name:pick(NH_BURST_NAMES),
-            img:(realPhoto?nhBurstPhoto(fd[1],salt,k):'')},idx,p,stamp),2))nhRenderSoon('feed');
+            img:(realPhoto?nhBurstPhoto(fd[1],salt,k,lookMode):'')},idx,p,stamp),2))nhRenderSoon('feed');
       }else if(kind==='req'){
         /* 현장 Request (v2.51, 콘솔 D167) — 엔딩에 **묻는 말**도 쏟아진다.
            전부 `mine:false` 다: 다 내 것이면 "동네가 묻는다" 가 아니라 "내가 도배했다" 가 된다.
@@ -11449,6 +11580,20 @@ function nhSeedScenario(sc,token){
   nhThemeSet(sc&&sc.seed&&sc.seed.theme);
   // 컨텐츠 크기 배율도 회차 값이다 (v2.46) — seed 가 없어도 걸어야 한다(아래 return 위)
   nhContentKSet(sc&&sc.seed&&sc.seed.contentScale);
+  /* 근처 장소 사진을 **회차 시작에** 미리 받는다 (v2.62.9) — burst 는 대개 엔딩이라
+     거기서 받기 시작하면 앞쪽 카드가 옛 묶음으로 떨어진다(실측: 넷 중 하나가 그랬다).
+     ⚠️ **아래 `if(!sc.seed)return` 위**여야 한다. 처음엔 그 아래에 뒀는데, 무대에 컨텐츠가
+     하나도 없는 데모는 거기서 먼저 돌아나가서 프리페치가 아예 안 돌았다(실측으로 캐시가
+     0 이었다) — 밝기 게이트와 **같은 병**이다. 그래서 동네도 여기서 따로 집는다.
+     쓸 단계가 하나라도 있을 때만 부른다 — 안 쓰는 데모에서 Places 를 부르면 그냥 과금이다. */
+  try{
+    var wantNearby=(sc&&Array.isArray(sc.steps))&&sc.steps.some(function(st){
+      return st&&st.a==='burst'&&String(st.n||'').toLowerCase()==='nearby';});
+    if(wantNearby){
+      var pc0=SEED_AREAS[(sc&&sc.area)||nhAreaKey]||SEED_AREAS.gangnam;
+      if(pc0)nhPlacePhotoPrefetch(pc0.lat,pc0.lng);
+    }
+  }catch(e){}
   if(!sc||!sc.seed)return;
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
   var stamp=Date.now();
@@ -11618,6 +11763,7 @@ function nhReset(){
     if(typeof nhZoneCardRestore==='function')nhZoneCardRestore(); // 회차가 바꾼 카드 모양도 되돌린다 (v2.26)
     if(typeof nhContentKRestore==='function')nhContentKRestore(); // 컨텐츠 크기 배율도 (v2.46)
     if(typeof nhThemeRestore==='function')nhThemeRestore();     // 무대가 건 테마도 (v2.62.6)
+    if(typeof nhPlaceCredit==='function')nhPlaceCredit(false); // 장소 사진 출처 표기도 회차와 함께 (v2.62.9)
     nhSweepTemp();
     nhCoinsRestore(); // 이 회차가 적립한 코인도 되돌린다 (v2.19)
     /* 앞 회차가 적어 둔 "닫히면 할 일" 은 **실행하지 않고 버린다** (v2.48) —
@@ -11917,8 +12063,16 @@ function nhSanitize(raw){
        seed 자체가 null 이 되어 배율이 **조용히 사라진다**(zcard 가 조건에 든 이유와 같다). */
     var cscale=Number(rs.contentScale);
     cscale=(isFinite(cscale)&&cscale>0)?Math.max(0.4,Math.min(2,cscale)):0;
-    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length||sfxBank||zcard||cscale)
-      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns,sfx:sfxBank,zoneCard:zcard,contentScale:cscale};
+    /* 이 회차의 화면 밝기 (v2.62.9) — **여기 없어서 무대 설정이 안 먹었다.**
+       콘솔은 `seed.theme` 을 제대로 보내고 앱도 `nhThemeSet` 으로 받을 준비가 돼 있었는데,
+       그 사이 이 함수가 seed 를 **새 객체로 다시 지으면서** 목록에 없는 키를 통째로 버렸다.
+       D124 와 같은 병이다(적히지 않은 칸은 조용히 사라진다) — 다만 그때는 단계의 칸이었고
+       이번은 무대의 칸이라 계약 검사가 안 보고 있었다. 콘솔 check-contract ⑪ 이 이제 본다.
+       ⚠️ 아래 게이트 조건에도 넣는다 — 안 넣으면 **컨텐츠가 하나도 없는 데모**에서 seed 가
+       통째로 null 이 되어 밝기만 정한 무대가 또 조용히 사라진다(zcard·cscale 과 같은 이유). */
+    var sthm=(APP_THEMES.indexOf(String(rs.theme||''))>=0)?String(rs.theme):'';
+    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length||sfxBank||zcard||cscale||sthm)
+      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns,sfx:sfxBank,zoneCard:zcard,contentScale:cscale,theme:sthm};
   }
   /* 사람이 옮긴 자리 (v2.20) — 콘솔이 들고 있다가 재생마다 실어 보낸다. 여태 이 값은
      localStorage 뿐이라 **다른 PC 에서는 없는 값**이었다(같은 데모인데 자리가 달랐다).
