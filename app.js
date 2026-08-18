@@ -11321,7 +11321,15 @@ function nhPlacePhotoPrefetch(lat,lng,kw){
       nhPlacePhotos.busy=false;
       try{
         var S=google.maps.places.PlacesServiceStatus;
-        if(status!==S.OK||!res||!res.length)return;   // DENIED·ZERO_RESULTS 포함 — 옛 묶음으로 간다
+        if(status!==S.OK||!res||!res.length){
+          /* ⚠️ **비워야 한다** (v2.63.2). 여태는 그냥 돌아나갔는데, 그러면 앞 배치가
+             살아남아 **주제를 바꿨는데 앞 주제의 사진**이 뜬다 — 화면이 조용히 거짓말한다.
+             "못 받으면 저장소 묶음으로 떨어진다" 는 약속이 깨지는 유일한 구멍이었다.
+             키를 함께 적어 두어 같은 주제로 또 부르지는 않는다(0건인 줄 알면서 또 묻지 않게). */
+          nhPlacePhotos={key:key,urls:[],credits:[],busy:false};
+          if(nhPlaceCreditOn)nhPlaceCredit(true); // 표기도 함께 걷힌다(사진이 없으므로)
+          return;
+        }
         var urls=[],cr={};
         res.forEach(function(p){
           if(urls.length>=24||!p.photos||!p.photos.length)return;

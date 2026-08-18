@@ -1509,7 +1509,11 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 #cpop-body .rqa-item.best.rqa-pop{
   background-image:linear-gradient(100deg,rgba(47,123,255,0) 34%,rgba(47,123,255,0.34) 50%,rgba(47,123,255,0) 66%);
   background-size:240% 100%;background-repeat:no-repeat;
-  animation:rqaSweep .95s cubic-bezier(.3,.85,.4,1) 1;}
+  /* ⚠️ `forwards` 가 **꼭 필요하다** (v2.63.2). 없으면 0.95초에 애니메이션이 끝나면서
+     `background-position` 이 기본값(0% 0%)으로 **되돌아가** 줄 오른쪽에 파란 얼룩이
+     생기고, JS 가 클래스를 걷는 1.4초까지 **450ms 동안 그대로 멈춰 있다가** 툭 사라진다.
+     마지막 프레임(220%)을 붙들고 있으면 그 사이가 조용하다. */
+  animation:rqaSweep .95s cubic-bezier(.3,.85,.4,1) 1 forwards;}
 #cpop-body .rqa-item.best.rqa-pop .rqa-best{
   display:inline-block;animation:rqaBadge .62s cubic-bezier(.22,1,.36,1) both;}
 @keyframes rqaSweep{
