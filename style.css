@@ -1691,6 +1691,14 @@ body.mode-trend .feed-pin .fp-tag{background:var(--heat-a,var(--heat,#f2862e));}
 .feed-pin.fp-dot{opacity:.75;}
 .feed-pin.fp-dot .fp-im{border-width:1.5px;box-shadow:0 1px 3px rgba(15,23,42,0.25);}
 .feed-pin.fp-dot .fp-n{display:none;}
+/* 라이브 카메라 핀의 작은 표 (v2.63.3) — 사진 **아래 가운데**에 걸친다.
+   우측 상단은 리액션 라벨·클러스터 개수가 이미 쓰고 있어서 남는 자리가 여기다.
+   ⚠️ 점 모드에서는 감춘다 — 핀이 12px 로 줄면 이 알약이 핀보다 커진다(.fp-tag 와 같은 규칙). */
+.feed-pin .fp-live{position:absolute;left:50%;bottom:-3px;transform:translateX(-50%);
+  padding:1px 4px;border-radius:999px;background:#ff3d5e;border:1.5px solid #fff;
+  color:#fff;font-style:normal;font-size:7px;font-weight:800;letter-spacing:.06em;line-height:1.35;
+  white-space:nowrap;pointer-events:none;box-shadow:0 1px 3px rgba(15,23,42,0.3);}
+.feed-pin.fp-dot .fp-live{display:none;}
 /* v2.16 점 전환을 이어서 — 크기는 contentDot 이 점 크기에서 멈추게 하고, 남는 모양 변화
    (테두리·불투명도)와 관리자 축척 임계값으로 일찍 점이 될 때의 크기 차이를 여기서 받는다.
    left/top 은 뺀다 — 팬할 때마다 핀이 지도를 쫓아오며 미끄러진다. */
@@ -1992,9 +2000,13 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
    기준점은 칩의 세로 한가운데(약 9px)다: 루트는 `order:1` 인 칩이 맨 위에 선다. */
 /* v2.62.6 — **가게명을 안 가린다.** 사용자: "타임딜 전환 효과(dealon)가 가게명을 가리지
    말고 타임딜 라벨에서 뜨는 방식으로". 여태 앵커가 이름표 루트의 `top:0`(=상호칩의 윗선)
-   이라 ⏰ 와 링이 **칩 위에서** 솟아 글자를 덮었다. 이제 앵커가 미니 라벨의 자리(-20px)다 —
-   위로 솟는 연출은 그대로인데 출발점이 칩 밖이라 이름이 안 가린다. */
-.deal-label .dl-onair{position:absolute;left:50%;top:-20px;width:0;height:0;
+   이라 ⏰ 와 링이 **칩 위에서** 솟아 글자를 덮었다.
+
+   v2.63.3 — **라벨 위로 한 번 더 올렸다.** 사용자: "타임딜 시계 효과는 타임딜 라벨 위쪽에
+   뜨도록". v2.62.6 의 -20px 은 미니 라벨과 **같은 줄**이라(라벨은 -20~-3 을 쓴다) ⏰ 가
+   라벨 위에 겹쳐 시작했다. 실측한 라벨 높이 17px 위로 여유 6px 을 두고, 이모지가 앵커
+   안에서 다시 9px 내려붙는 것(+시작 프레임 2px)까지 빼서 **-37px** 이다. */
+.deal-label .dl-onair{position:absolute;left:50%;top:-37px;width:0;height:0;
   pointer-events:none;z-index:6;}
 /* 효과를 끄면 아무것도 안 만든다 (v2.62.6) — 관리자 설정 `dealOnFx`. */
 body.no-dealfx .deal-label .dl-onair{display:none;}

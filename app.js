@@ -871,6 +871,16 @@ function initFeedThumbClass(){
       var tgH=document.createElement('b');tgH.className='tg-h';tag.appendChild(tgH);
       var tgC=document.createElement('b');tgC.className='tg-c';tag.appendChild(tgC);
       d.appendChild(tag);
+      /* 라이브 카메라는 **지도에서도** 그렇다고 말한다 (v2.63.3) — 사용자 요구다.
+         여태 `LIVE` 는 피드 목록 카드(.fc-live)·팝업(.cpf)·지면 칩(.cpc-live)에만 있어서,
+         **지도 위 핀만 라이브인지 아닌지를 못 말했다.**
+         자리는 **아래 가운데**다: 우측 상단은 리액션 라벨(.fp-tag)과 클러스터 개수(.fp-n)가
+         이미 쓴다. 클러스터에는 안 붙인다 — 대표 사진 하나가 라이브라고 그 무더기가
+         라이브인 것은 아니다(그쪽은 탭의 뜻이 '펼치기' 라 라벨을 안 단다). */
+      if(this.item&&this.item.kind==='cam'){
+        var lv=document.createElement('i');lv.className='fp-live';lv.textContent='LIVE';
+        d.appendChild(lv);
+      }
       this.tagEl=tag;this.tagH=tgH;this.tagC=tgC;
       this.heartEl=tag; // 하트가 튀는 자리 = 이 라벨
       this._paintLikes();
