@@ -47,7 +47,7 @@ git push
 2. asset 캐시버스트 → `style.css?v=X.Y.Z`, `app.js?v=X.Y.Z`, `config.js?v=X.Y.Z`
 3. 커밋 메시지에 `vX.Y.Z`
 - 증가: 일반 변경 = 패치(+0.0.1), 큰 기능 = 마이너(+0.1.0). 문서(WORKLOG 등)만 바뀌면 버전 유지.
-- **현재 최신: v2.63.3** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
+- **현재 최신: v2.64.0** (변경 이력은 아래 📝 변경 이력 절이 항상 최신이다 — 아래 📸 스냅샷 절은 v1.66 시점에서 멈춰 있다)
 - ⚠️ v1.65부터 **admin.html도 버전 동기 대상**(check.js가 index/admin의 #app-version·?v= 일치를 강제). index/admin에 **공통 요소**(폰 화면 마크업·모달·설정 섹션)를 수정하면 **두 파일 모두** 반영할 것.
 
 ---
@@ -263,6 +263,39 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ---
 
 ## 📝 변경 이력
+
+### 2026-08-18 (35)
+- **v2.64.0 — 모든 액션에 어울리는 소리 · 단계마다 켜고 끄기 (콘솔 v0.161.0 · D196 짝)**
+  사용자: "모든 액션마다 어울리는 효과음들을 넣어주고, 효과음 액션 개별 단계별로 켜고 끄기".
+  - **먼저 셌다.** NH_ACTIONS 41개의 실행 경로(디스패치 → 도우미 → 콜백)를 `nhSfxPlay` 까지
+    추적했더니 **16개가 완전히 조용**했다: like·hearts·react(리액션) · reward(코인) ·
+    answers·adopt·ai·chat(도착) · zoom·focus·area(카메라) · tab·scope·theme(화면 전환) ·
+    drawer·bubbleclose. 나머지 25개는 이미 어딘가에서 소리에 닿았다(pop·open·close·tap·type·shot).
+    ⚠️ 첫 감사 스크립트가 addphoto/addpost 를 조용하다고 했는데 **재귀 두 단계**를 못 본
+    것이었다(nhAddFeedCard → nhBounceMark → pop). 손으로 다시 따라가 확인했다.
+  - **슬롯 다섯을 늘렸다** (7 → 12): `heart`(리액션) · `coin`(코인·리워드) · `ding`(답 도착·
+    채택·AI·채팅) · `whoosh`(카메라 이동) · `alarm`(딜 시작 ⏰). 기존 7슬롯으로는 이 소리들이
+    다 "팝" 아니면 "탭" 이 되어 종류가 안 갈린다. 음원 다섯은 기존 파일과 **같은 형식**
+    (PCM 16bit · 모노 · 22050Hz)으로 합성했다 — 로더가 형식을 안 가리게.
+    화면 전환(tab·scope·theme)은 새 슬롯 없이 `mode` 를, 서랍은 `open`, 말풍선 닫기는 `close`
+    를 쓴다 — 같은 종류의 일이면 같은 소리다.
+    ⚠️ **`dealon` 은 `pop` 이었는데 `alarm` 으로 바꿨다** — 등장음이 아니라 ⏰ 와 같은 말이어야 한다.
+    ⚠️ 슬롯을 늘리면 **네 자리**를 다 고쳐야 한다: NH_SFX_KEYS(단일 기준) · NH_SFX_GAP ·
+    NH_SFX_DEFAULT · admin.html 의 패널 행(행이 없으면 initSfxPanel 이 조용히 건너뛴다).
+    콘솔 `check:contract` ⑫ 가 이제 넷을 다 센다 — 일부러 빼고 돌려 잡히는 것까지 확인했다.
+  - **단계 `mute`** — 콘솔 단계 편집기의 `효과음` 체크(기본 켜짐). 앱은 `nhAct` 가 단계
+    시작에 `nhStepMute` 를 심고(말풍선 유지와 같은 자리) `nhSfxPlay` 한 곳에서 거른다.
+    ⚠️ **새는 곳이 없는지 셌다** — 이 저장소에서 소리를 내는 곳은 전부 nhSfxPlay 를 지난다.
+    Audio 를 직접 만드는 곳은 관리자 미리듣기 ▶ 하나뿐이고 그건 재생이 아니다.
+    `nhSanitize` 가 새 객체를 지으므로 `mute:!!s.mute` 를 **거기 먼저** 넣었다(무대 밝기 사고).
+  - 검증(로컬 :8765, 단계 경로 · **실제 재생**을 `HTMLMediaElement.play` 가로채기로 잼):
+    18개 액션이 의도한 슬롯으로 울고(zoom→whoosh · like→heart×3 · answers→ding×2 ·
+    reward→coin · dealon→alarm · tab→mode · drawer→open · bubbleclose→close · theme→mode ·
+    chat send→ding), 같은 값 재적용(theme dark→dark)은 조용하며, **mute 단계는 실제로 안 울고**
+    다음 단계에서 다시 운다. `chat` 은 방만 여는 `local` 은 mode 만, `send` 라야 ding — 검증
+    조건을 잘못 잡았다가 바로잡았다.
+    ⚠️ 첫 측정기는 **가로챈 래퍼가 원본보다 앞에서 세어** mute 단계도 소리 난 것처럼 보였다.
+    "불렸는가" 가 아니라 "재생됐는가" 를 재야 한다 — 그래서 play 를 가로챘다.
 
 ### 2026-08-18 (34)
 - **v2.63.3 — 지도 위 라이브 핀에 `LIVE` · 시계 효과는 라벨 위에서**

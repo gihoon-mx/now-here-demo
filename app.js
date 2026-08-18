@@ -2599,7 +2599,9 @@ function loadNewsFromCloud(){ // 실시간: 요약 지면 이미지 변경 즉�
   },function(e){console.warn('news live fail',e);});
 }
 // 공유 메뉴 바디를 여는 드로어로 옮겨 렌더 (한 번에 하나만 열림 → 동일 DOM = 싱크)
-function openPhoneDrawer(){var d=document.getElementById('phone-drawer'),b=document.getElementById('phone-drawer-body'),pc=document.getElementById('pc-drawer');if(!d)return;if(pc)pc.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
+function openPhoneDrawer(){var d=document.getElementById('phone-drawer'),b=document.getElementById('phone-drawer-body'),pc=document.getElementById('pc-drawer');if(!d)return;
+  if(!d.classList.contains('open'))nhSfxPlay('open'); /* v2.64 — 서랍이 열린다 (팝업 열림과 같은 슬롯) */
+  if(pc)pc.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
 function openPcDrawer(){var d=document.getElementById('pc-drawer'),b=document.getElementById('phone-drawer-body'),ph=document.getElementById('phone-drawer');if(!d)return;if(ph)ph.classList.remove('open');if(b&&b.parentNode!==d)d.appendChild(b);d.classList.add('open');renderDrawerDemo();}
 /* [M09] v1.92 '보기' 토글 — 시안 드로어의 마지막 섹션.
    `boundaryShown`=동 경계(City View) · `reqCardShown`=현장 Request 도착 카드.
@@ -2698,6 +2700,8 @@ function hideAiBubble(){
    서 있어 "닫았는데 안 닫혔다" 가 된다 — 앱 자신도 이 셋을 짝으로 다룬다(showReqBubble ·
    openContentPop('req') 이 hideAiBubble 을 부르고, reward 는 hideReqBubble 을 부른다). */
 function nhHush(){
+  var ab=document.getElementById('ai-bubble');
+  if(ab&&ab.classList.contains('show'))nhSfxPlay('close'); // v2.64 — 열려 있던 말풍선을 닫을 때만
   hideAiBubble();
   if(typeof hideReqBubble==='function')hideReqBubble();
   return true;
@@ -2742,6 +2746,7 @@ function reqPopAway(id){
   }else if(typeof renderRequestMarkers==='function')renderRequestMarkers();
 }
 function showRewardBubble(msg,reqId){ // msg 비우면 기본 문구 — 시나리오('reward' 액션의 v)가 바꾼다
+  nhSfxPlay('coin'); // v2.64 — 코인이 들어오는 순간
   addCoins(REQ_COIN);
   reqPopAway(reqId||lastAnsweredReqId); // 지급 = 그 Request 의 종료 (v2.29)
   var ab=document.getElementById('ai-bubble');if(!ab)return true;
@@ -5094,6 +5099,7 @@ function animateTabSwap(prev,next){
 function switchTab(tab){
   if(tab!=='map'&&tab!=='feed'&&tab!=='social')return;
   var prevTab=currentTab;
+  if(prevTab!==tab)nhSfxPlay('mode'); // v2.64 — 큰 화면이 바뀐다 (렌즈 전환과 같은 슬롯). 같은 탭 재진입은 조용히
   currentTab=tab;
   /* v1.83: 네비 표시도 **여기서** 옮긴다.
      v1.82 까지는 `setNavActive(x); switchTab(x);` 를 호출부마다 짝지어 불렀고
@@ -6706,8 +6712,15 @@ function nhBounceMark(id,n){
    최소 간격도 자리마다 다르다: 타이핑은 글자마다 나므로 촘촘하고(55ms), 모드 전환은
    한 번 크게 난다(150ms). */
 // v2.37: 'shot' = 카메라 셔터 (라이브 카메라 액션). 파일을 안 올리면 조용히 지나간다.
-var NH_SFX_KEYS=['pop','tap','open','close','mode','type','shot'];
-var NH_SFX_GAP={pop:120,tap:90,open:140,close:140,mode:150,type:55,shot:200};
+/* v2.64: 슬롯 다섯을 늘렸다 — 사용자: "모든 액션마다 어울리는 효과음". 전수 감사에서
+   NH_ACTIONS 41개 중 **16개가 완전히 조용**했다(하트·리워드·답 도착·카메라 이동·딜 시작…).
+   기존 7슬롯으로는 그 소리들이 다 "팝" 아니면 "탭" 이 되어 종류가 안 갈린다.
+   heart=리액션 · coin=코인·리워드 · ding=답 도착·채택·알림 · whoosh=카메라 이동 · alarm=딜 시작.
+   ⚠️ 이 배열이 단일 기준이다 — 필터·회차 은행·관리자 패널·sanitize 가 전부 이걸 돈다.
+   그래도 **셋은 따로 늘려야 한다**: 아래 GAP 표 · DEFAULT 표 · admin.html 의 패널 행. */
+var NH_SFX_KEYS=['pop','tap','open','close','mode','type','shot','heart','coin','ding','whoosh','alarm'];
+var NH_SFX_GAP={pop:120,tap:90,open:140,close:140,mode:150,type:55,shot:200,
+  heart:70,coin:160,ding:220,whoosh:260,alarm:400};
 /* ── 앱 차원의 기본 소리 (v2.52, 콘솔 D168) ─────────────────────────────
    여태 소리는 **데모마다** 붙는 값이었다(콘솔의 seed.sfx). 같은 서비스를 보여주는
    데모가 여럿인데 소리는 하나씩 따로 올려야 했고, 안 올린 데모는 조용했다.
@@ -6716,7 +6729,8 @@ var NH_SFX_GAP={pop:120,tap:90,open:140,close:140,mode:150,type:55,shot:200};
 
    기본값은 저장소에 담긴 합성음이다 — 외부 호스팅에 안 기댄다(시연 중에 죽으면 조용해진다). */
 var NH_SFX_DEFAULT={pop:'sfx/pop.wav',tap:'sfx/tap.wav',open:'sfx/open.wav',
-  close:'sfx/close.wav',mode:'sfx/mode.wav',type:'sfx/type.wav',shot:'sfx/shot.wav'};
+  close:'sfx/close.wav',mode:'sfx/mode.wav',type:'sfx/type.wav',shot:'sfx/shot.wav',
+  heart:'sfx/heart.wav',coin:'sfx/coin.wav',ding:'sfx/ding.wav',whoosh:'sfx/whoosh.wav',alarm:'sfx/alarm.wav'};
 /** 관리자가 정한 앱 소리. 비어 있는 자리는 NH_SFX_DEFAULT 가 받는다. */
 var appSfx={};
 /** 지금 이 서비스의 소리 한 자리 — 관리자 값 > 저장소 기본. */
@@ -6784,8 +6798,14 @@ function nhSfxSrc(v){
   if(/^sfx\/[a-z0-9_-]+\.(wav|mp3|ogg|m4a)$/i.test(s))return s;
   return '';
 }
+/* 이 단계는 소리를 안 낸다 (v2.64) — 사용자: "효과음 액션 개별 단계별로 켜고 끄기".
+   `nhAct` 가 단계 시작에 심고(nhBubbleSet 과 같은 자리) 다음 단계가 덮는다.
+   여기 한 곳에서 거르는 이유: 이 저장소의 소리는 **전부 nhSfxPlay 를 지난다**(전수 확인 —
+   Audio 를 직접 만드는 곳은 관리자 미리듣기 ▶ 하나뿐이고 그건 재생이 아니다). */
+var nhStepMute=false;
 function nhSfxPlay(key){
   if(nhSfxMute)return; // 청소 중 (nhReset) — 위 nhSfxMute 주석 참조
+  if(nhStepMute)return; // 이 단계가 소리를 껐다 (v2.64)
   key=key||'pop'; // 자리를 안 적으면 등장음 (v2.23 호출부가 그대로 산다)
   var el=nhSfxBank[key];
   /* 은행이 비어 있으면 **그 자리에서 앱 소리를 채운다** (v2.52, 콘솔 D168).
@@ -9320,6 +9340,7 @@ function nhLikeRepaint(kind,item){
 function nhHeartAdd(kind,item,mine){
   if(!item||typeof feedLikes==='undefined')return false;
   var id=item.id;
+  nhSfxPlay('heart'); // v2.64 — 하트 하나에 한 번 (GAP 70ms 가 50개짜리 단계를 빗소리로 만든다)
   if(mine){
     if(typeof toggleLike!=='function')return false;
     var was=(typeof likeInfo==='function')?likeInfo(id):{n:0,me:0};
@@ -9360,6 +9381,7 @@ function nhCommentAdd(item,k,texts){
   if(!item||!item.id)return false;
   var key='spot:'+item.id;
   if(typeof socMsgs==='undefined')return false;
+  nhSfxPlay('heart'); // v2.64 — 의견도 리액션이다 (하트와 같은 슬롯)
   var i=Math.abs((k|0)+String(item.id).length);
   var mine=(texts&&texts[k|0])?String(texts[k|0]):'';
   (socMsgs[key]=socMsgs[key]||[]).push({
@@ -9491,6 +9513,7 @@ function nhAnswers(rq,count,ms,token,plan){
     setTimeout(function(){
       if(token!==nhRunToken)return;
       if(!nhAnswerAdd(rq,k,plan))return;
+      nhSfxPlay('ding'); // v2.64 — 답이 하나 도착했다
       nhReqRepaint(rq.id);
       /* 내가 모르는 일이 일어났으니 알린다 — 다만 **처음 한 번**이다 (v2.29 의 규칙:
          곧 뒤따를 말을 미리 하지 않는다). 뒤의 답들은 핀의 숫자가 말한다.
@@ -9514,6 +9537,7 @@ function nhAdopt(rq,idx,token){
   rq.answers.forEach(function(a){delete a.best;});
   rq.answers[i].best=1;
   rq.adopted=1;
+  nhSfxPlay('ding'); // v2.64 — 채택의 순간 (연출 rqaSweep 과 같은 박자)
   nhReqRepaint(rq.id);
   /* 채택되는 **그 순간**의 연출 (v2.63.1) — 사용자: "채택한 응답에 대한 효과 표시
      (배경이 그라데이션으로 채워지거나 체크 표시가 효과로 나온다든지)".
@@ -9825,6 +9849,7 @@ function nhCenter(){
    v1.94: 실행 여부를 돌려준다 — nh:step 의 ok 재료 (콘솔 D72). */
 function nhZoom(v,ms,token){
   var m=map||phoneMap;if(!m||!m.getZoom)return false;
+  nhSfxPlay('whoosh'); // v2.64 — 카메라가 움직인다
   var now=m.getZoom()||NH_AREA_ZOOM,z;
   /* in/out 은 **지금 줌 기준의 상대 이동**이라 보정이 필요 없다 (이미 보정된 값에서 뗀다).
      숫자는 대본이 말한 절대 줌이라 화면 폭 보정을 붙인다 (v2.35). 자르는 것은 대본의
@@ -9847,6 +9872,7 @@ function nhZoom(v,ms,token){
 function nhFocus(kind,i,token,ms){
   var d=nhPick(kind||'spot',i);
   if(!d||d.lat==null||d.lng==null)return false;
+  nhSfxPlay('whoosh'); // v2.64 — 카메라가 움직인다
   if(typeof switchTab==='function')switchTab('map');
   var m=map||phoneMap;
   var now=(m&&m.getZoom&&m.getZoom())||NH_AREA_ZOOM;
@@ -10240,7 +10266,7 @@ function nhDealOn(i,fast){
     if(ov&&ov.div){var el=ov.div;el.classList.remove('nh-pop-in');void el.offsetWidth;el.classList.add('nh-pop-in');
       setTimeout(function(){el.classList.remove('nh-pop-in');},1200);}
     nhDealOnFx(ov); // 전환 순간의 ⏰ (v2.61)
-    if(typeof nhSfxPlay==='function')nhSfxPlay(); // 컨텐츠가 뜨는 그 순간과 같은 소리
+    if(typeof nhSfxPlay==='function')nhSfxPlay('alarm'); // v2.64 — 등장음이 아니라 **알람**이다 (⏰ 와 같은 말)
   }
   if(typeof renderDrawerDemo==='function')renderDrawerDemo(); // 관리자 표의 '진행 중' 도 따라온다
   return true;
@@ -10313,6 +10339,7 @@ function nhChat(kind,say){
   if(say&&typeof socRoom!=='undefined'&&socRoom&&typeof socMsgs!=='undefined'){
     var k=socRoom.key;(socMsgs[k]=socMsgs[k]||[]).push({name:'나',t:String(say).slice(0,120),ts:Date.now()});
     nhTempIds.chat.push(k);
+    nhSfxPlay('ding'); // v2.64 — 채팅에 말이 하나 실린다 (도착 계열)
     if(typeof renderSocial==='function')renderSocial();
   }
   return true;
@@ -10332,13 +10359,14 @@ function nhAi(token,ms,fast){
   setTimeout(function(){
     if(token!==nhRunToken)return;
     var item=document.querySelector('#aip-list .aip-item');
-    if(item)item.click();
+    if(item){item.click();nhSfxPlay('ding');} // v2.64 — AI 의 답이 온다 (도착 계열)
   },Math.min(Math.max(700,Math.round((ms||2600)*0.4)),Math.max(200,(ms||2600)-120))); // 스텝 안에서 (v2.33)
   return true;
 }
 
 /* 피드 보기 범위 칩 (전체보기 / 현재 동네 / Trend Zone) — 실제 칩을 누른다 */
 function nhScope(v){
+  nhSfxPlay('mode'); // v2.64 — 피드 범위가 바뀐다 (화면 전환 계열)
   var b=document.querySelector('.fsc[data-s="'+(v||'local')+'"]');
   if(b){b.click();return true;}
   if(typeof feedScope!=='undefined'){feedScope=(v==='all'||v==='zone')?v:'local';
@@ -10508,6 +10536,7 @@ function nhAct(st,token){
      액션별 분기 안이 아니라 여기, 실행 전에 한 번 둔다. 실행 직후에 지우지 않는 이유는
      말풍선이 액션보다 늦게 뜨는 경우가 있어서다(ai 의 답은 ms*0.4 뒤). 다음 단계가 덮는다. */
   nhBubbleSet(st&&st.bh);
+  nhStepMute=!!(st&&st.mute); // 이 단계의 소리 켜고 끄기 (v2.64) — 말풍선 유지와 같은 자리
   /* 이 단계의 **박자**를 정한다 (v2.39) — 아래 연출의 고정 시간이 전부 이 배율을 지난다.
      말풍선과 같은 이유로 여기, 실행 전에 한 번 둔다: 액션 분기 안에 두면 표식을 먼저
      띄우는 갈래(nhTouch)가 옛 배율로 돈다. 빨리 감기는 연출 자체가 없으니 1 이다. */
@@ -10532,6 +10561,7 @@ function nhAct(st,token){
       if(st.a==='area'){var c=SEED_AREAS[st.v];
         if(!c||typeof cpopGoMap!=='function')return false;
         // c.z = 사람이 맞춰 둔 배율(custom 만 갖는다, v1.99). 없으면 여태와 같은 기본값.
+        nhSfxPlay('whoosh'); // v2.64 — 다른 동네로 카메라가 난다
         nhAreaKey=st.v;cpopGoMap('area',{lat:c.lat,lng:c.lng},nhZ(c.z||NH_AREA_ZOOM),st.ms,token);return true;}
       if(st.a==='pop'){var d=nhPick(st.v||'spot',st.i); // 빈 v 는 지도 글로 (v2.36 — focus 와 같은 규칙)
         if(!d)return false;
@@ -10618,6 +10648,7 @@ function nhAct(st,token){
       if(st.a==='theme'){
         var thV=String(st.v||'').toLowerCase();
         if(APP_THEMES.indexOf(thV)<0)thV=(appTheme==='dark')?'light':'dark';
+        if(thV!==appTheme)nhSfxPlay('mode'); // v2.64 — 화면이 통째로 바뀐다 (렌즈 전환과 같은 슬롯). 같은 값이면 조용히
         return setAppTheme(thV)===thV;}
       if(st.a==='comment'){var cSp=nhPick('spot',st.i);
         if(!cSp)return false;
@@ -12027,6 +12058,9 @@ function nhSanitize(raw){
          액션마다 4~7초로 흩어져 있던 기본값을 단계가 덮는다. 0.3~60초 밖·빈 값은
          버린다(그러면 액션 기본값). 옛 콘솔은 안 보내고, 옛 앱은 이 필드를 모른다. */
       bh:(function(n){return (isFinite(n)&&n>=0.3&&n<=60)?n:0;})(parseFloat(s.bh)),
+      /* mute (v2.64, 콘솔 D196) — 이 단계는 효과음을 안 낸다. 옛 콘솔은 안 보낸다.
+         ⚠️ 이 map 은 새 객체를 짓는다 — 여기 안 적으면 콘솔이 보내도 버려진다. */
+      mute:!!s.mute,
       concern:!!s.concern,key:!!s.key,
       /* 상·하한 (시연이 멈춰 보이지 않게). **하한은 50 이다** — 400 이었는데, 콘솔의
          "이 단계 화면 보기" 가 앞 단계를 빨리 감아 지나가는 데 그 바닥이 곧 대기시간이라
