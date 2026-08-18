@@ -11072,6 +11072,9 @@ function nhLayNews(p,i,c,stamp){
      통째로 담으면 Firestore 문서 상한(1MB)에 금세 닿는다. */
   newsItems.push({id:id,tab:tab,stage:true,
     src:(p.img||(typeof seedImg==='function'?seedImg(p.theme||'cafe',''):'')),
+    /* 글자 없이 사진만 (v2.63) — renderNews 가 이 값으로 `.cps-bare` 를 붙이고, CSS 가
+       글자칸과 그라데이션을 함께 접는다(관리자가 올린 지면의 같은 옵션과 한 길이다). */
+    bare:!!p.bare,
     region:region,title:String(p.title||'').slice(0,60)});
   nhTempIds.page.push(id);
   return id;
@@ -12017,6 +12020,10 @@ function nhSanitize(raw){
         place:String(p.place||'').slice(0,20),
         title:String(p.title||'').slice(0,60),
         img:nhImgSrc(p.img), // v2.4: 사람이 올린 사진 (https/data 만 — 없으면 테마 색으로 그린다)
+        /* 글자 없이 사진만 (v2.63) — 켜면 위치·제목과 **그 아래 그라데이션까지** 빠진다.
+           ⚠️ 이 줄이 없으면 콘솔이 보내도 여기서 버려진다 — 무대 밝기(v2.62.9)가 바로 그
+           자리에서 사라졌었다. 이 map 은 새 객체를 짓는다는 것을 잊지 않는다. */
+        bare:!!p.bare,
         hold:!!p.hold};
     /* **빈 지면은 버린다** (v2.36) — 다른 다섯 종류는 예전부터 버렸는데 지면만 안 버렸다.
        콘솔의 toSeed 는 여섯 다 버리므로, 여기만 안 버리면 손으로 짠 데모(toSeed 를 안 거친다)와
