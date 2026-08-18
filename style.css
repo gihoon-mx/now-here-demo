@@ -1758,6 +1758,40 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
   .deal-label.dl-live .dl-name::after{animation:none;} /* 색은 남는다 — 그것이 정보다 */
 }
 
+/* ── 매장이 **타임딜로 바뀌는 순간** (v2.61, `dealon` 액션 · nhDealOnFx) ───────────
+   ⏰ 가 이름표에서 솟아올라 사라지고, 딜 색 링이 두 번 퍼진다. 1.8초 뒤 JS 가 걷는다.
+
+   ⚠️ 이름표 **루트의 자식**이다 — 상호칩(`.dl-name`) 안에 두면 그 칩의 `backdrop-filter`
+   가 매 프레임 다시 합성돼 **글자가 떤다** (v2.58 이 맥동을 칩에서 빼낸 그 이유).
+   ⚠️ `position:absolute` + 크기 0 이라 flex 줄 수를 안 바꾼다 — 이름표 자리도 안 흔들린다.
+   기준점은 칩의 세로 한가운데(약 9px)다: 루트는 `order:1` 인 칩이 맨 위에 선다. */
+.deal-label .dl-onair{position:absolute;left:50%;top:0;width:0;height:0;
+  pointer-events:none;z-index:6;}
+.deal-label .dl-onair .dlo-ring{position:absolute;left:0;top:9px;width:16px;height:16px;
+  margin:-8px 0 0 -8px;border-radius:999px;border:2px solid var(--dl-live-bg,#e8574a);
+  animation:dloRing 1.15s ease-out both;}
+.deal-label .dl-onair .dlo-ring2{animation-delay:.34s;}
+.deal-label .dl-onair .dlo-em{position:absolute;left:0;top:9px;font-style:normal;
+  font-size:15px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.45));
+  animation:dloEm 1.6s cubic-bezier(.3,1.35,.5,1) both;}
+.deal-label .dl-onair .dlo-em img{width:1em;height:1em;display:block;} /* Twemoji 치환분 */
+@keyframes dloRing{
+  0%{transform:scale(.35);opacity:.95;}
+  100%{transform:scale(4.6);opacity:0;}
+}
+@keyframes dloEm{
+  0%{transform:translate(-50%,2px) scale(.2) rotate(-18deg);opacity:0;}
+  22%{transform:translate(-50%,-17px) scale(1.3) rotate(9deg);opacity:1;}
+  38%{transform:translate(-50%,-14px) scale(1) rotate(-7deg);opacity:1;}
+  54%{transform:translate(-50%,-16px) scale(1.08) rotate(5deg);opacity:1;}
+  70%{transform:translate(-50%,-15px) scale(1) rotate(0deg);opacity:1;}
+  100%{transform:translate(-50%,-30px) scale(.92);opacity:0;}
+}
+/* 움직임을 줄이라는 화면에서는 **연출만** 걷는다 — 딜이 켜졌다는 사실은 강조색이 말한다. */
+@media (prefers-reduced-motion:reduce){
+  .deal-label .dl-onair{display:none;}
+}
+
 /* v2.29 팝업 문법 통일: 스크림을 걷고 시트를 유리로 — 컨텐츠 추가 메뉴(.content-add-menu)·
    에이전트 말풍선(.ai-bubble/.req-bubble)과 같은 프로스트·헤어라인·상단 광택이다.
    딜은 **지도 위 그 매장의 것**이라 지도가 계속 보여야 한다. 스크림 div 는 남긴다 —

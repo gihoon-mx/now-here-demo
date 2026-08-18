@@ -6783,38 +6783,34 @@ function initDealLabelClass(){
   DealLabel.prototype.onAdd=function(){
     var self=this,d=this.d;
     var el=document.createElement('div');el.className='deal-label';
-    var msg=String(d.msg||'').trim();
-    el.innerHTML=(msg?'<span class="dl-msg spot-bubble tl-t"></span>':'')+'<span class="dl-name"></span>';
-    if(msg)el.querySelector('.dl-msg').textContent=msg.slice(0,60);
+    /* 한마디 칸은 **비어 있어도 만든다** (v2.61) — 여태는 `msg` 가 있을 때만 만들었고,
+       `shopsay` 로 나중에 붙는 한마디는 renderDealMarkers 가 이름표를 통째로 다시 지어서
+       들어왔다. 이름표를 다시 안 짓기로 한 이상(아래 `reuse`) 칸은 늘 있어야 한다.
+       빈 칸은 `display:none` 이라 gap 도 안 먹는다 — 화면은 여태와 같다. */
+    el.innerHTML='<span class="dl-msg spot-bubble tl-t"></span><span class="dl-name"></span>';
     /* 이름표에 이모지를 앞세운다 (v2.42) — 실서비스 지도가 그렇게 생겼다(🍴 강남원주추어탕).
        종류가 한 글자로 먼저 읽혀서, 이름표가 스무 개 깔려도 훑어볼 수 있다.
        v2.58: 글자는 **자식 노드**에 담는다 — 미니 라벨이 같은 칩 안에 사는데 textContent 로
        통째로 쓰면 그 라벨이 매초 지워진다. */
     var nameEl=el.querySelector('.dl-name');
-    var dlE=String(d.e||'').trim().slice(0,4);
     var txt=document.createElement('span');txt.className='dl-t';
-    txt.textContent=(dlE?dlE+' ':'')+dealName(d);
     nameEl.appendChild(txt);
-    /* 딜 미니 라벨 (v2.58) — 칸 둘: `⏰타임딜` 과 사람이 고른 정보(`lab`).
-       칩의 자식이라 이름표 배율(labelScale)을 그대로 탄다. 관리자가 끄면(deal.label) 안 만든다. */
-    if(!mapPinView.deal||mapPinView.deal.label!==false){
-      var tag=document.createElement('span');tag.className='dl-tag';
-      var tgD=document.createElement('b');tgD.className='tg-d';tag.appendChild(tgD);
-      var tgI=document.createElement('b');tgI.className='tg-i';tag.appendChild(tgI);
-      nameEl.appendChild(tag);
-      this.tagEl=tag;this.tagD=tgD;this.tagI=tgI;
-    }
-    el.title=dealName(d)+(dealActive(d)?' · 타임딜':'');
+    this.msgEl=el.querySelector('.dl-msg');this.nameEl=nameEl;this.txtEl=txt;
+    this.div=el;
+    this._syncTag(); // 딜 미니 라벨 (관리자가 끄면 안 만든다)
     /* 이름표를 누르면 **그 가게의 화면**이 열린다.
        v2.59 (콘솔 D190): 딜 중이면 **타임딜 팝업**(쿠폰 시트)이고, 아니면 여태처럼 매장
        전용 페이지다 — 사용자 요구다. 이름표가 딜이라고 외치고 있는데 눌렀더니 딜이 없는
        페이지가 열리면, 강조가 가리킨 것과 열린 것이 다르다.
-       ⚠️ `dealActive` 를 **누를 때** 묻는다 — 딜이 끝난 뒤에 누르면 매장 페이지다. */
+       ⚠️ `dealActive` 를 **누를 때** 묻는다 — 딜이 끝난 뒤에 누르면 매장 페이지다.
+       ⚠️ v2.61: 잡는 것은 `self.d` 다 — 이름표가 여러 렌더를 살아남으므로(reuse) 만들 때
+       닫아 둔 `d` 를 잡으면 지워진 항목을 계속 가리킨다. */
     el.querySelector('.dl-name').addEventListener('click',function(e){
       e.stopPropagation();
       if(self._dragged){self._dragged=false;return;} // 방금 끌어 옮긴 손은 페이지를 안 연다
-      if(dealActive(d)&&typeof openDealSheet==='function'){openDealSheet(d.id);return;}
-      if(typeof openStorePage==='function')openStorePage(d.id);
+      var cur=self.d;if(!cur)return;
+      if(dealActive(cur)&&typeof openDealSheet==='function'){openDealSheet(cur.id);return;}
+      if(typeof openStorePage==='function')openStorePage(cur.id);
     });
     /* 끌어 옮기기 (v2.43) — 지도 위 컨텐츠는 **전부** 옮길 수 있어야 한다.
        스팟·피드·Request·딜 핀은 진작 옮겨졌는데 **이름표만 안 움직였다**: '가게만' 항목은
@@ -6826,8 +6822,54 @@ function initDealLabelClass(){
        표는 소비형이라 둘이 부르면 한쪽이 빈손이 되는데, 이제 부르는 곳이 하나뿐이라
        `store` 여부를 가릴 이유도 없어졌다. */
     if(typeof nhBounceTake==='function'&&nhBounceTake(d.id))el.classList.add('nh-pop-in');
-    this.div=el;this.getPanes().overlayMouseTarget.appendChild(el);
-    this.paintDeal(); // 강조·미니 라벨을 지금 값으로 (티커가 이어 받는다)
+    this.getPanes().overlayMouseTarget.appendChild(el);
+    this._sync(); // 상호·한마디·강조·미니 라벨을 지금 값으로 (티커가 이어 받는다)
+  };
+  /* ── 이름표를 **다시 안 짓는다** (v2.61) ─────────────────────────────────
+     `renderDealMarkers` 가 여태 모든 이름표를 걷고 새로 만들었다. 렌더가 잦은 자리
+     (burst 는 한 개 깔 때마다 부른다)에서 이미 서 있던 이름표까지 DOM 이 통째로
+     바뀌니, 사용자가 본 **"기존 컨텐츠가 움찔움찔"** 이 그 자리였다.
+     스팟은 v2.13 에 같은 병을 같은 방식으로 고쳤다 — id 로 짝을 맞춰 남은 것은 그대로
+     쓰고 값만 물린다. 여기 셋(`_sync`·`_syncTag`·`reuse`)이 그 손이다. */
+  DealLabel.prototype._sync=function(){
+    var d=this.d,el=this.div;if(!d||!el)return;
+    var msg=String(d.msg||'').trim().slice(0,60);
+    if(this.msgEl){
+      if(this.msgEl.textContent!==msg)this.msgEl.textContent=msg;
+      this.msgEl.style.display=msg?'':'none';
+    }
+    var dlE=String(d.e||'').trim().slice(0,4);
+    var t=(dlE?dlE+' ':'')+dealName(d);
+    if(this.txtEl&&this.txtEl.textContent!==t)this.txtEl.textContent=t;
+    el.title=dealName(d)+(dealActive(d)?' · 타임딜':'');
+    this.paintDeal();
+  };
+  /* 딜 미니 라벨 (v2.58) — 칸 둘: `⏰타임딜` 과 사람이 고른 정보(`lab`).
+     칩의 자식이라 이름표 배율(labelScale)을 그대로 탄다. 관리자가 끄면(deal.label) 걷는다 —
+     v2.61 부터 이름표가 설정 변경보다 오래 살므로 **켜고 끄는 것도 여기서** 한다. */
+  DealLabel.prototype._syncTag=function(){
+    if(!this.div||!this.nameEl)return;      // 아직 onAdd 전이다 — 지을 때 제 값으로 선다
+    var want=!(mapPinView.deal&&mapPinView.deal.label===false);
+    if(want===!!this.tagEl)return;
+    if(!want){
+      if(this.tagEl&&this.tagEl.parentNode)this.tagEl.parentNode.removeChild(this.tagEl);
+      this.tagEl=this.tagD=this.tagI=null;return;
+    }
+    var tag=document.createElement('span');tag.className='dl-tag';
+    var tgD=document.createElement('b');tgD.className='tg-d';tag.appendChild(tgD);
+    var tgI=document.createElement('b');tgI.className='tg-i';tag.appendChild(tgI);
+    this.nameEl.appendChild(tag);
+    this.tagEl=tag;this.tagD=tgD;this.tagI=tgI;
+  };
+  /** 살아남은 이름표에 **새 값을 물린다** — 자리가 바뀌었을 때만 다시 그린다. */
+  DealLabel.prototype.reuse=function(d){
+    this.d=d;
+    var ll=this.position;
+    if(!ll||ll.lat()!==d.lat||ll.lng()!==d.lng){
+      this.position=new google.maps.LatLng(d.lat,d.lng);
+      if(this.div)this.draw();
+    }
+    this._syncTag();this._sync();
   };
   /* 딜 상태를 칩에 칠한다 (v2.58) — `onAdd` 와 1초 티커가 같이 부른다.
      **`dealActive` 를 매번 다시 묻는다**: 남은 시간이 0 이 되는 순간 강조와 라벨이 스스로
@@ -6910,8 +6952,15 @@ function storeView(id){
     addr:d.addr, desc:d.desc, photos:d.photos, msg:d.msg,
     hasDeal:!d.store};                          // 가격·남은 시간·쿠폰이 있는가
 }
+/* **있는 것은 두고, 바뀐 것만** 만든다 (v2.61) — 스팟이 v2.13 에 배운 규칙을 이름표도 쓴다.
+   여태는 한 번 그릴 때마다 전부 걷고 다시 만들었다. burst 는 컨텐츠 하나마다 이 함수를
+   부르므로, 쏟아지는 4초 동안 이미 서 있던 이름표가 수십 번 새 DOM 이 됐다 — 사용자가 본
+   **"기존 컨텐츠(특히 매장 라벨)가 움찔움찔"** 이 그것이다. 덤으로 declutter 의 숨김 판정도
+   안정된다: 배열 순서가 유지되니 먼저 자리를 잡은 이름표가 계속 이긴다. */
 function renderDealMarkers(){
-  dealLabels.forEach(function(o){o.setMap(null);});dealLabels=[];
+  var prev={};
+  dealLabels.forEach(function(o){if(o&&o.d)prev[o.d.id]=o;});
+  var next=[],keep={};
   /* 이름표가 하나도 안 서는 길에서도 **티커는 반드시 지난다** (v2.58) — 여기서 일찍
      빠져나가면 방금 비운 배열 위로 1초짜리가 영영 돈다(설정을 끄면 그렇게 된다). */
   if(phoneMap&&typeof google!=='undefined'&&google.maps&&
@@ -6920,8 +6969,18 @@ function renderDealMarkers(){
        강조색·미니 라벨이 얹힌다. `dealName` 이 상호→제목→기본값으로 떨어지므로
        이름이 없어 못 서는 항목은 없다. */
     timeDeals.filter(function(d){return dealShown(d)&&dealName(d);})
-      .forEach(function(d){dealLabels.push(new DealLabel(d,phoneMap));});
+      .forEach(function(d){
+        /* `o.div` 는 안 본다 — Maps 는 `setMap` 뒤 **다음 그리기 차례**에 onAdd 를 부른다.
+           div 가 있어야 물려받게 하면, 쏟아짐처럼 렌더가 촘촘한 구간에서 아직 안 그려진
+           이름표가 매번 버려져 이 고침이 통째로 헛돈다. onAdd 는 그때의 `this.d` 로 짓는다. */
+        var o=prev[d.id];
+        if(o){keep[d.id]=1;o.reuse(d);next.push(o);}
+        else next.push(new DealLabel(d,phoneMap));
+      });
   }
+  // 짝을 못 찾은 것 = 사라진 가게(또는 설정으로 끈 것) — 그것만 걷는다.
+  Object.keys(prev).forEach(function(id){if(!keep[id])prev[id].setMap(null);});
+  dealLabels=next;
   dealLabelTick();
   if(typeof declutterMarkers==='function')declutterMarkers();
 }
@@ -9558,10 +9617,35 @@ function nhDealOn(i,fast){
     var ov=(typeof dealLabels!=='undefined'?dealLabels:[]).find(function(o){return o.d&&o.d.id===d.id;});
     if(ov&&ov.div){var el=ov.div;el.classList.remove('nh-pop-in');void el.offsetWidth;el.classList.add('nh-pop-in');
       setTimeout(function(){el.classList.remove('nh-pop-in');},1200);}
+    nhDealOnFx(ov); // 전환 순간의 ⏰ (v2.61)
     if(typeof nhSfxPlay==='function')nhSfxPlay(); // 컨텐츠가 뜨는 그 순간과 같은 소리
   }
   if(typeof renderDrawerDemo==='function')renderDrawerDemo(); // 관리자 표의 '진행 중' 도 따라온다
   return true;
+}
+/* ── 매장 → 타임딜, 그 **전환의 순간** (v2.61) ─────────────────────────────
+   사용자 요구: "지도 위에서 매장이 타임딜로 전환될 때 전환되는 효과가 있으면 좋겠어
+   (알람 이모지나 시계 이모지를 활용한다든지)."
+
+   바운스(`nh-pop-in`)만으로는 **무슨 일이 일어났는지**가 안 읽힌다 — 그냥 이름표가 한 번
+   튄다. 여기서 두 가지를 더 한다: ①이름표에서 ⏰ 가 솟아올라 사라진다 ②딜 색 링이 두 번
+   퍼진다. 딜이 켜졌다는 사실은 그 뒤로도 `.dl-live` 의 강조색·미니 라벨·맥동이 계속 말한다 —
+   이것은 **바뀌는 그 순간**만 맡는다.
+
+   ⚠️ 붙이는 곳은 이름표 **루트**(`.deal-label`)다. 상호칩(`.dl-name`)에는
+   `backdrop-filter:blur` 가 걸려 있어 그 안에서 무엇이 움직이면 글자가 떤다 — v2.58 이
+   맥동을 칩에서 뒤 링으로 뺀 것과 같은 이유다. 루트는 절대 배치라 레이아웃도 안 흔든다. */
+function nhDealOnFx(ov){
+  try{
+    if(!ov||!ov.div)return;
+    var old=ov.div.querySelector('.dl-onair');
+    if(old&&old.parentNode)old.parentNode.removeChild(old); // 두 번 켜도 겹치지 않게
+    var fx=document.createElement('span');fx.className='dl-onair';fx.setAttribute('aria-hidden','true');
+    fx.innerHTML='<i class="dlo-ring"></i><i class="dlo-ring dlo-ring2"></i><b class="dlo-em">⏰</b>';
+    ov.div.appendChild(fx);
+    if(typeof twParse==='function')twParse(fx); // 이모지는 이 서비스의 것으로 통일 (Twemoji)
+    setTimeout(function(){if(fx.parentNode)fx.parentNode.removeChild(fx);},1800);
+  }catch(e){}
 }
 
 /* 가게가 한마디 한다 (v2.32, `shopsay` 액션).
@@ -10097,8 +10181,13 @@ function nhSweepTemp(){
 /* 배치는 **결정적**이어야 한다 — 시연은 몇 번을 돌려도 같은 자리에 같은 것이 있어야 한다
    (v1.71까지는 Math.random 이라 회차마다 위치가 달라졌다). 황금각으로 중심 둘레에 흩어
    개수가 늘어도 서로 겹치지 않는다. 종류마다 base 를 달리 줘서 스팟·피드·Request 가 포개지지 않는다. */
+/* 자리를 펴는 반경 (v2.61 에 상수로 뺐다) — `nhLay*` 는 넘겨받은 점을 **중심**으로 삼아
+   여기서 한 번 더 편다. burst 의 '화면 안에만'(v2.61)이 그만큼을 미리 빼야 컨텐츠가
+   화면 밖으로 안 샌다 — 이 값을 고치면 그쪽 계산도 같이 따라온다. */
+var NH_SPREAD_R0=0.0015,NH_SPREAD_R1=0.0008;
+var NH_SPREAD_MAX=NH_SPREAD_R0+NH_SPREAD_R1*2;   // i%3 의 최댓값이 2 다
 function nhSpread(c,i){
-  var a=i*2.399963,r=0.0015+0.0008*(i%3);
+  var a=i*2.399963,r=NH_SPREAD_R0+NH_SPREAD_R1*(i%3);
   return {lat:c.lat+r*Math.cos(a),lng:c.lng+r*Math.sin(a)*1.25};
 }
 /* 무대에 깔 수 있는 개수 (v2.10) — **콘솔의 MAX_SEED_* 와 같은 값이어야 한다.**
@@ -10560,14 +10649,86 @@ var NH_BURST_MAX=100;
    **`dealpin` 은 v2.58 에서 값째로 뺐다** (콘솔 D189): 그 값의 뜻이 "⏰ 아이콘만" 이었는데
    그 아이콘이 없어졌다. 남겨 두면 고를 수는 있는데 아무것도 안 뜨는 값이 된다.
    ⚠️ 콘솔의 `ACTION_INFO.burst.values` 와 **같은 목록**이어야 한다 (check:contract ⑥). */
+/* v2.61 (콘솔 D192): 종류마다 **개수**를 달 수 있다 — `spot*5+feed*3`. 여기서는 개수를
+   떼고 종류만 본다(`*` 앞). 옛 값(`spot+feed`)은 그대로 지난다. */
 function nhBurstKinds(v){
   var out=[];
-  String(v||'').split(/[+,\s]+/).forEach(function(x){
+  String(v||'').split(/[+,\s]+/).forEach(function(tok){
+    var x=String(tok||'').split('*')[0];
     if((x==='spot'||x==='feed'||x==='req'||x==='deal'||x==='store')&&out.indexOf(x)<0)out.push(x);
   });
   /* 빈 값·모르는 값은 **여태 셋**이다 (뒤에 늘어난 것들을 넣지 않는다) — 저장된 데모의 `v`
      가 대개 비어 있어서, 여기에 끼우면 옛 엔딩에 없던 것이 갑자기 깔린다. */
   return out.length?out:['spot','feed','deal'];
+}
+/* 종류별 개수 (v2.61, 콘솔 D192) — 사용자 요구: "여러 개를 선택할 때 각 컨텐츠별로 몇 개씩
+   뜰지 선택할 수 있게." 한 칸도 안 적혀 있으면 `null` 을 돌려 **여태 규칙**(총 개수 `i` 를
+   종류들이 나눠 갖는다)이 그대로 돈다 — 저장된 옛 데모가 하나도 안 바뀐다. */
+function nhBurstCounts(v){
+  var m=null;
+  String(v||'').split(/[+,\s]+/).forEach(function(tok){
+    var p=String(tok||'').split('*');if(p.length<2)return;
+    var k=p[0],c=parseInt(p[1],10);
+    if(!isFinite(c)||c<0)return;
+    if(nhBurstKinds(k).indexOf(k)<0)return;   // 모르는 종류는 버린다 (nhBurstKinds 가 기준)
+    (m=m||{})[k]=Math.min(NH_BURST_MAX,(m[k]||0)+c);
+  });
+  return m;
+}
+/** 결정적 섞기 — 종류별 개수를 그대로 이으면 뭉텅이가 차례로 쏟아진다. */
+function nhShuffleDet(arr,key){
+  var a=arr.slice();
+  for(var i=a.length-1;i>0;i--){
+    var j=Math.floor(heatJitter(key+i)*(i+1))%(i+1);
+    var t=a[i];a[i]=a[j];a[j]=t;
+  }
+  return a;
+}
+/* 지금 **실제로 보이는** 지도 상자 (v2.61, 콘솔 D192) — 사용자 요구: "burst 로 컨텐츠
+   추가되는 범위를 현재 보고 있는 지도로 한정." 헤더·하단 네비가 가리는 만큼을 뺀다
+   (phoneVisibleCenter 와 같은 자다). 상자는 **쏟아지기 시작할 때 한 번** 재고, 그 뒤
+   카메라가 빠져도 컨텐츠는 그 안에 남는다 — "내가 보던 그 영역" 이 그 뜻이다. */
+function nhViewBox(){
+  try{
+    var m=(typeof phoneMap!=='undefined'&&phoneMap)||map;if(!m||!m.getBounds)return null;
+    var b=m.getBounds();if(!b)return null;
+    var ne=b.getNorthEast(),sw=b.getSouthWest();
+    var latSpan=ne.lat()-sw.lat(),lngSpan=ne.lng()-sw.lng();
+    if(!(latSpan>0)||!(lngSpan>0))return null;
+    var top=0,bot=0;
+    if(typeof phoneMap!=='undefined'&&m===phoneMap){
+      var el=document.getElementById('phone-map'),H=el?el.offsetHeight:0;
+      if(H&&typeof phoneMapInsets==='function'){
+        var ins=phoneMapInsets();top=(ins.top||0)/H;bot=(ins.bottom||0)/H;
+      }
+    }
+    var north=ne.lat()-latSpan*top,south=sw.lat()+latSpan*bot;
+    if(!(north>south))return null;
+    return {lat:(north+south)/2,lng:(ne.lng()+sw.lng())/2,
+            dLat:(north-south)/2,dLng:lngSpan/2};
+  }catch(e){return null;}
+}
+/* ── 쏟아지는 동안의 렌더를 **한 프레임에 한 번**으로 (v2.61) ─────────────────
+   burst 는 컨텐츠 하나마다 렌더를 부른다. 이름표는 이제 다시 안 지어지지만(v2.61
+   renderDealMarkers) 상단 지면(renderNews)·피드 목록은 여전히 통째로 다시 그려진다 —
+   50개가 몰리는 구간에서 그 반복이 화면을 떨게 한다. 여기서 모아 한 번만 그린다.
+   rAF 가 아니라 setTimeout 인 이유: 임베드가 안 보이는 창에 있으면 rAF 가 멈춰
+   **컨텐츠가 영영 안 뜬다** (콘솔의 '이 단계만 보기'가 그 조건에서 돈다). */
+var nhRQ=null,nhRQt=null;
+function nhRenderSoon(kind){
+  (nhRQ=nhRQ||{})[kind]=1;
+  if(nhRQt)return;
+  nhRQt=setTimeout(function(){
+    nhRQt=null;var q=nhRQ||{};nhRQ=null;
+    if(q.spot&&typeof rebuildSpots==='function')rebuildSpots();
+    if(q.feed){
+      if(typeof renderFeedMarkers==='function')renderFeedMarkers();
+      if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
+      if(typeof renderNews==='function')renderNews();
+    }
+    if(q.req&&typeof renderRequestMarkers==='function')renderRequestMarkers();
+    if(q.deal&&typeof renderDealMarkers==='function')renderDealMarkers();
+  },32);
 }
 /* 밀집도 (v2.38) — 같은 개수라도 **얼마나 좁게 몰아넣을까**.
    자리는 `rVis`(그 순간 보이는 화면의 반폭)에 비례하는데, 그 계수를 사람이 고른다:
@@ -10580,7 +10741,18 @@ function nhBurstSpread(v){
 function nhBurst(v,n,e,ms,token,look,sp){
   var c=nhPostCenter();if(!c)return false;
   var kinds=nhBurstKinds(v);
-  n=Math.min(NH_BURST_MAX,Math.max(1,n|0||12));
+  var salt=String(nhScenarioKey||'burst');
+  /* 종류별 개수 (v2.61) — 적혀 있으면 **그 합이 곧 총 개수**다. 개수 칸(`i`)은 콘솔이
+     합계로 맞춰 보내지만, 어긋나 오더라도 여기서는 적힌 쪽을 믿는다 — 사람이 종류마다
+     찍어 둔 숫자가 더 구체적인 말이다. 섞어야 종류가 뭉텅이로 안 쏟아진다. */
+  var per=nhBurstCounts(v),plan=null;
+  if(per){
+    plan=[];
+    kinds.forEach(function(k){var q=per[k]|0;for(var j=0;j<q;j++)plan.push(k);});
+    if(plan.length){plan=nhShuffleDet(plan,salt+'mix').slice(0,NH_BURST_MAX);n=plan.length;}
+    else plan=null;   // 전부 0 개면 적힌 적 없는 것과 같이 본다
+  }
+  if(!plan)n=Math.min(NH_BURST_MAX,Math.max(1,n|0||12));
   ms=Math.max(800,ms|0||4000);
   /* 줌아웃을 **안 할 수도 있다** (v2.37) — e:'keep'. 이미 맞춰 둔 화면에서는 빠지는 것
      자체가 방해다 ("엔딩" 이 아니라 "지금 이 동네가 찬다" 를 보여줄 때). 그때는 카메라를
@@ -10593,10 +10765,15 @@ function nhBurst(v,n,e,ms,token,look,sp){
     : nhZ(z); // 쏟아지며 빠지는 줌도 화면 폭을 탄다 (v2.35)
   if(typeof switchTab==='function')switchTab('map');
   var at=nhCenter()||c;
-  var salt=String(nhScenarioKey||'burst');
   // look:'photo' = 쏟아지는 피드를 **실사진**으로 (v2.37). 비면 여태처럼 테마 색 일러스트.
   var realPhoto=String(look||'').toLowerCase()==='photo';
   var spread=nhBurstSpread(sp); // 밀집도 (v2.38) — 자리 반경에 곱한다
+  /* 밀집도 자리의 특별한 값 하나 (v2.61): `view` = **지금 보고 있는 지도 안에만**.
+     반경을 줌에서 계산하는 대신 화면의 실제 상자를 재고, 그 안에 고르게 뿌린다 —
+     "이 화면이 찬다" 는 연출은 반경 짐작이 아니라 화면 그 자체가 기준이어야 한다.
+     상자를 못 읽으면(지도가 아직 안 붙었다) 조용히 여태 규칙으로 떨어진다. */
+  var box=(String(sp||'').toLowerCase()==='view')?nhViewBox():null;
+  if(box){at={lat:box.lat,lng:box.lng};}
   var stamp=nhHeld.stamp||Date.now();
   /* 줌아웃을 **한 번의 매끄러운 움직임**으로 (v2.14). v2.36 부터 그 루프는 공용 엔진
      (nhCamTo)이 돈다 — 여기서 처음 만든 세 규칙(프레임마다 moveCamera · 그동안 미러를
@@ -10619,53 +10796,64 @@ function nhBurst(v,n,e,ms,token,look,sp){
     setTimeout(function(){
       if(token!==nhRunToken)return;
       // 종류도 순번이 아니라 섞기로 고른다 — 둘을 고르면 번갈아 나오는 티가 났다.
-      var kind=kinds[Math.floor(heatJitter(salt+'k'+k)*kinds.length)%kinds.length];
+      // v2.61: 종류별 개수를 적었으면 그 표(plan)가 순서를 이미 들고 있다.
+      var kind=plan?plan[k]:kinds[Math.floor(heatJitter(salt+'k'+k)*kinds.length)%kinds.length];
       var a=k*2.399963+heatJitter(salt)*6.283; // 황금각 + 시나리오별 시작각
       /* 반경은 **그 순간 보이는 화면**을 따라 넓어진다 (v2.13).
          목표 줌 기준으로 한 번에 정하면, 카메라가 아직 안 빠진 초반에 깔린 것들이 화면
          밖에 떨어져서 "줌아웃이 끝난 뒤에야 뜬다" 로 보였다 — 실제로는 이미 있었다.
          v2.14: 계산 대신 **카메라가 실제로 있는 줌**(zNow)을 읽는다 — 이징이 붙어
          진행이 시간에 비례하지 않으므로, 예측값을 쓰면 다시 어긋난다. */
-      var zAt=zNow;
-      var rVis=0.028*Math.pow(2,13-zAt)*spread; // 줌 13 화면 반폭 기준 — 레벨당 두 배 · 밀집도(v2.38)
-      var r=rVis*(0.25+0.7*Math.sqrt(heatJitter(salt+'r'+k))); // sqrt = 면적 균등
-      var p={lat:at.lat+r*Math.cos(a)*0.8,lng:at.lng+r*Math.sin(a),name:c.name};
+      var p;
+      if(box){
+        /* 화면 안에만 (v2.61) — 원이 아니라 **상자**에 고르게 뿌린다: 화면은 네모라
+           원으로 깔면 네 귀퉁이가 비어 "화면이 찬다" 로 안 읽힌다. 0.86/0.8 로 한 겹
+           줄이는 것은 이름표·말풍선이 앵커 밖으로 뻗기 때문이다(가장자리 잘림 방지).
+           **`NH_SPREAD_MAX` 를 또 뺀다** — `nhLay*` 가 이 점을 중심으로 한 번 더 펴므로
+           (nhSpread) 그만큼을 안 빼면 가장자리 것이 화면 밖에 떨어진다. 화면이 아주
+           좁으면 0 으로 눌려 전부 가운데 가까이 모인다 — 그래도 화면 안이다. */
+        var padLat=Math.max(0,box.dLat*0.80-NH_SPREAD_MAX),
+            padLng=Math.max(0,box.dLng*0.86-NH_SPREAD_MAX*1.25);
+        p={lat:at.lat+(heatJitter(salt+'y'+k)-0.5)*2*padLat,
+           lng:at.lng+(heatJitter(salt+'x'+k)-0.5)*2*padLng,name:c.name};
+      }else{
+        var zAt=zNow;
+        var rVis=0.028*Math.pow(2,13-zAt)*spread; // 줌 13 화면 반폭 기준 — 레벨당 두 배 · 밀집도(v2.38)
+        var r=rVis*(0.25+0.7*Math.sqrt(heatJitter(salt+'r'+k))); // sqrt = 면적 균등
+        p={lat:at.lat+r*Math.cos(a)*0.8,lng:at.lng+r*Math.sin(a),name:c.name};
+      }
       var pick=function(pool){return pool[(k+Math.floor(heatJitter(salt)*pool.length))%pool.length];};
       var idx=NH_POST_FROM+(nhPostN++);
       /* 소리는 burst 도 낸다 (v2.23) — 바운스는 안 붙이지만(깜박임) 컨텐츠가 쏟아지는
          것은 등장이다. nhSfxPlay 의 최소 간격이 50개를 기관총이 아니라 성긴 빗소리로 만든다. */
       nhSfxPlay();
       // 바운스를 안 붙인다 (v2.12) — 위 주석 참조.
+      /* 렌더는 **모아서** 한다 (v2.61, nhRenderSoon) — 하나 깔 때마다 지면·목록을 통째로
+         다시 그리던 것이 쏟아짐 구간의 떨림이었다. 깔기 자체는 그대로다. */
       if(kind==='spot'){
         var sp=pick(NH_BURST_SPOTS);
-        if(nhLaySpot({t:sp[0],emoji:sp[1]},idx,p,stamp)&&typeof rebuildSpots==='function')rebuildSpots();
+        if(nhLaySpot({t:sp[0],emoji:sp[1]},idx,p,stamp))nhRenderSoon('spot');
       }else if(kind==='feed'){
         var fd=pick(NH_BURST_FEEDS);
         /* 실사진 옵션 (v2.37) — `nhLayFeed` 는 `img` 가 있으면 그것을, 없으면 테마 색으로
            그린다. 그 갈래를 그대로 타므로 여기서는 주소만 고르면 된다(빈 값이면 여태와 같다). */
         if(nhLayFeed({desc:fd[0],label:fd[0],theme:fd[1],name:pick(NH_BURST_NAMES),
-            img:(realPhoto?nhBurstPhoto(fd[1],salt,k):'')},idx,p,stamp)){
-          if(typeof renderFeedMarkers==='function')renderFeedMarkers();
-          if(typeof renderFeed==='function'&&currentTab==='feed')renderFeed();
-          if(typeof renderNews==='function')renderNews();}
+            img:(realPhoto?nhBurstPhoto(fd[1],salt,k):'')},idx,p,stamp))nhRenderSoon('feed');
       }else if(kind==='req'){
         /* 현장 Request (v2.51, 콘솔 D167) — 엔딩에 **묻는 말**도 쏟아진다.
            전부 `mine:false` 다: 다 내 것이면 "동네가 묻는다" 가 아니라 "내가 도배했다" 가 된다.
            nhLayReq 는 자리를 스스로 잡으므로(nhPosGet||nhSpread) 셋째 인자에 이 점을 준다 —
            nhLayDeal 과 같은 규칙이다. */
         var rq=pick(NH_BURST_REQS);
-        if(nhLayReq({q:rq,mine:false},idx,p,stamp,token)
-           &&typeof renderRequestMarkers==='function')renderRequestMarkers();
+        if(nhLayReq({q:rq,mine:false},idx,p,stamp,token))nhRenderSoon('req');
       }else if(kind==='store'){
         /* 매장 (v2.49) — 딜 없는 가게가 **이름표만** 세운다. 상호는 딜 표본의 가게 이름을
            빌리되 `title` 을 안 준다: title 이 있으면 딜로 읽혀 "마감 직전" 이 뜬다. */
         var st2=pick(NH_BURST_DEALS);
-        if(nhLayDeal({e:st2[1],shop:st2[2],store:true},idx,p,stamp)
-           &&typeof renderDealMarkers==='function')renderDealMarkers();
+        if(nhLayDeal({e:st2[1],shop:st2[2],store:true},idx,p,stamp))nhRenderSoon('deal');
       }else{
         var dl=pick(NH_BURST_DEALS);
-        if(nhLayDeal({title:dl[0],e:dl[1],shop:dl[2],pct:dl[3],secs:600+120*(k%5)},idx,p,stamp)
-           &&typeof renderDealMarkers==='function')renderDealMarkers();
+        if(nhLayDeal({title:dl[0],e:dl[1],shop:dl[2],pct:dl[3],secs:600+120*(k%5)},idx,p,stamp))nhRenderSoon('deal');
       }
     },t);
   })(k);
