@@ -1859,6 +1859,12 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
 .deal-sheet .ds-offer:empty{display:none;}
 /* 뱃지가 `🎁 아메리카노` 처럼 길어질 수 있다 (v2.62) — 큰 숫자 조판이라 안 접히면 넘친다. */
 .deal-sheet .ds-pct{max-width:60cqw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* 값과 재고는 **접히지 않는다** (v2.62.1). flex 는 줄이 넘칠 때 형제를 줄이고, 줄어든 span 은
+   글자를 두 줄로 접어 **값 줄 높이를 통째로** 키운다 — v2.62.0 의 사은품 딜이 그랬다
+   (`19,900원`·`남은 수량 16개` 가 둘 다 두 줄, 줄 높이 72.7→120.9px). 줄어들 칸은 하나로
+   정한다: 뱃지다(그쪽은 말줄임이 이미 걸려 있다). */
+.deal-sheet .ds-now,.deal-sheet .ds-was,.deal-sheet .ds-stock{white-space:nowrap;flex:none;}
+.deal-sheet .ds-pct{min-width:0;}
 .deal-sheet .ds-bar{display:block;height:1.2cqw;margin-top:2.2cqw;border-radius:9999px;background:#f0efec;overflow:hidden;}
 .deal-sheet .ds-bar-fill{display:block;height:100%;border-radius:9999px;background:linear-gradient(90deg,#f2c33c,#e8574a);transition:width .9s linear;}
 .deal-sheet .ds-acts{display:flex;gap:1.8cqw;margin-top:3.4cqw;}

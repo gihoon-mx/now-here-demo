@@ -6795,11 +6795,18 @@ var NH_DEAL_TYPES=['pct','bogo','gift'];
 function dealType(d){var t=String((d&&d.dt)||'pct');return NH_DEAL_TYPES.indexOf(t)>=0?t:'pct';}
 /** 값을 매기는 딜인가 — 원가/지금가 두 줄은 할인율일 때만 뜻이 있다. */
 function dealHasPrice(d){return dealType(d)==='pct';}
-/** 짧은 말 — 미니 라벨·팝업 뱃지. `30%` · `1+1` · `🎁 아메리카노` */
-function dealOfferLabel(d){
+/** 짧은 말 — 미니 라벨·팝업 뱃지. `30%` · `1+1` · `🎁 아메리카노`
+
+    `brief` 를 켜면 사은품은 **이름 없이 종류만** 적는다 (`🎁 사은품`, v2.62.1). 켜는 곳은
+    딱 하나 — 딜 팝업이다. 거기에는 바로 아래에 `dealOfferLine`(`아메리카노 1잔 증정`)이
+    이미 서 있어서, 뱃지까지 이름을 적으면 **같은 말이 두 번** 나오고 그 긴 뱃지가 값 줄을
+    밀어낸다 — 실측(v2.62.0, 사은품 딜): 뱃지가 잘리고(483→445) `19,900원`과 `남은 수량`이
+    둘 다 두 줄로 접혀 값 줄이 72.7→120.9px 로 불었다. 지도 미니 라벨은 그 한 줄이 없으므로
+    여태처럼 이름을 단다. */
+function dealOfferLabel(d,brief){
   var t=dealType(d);
   if(t==='bogo')return '1+1';
-  if(t==='gift')return '🎁 '+(String((d&&d.gift)||'사은품').trim().slice(0,12));
+  if(t==='gift')return brief?'🎁 사은품':('🎁 '+String((d&&d.gift)||'사은품').trim().slice(0,12).trim()); // 자른 꼬리 공백까지 턴다
   return ((d&&d.pct)|0)+'%';
 }
 /** 한 줄 — 배너·쿠폰 문구. `30% 할인` · `하나 사면 하나 더` · `아메리카노 증정` */
@@ -7122,7 +7129,7 @@ function syncDealSheet(){
   /* v2.62 — 값을 깎는 딜만 두 가격을 적는다. `1+1`·사은품은 정가 그대로이므로 취소선
      원가를 띄우면 거짓말이 된다(깎이지 않았는데 깎인 것처럼 보인다). 대신 뱃지가
      `1+1`·`🎁 …` 를 말하고, 아래 한 줄이 무엇을 주는지 풀어 적는다. */
-  set('ds-pct',dealOfferLabel(d));set('ds-now',d.price);
+  set('ds-pct',dealOfferLabel(d,true));set('ds-now',d.price); // 뱃지는 종류만 — 이름은 아래 ds-offer 가 적는다 (v2.62.1)
   set('ds-was',dealHasPrice(d)?d.was:'');
   set('ds-offer',dealHasPrice(d)?'':dealOfferLine(d));
   set('ds-stock','남은 수량 '+d.stock);
