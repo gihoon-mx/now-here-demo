@@ -1606,16 +1606,53 @@ function cpopOpenEntry(it){ // 피드 리스트 항목 → 상세 팝업 (v1.62 
   var src=feedItems.find(function(x){return x.id===it.id;});
   openContentPop('feed',src||it);
 }
+/* 이 컨텐츠가 **등록된 위치의 이름** (v2.62) — 팝업 헤더의 📍 버튼이 이것을 단다.
+   항목이 들고 온 값이 먼저다(피드의 `region`·Request 의 `place` 는 올릴 때 정해진 값이라
+   좌표로 되짚는 것보다 정확하다). 없으면 좌표에서 동을 읽고, 그것도 없으면 빈 값이다 —
+   빈 값이면 부르는 쪽이 여태 문구(`지도보기`)로 떨어진다. */
+function cpopPlace(kind,data){
+  if(!data)return '';
+  var own=String((kind==='req'?data.place:kind==='feed'?data.region:'')||'').trim();
+  if(own)return own;
+  if(data.lat==null||data.lng==null)return '';
+  return (typeof dongAt==='function'&&dongAt(data.lat,data.lng))||'';
+}
+/* 스팟을 올린 사람 (v2.62) — 미니 채팅창의 말머리다.
+   ⚠️ `by` 가 있어야 내 것으로 본다: 무대가 깐 스팟도 `live:true` 라(canEditSpot 이 관리 편의로
+   그렇게 읽는다) 그것만 보면 **남이 올린 글이 전부 내 말풍선**으로 오른쪽에 붙는다. */
+function spotMine(s){return !!(s&&s.live&&s.by&&typeof ownsContent==='function'&&ownsContent(s));}
+function spotWho(s){
+  if(spotMine(s))return (typeof chatName==='function'&&chatName())||'나';
+  return (s&&s.who)||'이웃';
+}
+
 /* 의견(댓글) 리스트 + 입력줄 (v2.40) — **스팟과 피드가 같은 UI 를 쓴다.**
    v1.61 부터 스팟 팝업 안에 인라인으로 있던 것을 꺼냈다: 피드 핀에도 의견 수 라벨이
    생겼는데(v2.40) 열어 보면 아무것도 없으면 화면이 거짓말을 한다.
    `cpopRefresh` 훅은 라이브 스냅샷이 들어올 때 열려 있는 팝업을 다시 그린다. */
-function cpopComments(body,id){
-  var cbox=document.createElement('div');cbox.className='cps-comments';
+/* `lead` (v2.62) — **올린 사람이 말을 건 첫 말풍선.** 스팟 팝업이 이것을 준다:
+   사용자 요구 "스팟 메시지 팝업은 미니 채팅창처럼, 올린 사람이 채팅을 시작한 형태로
+   버블 메시지창만". 그러면 글 본문과 의견이 **한 줄기**가 된다 — 여태는 위에 큰 이모지와
+   본문 블록(`.cps`)이 있고 아래에 따로 의견 목록이 있어서, 같은 대화인데 두 화면이었다.
+   `lead` 가 있으면 "아직 의견이 없어요" 안내도 안 띄운다 — 이미 말이 하나 있다. */
+function cpopComments(body,id,lead){
+  var cbox=document.createElement('div');cbox.className='cps-comments'+(lead?' chat':'');
   function renderCms(){
     cbox.innerHTML='';
+    if(lead){
+      /* 말머리는 **아바타 + 말풍선** 한 줄이다 — 채팅창의 문법이라 이 팝업이 무엇인지가
+         구조로 읽힌다. 아바타는 그 글의 이모지다(스팟이 이미 들고 있는 얼굴). */
+      var row=document.createElement('div');row.className='cpc-lead-row'+(lead.me?' me':'');
+      var av=document.createElement('b');av.className='cpc-ava';av.textContent=lead.emoji||'💬';
+      var lb=document.createElement('div');lb.className='cpc-bub lead'+(lead.me?' me':'');
+      var lw=document.createElement('i');lw.className='cpc-who';lw.textContent=lead.who||'이웃';
+      var lt=document.createElement('span');lt.className='cpc-t';lt.textContent=lead.t;
+      lb.appendChild(lw);lb.appendChild(lt);
+      if(lead.ts){var lm=document.createElement('em');lm.className='cpc-time';lm.textContent=timeAgo(lead.ts);lb.appendChild(lm);}
+      row.appendChild(av);row.appendChild(lb);cbox.appendChild(row);
+    }
     var arrC=contentComments(id);
-    if(!arrC.length){var e0=document.createElement('div');e0.className='cps-noc';e0.textContent='아직 의견이 없어요 — 첫 의견을 남겨보세요 💬';cbox.appendChild(e0);}
+    if(!arrC.length&&!lead){var e0=document.createElement('div');e0.className='cps-noc';e0.textContent='아직 의견이 없어요 — 첫 의견을 남겨보세요 💬';cbox.appendChild(e0);}
     arrC.forEach(function(msg){
       var b=document.createElement('div');b.className='cpc-bub'+(msg.me?' me':'');
       var w=document.createElement('i');w.className='cpc-who';w.textContent=msg.who||'이웃';
@@ -1661,15 +1698,20 @@ function openContentPop(kind,data){
   // 헤더 액션(v1.63): 제목과 얼라인 — [📍 지도보기][✏️ 수정(권한자)] ... [닫기]
   var ha=document.getElementById('cpop-head-actions');if(ha)ha.innerHTML='';
   function headAct(label,fn,accent){if(!ha)return;var b=document.createElement('button');b.type='button';b.className='cpop-hbtn'+(accent?' accent':'');b.textContent=label;b.addEventListener('click',fn);ha.appendChild(b);}
-  headAct('📍 지도보기',function(){cpopGoMap(kind,data);});
+  /* **지도보기 버튼이 곧 위치다** (v2.62) — 사용자 요구: "'지도보기' 버튼은 등록된 컨텐츠
+     위치(예: '석촌동')로 기능과 정보를 통합." 여태는 버튼이 `📍 지도보기` 라고만 하고
+     그 아래 본문에 `📍 석촌동` 이 따로 있었다 — 같은 것을 두 번 말하면서, **어디인지**와
+     **거기로 간다**가 서로 남남이었다. 이제 버튼이 동네 이름을 달고 그리로 데려간다.
+     동을 못 읽는 자리(좌표가 없다)에서만 여태 문구로 떨어진다. */
+  var place=cpopPlace(kind,data);
+  headAct('📍 '+(place||'지도보기'),function(){cpopGoMap(kind,data);});
   if(kind==='spot'){
     tt.textContent='스팟 메시지';
-    body.innerHTML='<div class="cps"><span class="cps-emoji"></span><p class="cps-text"></p><span class="cps-region"></span></div>';
-    body.querySelector('.cps-emoji').textContent=data.emoji||'💬';
-    body.querySelector('.cps-text').textContent=data.text||'(빈 메시지)';
-    body.querySelector('.cps-region').textContent='📍 '+(dongAt(data.lat,data.lng)||'지정 위치');
     if(canEditSpot(data))headAct('✏️ 수정',function(){closeContentPop();openSpotEditor(data.id);},true); // 권한자: 헤더에서 편집 진입
-    cpopComments(body,data.id); // 의견(댓글) — 스팟·피드가 같은 UI 를 쓴다 (v2.40)
+    /* 미니 채팅창 (v2.62) — 올린 사람의 말이 첫 말풍선이고 의견이 그 아래로 이어진다.
+       본문 블록(`.cps`)은 없앴다: 같은 말을 큰 글씨로 한 번, 대화로 또 한 번 적을 이유가 없다. */
+    cpopComments(body,data.id,{who:spotWho(data),emoji:data.emoji||'💬',ts:data.ts,
+      t:String(data.text||'').trim()||'(빈 메시지)',me:spotMine(data)});
   }else if(kind==='feed'){
     tt.textContent='피드 컨텐츠';
     var L=likeInfo(data.id);
@@ -1677,9 +1719,9 @@ function openContentPop(kind,data){
     if(data.src){var im=document.createElement('img');im.className='cpf-img';im.src=data.src;im.alt='';wrap.appendChild(im);}
     if(data.desc){var ds=document.createElement('p');ds.className='cpf-desc';ds.textContent=data.desc;wrap.appendChild(ds);}
     var r1=document.createElement('div');r1.className='cpf-row';
-    r1.innerHTML='<span class="cpf-name"></span><span class="cpf-region"></span>';
+    // 위치는 헤더의 📍 버튼이 말한다 (v2.62) — 여기 또 적으면 같은 말이 두 번이다
+    r1.innerHTML='<span class="cpf-name"></span>';
     r1.querySelector('.cpf-name').textContent=data.name||'익명';
-    r1.querySelector('.cpf-region').textContent='📍 '+(data.region||'우리 동네');
     wrap.appendChild(r1);
     var r2=document.createElement('div');r2.className='cpf-row';
     r2.innerHTML='<span class="cpf-like">♥ '+L.n+'</span><span class="cpf-time"></span>'+(data.kind==='cam'?'<span class="fc-live">LIVE</span>':'');
@@ -1692,9 +1734,9 @@ function openContentPop(kind,data){
   }else if(kind==='req'){
     tt.textContent='현장 Request';
     var mineR=(typeof isMyReq==='function')&&isMyReq(data),act=reqActive(data),n=(data.answers||[]).length;
-    body.innerHTML='<div class="cpr"><p class="cpr-q"></p><div class="cpf-row"><span class="cpf-region"></span><span class="rqc-left" data-rq-left=""></span></div><div class="cpr-state"></div></div>';
+    // 위치는 헤더의 📍 버튼이 말한다 (v2.62) — 남은 줄은 시간과 상태다
+    body.innerHTML='<div class="cpr"><p class="cpr-q"></p><div class="cpf-row"><span class="rqc-left" data-rq-left=""></span></div><div class="cpr-state"></div></div>';
     body.querySelector('.cpr-q').textContent='"'+data.q+'"';
-    body.querySelector('.cpf-region').textContent='📍 '+(data.place||'');
     body.querySelector('.cpr-state').textContent=(act?'⏳ 답변 받는 중':'⏱ 종료')+' · 답변 '+n+'개';
     var lf=body.querySelector('[data-rq-left]');lf.setAttribute('data-rq-left',data.id); // 1초 티커(tickReqRemain)가 갱신
     var rl=reqRemainLabel(data);lf.textContent=rl?('⏱ '+rl):'';
@@ -6740,6 +6782,34 @@ function dealName(d){return dealShopName(d)||String((d&&d.title)||'').trim().sli
 function dealClock(sec){var m=Math.floor(sec/60),s=sec%60;return m+':'+String(s).padStart(2,'0');}
 function dealById(id){return timeDeals.filter(function(d){return d.id===id;})[0]||null;}
 
+/* ── 딜이 **무엇을 주는가** (v2.62, 콘솔 D193) ──────────────────────────────
+   사용자 요구: "타임딜 특성이 할인율 제공만 있는데, 1+1 이나 사은품 타입도."
+
+   여태 딜은 곧 `pct` 였다 — 가격 세 칸(원가·지금가·수량)이 할인율에서 파생됐고, 미니
+   라벨·배너·팝업이 전부 `%` 를 적었다. 종류를 늘리는 자리를 **한 곳으로 모은다**: 아래
+   네 함수만 알고, 그리는 쪽(팝업·배너·이름표)은 종류를 안 묻는다.
+
+   `dt` 를 안 주면 `pct` 다 — 저장된 옛 데모는 한 글자도 안 바뀐다.
+   ⚠️ 콘솔의 `DEAL_TYPES` 와 **같은 목록**이어야 한다 (check:contract ⑩). */
+var NH_DEAL_TYPES=['pct','bogo','gift'];
+function dealType(d){var t=String((d&&d.dt)||'pct');return NH_DEAL_TYPES.indexOf(t)>=0?t:'pct';}
+/** 값을 매기는 딜인가 — 원가/지금가 두 줄은 할인율일 때만 뜻이 있다. */
+function dealHasPrice(d){return dealType(d)==='pct';}
+/** 짧은 말 — 미니 라벨·팝업 뱃지. `30%` · `1+1` · `🎁 아메리카노` */
+function dealOfferLabel(d){
+  var t=dealType(d);
+  if(t==='bogo')return '1+1';
+  if(t==='gift')return '🎁 '+(String((d&&d.gift)||'사은품').trim().slice(0,12));
+  return ((d&&d.pct)|0)+'%';
+}
+/** 한 줄 — 배너·쿠폰 문구. `30% 할인` · `하나 사면 하나 더` · `아메리카노 증정` */
+function dealOfferLine(d){
+  var t=dealType(d);
+  if(t==='bogo')return '하나 사면 하나 더';
+  if(t==='gift')return (String((d&&d.gift)||'사은품').trim().slice(0,20))+' 증정';
+  return ((d&&d.pct)|0)+'% 할인';
+}
+
 /* ⏰ 원형 딜 핀(DealPin) 은 v2.58 에서 없앴다 (콘솔 D189).
    "매장과 타임딜을 통합하고, 동그란 아이콘 표시는 삭제" — 사용자 요구다. 한 가게가 지도에
    **두 번**(핀 하나 + 이름표 하나) 서던 것이 그 병의 뿌리였다: 같은 가게인데 둘이 각자 자리를
@@ -6881,7 +6951,8 @@ function initDealLabelClass(){
     this.tagEl.style.display=live?'':'none';
     if(!live)return;
     paintTagCell(this.tagD,'⏰','타임딜');
-    var lab=String(d.lab||'time'),pct=(d.pct|0)+'%',clk=dealClock(dealRemain(d));
+    // v2.62: `pct` 칸은 이제 "무엇을 주는가" 다 — 할인율·1+1·사은품이 같은 자리에 선다
+    var lab=String(d.lab||'time'),pct=dealOfferLabel(d),clk=dealClock(dealRemain(d));
     paintTagCell(this.tagI,'',
       lab==='none'?'':lab==='pct'?pct:lab==='both'?(clk+' · '+pct):clk);
     this.tagEl.style.background=tagBg(DEAL_TAG_BG); // 리액션 라벨과 같은 톤 자(tag.op)
@@ -7048,7 +7119,12 @@ function syncDealSheet(){
   }
   set('ds-emoji',d.e);set('ds-title',d.title);
   set('ds-sub',d.shop+' · 내 위치에서 '+dealDistLabel(d));
-  set('ds-pct',d.pct+'%');set('ds-now',d.price);set('ds-was',d.was);
+  /* v2.62 — 값을 깎는 딜만 두 가격을 적는다. `1+1`·사은품은 정가 그대로이므로 취소선
+     원가를 띄우면 거짓말이 된다(깎이지 않았는데 깎인 것처럼 보인다). 대신 뱃지가
+     `1+1`·`🎁 …` 를 말하고, 아래 한 줄이 무엇을 주는지 풀어 적는다. */
+  set('ds-pct',dealOfferLabel(d));set('ds-now',d.price);
+  set('ds-was',dealHasPrice(d)?d.was:'');
+  set('ds-offer',dealHasPrice(d)?'':dealOfferLine(d));
   set('ds-stock','남은 수량 '+d.stock);
   var bar=document.getElementById('ds-bar');
   if(bar)bar.style.width=Math.max(4,Math.round(rem/d.secs*100))+'%';
@@ -7121,7 +7197,9 @@ function claimDeal(d,opts){
    사람이 손으로 받는 길(ds-claim 클릭)은 여태처럼 둘이 붙어 있다 — claimDeal 이 다 한다. */
 function couponSay(d,say,hard){
   if(hard!=null&&hard<=0)return true; // e:0 = 문구를 아예 안 띄운다 (쿠폰은 그래도 날아갔다)
-  aiSay(String(say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요 — 매장에서 제시하세요.')).slice(0,160),
+  // v2.62 — 무엇을 받았는지가 문구에 든다 (1+1·사은품은 제목만으로는 안 읽힌다)
+  aiSay(String(say||('🎟 '+(d?d.title:'타임딜')+' 쿠폰을 받았어요'
+      +(d?(' · '+dealOfferLine(d)):'')+' — 매장에서 제시하세요.')).slice(0,160),
     4000,(hard==null)?null:Math.min(hard,20000));
   return true;
 }
@@ -7144,6 +7222,17 @@ function initTimeDeals(){
     var d=dealById(dealSheetId);
     claimDeal(d,{from:claim});
     closeDealSheet();
+  });
+  /* 매장 정보 (v2.62) — 사용자 요구: "타임딜 팝업창에 '매장 정보' 버튼이 있고 누르면
+     매장 전용 피드 페이지로." 여태 그 페이지로 가는 길은 **딜이 아닌 가게의 이름표**
+     뿐이었다: 딜 중인 가게는 이름표를 눌러도 이 시트가 열려서(v2.59), 딜을 보는 사람이
+     그 가게가 어떤 곳인지 볼 방법이 아예 없었다.
+     ⚠️ 시트를 **먼저 닫는다** — 시트는 z-30 이고 매장 페이지는 z-29 라, 안 닫으면 열린
+     페이지가 시트 뒤에 가려 아무 일도 안 일어난 것처럼 보인다. */
+  var info=document.getElementById('ds-info');
+  if(info)info.addEventListener('click',function(){
+    var id=dealSheetId;closeDealSheet();
+    if(id&&typeof openStorePage==='function')openStorePage(id);
   });
   var share=document.getElementById('ds-share');
   if(share)share.addEventListener('click',function(){
@@ -7197,6 +7286,10 @@ function openStorePage(id){
   if(chips){chips.innerHTML='';storeChipData(d).forEach(function(c){
     var s=document.createElement('span');s.className='stp-chip'+(c.hot?' hot':'');s.textContent=c.t;chips.appendChild(s);});}
   set('stp-name','#'+d.shop);
+  /* 지도보기 버튼이 곧 위치다 (v2.62) — 팝업 헤더의 📍 버튼과 같은 규칙이다.
+     매장 페이지에는 주소줄이 따로 있지만 그건 **번지**이고, 이 버튼이 말하는 것은
+     **어느 동네로 데려가는가**다 — 누르기 전에 어디로 가는지가 보여야 한다. */
+  set('stp-map','📍 '+(dongAt(d.lat,d.lng)||'지도보기'));
   set('stp-addr',(d.addr||dongAt(d.lat,d.lng)||'근처')+' · 내 위치에서 '+dealDistLabel(d));
   set('stp-desc',d.desc||(d.shop+' — '+(dongAt(d.lat,d.lng)||'우리 동네')+'의 매장이에요. '+(d.store?'소식과 사진을 한곳에서 보세요.':'지금 타임딜을 진행 중이에요. 소식·사진·딜을 한곳에서 보세요.')));
   var img=document.getElementById('stp-pr-img'),promo=document.getElementById('stp-promo');
@@ -7235,7 +7328,9 @@ function syncStorePage(){ // 티커 — 남은 시간·가격줄만 갱신 (sync
   var rem=dealRemain(d);
   function set(eid,v){var el=document.getElementById(eid);if(el)el.textContent=v;}
   set('stp-pr-time','⏰ '+dealClock(rem)+' 남음 · 남은 수량 '+d.stock);
-  set('stp-pr-was',d.was);set('stp-pr-now',d.price);set('stp-pr-pct',d.pct+'% 할인');
+  // v2.62 — 할인율 딜만 취소선 원가를 단다 (딜 팝업과 같은 규칙)
+  set('stp-pr-was',dealHasPrice(d)?d.was:'');set('stp-pr-now',d.price);
+  set('stp-pr-pct',dealOfferLine(d));
   var cta=document.getElementById('stp-coupon');
   if(cta)cta.disabled=!dealActive(d);
 }
@@ -10351,6 +10446,12 @@ function nhLayFeed(f,i,c,stamp){
    짧게 적으면 재생 중 dealActive 가 false 가 되며 **강조와 미니 라벨이 걷힌다** (v2.58 —
    여태는 핀째로 사라졌다). 가게는 그대로 남는다 — 연출로 쓸 수 있다.
    가격 3칸은 만든다(사람은 5칸만 적는다). **결정적**이어야 한다 — Math.random 금지. */
+/* 무대가 적어 보낸 딜 종류를 받는다 (v2.62) — 매장(`store`)에는 뜻이 없다. */
+function nhDealType(d){
+  var t=String((d&&d.dt)||'');
+  return (!(d&&d.store)&&NH_DEAL_TYPES.indexOf(t)>=0)?t:'pct';
+}
+function nhDealGift(d){return (d&&d.gift)?String(d.gift).trim().slice(0,20):'';}
 function nhLayDeal(d,i,c,stamp){
   if(typeof timeDeals==='undefined')return null;
   /* ── 딜을 **매장에 붙인다** (v2.49) ─────────────────────────────────────────
@@ -10364,7 +10465,10 @@ function nhLayDeal(d,i,c,stamp){
   var host=(ofN>=0&&nhDealIds[ofN])?dealById(nhDealIds[ofN]):null;
   if(host&&host.store){
     var pctH=Math.min(90,Math.max(5,(d.pct|0)||20));
-    var wasH=9900+(i%8)*5000, nowH=Math.floor(wasH*(100-pctH)/100/100)*100;
+    /* v2.62 — 값을 깎는 딜(`pct`)만 지금가가 내려간다. `1+1`·사은품은 정가 그대로다:
+       가격을 깎아 두면 화면이 "1+1 인데 30% 도 싸다" 라는 없는 말을 한다. */
+    host.dt=nhDealType(d);host.gift=nhDealGift(d);
+    var wasH=9900+(i%8)*5000, nowH=(host.dt==='pct')?Math.floor(wasH*(100-pctH)/100/100)*100:wasH;
     host.store=false;                                   // 이제 딜로 선다 (dealActive 가 받는다)
     host.pct=pctH;host.secs=Math.min(7200,Math.max(30,(d.secs|0)||1800));
     if(d.lab)host.lab=d.lab;                             // 미니 라벨의 한 칸 (v2.58)
@@ -10384,8 +10488,10 @@ function nhLayDeal(d,i,c,stamp){
   /* 순번을 섞는다 — 셋이 다 같으면 지어낸 게 보인다. **%8 로 접는다** (v2.11):
      burst 가 NH_POST_FROM(50)+ 순번으로 깔면서, 접지 않으면 원가가 25만 원대로 튄다 —
      v2.2 에서 hold 딜이 "30만 원짜리 모자" 가 되던 것과 같은 결이다. */
+  var dt=nhDealType(d),gift=nhDealGift(d);         // v2.62 — 할인율 · 1+1 · 사은품
   var was=9900+(i%8)*5000;
-  var now=Math.floor(was*(100-pct)/100/100)*100;   // 백 원 단위로 내림
+  // 값을 깎는 딜만 지금가가 내려간다 (v2.62). 백 원 단위로 내림.
+  var now=(dt==='pct')?Math.floor(was*(100-pct)/100/100)*100:was;
   /* 붙을 매장이 아직 안 섰으면 그 가게의 **얼굴**을 물려받는다 (v2.49) — 상호·이모지·주소·
      소개·사진. 딜이 제 값을 적었으면 그것이 먼저다(딜의 배너·제목은 딜의 것). */
   function inh(k){return (d&&d[k])?d[k]:(src?src[k]:'');}
@@ -10404,6 +10510,10 @@ function nhLayDeal(d,i,c,stamp){
     photos:(function(ph){return Array.isArray(ph)&&ph.length?ph.slice(0,NH_MAX.dealPhoto).map(nhImgSrc).filter(Boolean):undefined;})(
       (Array.isArray(d.photos)&&d.photos.length)?d.photos:(src?src.photos:null)),
     pct:pct,
+    /* 딜의 종류 (v2.62) — `pct` 는 안 적는다(기본값이라 없는 것과 같다). 그리는 쪽은
+       `dealType`·`dealOfferLabel`·`dealOfferLine` 만 부르고 이 칸을 직접 안 본다. */
+    dt:(dt==='pct')?undefined:dt,
+    gift:gift||undefined,
     price:now.toLocaleString('ko-KR')+'원',
     was:was.toLocaleString('ko-KR')+'원',
     stock:Math.max(3,20-Math.round(pct/5))+'개',
@@ -11275,6 +11385,11 @@ function nhSanitize(raw){
         photos:(Array.isArray(d.photos)?d.photos:[]).slice(0,NH_MAX.dealPhoto)
           .map(nhImgSrc).filter(Boolean),
         pct:Math.min(90,Math.max(5,(d.pct|0)||20)),
+        /* 딜의 종류 (v2.62, 콘솔 D193) — 할인율(기본) · 1+1 · 사은품. 딜에만 뜻이 있다.
+           `pct` 는 기본값이라 안 싣는다: 옛 콘솔은 이 칸을 안 보내고 옛 앱은 모른다. */
+        dt:(!d.store&&['bogo','gift'].indexOf(String(d.dt))>=0)?String(d.dt):undefined,
+        // 사은품 이름 — `dt:'gift'` 일 때 뱃지와 배너가 그대로 적는다
+        gift:(!d.store&&d.gift)?String(d.gift).slice(0,20):undefined,
         secs:Math.min(7200,Math.max(30,(d.secs|0)||1800)),
         // 가게 (v2.32) — 지도 이름표의 한마디 · 딜 없는 가게인가
         msg:String(d.msg||'').slice(0,60),

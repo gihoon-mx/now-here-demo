@@ -1400,6 +1400,22 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
 #cpop-body .cpc-bub.me{align-self:flex-end;background:rgba(47,123,255,0.12);border-radius:12px 12px 4px 12px;}
 #cpop-body .cpc-who{display:block;font-style:normal;font-size:.62rem;font-weight:800;color:var(--ink3);margin-bottom:1px;}
 #cpop-body .cpc-t{font-size:.8rem;font-weight:600;color:var(--ink);word-break:break-word;}
+/* ── 스팟 팝업 = **미니 채팅창** (v2.62) ────────────────────────────────────
+   올린 사람의 글이 첫 말풍선이고 의견이 그 아래로 이어진다. 큰 이모지 + 본문 블록
+   (`.cps`)은 없앴다 — 같은 말을 제목으로 한 번, 대화로 또 한 번 적을 이유가 없다.
+   `.chat` 은 스팟만 단다: 피드 팝업은 사진·설명이 본문이라 여태 그대로다. */
+#cpop-body .cps-comments.chat{max-height:min(46vh,300px);margin-top:2px;gap:8px;padding:2px 0;}
+#cpop-body .cpc-lead-row{display:flex;align-items:flex-end;gap:6px;align-self:flex-start;max-width:94%;}
+#cpop-body .cpc-lead-row.me{flex-direction:row-reverse;align-self:flex-end;}
+#cpop-body .cpc-lead-row .cpc-bub{align-self:auto;max-width:100%;}
+/* 아바타 = 그 글의 이모지. 말풍선 아래 모서리에 맞춰 선다(채팅의 문법). */
+#cpop-body .cpc-ava{flex:none;width:26px;height:26px;border-radius:9999px;background:rgba(15,23,42,0.06);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-style:normal;font-weight:400;}
+#cpop-body .cpc-ava .emoji{width:15px;height:15px;}
+#cpop-body .cpc-bub.lead{background:rgba(15,23,42,0.075);}
+#cpop-body .cpc-bub.lead.me{background:rgba(47,123,255,0.16);}
+#cpop-body .cpc-bub.lead .cpc-t{font-weight:600;}
+#cpop-body .cpc-time{display:block;margin-top:2px;font-style:normal;font-size:.6rem;color:var(--ink3);}
 #cpop-body .cps-inputrow{display:flex;gap:6px;margin-top:10px;}
 #cpop-body .cps-inputrow input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;font-size:.8rem;}
 
@@ -1836,13 +1852,25 @@ body.page-app #phone-drawer-body .section-hint{font-size:.7rem;line-height:1.5;}
 .deal-sheet .ds-now{font-size:3.4cqw;font-weight:700;color:#1a1a1a;}
 .deal-sheet .ds-was{font-size:2.9cqw;color:#9c9c9c;text-decoration:line-through;}
 .deal-sheet .ds-stock{margin-left:auto;font-size:2.8cqw;color:#6b6b6b;}
+/* 무엇을 주는가, 한 줄 (v2.62) — `1+1`·사은품처럼 **값이 안 깎이는** 딜에만 뜬다.
+   할인율 딜은 위 세 칸(뱃지·지금가·취소선 원가)이 이미 다 말하므로 비워 두고,
+   비면 `:empty` 가 자리째 접는다 — 빈 줄이 남으면 카드에 구멍이 보인다. */
+.deal-sheet .ds-offer{margin-top:1.6cqw;font-size:3.1cqw;font-weight:700;color:#e8574a;}
+.deal-sheet .ds-offer:empty{display:none;}
+/* 뱃지가 `🎁 아메리카노` 처럼 길어질 수 있다 (v2.62) — 큰 숫자 조판이라 안 접히면 넘친다. */
+.deal-sheet .ds-pct{max-width:60cqw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .deal-sheet .ds-bar{display:block;height:1.2cqw;margin-top:2.2cqw;border-radius:9999px;background:#f0efec;overflow:hidden;}
 .deal-sheet .ds-bar-fill{display:block;height:100%;border-radius:9999px;background:linear-gradient(90deg,#f2c33c,#e8574a);transition:width .9s linear;}
 .deal-sheet .ds-acts{display:flex;gap:1.8cqw;margin-top:3.4cqw;}
 .deal-sheet .ds-claim{flex:1;height:10.4cqw;border:none;border-radius:9999px;background:#1a1a1a;color:#fff;
   font-family:inherit;font-size:3.3cqw;font-weight:700;cursor:pointer;}
-.deal-sheet .ds-share{height:10.4cqw;padding:0 3.8cqw;border:none;border-radius:9999px;background:#f4f3f1;color:#4a4a4a;
+/* 곁 버튼 둘 (v2.62 — `매장 정보` 가 늘었다). 셋이 한 줄에 서므로 여백을 줄이고
+   글자를 안 접는다: 세 칸이 되면서 `동네 공유` 가 두 줄로 접히던 자리다. */
+.deal-sheet .ds-share,.deal-sheet .ds-info{height:10.4cqw;padding:0 3.1cqw;border:none;border-radius:9999px;
+  background:#f4f3f1;color:#4a4a4a;white-space:nowrap;
   font-family:inherit;font-size:3.3cqw;font-weight:700;cursor:pointer;}
+/* `쿠폰 받기` 가 주인공이라 남는 자리를 다 갖되, 곁 버튼이 눌릴 만큼은 남긴다. */
+.deal-sheet .ds-claim{min-width:26cqw;}
 
 /* ── [M17] v2.15 매장 전용 페이지 — 타임딜 핀 탭 → 전면 페이지 (시안: 석촌동 쵸리상경).
    z-29: Overview(28) 위·딜 시트(30) 아래 — '쿠폰받기'가 시트를 이 위로 올린다. */
