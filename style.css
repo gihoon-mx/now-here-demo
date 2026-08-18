@@ -21,6 +21,67 @@
   --sh-l:0 14px 36px rgba(16,24,40,0.22);
   --nav-map:#5d8ceb;--nav-feed:#45b27c;--nav-social:#9a77dd; /* 하단 네비 3색 */
 }
+
+/* ══════ 다크 모드 (v2.62.4) ══════════════════════════════════════════════════
+   사용자 요청: "dark mode/light mode 전환 액션 추가".
+   **토큰만 뒤집는다.** 색이 :root 한 곳에 모여 있는 구조(맨 위 '디자인 토큰 — 단일 소스')가
+   이걸 가능하게 한다 — 아래 두 벌이 그 값을 덮으면 스킨 3종이 공짜로 따라온다.
+   그 다음 묶음은 **흰색을 박아 쓴 자리**다(토큰을 안 쓰고 `#fff` 를 적은 카드들) —
+   여기만 손으로 덮는다. 새로 만드는 카드는 `--card` 를 쓰면 이 블록이 필요 없다.
+
+   ⚠️ **지도 타일은 안 바뀐다.** 이 지도는 클라우드 스타일(mapId)로 그려지는 벡터 지도라
+   런타임에 `styles` 를 넣어도 무시되고, `colorScheme` 은 지도를 만들 때만 받는다 —
+   바꾸려면 지도 인스턴스를 다시 지어야 한다(오버레이·카메라·핀이 전부 재생성된다).
+   그래서 이 판은 **앱 UI 의 다크**다. 지도까지 어둡게 하는 것은 따로 판을 잡을 일이다. */
+body[data-theme="dark"]{
+  --ink:#e8ebf0;--ink2:#a8b0bd;--ink3:#78818f;
+  --line:rgba(232,235,240,0.16);--line-soft:rgba(232,235,240,0.09);
+  --card:#1b1f27;--bg:#12151b;
+  --frost:rgba(32,37,47,0.72);
+  --frost-strong:rgba(28,33,42,0.88);
+  --glass-line:rgba(255,255,255,0.10);
+  --glass-hi:inset 0 1px 0 rgba(255,255,255,0.07);
+  --hover:rgba(232,235,240,0.07);
+  --sh-s:0 1px 4px rgba(0,0,0,0.40);
+  --sh-m:0 4px 16px rgba(0,0,0,0.48);
+  --sh-l:0 14px 36px rgba(0,0,0,0.60);
+}
+/* 흰색을 박아 쓴 자리 — 토큰을 안 지나므로 여기서 덮는다. */
+body[data-theme="dark"] #drawer-demo .drawer-sec,
+body[data-theme="dark"] .tz-card.tzl,
+body[data-theme="dark"] .rq-card,
+body[data-theme="dark"] .feed-card,
+body[data-theme="dark"] .soc-room,
+body[data-theme="dark"] .soc-back,
+body[data-theme="dark"] .soc-msg .sm-bubble,
+body[data-theme="dark"] #soc-inputbar input,
+body[data-theme="dark"] .ft-card,
+body[data-theme="dark"] #phone-drawer-close,
+body[data-theme="dark"] #pc-drawer-close{background:var(--card);color:var(--ink);}
+body[data-theme="dark"] #feed-tools .fsc,
+body[data-theme="dark"] #feed-view-btn,
+body[data-theme="dark"] #feed-view-pop .fvc,
+body[data-theme="dark"] #feed-view-pop .fvt,
+body[data-theme="dark"] .soc-tab{background:rgba(32,37,47,0.85);color:var(--ink3);}
+body[data-theme="dark"] #feed-view-pop{background:rgba(27,31,39,0.94);}
+body[data-theme="dark"] .req-composer .rc-card{background:rgba(32,37,47,0.9);}
+/* 채팅 말풍선 — 옅은 잉크 알파가 어두운 바탕에서는 안 보인다(둘 다 검정 계열). */
+body[data-theme="dark"] #cpop-body .cpc-bub{background:rgba(232,235,240,0.10);}
+body[data-theme="dark"] #cpop-body .cpc-bub.me{background:rgba(90,150,255,0.24);}
+body[data-theme="dark"] #cpop-body .cps-inputrow input{background:rgba(232,235,240,0.06);color:var(--ink);}
+/* 말머리의 연둣빛은 **다크에서 더 진하게** — 밝은 파스텔은 어두운 바탕에서 흐려진다. */
+body[data-theme="dark"] #cpop-body .cpc-bub.lead{background:rgba(96,175,113,0.30);border-color:rgba(126,200,140,0.46);}
+body[data-theme="dark"] #cpop-body .cpc-bub.lead.me{background:rgba(96,175,113,0.30);border-color:rgba(126,200,140,0.46);}
+body[data-theme="dark"] #cpop-body .cpc-bub.lead .cpc-who{color:#9ad3ab;}
+/* 스팟 지도 배경 사진·이미지들은 어두운 화면에서 너무 튄다 — 한 꺼풀 눌러 준다. */
+body[data-theme="dark"] .feed-card img,body[data-theme="dark"] .fc-img{filter:brightness(.88);}
+/* 스킨을 안 쓰는 경우(legacy)에도 남는 흰 자리 — 상단 지면 프레임의 슬라이드. */
+body[data-theme="dark"] #cp-frame.cv1 .cp-slide,
+body[data-theme="dark"] #cp-frame.cv2 .cp-slide,
+body[data-theme="dark"] #cp-frame.folded,
+body[data-theme="dark"] #cp-frame.folded .cp-slide{background:var(--card);}
+/* 서랍은 흰 유리를 박아 썼다 — 다크에서는 검은 유리다. */
+body[data-theme="dark"] #phone-drawer{background:rgba(18,21,27,0.78);}
 html,body{width:100%;height:100%;overflow:hidden;font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,-apple-system,sans-serif;background:var(--bg);}
 #app-shell{display:flex;width:100%;height:100%;position:relative;}
 #map{flex:1 1 auto;height:100%;min-width:0;}
@@ -33,6 +94,12 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Pretendard Variabl
 #sidebar{flex:0 0 380px;width:380px;height:100%;overflow-y:auto;overflow-x:hidden;
   display:flex;flex-direction:column;gap:12px;padding:12px;
   background:var(--bg);border-left:1px solid var(--line-soft);}
+/* 폰 화면 안에서 구르는 칸은 **스크롤바를 안 보인다** (v2.62.4) — 사용자: "컨텐츠
+   페이지가 길어져도 스크롤바는 안 나타나도 괜찮아 (feed)". 폰 목업 안의 막대는 실제
+   기기에 없는 물건이라 시연에서 이물감이 크다. 구르는 것 자체는 그대로다(막대만 감춘다).
+   ⚠️ 관리자 사이드바(#sidebar)는 **아니다** — 그쪽은 PC 화면이고 막대가 정보다. */
+.phone-screen ::-webkit-scrollbar,.phone-screen::-webkit-scrollbar{width:0;height:0;}
+.phone-screen *{scrollbar-width:none;-ms-overflow-style:none;}
 #sidebar::-webkit-scrollbar{width:8px;}
 #sidebar::-webkit-scrollbar-track{background:transparent;}
 #sidebar::-webkit-scrollbar-thumb{background:rgba(15,23,42,0.16);border-radius:4px;}
@@ -1426,8 +1493,15 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
    으로 하이라이트".
    그래서 남긴 것은 둘뿐이다: **한 톤 짙은 바탕**과 **얇은 테두리 1px**. 모서리·글자 크기·
    무게는 아래 의견 말풍선과 **같은 값**으로 되돌렸다. 강조는 대비로만 한다. */
-#cpop-body .cpc-bub.lead{background:rgba(15,23,42,0.085);border:1px solid rgba(15,23,42,0.14);}
-#cpop-body .cpc-bub.lead.me{background:rgba(47,123,255,0.18);border-color:rgba(47,123,255,0.34);}
+/* 말머리는 **연둣빛 파스텔**이다 (v2.62.4) — 사용자 요구: "첫 번째는 좀 초록 계열의
+   파스텔 색으로 배경을 해줘서 하이라이트". 잉크 회색은 아래 의견 말풍선과 같은 계열이라
+   "한 톤 짙다" 는 것이 잘 안 읽혔다 — 색이 다르면 한눈에 갈린다.
+   내가 올린 글이어도 **같은 초록**이다: 이 자리는 "누가 썼나" 가 아니라 "이 대화가
+   무엇에 관한 것인가" 를 말한다(누가 썼나는 바로 아래 이름줄이 말한다).
+   나머지는 여전히 그냥 말풍선이다 — 모서리·글자·여백은 아래와 같은 값. */
+#cpop-body .cpc-bub.lead{background:rgba(126,200,140,0.22);border:1px solid rgba(96,175,113,0.38);}
+#cpop-body .cpc-bub.lead .cpc-who{color:#3f7a51;}
+#cpop-body .cpc-bub.lead.me{background:rgba(126,200,140,0.22);border-color:rgba(96,175,113,0.38);}
 #cpop-body .cpc-time{display:block;margin-top:2px;font-style:normal;font-size:.6rem;color:var(--ink3);}
 #cpop-body .cps-inputrow{display:flex;gap:6px;margin-top:10px;}
 #cpop-body .cps-inputrow input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;font-size:.8rem;}

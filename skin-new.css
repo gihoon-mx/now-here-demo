@@ -716,3 +716,27 @@ body[data-skin="new"] #phone-profile-menu{
 }
 body[data-skin="new"] #phone-profile-menu .ppm-email{color:var(--nk-ink);font-weight:700;}
 body[data-skin="new"] #phone-profile-menu .ppm-ver{color:var(--nk-ink5);}
+
+/* 스킨 토큰도 뒤집는다 (v2.62.4) — 스킨 둘은 **제 팔레트**를 들고 있어서 위의 :root
+   토큰만 덮으면 앱바·상단 지면 프레임·서랍·요약 상자가 흰 채로 남는다(실측으로 이 넷이
+   남았다). 스킨 안쪽 규칙을 하나씩 고치지 않고 **그 팔레트의 값**만 바꾼다 — 그러면
+   그 스킨이 쓰는 모든 자리가 한 번에 따라온다.
+   `body[data-theme]` 가 `body[data-skin]` 와 같은 요소라 아래 두 선택자는 특정도가 같다 —
+   나중에 오는 이 블록이 이긴다(파일 순서: style.css → skin-*.css 이므로 여기 style.css 에
+   두면 진다). **그래서 이 블록은 각 스킨 파일 끝에 산다.** */
+body[data-skin="new"][data-theme="dark"]{
+  --nk-ink:#e8ebf0;
+  --nk-ink2:#dbe0e8;
+  --nk-ink3:#c2c8d2;
+  --nk-ink4:#a8b0bd;
+  --nk-ink5:#78818f;
+  --nk-surface:#1b1f27;
+  --nk-bg:#12151b;
+  --nk-bg-map:#161a21;
+  --nk-fill:#232833;
+  --nk-line:rgba(232,235,240,.10);
+  /* 지도 위 유리 알약(모드 토글) — 흰 유리는 다크에서 흰 덩어리로 남는다. */
+  --nk-glass:rgba(30,35,45,.66);
+}
+/* 이 스킨은 서랍 배경을 제 규칙으로 덮는다 — style.css 의 다크 규칙보다 뒤에 오므로 여기서 한 번 더. */
+body[data-skin="new"][data-theme="dark"] #phone-drawer{background:rgba(18,21,27,0.92);}

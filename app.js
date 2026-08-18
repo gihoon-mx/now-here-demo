@@ -4488,6 +4488,7 @@ function settingsSnapshotFull(){
     mapPinView:mapPinView, // v2.15 지도 컨텐츠별 표시 — 임베드(REST)·캐시·파일도 같은 범위
     uiScale:uiScale, // v2.27 폰 셸 UI 크기 (additive)
     popScrim:popScrim, // v2.62.3 지도 위 팝업 뒷배경 (블러·어둡기, additive)
+    appTheme:appTheme, // v2.62.4 라이트/다크 (additive)
     /* 상단 지면 타입 (v2.11) — cardVer 는 shared/news(SDK 전용)로만 다녀서 persona-vc
        임베드(REST publicSettings)가 영영 못 봤다. 스킨은 건너가는데 지면 타입만 기본(1)
        으로 뜨던 원인. */
@@ -4523,6 +4524,7 @@ function applyExtraSettings(s){
   if(s.mapPinView&&typeof s.mapPinView==='object'){mergePinView(s.mapPinView);applyPinStyle();} // v2.15 값만(갱신은 부르는 쪽) · v2.47 색·투명도는 CSS 변수라 즉시
   if(s.uiScale&&typeof s.uiScale==='object'){mergeUiScale(s.uiScale);applyUiScale();} // v2.27 — CSS 변수라 즉시 적용해도 안전(재렌더 없음)
   if(s.popScrim&&typeof s.popScrim==='object'){mergePopScrim(s.popScrim);applyPopScrim();} // v2.62.3 — 같은 이유로 즉시
+  if(APP_THEMES.indexOf(s.appTheme)>=0){appTheme=s.appTheme;applyTheme();} // v2.62.4 — 값 적용만(setAppTheme 은 저장까지 한다)
   // 상단 지면 타입 (v2.11) — 화면 갱신은 부르는 쪽의 renderNews 가 한다 (이 함수의 규칙 그대로).
   var _ncv=parseInt(s.newsCardVer,10);
   if(_ncv>=1&&_ncv<=3)newsCardVer=_ncv;
@@ -4631,6 +4633,7 @@ function applyCloudData(d){
     mergeUiScale(d.uiScale);saveUiScale();syncUiScaleUI();applyUiScale();}
   if(d.popScrim&&typeof d.popScrim==='object'){ // v2.62.3 지도 위 팝업 뒷배경 (additive)
     mergePopScrim(d.popScrim);savePopScrim();syncPopScrimUI();applyPopScrim();}
+  if(APP_THEMES.indexOf(d.appTheme)>=0)setAppTheme(d.appTheme,true); // v2.62.4 테마 (additive)
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   blockDirty={};updateApplyBar();updateBlockBars(); // 클라우드본 = 적용 기준선
 }
@@ -4920,6 +4923,7 @@ function initSettingsExport(){ // 현재 적용 설정 → JSON 복사 (repo set
     snap.mapPinView=mapPinView; // v2.15 지도 컨텐츠별 표시
     snap.uiScale=uiScale; // v2.27 폰 셸 UI 크기
     snap.popScrim=popScrim; // v2.62.3 지도 위 팝업 뒷배경
+    snap.appTheme=appTheme; // v2.62.4 라이트/다크
     snap.appSfx=appSfx; // v2.52 앱 차원 효과음 — settings-default.json 으로 나가야 임베드도 같은 소리다
     var json=JSON.stringify(snap,null,1);
     function done(){btn.textContent='✅ 복사됨';setTimeout(function(){btn.textContent='📋 설정 JSON 복사';},1600);}
@@ -4941,6 +4945,7 @@ function cloudSave(){
     mapPinView:mapPinView,     // v2.15 — 지도 컨텐츠별 표시 방식 (additive)
     uiScale:uiScale,           // v2.27 — 폰 셸 UI 크기 (additive)
     popScrim:popScrim,         // v2.62.3 — 지도 위 팝업 뒷배경 (additive)
+    appTheme:appTheme,         // v2.62.4 — 라이트/다크 (additive)
     appSfx:appSfx};            // v2.52 — 앱 차원 효과음 (additive)
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
@@ -5557,12 +5562,45 @@ function initUiScaleUI(){ // 표시 옵션(s-view) 컨트롤 — admin.html 에�
     });}
   on('ui-mode-scale','mode');on('ui-nav-scale','nav');
 }
+/* ── 테마 (v2.62.4) — 라이트 / 다크 ────────────────────────────────────────
+   사용자 요청: "dark mode/light mode 전환 액션 추가". 액션이 성립하려면 테마가 먼저
+   있어야 해서 여기서 세운다. 값은 `body[data-theme]` 하나이고 색은 CSS 토큰이 든다
+   (style.css 의 '다크 모드' 블록) — 그래서 **재렌더가 없다**.
+   uiScale·popScrim 과 같은 즉시 적용·additive 클라우드 동기 패턴이다. */
+var APP_THEMES=['light','dark'];
+var appTheme='light';
+try{var _th0=localStorage.getItem('nowhere_theme');if(APP_THEMES.indexOf(_th0)>=0)appTheme=_th0;}catch(e){}
+function applyTheme(){
+  if(!document.body)return;
+  /* 라이트는 **속성을 지운다** — `data-theme="light"` 를 남기면 나중에 "값이 없을 때"
+   와 "라이트일 때" 를 CSS 가 다르게 잡을 여지가 생긴다. 기본은 속성이 없는 상태다. */
+  if(appTheme==='dark')document.body.setAttribute('data-theme','dark');
+  else document.body.removeAttribute('data-theme');
+}
+function setAppTheme(v,quiet){
+  var t=(APP_THEMES.indexOf(String(v||''))>=0)?String(v):'light';
+  if(t===appTheme&&quiet)return t;
+  appTheme=t;
+  try{localStorage.setItem('nowhere_theme',appTheme);}catch(e){}
+  applyTheme();syncThemeUI();
+  return appTheme;
+}
+function syncThemeUI(){var el=document.getElementById('app-theme');if(el)el.value=appTheme;}
+function initThemeUI(){ // 표시 옵션(s-view) 컨트롤 — admin.html 에만 있다(없으면 조용히 통과)
+  applyTheme();
+  var el=document.getElementById('app-theme');if(!el)return;
+  syncThemeUI();
+  el.addEventListener('change',function(){
+    setAppTheme(el.value);
+    if(typeof markCloudDirty==='function')markCloudDirty();
+  });
+}
 /* v2.62.3 [M09/M11] 지도 위 팝업의 **뒷배경** — 블러 px 과 어둡기 % (사용자 요청).
    v2.29 는 이 덮개를 통째로 없앴다("지도를 계속 보여 줘야 이 지점의 것으로 읽힌다").
    그 판단은 지금도 맞지만, 덮개가 0 이냐 42% 냐를 코드가 정하고 있던 것이 문제였다 —
    이제 사람이 정한다. **기본은 약하게**(3px · 18%)이고 둘 다 0 이면 v2.29 그대로다.
    uiScale 과 같은 즉시 적용·additive 클라우드 동기 패턴이고, 적용은 CSS 변수라 재렌더가 없다. */
-var popScrim={blur:3,dim:18};
+var popScrim={blur:5,dim:0};
 function mergePopScrim(v){
   if(!v||typeof v!=='object')return;
   if(v.blur!=null&&isFinite(Number(v.blur)))popScrim.blur=Math.max(0,Math.min(20,Math.round(Number(v.blur))));
@@ -5579,6 +5617,11 @@ function syncPopScrimUI(){
   var b=document.getElementById('pop-scrim-blur');if(b)b.value=String(popScrim.blur);
   var d=document.getElementById('pop-scrim-dim');if(d)d.value=String(popScrim.dim);
 }
+/* v2.62.4 — **어둡기 기본은 0 이다.** 사용자: "팝업은 기존과 동일하게 (투명도를 안 줘도
+   괜찮아, 배경만 효과 적용)". 덮개에 색을 얹으면 그 색이 팝업 카드의 유리(`--frost`)에
+   비쳐 **카드까지 어두워진다** — 팝업 자신은 v2.29 그대로여야 한다는 요구가 그것이다.
+   흐림만 남기고(3 → 5px, 어둡기가 하던 몫을 흐림이 든다) 어둡기 칸은 그대로 둔다:
+   0 이 기본일 뿐 없앤 것이 아니다. */
 function initPopScrimUI(){ // 표시 옵션(s-view) 컨트롤 — admin.html 에만 있다(없으면 조용히 통과)
   applyPopScrim();
   if(!document.getElementById('pop-scrim-blur'))return;
@@ -10201,6 +10244,13 @@ function nhAct(st,token){
         return nhAdopt(drq,(st.e===''||st.e==null)?0:(parseInt(st.e,10)||0),token)!==false;}
       /* 사용자가 스팟 팝업에 의견을 쓴다 (v2.62.2) — v=쓸 말 · i=어느 스팟.
          팝업은 안 닫는다: 뒤따르는 popclose 가 닫는다 (v2.48 규칙). */
+      /* 테마 전환 (v2.62.4) — v: 'dark' | 'light' | 비우면 뒤집기.
+         저장까지 한다(setAppTheme): 시연 도중 바꾼 것이 다음 회차에도 이어지는 편이
+         "이 앱은 다크가 된다" 를 보여주는 데 맞다. nhReset 이 되돌리지 않는 이유도 같다. */
+      if(st.a==='theme'){
+        var thV=String(st.v||'').toLowerCase();
+        if(APP_THEMES.indexOf(thV)<0)thV=(appTheme==='dark')?'light':'dark';
+        return setAppTheme(thV)===thV;}
       if(st.a==='comment'){var cSp=nhPick('spot',st.i);
         if(!cSp)return false;
         return nhCommentTyped(cSp,st.v||st.say,token,st.ms,st.fast)!==false;}
@@ -11064,36 +11114,46 @@ function nhBurst(v,n,e,ms,token,look,sp){
       }
       var pick=function(pool){return pool[(k+Math.floor(heatJitter(salt)*pool.length))%pool.length];};
       var idx=NH_POST_FROM+(nhPostN++);
-      /* 소리는 burst 도 낸다 (v2.23) — 바운스는 안 붙이지만(깜박임) 컨텐츠가 쏟아지는
-         것은 등장이다. nhSfxPlay 의 최소 간격이 50개를 기관총이 아니라 성긴 빗소리로 만든다. */
-      nhSfxPlay();
-      // 바운스를 안 붙인다 (v2.12) — 위 주석 참조.
+      /* **등장 효과를 붙인다** (v2.62.4) — 사용자: "burst 액션에서도 컨텐츠가 나타날 때
+         효과 적용 (drop 으로 단일 컨텐츠 나타날 때와 동일하게)".
+         v2.12 가 안 붙였던 이유는 **깜박임**이었다: 그때는 하나 깔 때마다 렌더가 통째로
+         돌아 이미 있던 오버레이까지 다시 지어졌고, 그 재생성이 바운스와 겹쳐 화면이
+         떨었다. 그 원인은 v2.61 에서 없어졌다 — 렌더는 `nhRenderSoon` 이 한 프레임에 한
+         번으로 모으고 이름표는 다시 안 지어진다. 그래서 이제 붙일 수 있다.
+         ⚠️ 소리는 `nhBounceMark` 가 낸다(표를 찍는 자리가 곧 "지금 생겼다" 의 단일
+         기준이다 — v2.23). 여기서 따로 부르면 **한 항목에 두 번** 운다.
+         표를 찍는 것은 깔기 **직전**이다: `nhLay*` 가 돌려주는 id 를 받아 찍으면 그 사이에
+         낀 렌더가 표 없는 오버레이를 먼저 만든다. 아래 각 갈래가 id 를 받아 찍는다. */
+      var bMark=function(id,mapN){ // 그 종류를 그리는 지도 수 (스팟·피드는 PC+폰 둘)
+        if(id)nhBounceMark(id,mapN||1);
+        return id;
+      };
       /* 렌더는 **모아서** 한다 (v2.61, nhRenderSoon) — 하나 깔 때마다 지면·목록을 통째로
          다시 그리던 것이 쏟아짐 구간의 떨림이었다. 깔기 자체는 그대로다. */
       if(kind==='spot'){
         var sp=pick(NH_BURST_SPOTS);
-        if(nhLaySpot({t:sp[0],emoji:sp[1]},idx,p,stamp))nhRenderSoon('spot');
+        if(bMark(nhLaySpot({t:sp[0],emoji:sp[1]},idx,p,stamp),2))nhRenderSoon('spot');
       }else if(kind==='feed'){
         var fd=pick(NH_BURST_FEEDS);
         /* 실사진 옵션 (v2.37) — `nhLayFeed` 는 `img` 가 있으면 그것을, 없으면 테마 색으로
            그린다. 그 갈래를 그대로 타므로 여기서는 주소만 고르면 된다(빈 값이면 여태와 같다). */
-        if(nhLayFeed({desc:fd[0],label:fd[0],theme:fd[1],name:pick(NH_BURST_NAMES),
-            img:(realPhoto?nhBurstPhoto(fd[1],salt,k):'')},idx,p,stamp))nhRenderSoon('feed');
+        if(bMark(nhLayFeed({desc:fd[0],label:fd[0],theme:fd[1],name:pick(NH_BURST_NAMES),
+            img:(realPhoto?nhBurstPhoto(fd[1],salt,k):'')},idx,p,stamp),2))nhRenderSoon('feed');
       }else if(kind==='req'){
         /* 현장 Request (v2.51, 콘솔 D167) — 엔딩에 **묻는 말**도 쏟아진다.
            전부 `mine:false` 다: 다 내 것이면 "동네가 묻는다" 가 아니라 "내가 도배했다" 가 된다.
            nhLayReq 는 자리를 스스로 잡으므로(nhPosGet||nhSpread) 셋째 인자에 이 점을 준다 —
            nhLayDeal 과 같은 규칙이다. */
         var rq=pick(NH_BURST_REQS);
-        if(nhLayReq({q:rq,mine:false},idx,p,stamp,token))nhRenderSoon('req');
+        if(bMark(nhLayReq({q:rq,mine:false},idx,p,stamp,token),1))nhRenderSoon('req');
       }else if(kind==='store'){
         /* 매장 (v2.49) — 딜 없는 가게가 **이름표만** 세운다. 상호는 딜 표본의 가게 이름을
            빌리되 `title` 을 안 준다: title 이 있으면 딜로 읽혀 "마감 직전" 이 뜬다. */
         var st2=pick(NH_BURST_DEALS);
-        if(nhLayDeal({e:st2[1],shop:st2[2],store:true},idx,p,stamp))nhRenderSoon('deal');
+        if(bMark(nhLayDeal({e:st2[1],shop:st2[2],store:true},idx,p,stamp),1))nhRenderSoon('deal');
       }else{
         var dl=pick(NH_BURST_DEALS);
-        if(nhLayDeal({title:dl[0],e:dl[1],shop:dl[2],pct:dl[3],secs:600+120*(k%5)},idx,p,stamp))nhRenderSoon('deal');
+        if(bMark(nhLayDeal({title:dl[0],e:dl[1],shop:dl[2],pct:dl[3],secs:600+120*(k%5)},idx,p,stamp),1))nhRenderSoon('deal');
       }
     },t);
   })(k);
@@ -11369,7 +11429,8 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   // v2.34: 컨텐츠 추가 팝업 — 여는 손(addmenu v = btn|hold)과 네 항목을 누르는 손
   'addmenu','addbtn','addspot','addphoto','addpost','addreq',
   'react','answers','adopt',
-  'comment']; // v2.62.2: 사용자가 스팟 팝업에 의견을 쓴다 (v=쓸 말·i=어느 스팟, popclose 가 닫는다)
+  'comment', // v2.62.2: 사용자가 스팟 팝업에 의견을 쓴다 (v=쓸 말·i=어느 스팟, popclose 가 닫는다)
+  'theme'];   // v2.62.4: 라이트/다크 전환 (v=dark|light, 비우면 뒤집기)
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
@@ -11971,7 +12032,7 @@ function startEmbed(){
   initSettingsExport();
   initSfxPanel(); // v2.52 앱 차원 효과음
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();applyPinStyle();initUiScaleUI();initPopScrimUI();syncCoinUI();initSeedGen();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();applyPinStyle();initUiScaleUI();initPopScrimUI();initThemeUI();syncCoinUI();initSeedGen();
   window.addEventListener('resize',layoutTabPages);
   nhViewWatch();
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)

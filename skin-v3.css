@@ -827,3 +827,28 @@ body[data-skin="v3"] .sg-mid i{font-size:12px;color:var(--v3-ink4);}
 body[data-skin="v3"] .sg-row .action-btn{background:var(--v3-surface);}
 body[data-skin="v3"] .sg-row .action-btn:hover{background:#E9E7E3;}
 body[data-skin="v3"] .sg-row .action-btn.danger{background:#FDEEEA;}
+
+/* 스킨 토큰도 뒤집는다 (v2.62.4) — 스킨 둘은 **제 팔레트**를 들고 있어서 위의 :root
+   토큰만 덮으면 앱바·상단 지면 프레임·서랍·요약 상자가 흰 채로 남는다(실측으로 이 넷이
+   남았다). 스킨 안쪽 규칙을 하나씩 고치지 않고 **그 팔레트의 값**만 바꾼다 — 그러면
+   그 스킨이 쓰는 모든 자리가 한 번에 따라온다.
+   `body[data-theme]` 가 `body[data-skin]` 와 같은 요소라 아래 두 선택자는 특정도가 같다 —
+   나중에 오는 이 블록이 이긴다(파일 순서: style.css → skin-*.css 이므로 여기 style.css 에
+   두면 진다). **그래서 이 블록은 각 스킨 파일 끝에 산다.** */
+body[data-skin="v3"][data-theme="dark"]{
+  --v3-canvas:#12151b;
+  --v3-surface:#1b1f27;
+  --v3-soft:#20252e;
+  --v3-fill:#262b35;
+  --v3-line:#2b313b;
+  --v3-line2:#333a45;
+  --v3-ink:#e8ebf0;
+  --v3-ink2:#dbe0e8;
+  --v3-ink3:#c2c8d2;
+  --v3-ink4:#a8b0bd;
+  --v3-ink5:#78818f;
+  /* 지도 위 유리 알약(모드 토글) — 밝은 회색 유리는 다크에서 흰 덩어리로 남는다. */
+  --v3-glass:rgba(40,46,58,.58);
+}
+/* 프로필 원은 **잉크색 원 + 흰 글자**다 — 잉크가 밝아지면 글자도 뒤집어야 읽힌다. */
+body[data-skin="v3"][data-theme="dark"] .pa-profile #pa-profile-initial{color:#12151b;}
