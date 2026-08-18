@@ -615,13 +615,16 @@ function paintReactTag(tag,hEl,cEl,id,bg){
    여태 튀는 자리는 라벨 통째(`heartEl`)라 하트 하나뿐일 때는 맞았지만, `❤3 💬2` 처럼
    둘이 같이 서 있으면 라벨 한가운데에서 터져 **어느 수가 오른 건지** 안 보였다.
    부르는 쪽이 칸(`tagH`/`tagC`)을 넘기면 그 칸 위에서 터진다 (CSS 가 칸을 relative 로 둔다). */
+/* v2.62.3: **바운스를 뺐다** — 연출은 `reactPop`(0.62초) 이고 걷는 시각도 거기 맞춘다.
+   1200ms 로 두면 이미 다 사라진 글리프가 반 초를 더 DOM 에 남아, 연달아 오르는 리액션이
+   빈 span 을 쌓는다(50개짜리 단계에서 그대로 보인다). */
 function reactPopOn(el,glyph){
   if(!el)return;
   var h=document.createElement('span');
   h.className='spot-heartpop'+(glyph==='💬'?' cmt':'');
   h.textContent=glyph||'♥';
   el.appendChild(h);
-  setTimeout(function(){if(h.parentNode)h.parentNode.removeChild(h);},1200);
+  setTimeout(function(){if(h.parentNode)h.parentNode.removeChild(h);},700);
 }
 function heartPopOn(el){reactPopOn(el,'♥');} // 동결 앵커 — 부르는 자리가 넷이라 이름을 남긴다
 function initSpotBubbleClass(){
@@ -4484,6 +4487,7 @@ function settingsSnapshotFull(){
     spotMapBg:{op:spotMapBg.op,scaleM:spotMapBg.scaleM},feedIconSize:feedIconSize,
     mapPinView:mapPinView, // v2.15 지도 컨텐츠별 표시 — 임베드(REST)·캐시·파일도 같은 범위
     uiScale:uiScale, // v2.27 폰 셸 UI 크기 (additive)
+    popScrim:popScrim, // v2.62.3 지도 위 팝업 뒷배경 (블러·어둡기, additive)
     /* 상단 지면 타입 (v2.11) — cardVer 는 shared/news(SDK 전용)로만 다녀서 persona-vc
        임베드(REST publicSettings)가 영영 못 봤다. 스킨은 건너가는데 지면 타입만 기본(1)
        으로 뜨던 원인. */
@@ -4518,6 +4522,7 @@ function applyExtraSettings(s){
   if(s.feedIconSize!=null&&isFinite(Number(s.feedIconSize)))feedIconSize=Math.max(0,Math.round(Number(s.feedIconSize)));
   if(s.mapPinView&&typeof s.mapPinView==='object'){mergePinView(s.mapPinView);applyPinStyle();} // v2.15 값만(갱신은 부르는 쪽) · v2.47 색·투명도는 CSS 변수라 즉시
   if(s.uiScale&&typeof s.uiScale==='object'){mergeUiScale(s.uiScale);applyUiScale();} // v2.27 — CSS 변수라 즉시 적용해도 안전(재렌더 없음)
+  if(s.popScrim&&typeof s.popScrim==='object'){mergePopScrim(s.popScrim);applyPopScrim();} // v2.62.3 — 같은 이유로 즉시
   // 상단 지면 타입 (v2.11) — 화면 갱신은 부르는 쪽의 renderNews 가 한다 (이 함수의 규칙 그대로).
   var _ncv=parseInt(s.newsCardVer,10);
   if(_ncv>=1&&_ncv<=3)newsCardVer=_ncv;
@@ -4624,6 +4629,8 @@ function applyCloudData(d){
     mergePinView(d.mapPinView);savePinView();syncPinViewUI();renderAllPins();}
   if(d.uiScale&&typeof d.uiScale==='object'){ // v2.27 폰 셸 UI 크기 (additive)
     mergeUiScale(d.uiScale);saveUiScale();syncUiScaleUI();applyUiScale();}
+  if(d.popScrim&&typeof d.popScrim==='object'){ // v2.62.3 지도 위 팝업 뒷배경 (additive)
+    mergePopScrim(d.popScrim);savePopScrim();syncPopScrimUI();applyPopScrim();}
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   blockDirty={};updateApplyBar();updateBlockBars(); // 클라우드본 = 적용 기준선
 }
@@ -4912,6 +4919,7 @@ function initSettingsExport(){ // 현재 적용 설정 → JSON 복사 (repo set
     snap.spotMapBg={op:spotMapBg.op,scaleM:spotMapBg.scaleM};snap.feedIconSize=feedIconSize;
     snap.mapPinView=mapPinView; // v2.15 지도 컨텐츠별 표시
     snap.uiScale=uiScale; // v2.27 폰 셸 UI 크기
+    snap.popScrim=popScrim; // v2.62.3 지도 위 팝업 뒷배경
     snap.appSfx=appSfx; // v2.52 앱 차원 효과음 — settings-default.json 으로 나가야 임베드도 같은 소리다
     var json=JSON.stringify(snap,null,1);
     function done(){btn.textContent='✅ 복사됨';setTimeout(function(){btn.textContent='📋 설정 JSON 복사';},1600);}
@@ -4932,6 +4940,7 @@ function cloudSave(){
     feedIconSize:feedIconSize, // v2.3 — additive(옛 클라이언트는 모르고 지나간다)
     mapPinView:mapPinView,     // v2.15 — 지도 컨텐츠별 표시 방식 (additive)
     uiScale:uiScale,           // v2.27 — 폰 셸 UI 크기 (additive)
+    popScrim:popScrim,         // v2.62.3 — 지도 위 팝업 뒷배경 (additive)
     appSfx:appSfx};            // v2.52 — 앱 차원 효과음 (additive)
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
@@ -5547,6 +5556,42 @@ function initUiScaleUI(){ // 표시 옵션(s-view) 컨트롤 — admin.html 에�
       if(typeof markCloudDirty==='function')markCloudDirty();
     });}
   on('ui-mode-scale','mode');on('ui-nav-scale','nav');
+}
+/* v2.62.3 [M09/M11] 지도 위 팝업의 **뒷배경** — 블러 px 과 어둡기 % (사용자 요청).
+   v2.29 는 이 덮개를 통째로 없앴다("지도를 계속 보여 줘야 이 지점의 것으로 읽힌다").
+   그 판단은 지금도 맞지만, 덮개가 0 이냐 42% 냐를 코드가 정하고 있던 것이 문제였다 —
+   이제 사람이 정한다. **기본은 약하게**(3px · 18%)이고 둘 다 0 이면 v2.29 그대로다.
+   uiScale 과 같은 즉시 적용·additive 클라우드 동기 패턴이고, 적용은 CSS 변수라 재렌더가 없다. */
+var popScrim={blur:3,dim:18};
+function mergePopScrim(v){
+  if(!v||typeof v!=='object')return;
+  if(v.blur!=null&&isFinite(Number(v.blur)))popScrim.blur=Math.max(0,Math.min(20,Math.round(Number(v.blur))));
+  if(v.dim!=null&&isFinite(Number(v.dim)))popScrim.dim=Math.max(0,Math.min(80,Math.round(Number(v.dim))));
+}
+try{var _pss=JSON.parse(localStorage.getItem('nowhere_popscrim')||'null');if(_pss)mergePopScrim(_pss);}catch(e){}
+function savePopScrim(){try{localStorage.setItem('nowhere_popscrim',JSON.stringify(popScrim));}catch(e){}}
+function applyPopScrim(){ // body 변수 한 벌 — index·admin 폰 미러가 같이 걸린다
+  if(!document.body)return;
+  document.body.style.setProperty('--pop-blur',popScrim.blur+'px');
+  document.body.style.setProperty('--pop-dim',String(popScrim.dim/100));
+}
+function syncPopScrimUI(){
+  var b=document.getElementById('pop-scrim-blur');if(b)b.value=String(popScrim.blur);
+  var d=document.getElementById('pop-scrim-dim');if(d)d.value=String(popScrim.dim);
+}
+function initPopScrimUI(){ // 표시 옵션(s-view) 컨트롤 — admin.html 에만 있다(없으면 조용히 통과)
+  applyPopScrim();
+  if(!document.getElementById('pop-scrim-blur'))return;
+  syncPopScrimUI();
+  function on(id,key){var el=document.getElementById(id);if(!el)return;
+    el.addEventListener('change',function(){
+      var o={};o[key]=parseInt(el.value,10);
+      if(!isFinite(o[key]))o[key]=(key==='blur'?3:18);
+      mergePopScrim(o);el.value=String(popScrim[key]);
+      savePopScrim();applyPopScrim();
+      if(typeof markCloudDirty==='function')markCloudDirty();
+    });}
+  on('pop-scrim-blur','blur');on('pop-scrim-dim','dim');
 }
 function pinScale(kind){var s=mapPinView[kind];return s&&s.size?s.size/100:1;}
 function renderAllPins(){ // 표시 설정 변경 후 4종 재렌더 — Request 가 끝에서 딜·declutter 까지 연쇄한다
@@ -11926,7 +11971,7 @@ function startEmbed(){
   initSettingsExport();
   initSfxPanel(); // v2.52 앱 차원 효과음
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();applyPinStyle();initUiScaleUI();syncCoinUI();initSeedGen();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();applyPinStyle();initUiScaleUI();initPopScrimUI();syncCoinUI();initSeedGen();
   window.addEventListener('resize',layoutTabPages);
   nhViewWatch();
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)
