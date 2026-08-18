@@ -10,6 +10,13 @@ const GCP_API_KEY = 'AIzaSyCF633b0Bjsln4lEf2DJ35k9bUzI5QGXY8';
 const CONFIG = {
   GOOGLE_MAPS_API_KEY: GCP_API_KEY,
   MAP_ID: 'b14f18f7b1a7d77aa39cc4cf',
+  /* 다크 모드에서 쓸 **두 번째 Map ID** (v2.62.7).
+     Google Cloud Console › Google Maps Platform › 지도 관리(Map Management)에서
+     지도 ID 를 하나 더 만들고(유형: JavaScript · 래스터/벡터 아무거나), 지도 스타일
+     관리(Map Styles)에서 **어두운 스타일**을 만들어 그 ID 에 연결한 뒤 여기 붙이면 된다.
+     비어 있으면 앱이 **덮개로 떨어진다**(mapPane 한 겹) — 그때도 지도는 어두워지지만
+     라벨·도로까지 같이 눌리므로, 이 값이 채워지는 편이 훨씬 낫다. */
+  MAP_ID_DARK: '',
   MAP_CENTER_LAT: 37.38,
   MAP_CENTER_LNG: 127.05,
   MAP_ZOOM: 11,

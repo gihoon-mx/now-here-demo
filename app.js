@@ -2982,9 +2982,12 @@ function initPhoneMirror(){
     // 화면 폭 보정(nhZ)은 소수 줌을 만든다 (v2.35). 벡터 지도는 기본이 true 지만
     // 래스터 폴백(MAP_ID 없음)에서는 setZoom 이 정수로 반올림돼 보정이 통째로 사라진다.
     isFractionalZoomEnabled:true};
-  if(CONFIG.MAP_ID&&CONFIG.MAP_ID.length>0)opts.mapId=CONFIG.MAP_ID;else opts.styles=mapStyles();
+  // v2.62.7 — 테마가 정하는 ID 로 **처음부터** 연다 (열고 나서 갈면 한 번 깜박인다)
+  var _mid=(typeof mapIdForTheme==='function')?mapIdForTheme():CONFIG.MAP_ID;
+  if(_mid)opts.mapId=_mid;else opts.styles=mapStyles();
   phoneMap=new google.maps.Map(el,opts);
-  if(typeof applyMapTint==='function')applyMapTint(); // 다크면 타일 덮개를 건다 (v2.62.6)
+  phoneMap.__nhMapId=opts.mapId||''; // 지금 물린 ID 를 적어 둔다 (applyMapId 가 본다)
+  if(typeof applyMapTint==='function')applyMapTint(); // 다크용 ID 가 없을 때만 덮개 (v2.62.7)
   phoneProjHelper=new ProjHelper(phoneMap); // 좌표 변환용
   // 카메라 단방향 미러 (PC → 폰)
   /* ⚠️ **트윈 중에는 재운다** (v2.36). setZoom 은 부를 때마다 Maps 자체 애니메이션을 새로
@@ -3823,9 +3826,12 @@ function initMap(){
   initReqComposerClass();
   initProjHelperClass();
   var opts={center:{lat:CONFIG.MAP_CENTER_LAT,lng:CONFIG.MAP_CENTER_LNG},zoom:CONFIG.MAP_ZOOM,disableDefaultUI:false,zoomControl:true,mapTypeControl:false,streetViewControl:false,fullscreenControl:true,isFractionalZoomEnabled:true};
-  if(CONFIG.MAP_ID&&CONFIG.MAP_ID.length>0) opts.mapId=CONFIG.MAP_ID; else opts.styles=mapStyles();
+  // v2.62.7 — 테마가 정하는 ID 로 처음부터 (위 폰 지도와 같은 규칙)
+  var _mid2=(typeof mapIdForTheme==='function')?mapIdForTheme():CONFIG.MAP_ID;
+  if(_mid2) opts.mapId=_mid2; else opts.styles=mapStyles();
   map=new google.maps.Map(document.getElementById('map'),opts);
-  if(typeof applyMapTint==='function')applyMapTint(); // 다크면 타일 덮개를 건다 (v2.62.6)
+  map.__nhMapId=opts.mapId||'';
+  if(typeof applyMapTint==='function')applyMapTint(); // 다크용 ID 가 없을 때만 덮개 (v2.62.7)
   mapProjHelper=new ProjHelper(map); // 좌표 변환용(제스처 지점→latLng)
   fetch(CONFIG.GEOJSON_PATH).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(geo){originalGeoJson=geo;applyGeoJsonToMap();fitBoundsToData();initMyLocation();loadZonesFromStorage();hideMapLoading();mapReady=true;if(cloudData)applyCloudData(cloudData);else{loadLocalSpotsInto();rebuildSpots();}}).catch(function(err){hideMapLoading();var el=document.getElementById('info-text');if(el)el.textContent='⚠️ 경계 데이터를 불러오지 못했습니다. ('+err.message+')';});
   refreshMapStyles();
@@ -5687,6 +5693,45 @@ try{var _th0=localStorage.getItem('nowhere_theme');if(APP_THEMES.indexOf(_th0)>=
    ⚠️ **이 세션에서는 못 봤다** — 브라우저 패널이 안 떠 OverlayView 가 아예 안 그려진다.
    그래서 실패하면 **아무 일도 안 하게** 짰다(try/catch · 투영 없으면 그냥 통과): 지도가
    깨지는 것보다 안 어두워지는 편이 낫다. */
+/** 지금 테마가 쓸 지도 ID — 다크이고 다크용 ID 가 있으면 그것, 아니면 기본 ID. */
+function mapIdForTheme(){
+  var dark=(typeof appTheme!=='undefined'&&appTheme==='dark');
+  var dk=(CONFIG&&CONFIG.MAP_ID_DARK)?String(CONFIG.MAP_ID_DARK):'';
+  return (dark&&dk)?dk:((CONFIG&&CONFIG.MAP_ID)?String(CONFIG.MAP_ID):'');
+}
+/** 덮개를 쓸 때인가 — **다크용 ID 가 없을 때만**이다 (v2.62.7). */
+function mapTintNeeded(){
+  return (typeof appTheme!=='undefined'&&appTheme==='dark')&&!(CONFIG&&CONFIG.MAP_ID_DARK);
+}
+/* ── 테마가 바뀌면 지도 ID 를 갈아 끼운다 (v2.62.7) ──────────────────────────
+   v2.62.6 은 "런타임에 못 바꾼다" 고 적고 덮개를 깔았다. **틀렸다** — 이 API(v3.65)에는
+   `map.setMapId()` 가 있다(직접 찔러 확인했다). 그래서 어두운 클라우드 스타일을 물린
+   두 번째 Map ID 만 있으면 **구글의 진짜 다크 지도**로 갈아탈 수 있다.
+
+   ⚠️ ID 를 갈면 **렌더러가 다시 선다.** 이 저장소의 지도 위 물건은 전부 OverlayView·
+   Polygon·Marker(고전 API)라 Map 객체에 매여 있지만, 그래도 갈아 끼운 뒤 한 번 다시
+   그린다 — 반쯤 붙은 채로 남는 것보다 낫다. AdvancedMarker·WebGLOverlayView·tilt 는
+   이 앱에 **한 군데도 없어서**(전수 확인) 벡터/래스터 어느 쪽이 와도 잃는 기능이 없다. */
+function applyMapId(){
+  try{
+    var want=mapIdForTheme();if(!want)return;
+    var maps=[];
+    if(typeof phoneMap!=='undefined'&&phoneMap)maps.push(phoneMap);
+    if(typeof map!=='undefined'&&map)maps.push(map);
+    var changed=false;
+    maps.forEach(function(m){
+      if(!m||typeof m.setMapId!=='function')return;      // 옛 API 면 조용히 통과 (덮개가 맡는다)
+      if(m.__nhMapId===want)return;
+      try{m.setMapId(want);m.__nhMapId=want;changed=true;}catch(e){}
+    });
+    if(!changed)return;
+    // 렌더러가 다시 선 뒤 한 번 다시 그린다
+    if(typeof renderAllPins==='function')renderAllPins();
+    if(typeof rebuildSpots==='function')rebuildSpots();
+    if(typeof renderDealMarkers==='function')renderDealMarkers();
+    if(typeof rerenderZones==='function')rerenderZones();
+  }catch(e){}
+}
 var MapTint=null,mapTints=[];
 function initMapTintClass(){
   if(MapTint||typeof google==='undefined'||!google.maps||!google.maps.OverlayView)return;
@@ -5717,7 +5762,7 @@ function applyMapTint(){
   try{
     initMapTintClass();
     if(!MapTint)return;
-    var want=(appTheme==='dark');
+    var want=mapTintNeeded(); // v2.62.7 — 진짜 다크 지도가 있으면 덮개는 안 건다
     var maps=[];
     if(typeof phoneMap!=='undefined'&&phoneMap)maps.push(phoneMap);
     if(typeof map!=='undefined'&&map)maps.push(map);
@@ -5764,7 +5809,8 @@ function applyTheme(){
    와 "라이트일 때" 를 CSS 가 다르게 잡을 여지가 생긴다. 기본은 속성이 없는 상태다. */
   if(appTheme==='dark')document.body.setAttribute('data-theme','dark');
   else document.body.removeAttribute('data-theme');
-  applyMapTint(); // 지도 타일 덮개도 같이 (없으면 조용히 통과)
+  applyMapId();   // 다크용 Map ID 가 있으면 그것으로 (v2.62.7)
+  applyMapTint(); // 없을 때만 덮개로 떨어진다
 }
 function setAppTheme(v,quiet){
   var t=(APP_THEMES.indexOf(String(v||''))>=0)?String(v):'light';
@@ -5774,7 +5820,18 @@ function setAppTheme(v,quiet){
   applyTheme();syncThemeUI();
   return appTheme;
 }
-function syncThemeUI(){var el=document.getElementById('app-theme');if(el)el.value=appTheme;}
+function syncThemeUI(){
+  var el=document.getElementById('app-theme');if(el)el.value=appTheme;
+  /* 지도가 지금 **어느 길로** 어두워지는지 화면에 적는다 (v2.62.7) — 다크용 Map ID 를
+     안 넣으면 덮개로 떨어지는데, 그 사실이 아무 데도 안 보이면 "왜 지도 라벨까지
+     눌리지?" 를 사람이 코드까지 파야 안다. */
+  var st=document.getElementById('map-dark-state');
+  if(st){
+    st.textContent=(CONFIG&&CONFIG.MAP_ID_DARK)
+      ? '지도: 다크용 Map ID 가 설정돼 있어 구글 다크 지도로 바뀝니다.'
+      : '⚠️ 지도: 다크용 Map ID(config.js 의 MAP_ID_DARK)가 비어 있어 어두운 덮개 한 겹으로 대신합니다 — 라벨·도로까지 함께 눌립니다.';
+  }
+}
 function initThemeUI(){ // 표시 옵션(s-view) 컨트롤 — admin.html 에만 있다(없으면 조용히 통과)
   applyTheme();
   var el=document.getElementById('app-theme');if(!el)return;
