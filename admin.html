@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=2.63.0" />
+  <link rel="stylesheet" href="style.css?v=2.63.1" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.63.0" />
+  <link rel="stylesheet" href="skin-new.css?v=2.63.1" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.63.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.63.1" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -36,7 +36,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.63.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.63.1</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -494,20 +494,20 @@
               <div class="setting-row"><label>모드 토글</label><input type="number" id="ui-mode-scale" min="60" max="120" step="2" value="88" class="num-in" /><span class="num-hint">% (기본 88 — 베이직/트렌드 토글)</span></div>
               <div class="setting-row"><label>하단 네비</label><input type="number" id="ui-nav-scale" min="60" max="120" step="2" value="90" class="num-in" /><span class="num-hint">% (기본 90 — ＋·탭·AI 버튼 줄)</span></div>
               <div class="row-cap">타임딜</div>
-              <!-- v2.63.0 딜 전환 효과 — 즉시 적용(dealOnFx, 클라우드 동기·additive) -->
+              <!-- v2.63.1 딜 전환 효과 — 즉시 적용(dealOnFx, 클라우드 동기·additive) -->
               <div class="setting-row"><label>전환 효과</label><select id="deal-onfx" class="mini-select"><option value="1">켜기 (⏰ + 링)</option><option value="0">끄기</option></select></div>
               <p class="section-hint">매장이 타임딜로 바뀌는 순간의 ⏰ 이모지와 링이에요. 미니 라벨 자리에서 솟아오르므로 가게 이름을 가리지 않습니다. 꺼도 이름표가 한 번 튀는 것과 소리는 남아요.</p>
               <div class="row-cap">프로필 사진 (데모)</div>
-              <!-- v2.63.0 우상단 프로필 원 — 즉시 적용(demoPhoto, 클라우드 동기·additive) -->
+              <!-- v2.63.1 우상단 프로필 원 — 즉시 적용(demoPhoto, 클라우드 동기·additive) -->
               <div class="setting-row"><label>이미지 주소</label><input type="text" id="demo-photo-url" placeholder="https://… (또는 아래 올리기)" class="num-in dp-url" /></div>
               <div class="setting-row"><label>파일</label><button type="button" id="demo-photo-btn" class="action-btn small">🖼 올리기</button><button type="button" id="demo-photo-clear" class="action-btn small">지우기</button><img id="demo-photo-prev" class="dp-prev" alt="" style="display:none;" /><input type="file" id="demo-photo-file" accept="image/*" hidden /></div>
               <p class="section-hint">폰 우상단의 동그란 프로필입니다. 올린 파일은 160px 정사각으로 줄여 담습니다. 비우면 로그인 계정 사진(없으면 이니셜)으로 돌아갑니다.</p>
               <div class="row-cap">테마</div>
-              <!-- v2.63.0 라이트/다크 — 즉시 적용(appTheme, 클라우드 동기·additive) -->
+              <!-- v2.63.1 라이트/다크 — 즉시 적용(appTheme, 클라우드 동기·additive) -->
               <div class="setting-row"><label>앱 테마</label><select id="app-theme" class="mini-select"><option value="light">☀ 라이트</option><option value="dark">☾ 다크</option></select></div>
               <p class="section-hint">앱 UI(카드·팝업·서랍·피드·소셜)의 밝기예요. 데모 단계의 <b>화면 밝기 바꾸기</b> 액션과 데모 <b>무대</b> 옵션도 같은 값을 씁니다.<br /><span id="map-dark-state"></span></p>
               <div class="row-cap">팝업 뒷배경</div>
-              <!-- v2.63.0 지도 위 팝업 뒤 블러·어둡기 — 즉시 적용(popScrim, 클라우드 동기·additive) -->
+              <!-- v2.63.1 지도 위 팝업 뒤 블러·어둡기 — 즉시 적용(popScrim, 클라우드 동기·additive) -->
               <div class="setting-row"><label>흐림</label><input type="number" id="pop-scrim-blur" min="0" max="20" step="1" value="3" class="num-in" /><span class="num-hint">px (기본 3 — 0이면 안 흐려요)</span></div>
               <div class="setting-row"><label>어둡기</label><input type="number" id="pop-scrim-dim" min="0" max="80" step="2" value="18" class="num-in" /><span class="num-hint">% (기본 18 — 0이면 안 덮어요)</span></div>
               <p class="section-hint">지도 위에 뜨는 팝업(스팟·피드·Request 상세, 타임딜 시트) 뒤를 얼마나 흐리고 어둡게 덮을지예요. 둘 다 0이면 뒤 지도가 그대로 보입니다.</p>
@@ -727,7 +727,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.63.0"></script>
-  <script src="app.js?v=2.63.0"></script>
+  <script src="config.js?v=2.63.1"></script>
+  <script src="app.js?v=2.63.1"></script>
 </body>
 </html>

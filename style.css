@@ -719,6 +719,29 @@ body.mode-trend .add-pin .apn-ring{border-color:rgba(255,90,60,0.6);}
 .ct-c-ord{display:flex;gap:3px;flex:0 0 auto;}
 .ct-ord-btn{width:20px;height:20px;padding:0;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink2);font-size:.66rem;line-height:1;cursor:pointer;}
 .ct-ord-btn:hover{border-color:var(--acc);color:var(--acc);}
+/* ── 재생이 글자를 박아 넣는 칸의 안내문 (v2.63.1) ──────────────────────────
+   사용자: "타이핑 하는 곳에 미리 사전 텍스트는 없어도 될 거 같아 (또는 아주 연한 그레이)".
+   시연에서 이 칸들은 **비어 있다가 글자가 하나씩 박히는** 자리인데, 그 전에 안내문이
+   또렷하게 앉아 있으면 "이미 뭔가 적혀 있다" 로 읽힌다.
+
+   ⚠️ **지우지 않고 연하게** 한다. 지우면 데모가 아니라 **실제로 쓰는 사람**이 그 칸이
+   무엇을 받는 자리인지 알 길이 없다(이 앱은 시연용이자 실제 앱이다). 아주 연한 회색이면
+   재생 중에는 사실상 안 보이고, 손으로 쓸 때는 가까이서 읽힌다.
+   다섯 칸이 대상이다: 스팟 컴포저 · Request 컴포저 · Request 답장 · 스팟 팝업 의견 ·
+   소셜 채팅. 여기에 AI 물어보기 칸도 같은 성격이라 함께 넣는다. */
+.spot-composer .sc-text::placeholder,
+.req-composer .rc-text::placeholder,
+#cpop-body .cpr-in::placeholder,
+#cpop-body .cps-inputrow input::placeholder,
+#soc-inputbar input::placeholder,
+#aip-input::placeholder{color:rgba(15,23,42,0.16);}
+/* 다크에서는 바탕이 어두우므로 **밝은 쪽으로** 같은 만큼 연하게 (같은 값을 쓰면 안 보인다) */
+body[data-theme="dark"] .spot-composer .sc-text::placeholder,
+body[data-theme="dark"] .req-composer .rc-text::placeholder,
+body[data-theme="dark"] #cpop-body .cpr-in::placeholder,
+body[data-theme="dark"] #cpop-body .cps-inputrow input::placeholder,
+body[data-theme="dark"] #soc-inputbar input::placeholder,
+body[data-theme="dark"] #aip-input::placeholder{color:rgba(232,235,240,0.20);}
 /* Places 장소 사진의 출처 표기 (v2.62.9) — 표기 없이 그 사진을 쓰면 약관 위반이다.
    폰 화면 맨 아래에 아주 작게 한 줄. 손은 안 닿는다(연출을 막지 않게). */
 .nh-place-credit{position:absolute;left:0;right:0;bottom:0;z-index:3;pointer-events:none;
@@ -1478,6 +1501,31 @@ img.emoji{width:1em!important;height:1em!important;margin:0 .07em!important;vert
    ⚠️ 이 블록이 **파일에서 뒤**라 위쪽 `#cpop-body` 규칙을 덮는다 — 같은 선택자를 두 곳에
    두면 나중 것만 산다. 팝업의 답변 치수는 **여기 한 곳**에서만 정한다. */
 #cpop-body .rqa-item{gap:12px;border-radius:12px;padding:10px 12px;}
+/* ── 채택되는 순간 (v2.63.1) ─────────────────────────────────────────────────
+   `.best` 의 파란 바탕·테두리는 **상태**다(다시 열어도 같다). 이 한 판은 **사건**이다:
+   빛이 줄을 한 번 훑고 ✅ 뱃지가 뿅 뜬다. 상태는 그대로 남는다.
+   ⚠️ `background-image` 로만 얹는다 — `.rqa-item.best` 가 `background` 축약으로 바탕색을
+   정하므로, 여기서 축약을 또 쓰면 그 색을 지운다. */
+#cpop-body .rqa-item.best.rqa-pop{
+  background-image:linear-gradient(100deg,rgba(47,123,255,0) 34%,rgba(47,123,255,0.34) 50%,rgba(47,123,255,0) 66%);
+  background-size:240% 100%;background-repeat:no-repeat;
+  animation:rqaSweep .95s cubic-bezier(.3,.85,.4,1) 1;}
+#cpop-body .rqa-item.best.rqa-pop .rqa-best{
+  display:inline-block;animation:rqaBadge .62s cubic-bezier(.22,1,.36,1) both;}
+@keyframes rqaSweep{
+  0%{background-position:-120% 0;}
+  100%{background-position:220% 0;}
+}
+@keyframes rqaBadge{
+  0%{opacity:0;transform:scale(.4);}
+  42%{opacity:1;transform:scale(1.18);}
+  100%{opacity:1;transform:scale(1);}
+}
+/* 움직임을 줄이라는 화면에서는 **연출만** 걷는다 — 채택됐다는 사실은 파란 강조가 말한다. */
+@media (prefers-reduced-motion:reduce){
+  #cpop-body .rqa-item.best.rqa-pop{animation:none;background-image:none;}
+  #cpop-body .rqa-item.best.rqa-pop .rqa-best{animation:none;}
+}
 #cpop-body .rqa-t{font-size:.86rem;}
 #cpop-body .rqa-img{width:64px;height:auto;aspect-ratio:1/1;max-height:none;border-radius:10px;}
 #cpop-body .rqa-time{font-size:.7rem;}

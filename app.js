@@ -5805,6 +5805,24 @@ function initDealOnFxUI(){ // 표시 옵션(s-view) — admin.html 에만 있다
   syncDealOnFxUI();
   el.addEventListener('change',function(){setDealOnFx(el.value==='1');});
 }
+/* 회차가 정한 **피드 가로 개수** (v2.63.1) — 사용자: "탭 바꾸기에서 피드의 경우 가로
+   배열 개수를 정할 수 있게 (피드를 바꾸자마자 그 배열로 보이도록)".
+   ⚠️ **되돌린다.** `applyFeedCols` 는 localStorage 까지 쓰는 관리자 설정인데, 시연 한 판이
+   그 기기의 설정을 영구히 바꾸면 안 된다 — 존 카드·컨텐츠 배율·무대 밝기와 같은 판단이다.
+   회차가 끝나면(`nhReset`) 원래 값으로 돌아간다. */
+var nhFeedColsPrev=null;
+function nhFeedColsSet(v){
+  var n=parseInt(v,10);
+  if(!isFinite(n)||n<1||n>3)return;                 // 안 정했으면 손대지 않는다
+  if(typeof applyFeedCols!=='function')return;
+  if(nhFeedColsPrev==null)nhFeedColsPrev=(typeof feedCols!=='undefined')?feedCols:2;
+  applyFeedCols(n);
+}
+function nhFeedColsRestore(){
+  if(nhFeedColsPrev==null)return;
+  var p=nhFeedColsPrev;nhFeedColsPrev=null;
+  if(typeof applyFeedCols==='function')applyFeedCols(p);
+}
 /* 무대가 건 테마와 그 전 값 (v2.62.6) — 되돌릴 값을 여기 적어 둔다. */
 var nhThemePrev=null;
 function nhThemeSet(v){
@@ -7560,8 +7578,15 @@ function couponFly(from){
        `transform:scale(var(--ui-nav-s))` 가 걸려 있고 그 값은 관리자 설정(기본 90%)이라
        상수로 못 적는다. 엉뚱한 자리로 빨려 들어가는 것보다 아무 일도 안 하는 편이 낫다. */
     if(!tr||!tr.width)return;
-    var ar=(from&&from.getBoundingClientRect)?from.getBoundingClientRect():null;
-    if(ar&&!ar.width)ar=null; // 이미 닫힌 요소(rect 0)는 출발점이 못 된다 — 화면 가운데로
+    /* 출발점은 요소이거나 **미리 재 둔 자리**다 (v2.63.1).
+       ⚠️ 여태 요소만 받았는데, `coupon` 액션은 `nhAfterClose` 안에서 받으므로 그때
+       `#ds-claim` 은 **이미 닫힌 시트 안**이라 rect 가 0 이다 — 아래 한 줄이 그것을
+       null 로 만들어 티켓이 **화면 한가운데**에서 출발했다. 사용자가 "쿠폰 받기 버튼에서
+       시작하는 동선으로" 라고 한 자리가 정확히 이것이다.
+       이제 부르는 쪽이 **닫기 전에 재 둔 rect** 를 그대로 넘길 수 있다. */
+    var ar=(from&&from.getBoundingClientRect)?from.getBoundingClientRect():
+           ((from&&from.width)?from:null);
+    if(ar&&!ar.width)ar=null; // 그래도 0 이면 화면 가운데 (자리를 짐작하지 않는다)
     var host=document.createElement('div');host.className='coupon-fly';
     host.innerHTML='<span class="cf-ticket">🎟</span>';
     var x0=ar?(ar.left-sr.left+ar.width/2):(sr.width/2),
@@ -9480,6 +9505,22 @@ function nhAdopt(rq,idx,token){
   rq.answers[i].best=1;
   rq.adopted=1;
   nhReqRepaint(rq.id);
+  /* 채택되는 **그 순간**의 연출 (v2.63.1) — 사용자: "채택한 응답에 대한 효과 표시
+     (배경이 그라데이션으로 채워지거나 체크 표시가 효과로 나온다든지)".
+     여태 `.rqa-item.best` 의 파란 바탕·테두리는 **상태**만 말했다: 다시 열어도 같은
+     모습이라 "지금 채택됐다" 가 안 읽혔다. 여기서 한 번만 도는 연출을 얹는다 —
+     빛이 줄을 훑고 지나가고 ✅ 뱃지가 뿅 뜬다.
+     ⚠️ `nhReqRepaint` **뒤**에 걸어야 한다: 그 함수가 `cpopRefresh` 로 답 목록을 통째로
+     다시 그리므로, 앞에 걸면 방금 붙인 클래스가 그 자리에서 날아간다.
+     ⚠️ 팝업이 안 열려 있으면 그냥 지나간다 — 그때는 열었을 때 ✅ 상태만 보이면 된다. */
+  try{
+    var bestEl=document.querySelector('#cpop-body .rqa-item.best');
+    if(bestEl){
+      bestEl.classList.remove('rqa-pop');void bestEl.offsetWidth; // 재시작 (같은 답을 다시 채택해도 돈다)
+      bestEl.classList.add('rqa-pop');
+      setTimeout(function(){try{bestEl.classList.remove('rqa-pop');}catch(e){}},1400);
+    }
+  }catch(e){}
   /* v2.48: 채택 **표시**는 지금 팝업 안에 남고(✅), **말과 핀 걷기는 팝업이 닫힌 뒤**다.
      여태는 900ms 타이머라 팝업이 열려 있는 채로 뒤에서 핀이 터졌다 — 채택한 답을 다시
      읽을 틈도 없었고, 무엇보다 그 시간을 대본이 정할 수 없었다.
@@ -10144,6 +10185,11 @@ function nhCoupon(i,say,e,token,ms,fast){
   }
   var btn=document.getElementById('ds-claim');
   if(btn&&typeof nhTouch==='function')nhTouch(btn);
+  /* 버튼 자리를 **지금** 재 둔다 (v2.63.1) — 아래 nhAfterClose 는 시트가 걷힌 뒤에 돌아서
+     그때는 이 버튼의 rect 가 0 이다. 값만 복사해 두면 요소가 사라져도 자리는 남는다. */
+  var btnAt=null;
+  if(btn){var _r=btn.getBoundingClientRect();
+    if(_r&&_r.width)btnAt={left:_r.left,top:_r.top,width:_r.width,height:_r.height};}
   var wait=Math.min(900,Math.max(260,Math.round((ms||1500)*0.45)));
   setTimeout(function(){
     if(token!==nhRunToken)return;
@@ -10155,7 +10201,7 @@ function nhCoupon(i,say,e,token,ms,fast){
        버튼은 누르는 것까지가 지금이다(`nhTouch`) — 눌림은 그 자리에서 보여야 한다. */
     nhAfterClose(function(){
       if(token!==nhRunToken)return;
-      claimDeal(d,{ms:nhCouponMs(e),say:say,from:btn});
+      claimDeal(d,{ms:nhCouponMs(e),say:say,from:btnAt||btn});
     });
   },wait);
   return true;
@@ -10458,7 +10504,14 @@ function nhAct(st,token){
   nhRateSet(st&&st.a,st&&!st.fast?st.ms:0);
   function exec(){
     try{
-      if(st.a==='tab'){if(typeof switchTab!=='function')return false;switchTab(st.v);return true;}
+      if(st.a==='tab'){
+        if(typeof switchTab!=='function')return false;
+        /* 개수를 **탭 전환보다 먼저** 건다 (v2.63.1) — 사용자 요구가 "피드를 바꾸자마자
+           해당 배열 방식으로" 다. 뒤에 걸면 여태 배열로 한 번 그려진 뒤 다시 그려져서
+           바뀌는 것이 눈에 보인다. `applyFeedCols` 는 그리드 CSS 만 바꾸므로 탭이 아직
+           안 열려 있어도 안전하다. */
+        if(st.v==='feed')nhFeedColsSet(st.e);
+        switchTab(st.v);return true;}
       if(st.a==='mode'){if(typeof switchMode!=='function')return false;
         if(st.v!==currentMode)switchMode(st.v);return true;}
       // 지역 이동 — 자체 지도 조작을 만들지 않고 동결 앵커 cpopGoMap 을 부른다.
@@ -11238,11 +11291,15 @@ var nhPlacePhotos={key:'',urls:[],credits:[],busy:false};
    사진이 표기 없이** 화면에 떴다 — 그대로 두면 약관 위반이다. 이제 도착하는 자리에서
    다시 건다. */
 var nhPlaceCreditOn=false;
-function nhPlacePhotoKey(lat,lng){return (Math.round(lat*200)/200)+','+(Math.round(lng*200)/200);}
-function nhPlacePhotoPrefetch(lat,lng){
+function nhPlacePhotoKey(lat,lng,kw){
+  /* 주제도 키의 일부다 (v2.63.1) — 안 넣으면 같은 동네에서 주제를 바꿔도 앞의 사진이
+     그대로 재사용돼 "주제 기준" 이 조용히 안 먹는다. */
+  return (Math.round(lat*200)/200)+','+(Math.round(lng*200)/200)+'|'+String(kw||'');
+}
+function nhPlacePhotoPrefetch(lat,lng,kw){
   try{
     if(lat==null||lng==null)return;
-    var key=nhPlacePhotoKey(lat,lng);
+    var key=nhPlacePhotoKey(lat,lng,kw);
     if(nhPlacePhotos.key===key&&nhPlacePhotos.urls.length)return; // 같은 동네면 다시 안 받는다
     if(nhPlacePhotos.busy)return;
     if(typeof google==='undefined'||!google.maps||!google.maps.places||!google.maps.places.PlacesService)return;
@@ -11250,7 +11307,17 @@ function nhPlacePhotoPrefetch(lat,lng){
     if(!host)return;
     nhPlacePhotos.busy=true;
     var svc=new google.maps.places.PlacesService(host);
-    svc.nearbySearch({location:new google.maps.LatLng(lat,lng),radius:800},function(res,status){
+    /* 주제 기준 (v2.63.1) — 사용자: "현재 위치 기준뿐 아니라 사용자가 작성한 주제
+       기준으로도 채워주는 기능". `nearbySearch` 의 `keyword` 는 이름·종류·주소·리뷰를
+       훑으므로 "루프탑" · "베이커리" 같은 말이 그대로 먹는다.
+       ⚠️ **자리는 여전히 이 동네다** — keyword 만 얹는다. textSearch 로 바꾸면 검색이
+       동네를 벗어나 엉뚱한 도시의 사진이 와서 "이 동네가 깨어난다" 가 깨진다.
+       ⚠️ 주제로 좁히면 결과가 0 일 수 있다 — 그때는 아래에서 그냥 안 채우고, burst 는
+       옛 묶음으로 떨어진다(빈 카드가 되지 않는다). */
+    var q={location:new google.maps.LatLng(lat,lng),radius:800};
+    var kwS=String(kw||'').trim().slice(0,40);
+    if(kwS)q.keyword=kwS;
+    svc.nearbySearch(q,function(res,status){
       nhPlacePhotos.busy=false;
       try{
         var S=google.maps.places.PlacesServiceStatus;
@@ -11433,11 +11500,17 @@ function nhBurst(v,n,e,ms,token,look,sp){
   if(typeof switchTab==='function')switchTab('map');
   var at=nhCenter()||c;
   // look:'photo' = 쏟아지는 피드를 **실사진**으로 (v2.37). 비면 여태처럼 테마 색 일러스트.
-  var lookMode=String(look||'').toLowerCase();
+  /* 사진 방식과 **주제**를 한 칸에 담는다 (v2.63.1) — `nearby` 또는 `nearby:루프탑`.
+     새 단계 칸을 안 뚫은 이유는 D94·D95 와 같다: 칸을 늘리면 앱 sanitize·콘솔 파서·
+     paceSteps/paceFast·nowhere-stage 까지 다섯 자리가 갈린다. 이 칸은 이미 그 길을 지난다. */
+  var lookRaw=String(look||'').toLowerCase();
+  var ci=lookRaw.indexOf(':');
+  var lookMode=(ci>=0?lookRaw.slice(0,ci):lookRaw);
+  var lookKw=(ci>=0?String(look).slice(ci+1):'').trim(); // 주제는 원문 대소문자 그대로
   var realPhoto=(lookMode==='photo'||lookMode==='nearby');
   /* v2.62.9 — 근처 실제 장소 사진은 **미리** 받아 둔다(비동기라 깔 때 부르면 늦는다).
      못 받으면 아래 nhBurstPhoto 가 조용히 옛 묶음으로 떨어진다. */
-  if(lookMode==='nearby'){nhPlacePhotoPrefetch(c.lat,c.lng);nhPlaceCredit(true);}
+  if(lookMode==='nearby'){nhPlacePhotoPrefetch(c.lat,c.lng,lookKw);nhPlaceCredit(true);}
   var spread=nhBurstSpread(sp); // 밀집도 (v2.38) — 자리 반경에 곱한다
   /* 밀집도 자리의 특별한 값 하나 (v2.61): `view` = **지금 보고 있는 지도 안에만**.
      반경을 줌에서 계산하는 대신 화면의 실제 상자를 재고, 그 안에 고르게 뿌린다 —
@@ -11590,11 +11663,16 @@ function nhSeedScenario(sc,token){
      0 이었다) — 밝기 게이트와 **같은 병**이다. 그래서 동네도 여기서 따로 집는다.
      쓸 단계가 하나라도 있을 때만 부른다 — 안 쓰는 데모에서 Places 를 부르면 그냥 과금이다. */
   try{
-    var wantNearby=(sc&&Array.isArray(sc.steps))&&sc.steps.some(function(st){
-      return st&&st.a==='burst'&&String(st.n||'').toLowerCase()==='nearby';});
-    if(wantNearby){
+    /* 주제까지 함께 본다 (v2.63.1) — `nearby` 또는 `nearby:주제`. 여러 burst 가 서로
+       다른 주제를 쓰면 **마지막 것**만 미리 받는다(캐시가 한 벌이다) — 앞의 것은 제 차례에
+       다시 받으므로 앞쪽 카드 몇 장이 옛 묶음으로 떨어질 뿐 화면은 안 깨진다. */
+    var nearbyStep=null;
+    if(sc&&Array.isArray(sc.steps))sc.steps.forEach(function(st){
+      if(st&&st.a==='burst'&&/^nearby(:|$)/i.test(String(st.n||'')))nearbyStep=st;});
+    if(nearbyStep){
       var pc0=SEED_AREAS[(sc&&sc.area)||nhAreaKey]||SEED_AREAS.gangnam;
-      if(pc0)nhPlacePhotoPrefetch(pc0.lat,pc0.lng);
+      var raw0=String(nearbyStep.n||''),ci0=raw0.indexOf(':');
+      if(pc0)nhPlacePhotoPrefetch(pc0.lat,pc0.lng,ci0>=0?raw0.slice(ci0+1).trim():'');
     }
   }catch(e){}
   if(!sc||!sc.seed)return;
@@ -11766,6 +11844,7 @@ function nhReset(){
     if(typeof nhZoneCardRestore==='function')nhZoneCardRestore(); // 회차가 바꾼 카드 모양도 되돌린다 (v2.26)
     if(typeof nhContentKRestore==='function')nhContentKRestore(); // 컨텐츠 크기 배율도 (v2.46)
     if(typeof nhThemeRestore==='function')nhThemeRestore();     // 무대가 건 테마도 (v2.62.6)
+    if(typeof nhFeedColsRestore==='function')nhFeedColsRestore(); // 회차가 정한 피드 가로 개수도 (v2.63.1)
     if(typeof nhPlaceCredit==='function')nhPlaceCredit(false); // 장소 사진 출처 표기도 회차와 함께 (v2.62.9)
     nhSweepTemp();
     nhCoinsRestore(); // 이 회차가 적립한 코인도 되돌린다 (v2.19)
@@ -11967,6 +12046,10 @@ function nhSanitize(raw){
         img:nhImgSrc(f.img), // v2.10: 사람이 올린 사진 (없으면 테마 색으로 그린다 — 지면 카드와 같은 규칙)
         at:nhLatLng(f.at),   // v2.24: 항목이 들고 온 제 자리
         likes:nhLikes(f.likes), // v2.33: 미리 심는 좋아요 수 (0~999)
+        /* 라이브 카메라인가 (v2.63.1) — `nhLayFeed` 는 이 칸을 **v2.34 부터 읽고 있었는데**
+           여기서 안 실어 보내서 콘솔이 정할 길이 아예 없었다. 무대 밝기와 같은 자리·같은
+           병이다: 이 map 은 **새 객체를 짓는다**. */
+        kind:(f.kind==='cam'?'cam':'post'),
         hold:!!f.hold};
     // 사진만 올리고 글은 안 적을 수 있다 (v2.10) — 카드가 곧 사진인 피드다.
     }).filter(function(f){return f.desc||f.label||f.img;});
