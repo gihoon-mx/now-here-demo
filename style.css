@@ -82,6 +82,17 @@ body[data-theme="dark"] #cp-frame.folded,
 body[data-theme="dark"] #cp-frame.folded .cp-slide{background:var(--card);}
 /* 서랍은 흰 유리를 박아 썼다 — 다크에서는 검은 유리다. */
 body[data-theme="dark"] #phone-drawer{background:rgba(18,21,27,0.78);}
+/* 하단 네비 (v2.62.5) — 사용자: "지도와 피드/커뮤니티 탭의 아이콘, 왼쪽 하단 add 버튼 등도
+   다크모드로". 유리 알약은 v2.62.4 에서 이미 어두워졌는데 **그 위의 선 색이 안 따라갔다**:
+   `.pn-add` 는 `#3c434e`, 안 고른 탭은 `#5f6672` 를 박아 써서 어두운 유리 위에 어두운
+   아이콘이 놓였다(v3 스킨은 제 규칙이 흰색이라 안 보였고, 다른 스킨에서 드러났다).
+   ⚠️ 고른 탭의 파랑·초록·보라 그라디언트는 **그대로 둔다** — 그건 탭의 정체성이고,
+   어두운 배경에서도 흰 글자 대비가 충분하다. */
+body[data-theme="dark"] .pn-add{color:var(--ink);}
+body[data-theme="dark"] .pn-item{color:var(--ink3);}
+body[data-theme="dark"] .pn-item:not(.active) .pn-ic{color:inherit;}
+/* 컨텐츠 추가 팝업의 항목도 같은 유리 위에 산다. */
+body[data-theme="dark"] .cam-item{color:var(--ink);}
 html,body{width:100%;height:100%;overflow:hidden;font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,-apple-system,sans-serif;background:var(--bg);}
 #app-shell{display:flex;width:100%;height:100%;position:relative;}
 #map{flex:1 1 auto;height:100%;min-width:0;}
@@ -676,6 +687,19 @@ body.mode-trend .add-pin .apn-ring{border-color:rgba(255,90,60,0.6);}
 #cp-frame.cv1 .cp-slide{display:flex;flex-direction:column;gap:2cqw;padding:2.2cqw;background:#fff;}
 #cp-frame.cv1 .cp-slide img{flex:1;min-height:0;width:100%;border-radius:3.2cqw;}
 #cp-frame.cv1 .cps-grad{display:none;}
+/* 사진만 (v2.62.5) — 사용자: "컨텐츠 탭의 지면카드에 지역이름란 생략 옵션 (이미지 위에
+   그라데이션 처리가 안 된 깨끗한 이미지가 노출되도록 하기 위함)".
+   **그라데이션은 글자를 읽히게 하려고 있는 것**이라, 지역 이름만 빼고 그라데이션을 남기면
+   목적이 반만 이뤄진다 — 그래서 이 옵션은 **글자칸과 그라데이션을 함께** 접는다.
+   ⚠️ `display:none` 이지 `opacity:0` 이 아니다: 자리를 남기면 카드 아래쪽이 여전히
+   눌린 것처럼 보인다. */
+.cp-slide.cps-bare .cps-grad,.cp-slide.cps-bare .cps-body{display:none!important;}
+/* 관리자 지면 목록의 '사진만' 칸 */
+.ni-bare{display:flex;align-items:center;gap:5px;font-size:.68rem;font-weight:600;color:var(--ink3);cursor:pointer;user-select:none;}
+.ni-bare input{width:13px;height:13px;margin:0;cursor:pointer;}
+/* 데모 프로필 사진 칸 (v2.62.5) */
+.dp-url{width:100%;min-width:0;}
+.dp-prev{width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid var(--line);}
 #cp-frame.cv1 .cps-body{position:static;padding:0 1.2cqw 0.8cqw;}
 #cp-frame.cv1 .cps-title{color:var(--ink);font-size:3.7cqw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #cp-frame.cv1 .cps-place{color:var(--ink3);}

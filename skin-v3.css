@@ -849,6 +849,8 @@ body[data-skin="v3"][data-theme="dark"]{
   --v3-ink5:#78818f;
   /* 지도 위 유리 알약(모드 토글) — 밝은 회색 유리는 다크에서 흰 덩어리로 남는다. */
   --v3-glass:rgba(40,46,58,.58);
+  --v3-glass-on:rgba(58,66,82,.78);  /* 세그먼트 선택 */
+  --v3-glass-ic:rgba(52,60,74,.72);  /* 네비 선택 아이콘 */
 }
 /* 프로필 원은 **잉크색 원 + 흰 글자**다 — 잉크가 밝아지면 글자도 뒤집어야 읽힌다. */
 body[data-skin="v3"][data-theme="dark"] .pa-profile #pa-profile-initial{color:#12151b;}

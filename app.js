@@ -2371,6 +2371,9 @@ function renderNews(){
        바운스 표를 떼면 ①지면 사진이 지도 핀과 같이 튀고 ②표(스팟·피드는 2장 — PC·폰 지도
        몫)를 여기서 한 장 훔쳐 가서 정작 지도 핀 하나가 안 튀었다. 지도 위 컨텐츠만 튄다. */
     if(!it.feed&&typeof nhBounceTake==='function'&&nhBounceTake(it.id))sl.classList.add('nh-pop-in'); // drop 으로 지금 생긴 지면 (v2.11)
+    /* 사진만 (v2.62.5) — 글자칸·그라데이션을 함께 접는다 (CSS `.cps-bare`).
+       `it.feed`(피드에서 파생된 카드)에는 이 칸이 없다: 사람이 올린 지면에만 붙는 옵션이다. */
+    if(it.bare)sl.classList.add('cps-bare');
     var im=document.createElement('img');im.src=it.src;im.alt='';sl.appendChild(im);
     var grad=document.createElement('div');grad.className='cps-grad';sl.appendChild(grad);
     var body=document.createElement('div');body.className='cps-body';
@@ -2506,9 +2509,15 @@ function renderNewsList(){
     reg.addEventListener('change',function(){newsItems[i].region=this.value.trim();saveNews();renderNews();});
     var ttl=document.createElement('input');ttl.className='ni-region ni-title';ttl.type='text';ttl.maxLength=40;ttl.placeholder='카드 제목 텍스트';ttl.value=it.title||'';
     ttl.addEventListener('change',function(){newsItems[i].title=this.value.trim();saveNews();renderNews();});
+    /* 사진만 (v2.62.5) — 켜면 위 두 칸(위치·제목)이 화면에 안 뜬다. 값은 지우지 않는다:
+       껐을 때 적어 둔 글이 그대로 돌아와야 "잠깐 감춘 것" 으로 읽힌다. */
+    var bare=document.createElement('label');bare.className='ni-bare';
+    var bcb=document.createElement('input');bcb.type='checkbox';bcb.checked=!!it.bare;
+    bcb.addEventListener('change',function(){newsItems[i].bare=this.checked;saveNews();renderNews();});
+    bare.appendChild(bcb);bare.appendChild(document.createTextNode(' 사진만 (글자·그라데이션 없이)'));
     var fields=document.createElement('div');fields.className='ni-fields';
     var r1=document.createElement('div');r1.className='ni-row';r1.appendChild(tabSel);r1.appendChild(reg);
-    fields.appendChild(r1);fields.appendChild(ttl);
+    fields.appendChild(r1);fields.appendChild(ttl);fields.appendChild(bare);
     var act=document.createElement('div');act.className='ni-actions';
     var up=mkBtn('↑'),dn=mkBtn('↓'),del=mkBtn('🗑');
     up.onclick=function(){newsMove(i,-1);};dn.onclick=function(){newsMove(i,1);};del.onclick=function(){newsDelete(i);};
@@ -4247,8 +4256,12 @@ function showUserChip(user,role){
   // 폰 우상단 프로필: 사진(있으면) 또는 이니셜
   var pf=document.getElementById('phone-profile'),pi=document.getElementById('pa-profile-img'),pn=document.getElementById('pa-profile-initial');
   if(pf){
-    if(user.photoURL&&pi){pi.src=user.photoURL;pf.classList.add('has-photo');}
-    else{pf.classList.remove('has-photo');if(pn)pn.textContent=(user.email||'?').charAt(0).toUpperCase();}
+    /* 데모 사진이 **먼저다** (v2.62.5) — 사람이 이 데모에 세운 얼굴이 계정 사진보다
+       구체적인 지시다. 비어 있을 때만 여태 규칙(계정 사진 → 이니셜)이 온다. */
+    if(pn)pn.textContent=(user.email||'?').charAt(0).toUpperCase();
+    if(typeof applyDemoPhoto==='function')applyDemoPhoto();
+    else if(user.photoURL&&pi){pi.src=user.photoURL;pf.classList.add('has-photo');}
+    else pf.classList.remove('has-photo');
   }
   // 프로필 메뉴: 계정 + 버전
   var pe=document.getElementById('ppm-email');
@@ -4489,6 +4502,7 @@ function settingsSnapshotFull(){
     uiScale:uiScale, // v2.27 폰 셸 UI 크기 (additive)
     popScrim:popScrim, // v2.62.3 지도 위 팝업 뒷배경 (블러·어둡기, additive)
     appTheme:appTheme, // v2.62.4 라이트/다크 (additive)
+    demoPhoto:demoPhoto, // v2.62.5 데모 프로필 사진 (additive)
     /* 상단 지면 타입 (v2.11) — cardVer 는 shared/news(SDK 전용)로만 다녀서 persona-vc
        임베드(REST publicSettings)가 영영 못 봤다. 스킨은 건너가는데 지면 타입만 기본(1)
        으로 뜨던 원인. */
@@ -4525,6 +4539,7 @@ function applyExtraSettings(s){
   if(s.uiScale&&typeof s.uiScale==='object'){mergeUiScale(s.uiScale);applyUiScale();} // v2.27 — CSS 변수라 즉시 적용해도 안전(재렌더 없음)
   if(s.popScrim&&typeof s.popScrim==='object'){mergePopScrim(s.popScrim);applyPopScrim();} // v2.62.3 — 같은 이유로 즉시
   if(APP_THEMES.indexOf(s.appTheme)>=0){appTheme=s.appTheme;applyTheme();} // v2.62.4 — 값 적용만(setAppTheme 은 저장까지 한다)
+  if(typeof s.demoPhoto==='string'){demoPhoto=s.demoPhoto.slice(0,300000);applyDemoPhoto();} // v2.62.5 — 같은 이유로 값만
   // 상단 지면 타입 (v2.11) — 화면 갱신은 부르는 쪽의 renderNews 가 한다 (이 함수의 규칙 그대로).
   var _ncv=parseInt(s.newsCardVer,10);
   if(_ncv>=1&&_ncv<=3)newsCardVer=_ncv;
@@ -4634,6 +4649,7 @@ function applyCloudData(d){
   if(d.popScrim&&typeof d.popScrim==='object'){ // v2.62.3 지도 위 팝업 뒷배경 (additive)
     mergePopScrim(d.popScrim);savePopScrim();syncPopScrimUI();applyPopScrim();}
   if(APP_THEMES.indexOf(d.appTheme)>=0)setAppTheme(d.appTheme,true); // v2.62.4 테마 (additive)
+  if(typeof d.demoPhoto==='string'){demoPhoto=d.demoPhoto.slice(0,300000);saveDemoPhoto();applyDemoPhoto();syncDemoPhotoUI();} // v2.62.5 데모 프로필 사진 (additive)
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   blockDirty={};updateApplyBar();updateBlockBars(); // 클라우드본 = 적용 기준선
 }
@@ -4924,6 +4940,7 @@ function initSettingsExport(){ // 현재 적용 설정 → JSON 복사 (repo set
     snap.uiScale=uiScale; // v2.27 폰 셸 UI 크기
     snap.popScrim=popScrim; // v2.62.3 지도 위 팝업 뒷배경
     snap.appTheme=appTheme; // v2.62.4 라이트/다크
+    snap.demoPhoto=demoPhoto; // v2.62.5 데모 프로필 사진
     snap.appSfx=appSfx; // v2.52 앱 차원 효과음 — settings-default.json 으로 나가야 임베드도 같은 소리다
     var json=JSON.stringify(snap,null,1);
     function done(){btn.textContent='✅ 복사됨';setTimeout(function(){btn.textContent='📋 설정 JSON 복사';},1600);}
@@ -4946,6 +4963,7 @@ function cloudSave(){
     uiScale:uiScale,           // v2.27 — 폰 셸 UI 크기 (additive)
     popScrim:popScrim,         // v2.62.3 — 지도 위 팝업 뒷배경 (additive)
     appTheme:appTheme,         // v2.62.4 — 라이트/다크 (additive)
+    demoPhoto:demoPhoto,       // v2.62.5 — 데모 프로필 사진 (additive)
     appSfx:appSfx};            // v2.52 — 앱 차원 효과음 (additive)
   saveSettingsCache(); // 임베드(같은 오리진)가 이 적용본을 기본값으로 읽는다 (v2.3)
   fbDb.collection('shared').doc('mapContent').set(payload,{merge:true}).catch(function(e){console.warn('shared save fail',e);});
@@ -5561,6 +5579,82 @@ function initUiScaleUI(){ // 표시 옵션(s-view) 컨트롤 — admin.html 에�
       if(typeof markCloudDirty==='function')markCloudDirty();
     });}
   on('ui-mode-scale','mode');on('ui-nav-scale','nav');
+}
+/* ── 데모 프로필 사진 (v2.62.5) ────────────────────────────────────────────
+   사용자 요청: "우측 상단에 프로필 사진도 사용자가 수정할 수 있게 (demo 한해서)".
+
+   **로그인 계정의 사진을 고치는 것이 아니다.** 우상단 원은 여태 `user.photoURL` 을 그렸는데
+   (paintAccount), 시연에서 보이는 얼굴은 **그 계정의 얼굴이지 데모 속 인물의 얼굴이 아니다** —
+   그리고 임베드에는 로그인이 아예 없어서 늘 이니셜 'P' 였다. 여기 값이 있으면 그것이 먼저고,
+   비우면 여태 동작(계정 사진 → 이니셜)으로 돌아간다.
+
+   ⚠️ 파일은 **160px 로 줄여 data URL 로** 담는다. 이 값은 설정과 함께 클라우드로 오가므로
+   원본을 그대로 실으면 문서가 커진다 — 지면 이미지가 900px 로 줄이는 것과 같은 규칙이다. */
+var demoPhoto='';
+try{var _dp=localStorage.getItem('nowhere_demophoto');if(_dp)demoPhoto=String(_dp).slice(0,300000);}catch(e){}
+function saveDemoPhoto(){try{
+  if(demoPhoto)localStorage.setItem('nowhere_demophoto',demoPhoto);
+  else localStorage.removeItem('nowhere_demophoto');
+}catch(e){}}
+/** 우상단 원을 다시 칠한다 — 로그인 전·임베드에서도 돈다(그 자리가 이 기능의 요지다). */
+function applyDemoPhoto(){
+  var pf=document.getElementById('phone-profile'),pi=document.getElementById('pa-profile-img');
+  if(!pf||!pi)return;
+  if(demoPhoto){pi.src=demoPhoto;pf.classList.add('has-photo');return;}
+  /* 비웠으면 계정 사진으로 되돌린다. 계정도 없으면 이니셜이 남는다 —
+     `has-photo` 만 떼면 CSS 가 알아서 이니셜을 보여 준다. */
+  var u=(typeof currentUser!=='undefined')?currentUser:null;
+  if(u&&u.photoURL){pi.src=u.photoURL;pf.classList.add('has-photo');}
+  else pf.classList.remove('has-photo');
+}
+function setDemoPhoto(src){
+  demoPhoto=String(src||'').trim().slice(0,300000);
+  saveDemoPhoto();applyDemoPhoto();syncDemoPhotoUI();
+  if(typeof markCloudDirty==='function')markCloudDirty();
+}
+function syncDemoPhotoUI(){
+  var t=document.getElementById('demo-photo-url');if(t)t.value=/^data:/.test(demoPhoto)?'':demoPhoto;
+  var pv=document.getElementById('demo-photo-prev');
+  if(pv){if(demoPhoto){pv.src=demoPhoto;pv.style.display='';}else{pv.removeAttribute('src');pv.style.display='none';}}
+}
+/** 프로필용 압축 — 정사각 160px 로 **가운데를 잘라** 담는다 (원형 마스크와 같은 그림). */
+function compressPhoto(file,cb){
+  var r=new FileReader();
+  r.onload=function(e){
+    var im=new Image();
+    im.onload=function(){
+      var S=160,cv=document.createElement('canvas');cv.width=S;cv.height=S;
+      var side=Math.min(im.width,im.height);
+      cv.getContext('2d').drawImage(im,(im.width-side)/2,(im.height-side)/2,side,side,0,0,S,S);
+      cb(cv.toDataURL('image/jpeg',0.82));
+    };
+    im.onerror=function(){cb(null);};
+    im.src=e.target.result;
+  };
+  r.onerror=function(){cb(null);};
+  r.readAsDataURL(file);
+}
+function initDemoPhotoUI(){ // 표시 옵션(s-view) — admin.html 에만 있다(없으면 조용히 통과)
+  applyDemoPhoto();
+  var url=document.getElementById('demo-photo-url');if(!url)return;
+  syncDemoPhotoUI();
+  url.addEventListener('change',function(){
+    var v=(url.value||'').trim();
+    if(v&&!/^https:[/][/]/i.test(v)){alert('https:// 로 시작하는 이미지 주소를 넣어주세요. (파일은 아래 올리기 버튼)');syncDemoPhotoUI();return;}
+    setDemoPhoto(v);
+  });
+  var pick=document.getElementById('demo-photo-file'),btn=document.getElementById('demo-photo-btn');
+  if(btn&&pick)btn.addEventListener('click',function(){pick.click();});
+  if(pick)pick.addEventListener('change',function(){
+    var f=pick.files&&pick.files[0];pick.value='';
+    if(!f)return;
+    compressPhoto(f,function(d){
+      if(!d){alert('이 이미지를 읽지 못했어요.');return;}
+      setDemoPhoto(d);
+    });
+  });
+  var clr=document.getElementById('demo-photo-clear');
+  if(clr)clr.addEventListener('click',function(){setDemoPhoto('');});
 }
 /* ── 테마 (v2.62.4) — 라이트 / 다크 ────────────────────────────────────────
    사용자 요청: "dark mode/light mode 전환 액션 추가". 액션이 성립하려면 테마가 먼저
@@ -12032,7 +12126,7 @@ function startEmbed(){
   initSettingsExport();
   initSfxPanel(); // v2.52 앱 차원 효과음
   initApplyBar();initMiniPreviews();initBlockBars();renderMiniPreviews();
-  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();applyPinStyle();initUiScaleUI();initPopScrimUI();initThemeUI();syncCoinUI();initSeedGen();
+  loadFeed();loadRequests();initSocial();initFeaturePage();initLiveCamera();initFeedPost();initRequestAnswer();initFeedTools();initFeedPinch();initSummaryCollapse();initSocialManager();initDemoSeed();initContentPop();renderFeedColList();initContentTable();initTimeDeals();initStorePage();initOverview();initPinViewUI();applyPinStyle();initUiScaleUI();initPopScrimUI();initThemeUI();initDemoPhotoUI();syncCoinUI();initSeedGen();
   window.addEventListener('resize',layoutTabPages);
   nhViewWatch();
   setInterval(function(){if(typeof fieldRequests!=='undefined'&&fieldRequests.length)renderRequestMarkers();},30000); // Request 10분 타임아웃 경과 반영(마커+드로어)
