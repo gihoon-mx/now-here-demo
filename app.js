@@ -1640,16 +1640,21 @@ function cpopComments(body,id,lead){
   function renderCms(){
     cbox.innerHTML='';
     if(lead){
-      /* 말머리는 **아바타 + 말풍선** 한 줄이다 — 채팅창의 문법이라 이 팝업이 무엇인지가
-         구조로 읽힌다. 아바타는 그 글의 이모지다(스팟이 이미 들고 있는 얼굴). */
+      /* 말머리는 **이 대화가 무엇에 관한 것인가**다 — 의견 말풍선과 같은 줄에 서되 더 크고
+         진하게 선다 (v2.62.2).
+
+         ⚠️ **아바타(이모지)를 뗐다.** 사용자 지적: "이모지는 생략해도 될 거 같아 (메시지
+         얼라인이 안 맞는 느낌)". 실제로 안 맞았다 — 아바타 26px + 간격 6px 때문에 말머리
+         말풍선만 왼쪽에서 32px 안쪽에서 시작하고, 아래 남의 의견 말풍선은 0 에서 시작했다.
+         같은 왼쪽 줄인데 시작점이 둘이었던 것이다. 이모지는 지도 위 말풍선과 팝업 헤더가
+         이미 들고 있으므로 여기서 한 번 더 적을 것이 아니다. */
       var row=document.createElement('div');row.className='cpc-lead-row'+(lead.me?' me':'');
-      var av=document.createElement('b');av.className='cpc-ava';av.textContent=lead.emoji||'💬';
       var lb=document.createElement('div');lb.className='cpc-bub lead'+(lead.me?' me':'');
       var lw=document.createElement('i');lw.className='cpc-who';lw.textContent=lead.who||'이웃';
       var lt=document.createElement('span');lt.className='cpc-t';lt.textContent=lead.t;
       lb.appendChild(lw);lb.appendChild(lt);
       if(lead.ts){var lm=document.createElement('em');lm.className='cpc-time';lm.textContent=timeAgo(lead.ts);lb.appendChild(lm);}
-      row.appendChild(av);row.appendChild(lb);cbox.appendChild(row);
+      row.appendChild(lb);cbox.appendChild(row);
     }
     var arrC=contentComments(id);
     if(!arrC.length&&!lead){var e0=document.createElement('div');e0.className='cps-noc';e0.textContent='아직 의견이 없어요 — 첫 의견을 남겨보세요 💬';cbox.appendChild(e0);}
@@ -8910,14 +8915,28 @@ var NH_CMT_TEXT=['저도 방금 봤어요','여기 진짜 좋더라구요','오 
   '어제도 그랬어요','저녁에 가면 한산해요','사진 잘 나오는 곳이에요','저만 몰랐나 봐요',
   '주차는 어떤가요?','다음에 같이 가요'];
 var NH_CMT_WHO=['동네주민','근처사는사람','산책러','퇴근길','주말러','단골','옆동네','오늘처음'];
-/** 의견 하나를 남긴다 — 회차가 끝나면 `nhSweepTemp` 가 같은 수만큼 걷는다. */
-function nhCommentAdd(item,k){
+/* 사람이 적어 둔 의견 문구 (v2.62.2) — 단계의 `n` 칸을 `|` 로 나눈 목록이다.
+   **채우지 않은 자리는 위 표가 채운다** (사용자 요구: "미작성시 랜덤으로"). 그래서
+   두 개만 적고 다섯 개를 달아도 앞 둘만 내 말이고 나머지는 여태 문구다 — 한 칸이라도
+   적으면 나머지가 빈다면, 문구를 정하려다 장면이 줄어드는 셈이 된다. */
+function nhCmtTexts(raw){
+  var out=[];
+  String(raw||'').split('|').forEach(function(t){
+    var v=String(t||'').trim().slice(0,60);
+    if(v)out.push(v);
+  });
+  return out.slice(0,NH_HEARTS_MAX);
+}
+/** 의견 하나를 남긴다 — 회차가 끝나면 `nhSweepTemp` 가 같은 수만큼 걷는다.
+    `texts` 가 그 자리(ci)를 채우고 있으면 그 말이 먼저다 (v2.62.2). */
+function nhCommentAdd(item,k,texts){
   if(!item||!item.id)return false;
   var key='spot:'+item.id;
   if(typeof socMsgs==='undefined')return false;
   var i=Math.abs((k|0)+String(item.id).length);
+  var mine=(texts&&texts[k|0])?String(texts[k|0]):'';
   (socMsgs[key]=socMsgs[key]||[]).push({
-    me:false,who:NH_CMT_WHO[i%NH_CMT_WHO.length],t:NH_CMT_TEXT[i%NH_CMT_TEXT.length]});
+    me:false,who:NH_CMT_WHO[i%NH_CMT_WHO.length],t:mine||NH_CMT_TEXT[i%NH_CMT_TEXT.length]});
   nhTempIds.cmt.push(key); // 하나에 하나씩 — sweep 이 같은 수만큼 뺀다 (하트와 같은 규칙)
   return true;
 }
@@ -8930,7 +8949,7 @@ function nhCommentAdd(item,k){
    돌았다" 로 보인다. 다만 섞는 방식은 **결정적**이다(v1.72 규칙): 컨텐츠 id 로 씨를 얹은
    작은 LCG 라, 같은 데모는 몇 번을 돌려도 같은 순서로 달린다.
    내 하트(me)는 안 켠다 — 그건 다른 사람들의 손이다. */
-function nhReact(kind,item,hn,cn,ms,token){
+function nhReact(kind,item,hn,cn,ms,token,texts){
   if(!item)return false;
   hn=Math.min(NH_HEARTS_MAX,Math.max(0,hn|0));
   cn=Math.min(NH_HEARTS_MAX,Math.max(0,cn|0));
@@ -8962,7 +8981,7 @@ function nhReact(kind,item,hn,cn,ms,token){
     setTimeout(function(){
       if(token!==nhRunToken)return;
       if(what==='h'){ if(!nhHeartAdd(kind,item,false))return; }
-      else if(!nhCommentAdd(item,ci))return;
+      else if(!nhCommentAdd(item,ci,texts))return;
       nhLikeRepaint(kind,item); // 라벨 하나가 둘 다 든다 (v2.40) — 한 번 칠하면 양쪽이 맞는다
       /* 온도(전체 대비 비율)는 **마지막 한 번만** 다시 칠한다 — 리액션마다 전체 렌더를
          돌리면 50개짜리 단계에서 지도가 오십 번 다시 그려진다. */
@@ -9645,6 +9664,59 @@ function nhAnswerTyped(rq,text,token,ms,fast){
   return true;
 }
 
+/* ── 사용자가 스팟 팝업에 의견을 쓴다 (v2.62.2) ─────────────────────────────
+   사용자 요구: "스팟 메시지 팝업창에서 사용자가 작성하는 단계 액션 추가해줘 (팝업은
+   자동으로 닫지말고 이전 팝업 룰과 똑같이 popclose로 닫음)".
+
+   `answer`(nhAnswerTyped)의 이웃이다 — **같은 손짓, 다른 창**: 팝업을 열고, 그 창이 이미
+   들고 있는 입력줄에 글자를 하나씩 박고, 커밋한다. 타이밍 규칙(t0·commitAt·per)도 같은
+   값을 쓴다: 두 곳이 다르면 같은 연출이 다른 속도로 보인다.
+
+   ⚠️ **스스로 안 닫는다** (v2.48 규칙). 방금 쓴 말이 대화에 앉는 것까지가 이 장면이고,
+   얼마나 보여줄지는 대본이 정한다 — 뒤에 `popclose` 를 두면 그때 닫힌다.
+   ⚠️ 입력줄은 `cpopComments` 가 만든 **그 창의 것**을 쓴다(새로 안 만든다). 팝업이
+   스팟이 아니면(피드·Request) 그 줄이 없거나 다른 것이므로 이 액션은 실패로 드러난다. */
+function nhCommentTyped(sp,text,token,ms,fast){
+  if(!sp||typeof openContentPop!=='function'||typeof addSpotComment!=='function')return false;
+  var typed=String(text||'').trim().slice(0,120);
+  if(!typed)return false;                       // 쓸 말이 없으면 아무 일도 안 한다 — 실패로 드러난다
+  /* fast (v2.21) — 타이핑을 접고 그 자리에서 싣는다. 팝업은 연다: 보통 재생도 이 단계가
+     끝나면 의견이 실린 팝업이 열려 있는 상태라, 조립 결과가 같아야 한다. */
+  if(fast){
+    addSpotComment(sp.id,typed);
+    openContentPop('spot',sp);
+    return true;
+  }
+  openContentPop('spot',sp);
+  var body=document.getElementById('cpop-body');if(!body)return false;
+  var inp=body.querySelector('.cps-inputrow input');if(!inp)return false;
+  inp.value='';
+  var commitAt=Math.min(Math.max(900,Math.round((ms||2600)*0.6)),Math.max(260,(ms||2600)-100));
+  var t0=220,win=Math.max(300,commitAt-t0-150);
+  var per=Math.min(90,Math.max(30,Math.round(win/Math.max(1,typed.length))));
+  var pos=0;
+  setTimeout(function(){
+    if(token!==nhRunToken)return;
+    nhSfxPlay('type'); // 손이 자판에 닿는 순간 한 번 (v2.30)
+    var iv=setInterval(function(){
+      if(token!==nhRunToken||!inp.isConnected){clearInterval(iv);return;}
+      pos+=(pos%3===2)?2:1;
+      if(pos>=typed.length){pos=typed.length;clearInterval(iv);}
+      inp.value=typed.slice(0,pos);
+    },per);
+  },t0);
+  setTimeout(function(){
+    if(token!==nhRunToken)return;
+    if(inp.isConnected)inp.value='';            // 보낸 뒤의 칸은 비어 있다 (사람이 보낸 것과 같은 모양)
+    addSpotComment(sp.id,typed);
+    /* 방금 쓴 말이 대화에 앉는 것까지가 이 장면이다. `cpopRefresh` 는 이 창이 심어 둔
+       갱신 훅이라 **팝업을 다시 열지 않고** 목록만 다시 그린다 — 다시 열면 스크롤과
+       입력 상태가 튄다(답장 칸은 새로 만들어야 해서 nhAnswerTyped 가 그렇게 하는 것이다). */
+    if(typeof cpopRefresh==='function')cpopRefresh();
+    if(typeof renderDrawerDemo==='function')renderDrawerDemo();
+  },commitAt);
+  return true;
+}
 /* 타임딜 쿠폰을 받는 장면 (v2.20) — 시트의 '쿠폰 받기' 를 실제로 누른다.
    쿠폰이 사는 자리를 보여주고 누르는 것까지가 이 액션이다: 시트가 안 열려 있으면 열고,
    버튼에 터치 표식을 세운 뒤 한 박자 두고 받는다.
@@ -10082,11 +10154,17 @@ function nhAct(st,token){
       if(st.a==='adopt'){var drq=nhPick('req',st.i);
         if(!drq)return false;
         return nhAdopt(drq,(st.e===''||st.e==null)?0:(parseInt(st.e,10)||0),token)!==false;}
+      /* 사용자가 스팟 팝업에 의견을 쓴다 (v2.62.2) — v=쓸 말 · i=어느 스팟.
+         팝업은 안 닫는다: 뒤따르는 popclose 가 닫는다 (v2.48 규칙). */
+      if(st.a==='comment'){var cSp=nhPick('spot',st.i);
+        if(!cSp)return false;
+        return nhCommentTyped(cSp,st.v||st.say,token,st.ms,st.fast)!==false;}
       if(st.a==='react'){var rK=nhLikeKind(st.v),rf=nhPick(rK,st.i);
         if(!rf)return false;
         var rH=(st.e===''||st.e==null)?1:Math.max(0,parseInt(st.e,10)||0);
         var rC=(st.sp===''||st.sp==null)?1:Math.max(0,parseInt(st.sp,10)||0);
-        return nhReact(rK,rf,rH,rC,st.ms,token)!==false;}
+        /* n = 사람이 적은 의견 문구 (v2.62.2, `|` 로 나눈다) — 안 적은 자리는 앱 표가 채운다 */
+        return nhReact(rK,rf,rH,rC,st.ms,token,nhCmtTexts(st.n))!==false;}
       /* 컨텐츠 추가 팝업 (v2.34) — v:'btn'=하단 + 버튼 · 'hold'=지도를 꾹.
          꾹 누른 자리에는 마커가 서고, 끌어 옮기면 다음 재생도 그 자리다. */
       if(st.a==='addmenu')return nhAddMenu(st.v,st.fast)!==false;
@@ -11245,7 +11323,8 @@ var NH_ACTIONS=['tab','mode','pop','popclose','request','drawer','wait','area',
   'hearts', // v2.34: 남들이 하나둘 하트를 누른다 (v=종류·i=몇 번째·e=몇 개·ms=오르는 시간)
   // v2.34: 컨텐츠 추가 팝업 — 여는 손(addmenu v = btn|hold)과 네 항목을 누르는 손
   'addmenu','addbtn','addspot','addphoto','addpost','addreq',
-  'react','answers','adopt'];
+  'react','answers','adopt',
+  'comment']; // v2.62.2: 사용자가 스팟 팝업에 의견을 쓴다 (v=쓸 말·i=어느 스팟, popclose 가 닫는다)
 /* area 로 갈 수 있는 곳 = 시드가 깔린 지역뿐이다. 콘솔은 nh:ready 의 areas 로 이 목록을 받는다 —
    콘솔에 복사해 두면 지역이 늘 때 두 곳이 어긋나고 어긋난 걸 알아챌 장치가 없다. */
 function nhAreaList(){return SEED_AREA_ORDER.map(function(k){
@@ -11321,7 +11400,12 @@ function nhSanitize(raw){
     steps.push({a:s.a,v:String(s.v||''),i:(s.i|0),
       say:String(s.say||'').slice(0,300),
       // e = 이모지(post) 또는 테마(postfeed) · n = 올린 사람 이름 (v2.1). 옛 콘솔은 안 보낸다.
-      e:String(s.e||'').slice(0,12),n:String(s.n||'').slice(0,20),
+      /* n 은 20자였다 (v2.62.2 에 200 으로). `react` 가 이 칸에 **의견 문구 목록**을
+         싣는다(`|` 로 나눈다) — 짧은 의견 하나도 20자를 넘긴다. 이 슬라이스는 전송의
+         상한일 뿐이고, **이름으로 쓰는 자리는 제가 다시 자른다**(nhLayFeed 가 20자) —
+         한 칸이 두 뜻을 가지므로 짧은 쪽 상한을 여기에 둘 수 없다. sp 가 12→400 으로
+         넓어졌던 것과 같은 이유다(v2.39). */
+      e:String(s.e||'').slice(0,12),n:String(s.n||'').slice(0,200),
       /* sp (v2.38, 콘솔 D142) — 곁들이는 값 **둘째 칸**. 지금은 burst 의 밀집도만 쓴다.
          `e` 가 이미 줌에 쓰이고 있어서 자리가 없었다 — 옛 콘솔은 안 보내고 옛 앱은 모른다. */
       /* v2.39 — 12자였다. `addphoto`·`addpost`·`postfeed` 가 이 칸에 **사진 주소**를
