@@ -16,7 +16,7 @@ const CONFIG = {
      관리(Map Styles)에서 **어두운 스타일**을 만들어 그 ID 에 연결한 뒤 여기 붙이면 된다.
      비어 있으면 앱이 **덮개로 떨어진다**(mapPane 한 겹) — 그때도 지도는 어두워지지만
      라벨·도로까지 같이 눌리므로, 이 값이 채워지는 편이 훨씬 낫다. */
-  MAP_ID_DARK: '',
+  MAP_ID_DARK: '522461754fa2d32a14633d50',
   MAP_CENTER_LAT: 37.38,
   MAP_CENTER_LNG: 127.05,
   MAP_ZOOM: 11,
