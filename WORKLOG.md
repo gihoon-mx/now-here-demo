@@ -265,7 +265,7 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
 ## 📝 변경 이력
 
 ### 2026-08-19 (36)
-- **v2.65.0 — 무대 가져오기: Persona VC 의 페르소나 무대를 이 지역의 시드 그룹으로 (콘솔 v0.173.0 · D216 짝)**
+- **v2.65.0 — 무대 가져오기: Persona VC 의 페르소나 무대를 이 지역의 시드 그룹으로 (콘솔 v0.184.0 · D230 짝)**
   사용자: "페르소나로 데모 컨텐츠 채우기를 만들고, 이걸 now-here-demo 관리자 콘솔에서도 활용".
   - **관리자 › 컨텐츠 › 지역 시드 생성** 아래에 **「무대 가져오기 (Persona VC)」** — 콘솔
     STEP 05 「컨텐츠 채우기」가 내보낸 JSON(`{"nhstage":1,"name","seed"}`)을 붙여넣으면
@@ -279,7 +279,7 @@ git config user.name "gihoon-mx" && git config user.email "gihoon.mx@gmail.com"
     같은 JSON 은 언제나 같은 자리 (Math.random 이면 재렌더마다 움직인다 — sgCommit 의
     jit 주석과 같은 이유). 수량은 NH_MAX 안쪽으로 자른다 (spots·feeds 40 · reqs 10 · deals 12).
   - **nh:* 계약은 안 건드렸다** — JSON 은 사람이 복사해 나르는 것이라 postMessage 어휘가
-    아니다. 콘솔 check:contract 무관, 배포 순서 제약(D91) 없음.
+    아니다. 콘솔 check:contract 무관, 배포 순서 제약(D91) 없음. ⚠️ 처음에 콘솔 짝을 v0.173.0·D216 으로 적었는데, 콘솔 쪽이 병행 세션과 번호가 겹쳐 v0.184.0·D230 으로 재발행됐다 — 여기 표기도 그에 맞춘 것.
   - 검증(로컬 :8766, 지도는 없는 환경): 역할 가드("관리자만") · 지도 가드("지도가 아직") ·
     `sgFocusPoint` 스텁 후 실주입 — 6개 항목이 개별 좌표로 서고(counts 정확, store 와 딜
     구분, pct·secs 클램프), 그룹 라벨 「Persona VC」, 그룹 삭제로 전량 회수. app.js
