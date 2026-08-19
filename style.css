@@ -2234,6 +2234,9 @@ body.no-dealfx .deal-label .dl-onair{display:none;}
 .sg-ck{display:inline-flex;align-items:center;gap:5px;min-width:0!important;
   font-size:.74rem;font-weight:600;color:var(--ink2);cursor:pointer;}
 .sg-ck input{width:15px;height:15px;cursor:pointer;}
+.sg-import{width:100%;min-height:72px;resize:vertical;font:11px/1.5 ui-monospace,monospace;
+  background:var(--v3-input,rgba(0,0,0,.18));color:inherit;border:1px solid var(--v3-line,rgba(255,255,255,.14));
+  border-radius:8px;padding:8px;box-sizing:border-box}
 .sg-status{font-size:.72rem;color:var(--ink3);}
 .sg-h2{margin-top:16px;}
 .sg-groups{display:flex;flex-direction:column;gap:6px;}

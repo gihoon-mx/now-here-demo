@@ -10,11 +10,11 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="favicon.png?v=1.60.0" />
   <title>Now Here Admin</title>
-  <link rel="stylesheet" href="style.css?v=2.64.0" />
+  <link rel="stylesheet" href="style.css?v=2.65.0" />
   <!-- [M15] 새 디자인 스킨. body[data-skin="new"] 스코프라 legacy 일 때는 아무것도 안 한다 -->
-  <link rel="stylesheet" href="skin-new.css?v=2.64.0" />
+  <link rel="stylesheet" href="skin-new.css?v=2.65.0" />
   <!-- [M15] v3.0 디자인 스킨(기본). body[data-skin="v3"] 스코프 -->
-  <link rel="stylesheet" href="skin-v3.css?v=2.64.0" />
+  <link rel="stylesheet" href="skin-v3.css?v=2.65.0" />
   <script>window.PAGE_MODE='admin';</script><!-- v1.65 관리자 페이지(PC 지도+설정+컨텐츠 관리). 서비스는 index.html -->
 </head>
 <body class="page-admin">
@@ -36,7 +36,7 @@
 
   <!-- 관리자 탑바: 브랜드 · 모드 · 메뉴(대형 팝업) · 서비스 링크 · 계정 -->
   <header id="admin-topbar">
-    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.64.0</span></div>
+    <div class="atb-brand"><img src="icon-192.png" alt="" /><b>Now Here</b><span class="atb-badge">관리자</span><span id="app-version">v2.65.0</span></div>
     <div id="mode-toggle">
       <div class="mode-indicator"></div>
       <button class="mode-btn active" data-mode="local"><span class="mode-icon">📍</span> 베이직</button>
@@ -453,6 +453,11 @@
               </div>
               <h4 class="sg-h2">생성 그룹</h4>
               <div id="sg-groups" class="sg-groups"></div>
+              <!-- [M13] v2.65 무대 가져오기 — Persona VC 콘솔 「컨텐츠 채우기」의 JSON 을 이 지역의 시드 그룹으로 -->
+              <h4 class="sg-h2">무대 가져오기 (Persona VC)</h4>
+              <p class="section-hint">Persona VC 콘솔의 <b>STEP 05 › 컨텐츠 채우기</b>가 내보낸 무대 JSON을 붙여넣으면, <b>지금 보고 있는 지역</b>에 그 컨텐츠를 깝니다. 문구는 콘솔의 페르소나가 쓴 그대로예요. 한 번의 가져오기가 그룹 하나가 되어 위 목록에서 숨기거나 지울 수 있습니다.</p>
+              <div class="setting-row"><textarea id="sg-import-json" class="sg-import" rows="4" spellcheck="false" placeholder='{"nhstage":1,"name":"…","seed":{…}} — 콘솔의 「관리자 콘솔용 JSON 복사」'></textarea></div>
+              <div class="setting-row"><button id="sg-import" class="action-btn accent" type="button">📥 이 지역에 깔기</button><span id="sg-import-status" class="sg-status"></span></div>
             </div>
             <div class="settings-section" data-adm="c-seed">
               <h4>데모 데이터 (강남·잠실·성수)</h4>
@@ -733,7 +738,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <!-- Twemoji: OS(iOS/Android) 무관 동일 이모지 렌더링 — app.js initTwemoji가 사용, 로드 실패 시 네이티브 이모지 폴백 -->
   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
-  <script src="config.js?v=2.64.0"></script>
-  <script src="app.js?v=2.64.0"></script>
+  <script src="config.js?v=2.65.0"></script>
+  <script src="app.js?v=2.65.0"></script>
 </body>
 </html>

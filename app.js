@@ -8717,7 +8717,7 @@ function renderSeedGroups(){
     row.querySelector('b').textContent=g.name+' · '+g.places+'곳';
     row.querySelector('i').textContent=
       '스팟 '+(c.spot||0)+' · 사진 '+(c.feed||0)+' · Req '+(c.req||0)+' · 딜 '+(c.deal||0)+
-      ' · 반경 '+g.radius+'m · '+timeAgo(g.ts)+(g.ai?' · AI':' · 템플릿');
+      ' · 반경 '+g.radius+'m · '+timeAgo(g.ts)+(g.src==='pvc'?' · Persona VC':(g.ai?' · AI':' · 템플릿'));
     var acts=row.querySelector('.sg-acts');
     function btn(label,cls,fn){var b=document.createElement('button');b.type='button';
       b.className='action-btn small'+(cls?' '+cls:'');b.textContent=label;b.addEventListener('click',fn);acts.appendChild(b);return b;}
@@ -8730,11 +8730,94 @@ function renderSeedGroups(){
     box.appendChild(row);
   });
 }
+/* ── [M13] v2.65 무대 가져오기 — Persona VC 콘솔 「컨텐츠 채우기」의 JSON. ──
+   콘솔은 페르소나(유저=글·사진·질문, 비즈니스=매장·딜)가 쓴 무대(seed)를 {"nhstage":1,
+   "name","seed"} 로 내보낸다. 여기서는 그것을 **지금 보고 있는 지역**에 시드 그룹으로
+   깐다 — 생성기(sgCommit)와 같은 저장 경로·같은 그룹 관리(이동·숨김·삭제)를 탄다.
+   좌표는 골든앵글 나선으로 결정적이다: 같은 JSON 은 언제나 같은 자리에 선다. */
+function sgImportStage(){
+  if(currentRole!=='admin'){alert('관리자만 실행할 수 있어요.');return;}
+  if(sgBusy)return;
+  var ta=document.getElementById('sg-import-json');if(!ta)return;
+  var raw=(ta.value||'').trim();
+  if(!raw){alert('Persona VC 콘솔의 「관리자 콘솔용 JSON 복사」로 복사한 것을 먼저 붙여넣어 주세요.');return;}
+  var j=null;try{j=JSON.parse(raw);}catch(e){alert('JSON 형식이 아니에요. 콘솔에서 다시 복사해 주세요.');return;}
+  var seed=(j&&j.seed)||j; // seed 알맹이만 붙여넣어도 받는다
+  var spots=Array.isArray(seed&&seed.spots)?seed.spots:[];
+  var feeds=Array.isArray(seed&&seed.feeds)?seed.feeds:[];
+  var reqs=Array.isArray(seed&&seed.reqs)?seed.reqs:[];
+  var deals=Array.isArray(seed&&seed.deals)?seed.deals:[];
+  spots=spots.slice(0,40);feeds=feeds.slice(0,40);reqs=reqs.slice(0,10);deals=deals.slice(0,12); // NH_MAX 안쪽
+  var total=spots.length+feeds.length+reqs.length+deals.length;
+  if(!total){alert('깔 수 있는 컨텐츠(지도 글·피드·Request·매장·타임딜)가 없어요.');return;}
+  var f=sgFocusPoint();if(!f){alert('지도가 아직 준비되지 않았어요.');return;}
+  var gid='g'+Date.now().toString(36);
+  var now=Date.now(), counts={spot:0,feed:0,req:0,deal:0};
+  var radius=Number((document.getElementById('sg-radius')||{}).value)||400;
+  var S=function(v,n){return String(v==null?'':v).slice(0,n);};
+  var k=0, at=function(){ // 골든앵글 나선 — 결정적 배치 (Math.random 이면 재렌더마다 움직인다)
+    var ang=k*2.399963, r=radius*Math.sqrt((k+0.7)/(total+0.7));k++;
+    return {lat:f.lat+(r*Math.cos(ang))/111320, lng:f.lng+(r*Math.sin(ang))/(111320*Math.cos(f.lat*Math.PI/180))};
+  };
+  spots.forEach(function(sp,i){
+    var pos=at();
+    var sd={id:'sg_'+gid+'_s'+i,lat:pos.lat,lng:pos.lng,text:S(sp.t,60)||'…',emoji:S(sp.emoji,4)||'💬',
+            by:'sg_'+gid,byEmail:SEED_OWNER,ts:now-i*600e3,sgroup:gid};
+    if(hasLive())fbDb.collection('liveSpots').doc(sd.id).set(sd).catch(liveWriteErr);
+    else{sd.live=true;demoSpots.push(sd);}
+    counts.spot++;
+  });
+  feeds.forEach(function(fe,i){
+    var pos=at();
+    var src=/^https?:\/\//.test(String(fe.img||''))?String(fe.img).slice(0,500):seedImg(S(fe.theme,20)||'etc',S(fe.name,20)||f.name);
+    var fd={id:'sg_'+gid+'_f'+i,src:src,region:dongAt(pos.lat,pos.lng)||f.name,zone:null,lat:pos.lat,lng:pos.lng,
+            kind:'post',desc:S(fe.desc,80)||'…',name:S(fe.name,20)||'동네주민',by:'sg_'+gid,byEmail:SEED_OWNER,
+            ts:now-i*900e3,likes:{},sgroup:gid};
+    if(hasLive())fbDb.collection('liveFeed').doc(fd.id).set(fd).catch(liveWriteErr);
+    else{fd.type='photo';feedItems.push(fd);}
+    counts.feed++;
+  });
+  reqs.forEach(function(rq,i){
+    var pos=at();
+    var rd={id:'sg_'+gid+'_r'+i,lat:pos.lat,lng:pos.lng,q:S(rq.q,60)||'…',
+            place:dongAt(pos.lat,pos.lng)||f.name,answers:[],by:'sg_'+gid,ts:now,seed:true,sgroup:gid};
+    if(hasLive())fbDb.collection('liveRequests').doc(rd.id).set(rd).catch(liveWriteErr);
+    else fieldRequests.unshift(rd);
+    counts.req++;
+  });
+  deals.forEach(function(d,i){
+    var pos=at();
+    var base={id:'sg_'+gid+'_d'+i,lat:pos.lat,lng:pos.lng,e:S(d.e||d.emoji,4)||'🏪',
+              shop:S(d.shop,20)||S(d.title,20)||'가게',ts:now,seed:true,sgroup:gid};
+    if(d.store){base.store=true;base.title='';}
+    else{
+      base.title=S(d.title,40)||'오늘의 딜';
+      base.pct=Math.min(Math.max(Math.round(Number(d.pct)||20),5),90);
+      base.price=S(d.price,12)||'현장가';base.was=S(d.was,12)||'정가';
+      base.stock=S(d.stock,8)||((6+i%9)+'개');
+      base.secs=Math.min(Math.max(Math.round(Number(d.secs)||1800),300),86400);
+    }
+    timeDeals.push(base);
+    counts.deal++;
+  });
+  if(!hasLive()){saveFeed();saveLocalSpots();saveRequests();}
+  saveDeals();
+  seedGroups.unshift({id:gid,name:S(j&&j.name,40)||('무대 · '+f.name),lat:f.lat,lng:f.lng,radius:radius,
+    places:total,counts:counts,ts:now,hidden:false,src:'pvc'});
+  saveSeedGroups();
+  rebuildSpots();renderFeedMarkers();renderRequestMarkers();renderDealMarkers();renderDrawerDemo();
+  if(typeof renderContentTable==='function')renderContentTable();
+  if(currentTab==='feed')renderFeed();
+  renderSeedGroups();
+  ta.value='';
+  alert('📥 ‘'+f.name+'’에 깔았어요.\n스팟 '+counts.spot+' · 사진 '+counts.feed+' · Request '+counts.req+' · 매장·타임딜 '+counts.deal+'\n(문구: Persona VC 페르소나)');
+}
 function initSeedGen(){
   loadSeedGroups();
   var gen=document.getElementById('sg-gen');if(!gen)return;
   gen.addEventListener('click',sgGenerate);
   var rf=document.getElementById('sg-refresh');if(rf)rf.addEventListener('click',sgSyncFocus);
+  var im=document.getElementById('sg-import');if(im)im.addEventListener('click',sgImportStage);
   sgSyncFocus();renderSeedGroups();
 }
 
