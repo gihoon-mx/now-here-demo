@@ -7732,8 +7732,13 @@ function storeFeedPhotos(d){ // 콘솔이 올린 사진 우선 → 같은 매장
     return !f.hidden&&f.src&&f.name!==d.shop&&f.lat!=null&&haversineM(f.lat,f.lng,d.lat,d.lng)<=400;});
   var out=same.concat(near).slice(0,9);
   if(!out.length){
+    /* 근처에 피드가 없을 때 (v2.71) — 여태 SVG 타일 여섯 장이라 매장 페이지가 통째로
+       일러스트였다. 테마별 실사진을 먼저 깔고, 그것도 없을 때만 색 타일. */
     var th=['food','cafe','shop','night','park','art'];
-    for(var i=0;i<6;i++)out.push({src:seedImg(th[i%th.length],d.shop)});
+    for(var i=0;i<6;i++){
+      var ph=(typeof nhBurstPhoto==='function')?nhBurstPhoto(th[i%th.length],'st'+(d.id||d.shop||''),i,'nearby'):'';
+      out.push({src:ph||seedImg(th[i%th.length],d.shop)});
+    }
   }
   return out;
 }
@@ -11331,8 +11336,9 @@ function nhLayDeal(d,i,c,stamp){
      소개·사진. 딜이 제 값을 적었으면 그것이 먼저다(딜의 배너·제목은 딜의 것). */
   function inh(k){return (d&&d[k])?d[k]:(src?src[k]:'');}
   timeDeals.push({id:id,lat:p.lat,lng:p.lng,
-    // 사진 (v2.12) — 피드·지면과 같은 규칙: 통과한 주소만, 없으면 이모지로 그린다.
-    img:nhImgSrc(d.img),
+    /* 사진 (v2.12 → v2.71) — 비면 시트가 이미지를 통째로 숨겨 이모지만 남았다.
+       콘솔 주소가 없으면 실사진을 받친다. */
+    img:(nhImgSrc(d.img)||(typeof nhBurstPhoto==='function'?nhBurstPhoto('food','dl'+stamp,i,'nearby'):'')),
     e:String(inh('e')||'⏰').slice(0,4),
     title:String(d.title||'').slice(0,40),
     shop:String(inh('shop')||'근처 매장').slice(0,30),
@@ -11421,7 +11427,9 @@ function nhLayNews(p,i,c,stamp){
      올린 사진은 콘솔이 Storage 에 두고 주소만 실어 보낸다 — 시나리오 문서에 이미지를
      통째로 담으면 Firestore 문서 상한(1MB)에 금세 닿는다. */
   newsItems.push({id:id,tab:tab,stage:true,
-    src:(p.img||(typeof seedImg==='function'?seedImg(p.theme||'cafe',''):'')),
+    /* 지면 사진 (v2.71) — 피드와 같은 사다리: 콘솔 주소 → 근처 장소 사진 → 테마별
+       실사진 → 색 카드. 여태 이 줄만 폴백이 없어 지면은 늘 일러스트였다. */
+    src:(p.img||(typeof nhBurstPhoto==='function'?nhBurstPhoto(p.theme||'cafe','pg'+stamp,i,'nearby'):'')||(typeof seedImg==='function'?seedImg(p.theme||'cafe',''):'')),
     /* 글자 없이 사진만 (v2.63) — renderNews 가 이 값으로 `.cps-bare` 를 붙이고, CSS 가
        글자칸과 그라데이션을 함께 접는다(관리자가 올린 지면의 같은 옵션과 한 길이다). */
     bare:!!p.bare,
@@ -11560,7 +11568,8 @@ var NH_BURST_PHOTOS={
   cafe:['latte','latteHeart','cafeInt','espresso','brunch','cheesecake','roastery','barista','bakery'],
   food:['gopchang','kfood8','kfood9','noodle','pojang','gwangjang','gukbap','burger','foodAlley'],
   park:['parkPath','parkMay','seokchonLake','cherry','ttukPark','parkRun','cherryStreet','dogWalk'],
-  shop:['flea3','flea7','seongsuShop','seongsuBrick','shopStreet','store'],
+  // 'store' 는 SEED_IMG 에 없는 키였다 (v2.71 수리) — 그 자리만 조용히 일러스트가 됐다.
+  shop:['flea3','flea7','seongsuShop','seongsuBrick','shopStreet','gangnam'],
   night:['rooftop','garosu','lotteTower','nightRoad','lotteWorld'],
   gym:['gym','climb'],
   book:['book','bookNight','cherryCampus'],
@@ -11598,6 +11607,10 @@ function nhPlacePhotoPrefetch(lat,lng,kw){
     if(lat==null||lng==null)return;
     var key=nhPlacePhotoKey(lat,lng,kw);
     if(nhPlacePhotos.key===key&&nhPlacePhotos.urls.length)return; // 같은 동네면 다시 안 받는다
+    /* **다른 동네·다른 주제면 앞의 것을 즉시 버린다** (v2.71) — 캐시가 한 벌인데 키를
+       확인하지 않아 2회차부터 앞 회차(다른 동네)의 사진이 시드에 들어갔다. 같은 데모를
+       두 번 돌리면 화면이 달라지는 자리였다(결정적 시연 규칙). */
+    if(nhPlacePhotos.key!==key){nhPlacePhotos.urls=[];nhPlacePhotos.credits=[];}
     if(nhPlacePhotos.busy)return;
     if(typeof google==='undefined'||!google.maps||!google.maps.places||!google.maps.places.PlacesService)return;
     var host=(typeof phoneMap!=='undefined'&&phoneMap)||(typeof map!=='undefined'&&map)||null;
