@@ -8735,6 +8735,35 @@ function renderSeedGroups(){
    "name","seed"} 로 내보낸다. 여기서는 그것을 **지금 보고 있는 지역**에 시드 그룹으로
    깐다 — 생성기(sgCommit)와 같은 저장 경로·같은 그룹 관리(이동·숨김·삭제)를 탄다.
    좌표는 골든앵글 나선으로 결정적이다: 같은 JSON 은 언제나 같은 자리에 선다. */
+/* 코드로 불러오기 (v2.66, 콘솔 D231) — 콘솔이 만든 공유 코드
+   `nhs1.<firebase프로젝트>.<콘솔프로젝트id>.<토큰>` 을 Firestore REST 로 읽는다.
+   콘솔↔앱이 다른 Firebase 프로젝트라(D230) 코드가 주소를 통째로 나른다 — 앱 쪽 설정이
+   필요 없다. 문서는 status==='open' 인 것만 규칙이 열어 준다(콘솔 firestore.rules). */
+function sgImportCode(){
+  if(currentRole!=='admin'){alert('관리자만 실행할 수 있어요.');return;}
+  var inp=document.getElementById('sg-code');if(!inp)return;
+  var code=(inp.value||'').trim();
+  var st=document.getElementById('sg-import-status');
+  var m=code.match(/^nhs1\.([a-z0-9-]+)\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]{8,64})$/);
+  if(!m){alert('코드 형식이 아니에요 — 콘솔의 「공유 코드 만들기」가 준 것을 그대로 붙여넣어 주세요.');return;}
+  var url='https://firestore.googleapis.com/v1/projects/'+m[1]+'/databases/(default)/documents/projects/'+encodeURIComponent(m[2])+'/stageShares/'+encodeURIComponent(m[3]);
+  if(st)st.textContent='불러오는 중…';
+  fetch(url).then(function(r){
+    if(!r.ok)throw new Error(r.status===403||r.status===404?'코드를 찾을 수 없어요 — 콘솔에서 새로 만들었는지, 지우지 않았는지 확인해 주세요.':'불러오기에 실패했어요 ('+r.status+')');
+    return r.json();
+  }).then(function(doc){
+    var jsonStr=doc&&doc.fields&&doc.fields.json&&doc.fields.json.stringValue;
+    if(!jsonStr)throw new Error('코드 문서에 무대가 없어요.');
+    var ta=document.getElementById('sg-import-json');
+    if(ta)ta.value=jsonStr;
+    if(st)st.textContent='';
+    sgImportStage(); // 붙여넣기와 같은 길 — 눈으로 확인할 JSON 도 텍스트영역에 남는다
+  }).catch(function(e){
+    if(st)st.textContent='';
+    alert(e&&e.message?e.message:'불러오기에 실패했어요.');
+  });
+}
+
 function sgImportStage(){
   if(currentRole!=='admin'){alert('관리자만 실행할 수 있어요.');return;}
   if(sgBusy)return;
@@ -8750,10 +8779,15 @@ function sgImportStage(){
   spots=spots.slice(0,40);feeds=feeds.slice(0,40);reqs=reqs.slice(0,10);deals=deals.slice(0,12); // NH_MAX 안쪽
   var total=spots.length+feeds.length+reqs.length+deals.length;
   if(!total){alert('깔 수 있는 컨텐츠(지도 글·피드·Request·매장·타임딜)가 없어요.');return;}
-  var f=sgFocusPoint();if(!f){alert('지도가 아직 준비되지 않았어요.');return;}
+  /* 콘솔이 지정한 중심·반경 (v2.66, 콘솔 D231) — 「직접 지정」으로 만든 무대는 그 자리
+     그대로 깐다. 없으면 여태처럼 지금 보고 있는 지역 중심 + 반경 입력값이다. */
+  var jc=j&&j.center, jlat=Number(jc&&jc.lat), jlng=Number(jc&&jc.lng);
+  var f=(isFinite(jlat)&&isFinite(jlng)&&Math.abs(jlat)<=90&&Math.abs(jlng)<=180)?{lat:jlat,lng:jlng}:sgFocusPoint();
+  if(!f){alert('지도가 아직 준비되지 않았어요.');return;}
   var gid='g'+Date.now().toString(36);
   var now=Date.now(), counts={spot:0,feed:0,req:0,deal:0};
-  var radius=Number((document.getElementById('sg-radius')||{}).value)||400;
+  var jr=Number(j&&j.radM);
+  var radius=(isFinite(jr)&&jr>0)?Math.min(3000,Math.max(100,Math.round(jr))):(Number((document.getElementById('sg-radius')||{}).value)||400);
   var S=function(v,n){return String(v==null?'':v).slice(0,n);};
   var k=0, at=function(){ // 골든앵글 나선 — 결정적 배치 (Math.random 이면 재렌더마다 움직인다)
     var ang=k*2.399963, r=radius*Math.sqrt((k+0.7)/(total+0.7));k++;
@@ -8818,6 +8852,7 @@ function initSeedGen(){
   gen.addEventListener('click',sgGenerate);
   var rf=document.getElementById('sg-refresh');if(rf)rf.addEventListener('click',sgSyncFocus);
   var im=document.getElementById('sg-import');if(im)im.addEventListener('click',sgImportStage);
+  var ic=document.getElementById('sg-code-go');if(ic)ic.addEventListener('click',sgImportCode);
   sgSyncFocus();renderSeedGroups();
 }
 
@@ -10944,7 +10979,12 @@ function nhSweepTemp(){
 var NH_SPREAD_R0=0.0015,NH_SPREAD_R1=0.0008;
 var NH_SPREAD_MAX=NH_SPREAD_R0+NH_SPREAD_R1*2;   // i%3 의 최댓값이 2 다
 function nhSpread(c,i){
-  var a=i*2.399963,r=NH_SPREAD_R0+NH_SPREAD_R1*(i%3);
+  var a=i*2.399963,r0=NH_SPREAD_R0,r1=NH_SPREAD_R1;
+  /* 사람이 정한 반경 (v2.66) — c.r(m) 이 있으면 그 안에 편다. 도(°) 변환은 위도 기준
+     1°≈111.32km. 비율은 기본값(0.0015:0.0008, 최대 r0+2·r1)을 지켜 가장 바깥 고리가
+     대략 반경에 닿는다. */
+  if(c&&isFinite(c.r)&&c.r>0){var base=c.r/111320;r0=base*0.48;r1=base*0.26;}
+  var r=r0+r1*(i%3);
   return {lat:c.lat+r*Math.cos(a),lng:c.lng+r*Math.sin(a)*1.25};
 }
 /* 무대에 깔 수 있는 개수 (v2.10) — **콘솔의 MAX_SEED_* 와 같은 값이어야 한다.**
@@ -12063,6 +12103,9 @@ function nhAreaFrom(p){
      배율이 안 따라오면 저장한 화면과 재생 화면이 다르다. 앱의 줌 범위로 자른다.
      소수 둘째 자리까지 남긴다 (v2.35) — 줌이 이제 소수를 갖는다(화면 폭 보정). */
   var z=Number(p.zoom);if(isFinite(z))a.z=Math.min(18,Math.max(11,Math.round(z*100)/100));
+  /* 흩는 반경 m (v2.66, 콘솔 D231) — 콘솔의 "직접 지정" 이 원을 그려 보낸 값.
+     없으면 기본 반경(NH_SPREAD_R0/R1)이다. 상한 3000m: 그 위는 "동네" 가 아니다. */
+  var r=Number(p.r);if(isFinite(r)&&r>0)a.r=Math.min(3000,Math.max(100,Math.round(r)));
   return a;
 }
 /* 콘솔이 정한 동네를 등록한다 (v1.98, 콘솔 D85 · **여러 개는 v2.36**, D136).
@@ -12581,6 +12624,45 @@ function nhLockMap(){
   }catch(e){}
 }
 
+/* ── 지도에서 지점 찍기 (v2.66, 콘솔 D231) ─────────────────────────
+   콘솔의 컨텐츠 채우기 「직접 지정」: nh:pick 이 오면 다음 지도 탭 한 번을 좌표로
+   돌려주고(nh:picked), nh:circle 이 오면 반경 원을 그려 미리 보인다. 찍기는 폰 지도다 —
+   임베드에서 사람 눈에 보이는 것도, 손이 닿는 것도 폰이다 (PC 지도는 display:none).
+   재생 중에는 받지 않는다 — 대본 위에 편집이 끼면 시연이 거짓말을 한다. */
+var nhPickReply=null,nhPickListener=null,nhShareCircle=null;
+function nhPickStart(reply){
+  if(!phoneMap||!phoneMap.addListener)return false;
+  nhPickStop();
+  nhPickReply=reply;
+  nhPickListener=phoneMap.addListener('click',function(e){
+    if(!e||!e.latLng)return;
+    var lat=e.latLng.lat(),lng=e.latLng.lng();
+    var to=nhPickReply;nhPickStop();
+    if(to)nhPost(to,{type:'nh:picked',lat:lat,lng:lng});
+  });
+  return true;
+}
+function nhPickStop(){
+  if(nhPickListener){try{nhPickListener.remove();}catch(e){}nhPickListener=null;}
+  nhPickReply=null;
+}
+function nhCircleShow(d){
+  if(!phoneMap)return false;
+  if(d&&d.clear===true){if(nhShareCircle){nhShareCircle.setMap(null);nhShareCircle=null;}return true;}
+  var lat=Number(d&&d.lat),lng=Number(d&&d.lng),rad=Number(d&&d.radM);
+  if(!isFinite(lat)||!isFinite(lng)||!isFinite(rad))return false;
+  rad=Math.min(3000,Math.max(100,Math.round(rad)));
+  if(!nhShareCircle){
+    nhShareCircle=new google.maps.Circle({
+      map:phoneMap,strokeColor:'#0075de',strokeOpacity:.85,strokeWeight:2,
+      fillColor:'#0075de',fillOpacity:.10,clickable:false});
+  }
+  nhShareCircle.setCenter({lat:lat,lng:lng});
+  nhShareCircle.setRadius(rad);
+  try{phoneMap.fitBounds(nhShareCircle.getBounds(),8);}catch(e){}
+  return true;
+}
+
 function initScenarioBridge(){
   window.addEventListener('message',function(e){
     if(EMBED_ORIGINS.indexOf(e.origin)<0)return;                 // 허용 오리진만
@@ -12616,6 +12698,13 @@ function initScenarioBridge(){
       if(nhPlaying)nhPost(reply,{type:'nh:error',message:'재생 중에는 미리 세울 수 없습니다.'});
       else if(d.clear===true){nhPeekClear();nhPost(reply,{type:'nh:peeked',ok:true});}
       else nhPost(reply,{type:'nh:peeked',ok:nhPeek(d.item)!==false});}
+    /* 지도에서 지점 찍기 (v2.66) — on:false 는 취소. 재생 중에는 안 받는다. */
+    else if(d.type==='nh:pick'){
+      if(nhPlaying)nhPost(reply,{type:'nh:error',message:'재생 중에는 지점을 찍을 수 없습니다.'});
+      else if(d.on===false){nhPickStop();}
+      else if(!nhPickStart(reply))nhPost(reply,{type:'nh:error',message:'지도가 아직 준비되지 않았습니다.'});}
+    /* 반경 원 미리보기 (v2.66) — clear:true 로 지운다. */
+    else if(d.type==='nh:circle'){nhCircleShow(d);}
   });
   initLockGuard(); // 조작 잠금 문지기 (v2.53) — 잠금이 없으면 아무것도 안 막는다
   initTouchReport(); // 지도 제스처도 알린다 (v2.56)
