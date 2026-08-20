@@ -2062,6 +2062,7 @@ function addPinShow(m,ll){
 }
 function addPinHide(){if(addPinOv){try{addPinOv.setMap(null);}catch(e){}addPinOv=null;}}
 function openAddMenu(mapObj,div,latLng,popCx,popCy){
+  if(typeof nhPickListener!=='undefined'&&nhPickListener)return; // 픽 무장 중 (v2.68) — 천천히 누른 탭이 추가 메뉴로 새지 않게
   addTargetMap=mapObj||primaryMap();addTargetDiv=div||null;addAtLatLng=latLng||null;
   resetAddMenuPos();
   if(popCx!=null&&div&&div.closest&&div.closest('.phone-screen'))positionAddMenuAt(popCx,popCy); // 폰에선 누른 지점에 팝업
@@ -3027,8 +3028,11 @@ function initPhoneMirror(){
     try{el.addEventListener(ev,nhCamCancel,{passive:true});}catch(e){}
   });
   try{el.addEventListener('pointerdown',nhCamCancel,{passive:true,capture:true});}catch(e){}
-  phoneMap.addListener('click',function(){ clearPhoneSpotlight(); if(currentMode==='local')clearPhoneDong(); }); // 빈 곳 클릭 = 강조 해제
+  phoneMap.addListener('click',function(){
+    if(typeof nhPickListener!=='undefined'&&nhPickListener)return; // 픽 무장 중 (v2.68) — 찍기가 우선
+    clearPhoneSpotlight(); if(currentMode==='local')clearPhoneDong(); }); // 빈 곳 클릭 = 강조 해제
   phoneMap.data.addListener('click',function(e){ // 베이직: 동 탭 → 존과 동일한 포커스+맵 조정
+    if(typeof nhPickDataListener!=='undefined'&&nhPickDataListener)return; // 픽 무장 중 (v2.68) — 카메라를 밀지 않는다
     if(currentMode!=='local')return;
     var d=dongByKey(featKey(e.feature));
     if(!d)return;
@@ -4608,7 +4612,11 @@ function loadRemoteSettings(){
     .then(function(doc){
       var raw=doc&&doc.fields&&doc.fields.json&&doc.fields.json.stringValue;
       if(!raw)return;
-      if(!applyFullSettings(JSON.parse(raw)))return;
+      var js=JSON.parse(raw);
+      /* 존 목록 (v2.68, 콘솔 D233) — 임베드는 남의 존을 **세우지 않지만**(아래 applyExtraSettings
+         가 일부러 건너뛴다), 콘솔의 「직접 지정」이 고를 수 있게 목록은 들고 있는다. */
+      if(Array.isArray(js.zoneBook))nhZoneBookCache=js.zoneBook;
+      if(!applyFullSettings(js))return;
       settingsRemoteOn=true; // 파일 백스톱이 나중에 와도 안 덮게
       // 이미 그려진 뒤에 도착할 수 있다 — 화면을 지금 값으로 다시 맞춘다.
       if(typeof mapReady!=='undefined'&&mapReady){refreshMapStyles();refreshHexStyles();refreshSpotStyles();refreshZoneLabels();updateLocalLabelStyle();}
@@ -8790,8 +8798,18 @@ function sgImportStage(){
   var jr=Number(j&&j.radM);
   var radius=(isFinite(jr)&&jr>0)?Math.min(3000,Math.max(100,Math.round(jr))):(Number((document.getElementById('sg-radius')||{}).value)||400);
   var S=function(v,n){return String(v==null?'':v).slice(0,n);};
+  /* 영역 무대 (v2.68, 콘솔 D233) — 내보내기에 region(행정동 키들·폴리곤 링들)이 실려
+     오면 나선(원) 대신 그 안에 깐다. 판정·수열은 재생 쪽(nhSpreadRegion)과 같은 것 —
+     화면에서 본 배치와 관리자 콘솔로 깐 배치가 같은 규칙이어야 한다. */
+  var reg=j&&j.region,rc=null;
+  if(reg&&typeof nhAreaFrom==='function'){
+    var probe=nhAreaFrom({lat:f.lat,lng:f.lng,dongs:reg.dongs,rings:reg.rings});
+    if(probe&&(probe.dongs||probe.rings))rc=probe;
+  }
   var k=0, at=function(){ // 골든앵글 나선 — 결정적 배치 (Math.random 이면 재렌더마다 움직인다)
-    var ang=k*2.399963, r=radius*Math.sqrt((k+0.7)/(total+0.7));k++;
+    var idx=k++;
+    if(rc){var q=nhSpreadRegion(rc,idx);if(q)return q;}
+    var ang=idx*2.399963, r=radius*Math.sqrt((idx+0.7)/(total+0.7));
     return {lat:f.lat+(r*Math.cos(ang))/111320, lng:f.lng+(r*Math.sin(ang))/(111320*Math.cos(f.lat*Math.PI/180))};
   };
   spots.forEach(function(sp,i){
@@ -10983,7 +11001,46 @@ function nhSweepTemp(){
    화면 밖으로 안 샌다 — 이 값을 고치면 그쪽 계산도 같이 따라온다. */
 var NH_SPREAD_R0=0.0015,NH_SPREAD_R1=0.0008;
 var NH_SPREAD_MAX=NH_SPREAD_R0+NH_SPREAD_R1*2;   // i%3 의 최댓값이 2 다
+/* 영역 기하 캐시 (v2.68) — c(=SEED_AREAS 항목)에 한 번 계산해 붙인다.
+   동은 dongIndex 의 원본 링(바깥 링만 — 행정동에 구멍은 드물고, 판정 비용이 헛돌지 않게),
+   rings 는 [lat,lng]→[lng,lat] 로 뒤집는다 (pointInRing 은 GeoJSON 순서 x=lng 다). */
+function nhRegionInfo(c){
+  if(c.__reg!==undefined)return c.__reg;
+  var polys=[],bb=[Infinity,Infinity,-Infinity,-Infinity];
+  function grow(x,y){bb[0]=Math.min(bb[0],x);bb[1]=Math.min(bb[1],y);bb[2]=Math.max(bb[2],x);bb[3]=Math.max(bb[3],y);}
+  if(Array.isArray(c.dongs)&&typeof dongByKey==='function'){
+    c.dongs.forEach(function(k){
+      var d=dongByKey(k);if(!d||!d.polys)return;
+      d.polys.forEach(function(p){if(p&&p[0]&&p[0].length>=3)polys.push(p[0]);});
+      if(d.bbox){grow(d.bbox[0],d.bbox[1]);grow(d.bbox[2],d.bbox[3]);}
+    });
+  }else if(Array.isArray(c.rings)){
+    c.rings.forEach(function(ring){
+      var out=ring.map(function(pt){return [pt[1],pt[0]];});
+      polys.push(out);
+      out.forEach(function(q){grow(q[0],q[1]);});
+    });
+  }
+  c.__reg=polys.length?{polys:polys,bb:bb}:null;
+  return c.__reg;
+}
+/* 영역 안 결정적 자리 (v2.68) — R2 저불일치 수열로 bbox 를 훑고 폴리곤 판정으로 거른다.
+   같은 i 는 언제나 같은 자리다 (시연 규칙). 160번 안에 못 찾으면 중심 — 빈 영역보다 낫다. */
+function nhSpreadRegion(c,i){
+  var g=nhRegionInfo(c);if(!g)return null;
+  for(var t=0;t<160;t++){
+    var n=i*211+t+1;
+    var x=(0.7548776662466927*n)%1,y=(0.5698402909980532*n)%1;
+    var lng=g.bb[0]+x*(g.bb[2]-g.bb[0]),lat=g.bb[1]+y*(g.bb[3]-g.bb[1]);
+    for(var p=0;p<g.polys.length;p++){
+      if(pointInRing(lng,lat,g.polys[p]))return {lat:lat,lng:lng};
+    }
+  }
+  return {lat:c.lat,lng:c.lng};
+}
 function nhSpread(c,i){
+  /* 영역(행정동·폴리곤)이 실려 오면 원이 아니라 그 안이다 (v2.68). */
+  if(c&&(c.dongs||c.rings)){var q=nhSpreadRegion(c,i);if(q)return q;}
   var a=i*2.399963,r0=NH_SPREAD_R0,r1=NH_SPREAD_R1;
   /* 사람이 정한 반경 (v2.66) — c.r(m) 이 있으면 그 안에 편다. 도(°) 변환은 위도 기준
      1°≈111.32km. 비율은 기본값(0.0015:0.0008, 최대 r0+2·r1)을 지켜 가장 바깥 고리가
@@ -12004,6 +12061,10 @@ function nhDrop(v,i,e,fast){
 }
 
 function nhReset(){
+  /* 픽·미리보기도 회차의 것 (v2.68) — 여태 nh:stop 이 와도 무장된 픽 리스너와 원이 남았다. */
+  try{nhPickStop();}catch(e){}
+  try{nhCircleShow({clear:true});}catch(e){}
+  try{nhShapeShow({clear:true});}catch(e){}
   /* **되돌리는 동안은 무음이다** (v2.25). 여기서 부르는 것들(모드 되돌리기·팝업 닫기)은
      연출이 아니라 청소인데, 그 소리가 나면 회차를 끝낼 때마다 "삐-" 하고 운다.
      v2.52: 은행을 비우는 것만으로는 이제 안 조용하다 — nhSfxPlay 가 비면 앱 소리를 스스로
@@ -12111,6 +12172,25 @@ function nhAreaFrom(p){
   /* 흩는 반경 m (v2.66, 콘솔 D231) — 콘솔의 "직접 지정" 이 원을 그려 보낸 값.
      없으면 기본 반경(NH_SPREAD_R0/R1)이다. 상한 3000m: 그 위는 "동네" 가 아니다. */
   var r=Number(p.r);if(isFinite(r)&&r>0)a.r=Math.min(3000,Math.max(100,Math.round(r)));
+  /* 행정동·폴리곤 영역 (v2.68, 콘솔 D233) — 시드가 원이 아니라 **이 안**에 깔린다.
+     dongs = dongIndex 의 key(adm_cd) 목록 · rings = [[lat,lng]…] 링 목록 (트렌드 존 외곽 등).
+     dongs 가 있으면 rings 는 무시한다 — 두 뜻이 겹치면 어느 쪽인지 화면이 못 말한다. */
+  if(Array.isArray(p.dongs)&&p.dongs.length){
+    a.dongs=p.dongs.slice(0,12).map(function(k){return String(k).slice(0,20);}).filter(Boolean);
+    if(!a.dongs.length)delete a.dongs;
+  }else if(Array.isArray(p.rings)&&p.rings.length){
+    var rings=[];
+    p.rings.slice(0,12).forEach(function(ring){
+      if(!Array.isArray(ring)||ring.length<3)return;
+      var out=[];
+      ring.slice(0,120).forEach(function(pt){
+        var la=Number(pt&&pt[0]),lo=Number(pt&&pt[1]);
+        if(isFinite(la)&&isFinite(lo)&&Math.abs(la)<=90&&Math.abs(lo)<=180)out.push([la,lo]);
+      });
+      if(out.length>=3)rings.push(out);
+    });
+    if(rings.length)a.rings=rings;
+  }
   return a;
 }
 /* 콘솔이 정한 동네를 등록한다 (v1.98, 콘솔 D85 · **여러 개는 v2.36**, D136).
@@ -12634,22 +12714,76 @@ function nhLockMap(){
    돌려주고(nh:picked), nh:circle 이 오면 반경 원을 그려 미리 보인다. 찍기는 폰 지도다 —
    임베드에서 사람 눈에 보이는 것도, 손이 닿는 것도 폰이다 (PC 지도는 display:none).
    재생 중에는 받지 않는다 — 대본 위에 편집이 끼면 시연이 거짓말을 한다. */
-var nhPickReply=null,nhPickListener=null,nhShareCircle=null;
-function nhPickStart(reply){
+var nhZoneBookCache=[]; // v2.68 — publicSettings 의 zoneBook (콘솔 직접 지정의 존 목록)
+var nhPickReply=null,nhPickListener=null,nhPickDataListener=null,nhPickMode='point',nhPickDongs=null,nhShareCircle=null,nhShapePolys=null;
+/* v2.68 수리 — **경계 폴리곤이 클릭을 먹는다**: 폰 지도는 동 경계 GeoJSON(data 레이어)로
+   덮여 있어, 서울 안쪽 탭은 map 'click' 이 아니라 data 'click' 으로 간다(그래서 v2.66~67 의
+   찍기가 폴리곤 위에서 영영 안 울렸다). 픽은 두 리스너에 같이 걸고, 무장 중에는 동 선택·
+   강조 해제·롱프레스 추가 메뉴가 끼어들지 않는다.
+   모드 (콘솔 D233): point = 좌표 하나 (계속 무장 — 마음에 들 때까지 옮겨 찍는다) ·
+   dong = 행정동 여러 개 토글 (regionAt 판정 + data 스타일 하이라이트, 선택 전체를 회신). */
+function nhPickSel(){var out=[];if(nhPickDongs)nhPickDongs.forEach(function(v){out.push(v);});return out;}
+function nhPickStyle(){
+  if(!phoneMap)return;
+  phoneMap.data.setStyle(function(f){
+    if(nhPickDongs&&nhPickDongs.has(featKey(f)))return getHighlightStyle();
+    return featKey(f)===selectedFeatureId?getHighlightStyle():getDefaultStyle();
+  });
+}
+function nhPickHandle(latLng){
+  if(!latLng||!nhPickReply)return;
+  var lat=latLng.lat(),lng=latLng.lng();
+  if(nhPickMode==='dong'){
+    var d=(typeof regionAt==='function')?regionAt(lat,lng):null;
+    if(d&&d.key){
+      if(nhPickDongs.has(d.key))nhPickDongs.delete(d.key);
+      else nhPickDongs.set(d.key,{key:d.key,name:d.name||'',gu:d.gu||''});
+      nhPickStyle();
+    }
+    nhPost(nhPickReply,{type:'nh:picked',mode:'dong',lat:lat,lng:lng,dongs:nhPickSel()});
+    return;
+  }
+  nhPost(nhPickReply,{type:'nh:picked',lat:lat,lng:lng});
+}
+function nhPickStart(reply,mode){
   if(!phoneMap||!phoneMap.addListener)return false;
   nhPickStop();
   nhPickReply=reply;
-  nhPickListener=phoneMap.addListener('click',function(e){
-    if(!e||!e.latLng)return;
-    var lat=e.latLng.lat(),lng=e.latLng.lng();
-    var to=nhPickReply;nhPickStop();
-    if(to)nhPost(to,{type:'nh:picked',lat:lat,lng:lng});
-  });
+  nhPickMode=(mode==='dong')?'dong':'point';
+  nhPickDongs=new Map();
+  nhPickListener=phoneMap.addListener('click',function(e){if(e&&e.latLng)nhPickHandle(e.latLng);});
+  try{nhPickDataListener=phoneMap.data.addListener('click',function(e){if(e&&e.latLng)nhPickHandle(e.latLng);});}catch(e){}
+  if(nhPickMode==='dong')nhPickStyle();
   return true;
 }
 function nhPickStop(){
   if(nhPickListener){try{nhPickListener.remove();}catch(e){}nhPickListener=null;}
+  if(nhPickDataListener){try{nhPickDataListener.remove();}catch(e){}nhPickDataListener=null;}
   nhPickReply=null;
+  if(nhPickDongs){nhPickDongs=null;try{if(typeof refreshPhoneMapStyles==='function')refreshPhoneMapStyles();}catch(e){}}
+}
+/* 영역 미리보기 (v2.68) — 원(nh:circle)의 폴리곤판. rings=[[[lat,lng]…]…], clear 로 걷는다. */
+function nhShapeShow(d){
+  if(!phoneMap)return false;
+  if(d&&d.clear===true){(nhShapePolys||[]).forEach(function(p){try{p.setMap(null);}catch(e){}});nhShapePolys=null;return true;}
+  var rings=Array.isArray(d&&d.rings)?d.rings.slice(0,12):[];
+  (nhShapePolys||[]).forEach(function(p){try{p.setMap(null);}catch(e){}});nhShapePolys=[];
+  var bounds=new google.maps.LatLngBounds(),n=0;
+  rings.forEach(function(ring){
+    if(!Array.isArray(ring)||ring.length<3)return;
+    var path=[];
+    ring.slice(0,120).forEach(function(pt){
+      var la=Number(pt&&pt[0]),lo=Number(pt&&pt[1]);
+      if(isFinite(la)&&isFinite(lo))path.push({lat:la,lng:lo});
+    });
+    if(path.length<3)return;
+    nhShapePolys.push(new google.maps.Polygon({map:phoneMap,paths:path,
+      strokeColor:'#0075de',strokeOpacity:.85,strokeWeight:2,
+      fillColor:'#0075de',fillOpacity:.10,clickable:false}));
+    path.forEach(function(q){bounds.extend(q);});n++;
+  });
+  if(n)try{phoneMap.fitBounds(bounds,8);}catch(e){}
+  return true;
 }
 function nhCircleShow(d){
   if(!phoneMap)return false;
@@ -12675,7 +12809,7 @@ function initScenarioBridge(){
     var reply={win:e.source,origin:e.origin};
     // clean 은 additive 다 — 옛 콘솔은 모르는 필드를 무시하고, 새 콘솔은 이 값으로
     // "빈 무대를 요청했는데 앱이 안 비웠다"(= 앱 배포가 뒤졌다)를 화면에 드러낸다.
-    if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList(),clean:IS_CLEAN_EMBED,keep:true});
+    if(d.type==='nh:list')nhPost(reply,{type:'nh:ready',version:nhVersion(),scenarios:nhScenarioList(),actions:NH_ACTIONS,areas:nhAreaList(),clean:IS_CLEAN_EMBED,keep:true,zones:nhZoneBookCache});
     else if(d.type==='nh:run')nhRun(d.id,reply,d.scenario,d.keep===true);
     /* "지금 보고 있는 지도를 알려 달라" (v1.99). 콘솔이 지도 링크를 파싱하는 대신
        **사람이 임베드 안에서 직접 맞춘 화면**을 그대로 가져가는 길이다 — 단축 주소·
@@ -12707,9 +12841,11 @@ function initScenarioBridge(){
     else if(d.type==='nh:pick'){
       if(nhPlaying)nhPost(reply,{type:'nh:error',message:'재생 중에는 지점을 찍을 수 없습니다.'});
       else if(d.on===false){nhPickStop();}
-      else if(!nhPickStart(reply))nhPost(reply,{type:'nh:error',message:'지도가 아직 준비되지 않았습니다.'});}
+      else if(!nhPickStart(reply,d.mode))nhPost(reply,{type:'nh:error',message:'지도가 아직 준비되지 않았습니다.'});}
     /* 반경 원 미리보기 (v2.66) — clear:true 로 지운다. */
     else if(d.type==='nh:circle'){nhCircleShow(d);}
+    /* 영역(폴리곤) 미리보기 (v2.68) — 트렌드 존 외곽 등. */
+    else if(d.type==='nh:shape'){nhShapeShow(d);}
   });
   initLockGuard(); // 조작 잠금 문지기 (v2.53) — 잠금이 없으면 아무것도 안 막는다
   initTouchReport(); // 지도 제스처도 알린다 (v2.56)

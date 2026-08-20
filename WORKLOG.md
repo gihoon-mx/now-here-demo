@@ -9,6 +9,22 @@
 
 ---
 
+## v2.68.0 — 픽 실클릭 수리 · 행정동 다중 선택 · 영역(폴리곤) 배치 · 존 목록 (2026-08-20, 콘솔 D233 짝)
+
+**찍기가 안 되던 원인**: 폰 지도가 동 경계 GeoJSON(data 레이어)로 덮여 있어 서울 안쪽
+탭이 map click 이 아니라 data click 으로 갔다 — v2.66 픽 리스너는 map click 에만 걸려
+폴리곤 위에서 영영 안 울렸다. 이제 픽은 **두 리스너**(map+data)에 걸리고, 무장 중에는
+동 선택(selectPhoneDong 카메라 밀림)·강조 해제·롱프레스 추가 메뉴가 끼지 않는다.
+
+- **nh:pick mode:'dong'** — 행정동 여러 개 토글 (regionAt 판정, data 스타일 하이라이트,
+  선택 전체를 nh:picked 로 회신). point 모드는 계속 무장(옮겨 찍기).
+- **nh:shape** — 폴리곤 미리보기 (원의 폴리곤판, rings/clear).
+- **areaPlaces 항목에 dongs(행정동 키)·rings(링들)** — nhSpread 가 원 대신 그 안에
+  결정적으로 편다 (R2 수열 + pointInRing 리젝션, nhSpreadRegion).
+- **nh:ready 에 zones**(publicSettings 의 zoneBook) — 콘솔이 트렌드 존을 고를 재료.
+- **sgImportStage 가 region(dongs·rings) 존중** — 재생과 같은 배치 규칙.
+- **청소 누락 수리** — nhReset 이 픽 리스너·원·영역 미리보기를 걷는다.
+
 ## v2.67.0 — 픽커 모드: 지도만 남긴 임베드 (2026-08-20, 콘솔 D232 짝)
 
 콘솔 「직접 지정」이 큰 모달로 띄우는 변형. embed=1&clean=1&pick=1 로 뜨면
