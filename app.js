@@ -7195,7 +7195,11 @@ var DEAL_KEY='nowhere_deals';
    그 경로만 쓰던 id 형식이다)은 읽을 때 걸러 낸다. 안 거르면 코드를 지워도
    dealActive 가 seed:true 를 영영 살려 두어 화면에는 계속 남는다. */
 function loadDeals(){if(IS_CLEAN_EMBED){timeDeals=[];return;}try{var a=JSON.parse(localStorage.getItem(DEAL_KEY)||'[]');if(Array.isArray(a))timeDeals=a.filter(function(d){return !(d&&d.seed&&/^dl_\d+$/.test(String(d.id)));});}catch(e){}}
-function saveDeals(){try{localStorage.setItem(DEAL_KEY,JSON.stringify(timeDeals.slice(0,20)));}catch(e){}}
+/* 저장 상한 (v2.70) — 여태 20 이었다. 콘솔에서 매장 12 + 타임딜 12 를 가져오면 24 개가
+   push 되는데, 이 slice 가 **앞 20 개만** 남겨서 새로 깐 것이 저장에서 통째로 잘렸다
+   (배열 뒤에 붙기 때문). 새로고침하면 loadDeals 가 잘린 것을 읽어 매장이 사라진다 —
+   "깔았는데 앱에서 안 뜬다" 의 정체가 이것이다. NH_MAX.deal(24) × 관리자 생성분 여유. */
+function saveDeals(){try{localStorage.setItem(DEAL_KEY,JSON.stringify(timeDeals.slice(0,120)));}catch(e){}}
 /* 옮긴 자리를 저장소에 남긴다 (v2.30.1 — moveRequest 와 같은 문법).
    딜만 이 손이 없어서, 시연 자리를 잡을 때 스팟·피드·Request 는 끌어 옮기고 딜만 못 옮겼다.
    **무대가 깐 것(dln_*)은 저장하지 않는다** — 회차가 끝나면 걷어야 하는 물건이고,
@@ -8806,7 +8810,8 @@ function sgImportStage(){
   var feeds=Array.isArray(seed&&seed.feeds)?seed.feeds:[];
   var reqs=Array.isArray(seed&&seed.reqs)?seed.reqs:[];
   var deals=Array.isArray(seed&&seed.deals)?seed.deals:[];
-  spots=spots.slice(0,40);feeds=feeds.slice(0,40);reqs=reqs.slice(0,10);deals=deals.slice(0,12); // NH_MAX 안쪽
+  // NH_MAX 안쪽 (v2.70 — 콘솔 FILL_MAX 상향에 맞춰 함께 올렸다. 한쪽만 올리면 조용히 잘린다)
+  spots=spots.slice(0,NH_MAX.spot);feeds=feeds.slice(0,NH_MAX.feed);reqs=reqs.slice(0,NH_MAX.req);deals=deals.slice(0,NH_MAX.deal);
   var total=spots.length+feeds.length+reqs.length+deals.length;
   if(!total){alert('깔 수 있는 컨텐츠(지도 글·피드·Request·매장·타임딜)가 없어요.');return;}
   /* 콘솔이 지정한 중심·반경 (v2.66, 콘솔 D231) — 「직접 지정」으로 만든 무대는 그 자리
@@ -8819,6 +8824,13 @@ function sgImportStage(){
   var jr=Number(j&&j.radM);
   var radius=(isFinite(jr)&&jr>0)?Math.min(3000,Math.max(100,Math.round(jr))):(Number((document.getElementById('sg-radius')||{}).value)||400);
   var S=function(v,n){return String(v==null?'':v).slice(0,n);};
+  /* 사진 미리 받기 (v2.70) — 콘솔의 photoKw(동네+주제)나 지금 지역 이름으로 근처 장소
+     사진을 청한다. **비동기라 이번 가져오기에는 대개 안 맞고**, 다음 가져오기부터 산다 —
+     그래서 아래 폴백(테마별 실사진)이 늘 있어야 한다. 표기는 nhPlaceCredit 가 건다. */
+  try{
+    var _pk=String((j&&j.seed&&j.seed.photoKw)||(j&&j.photoKw)||'').trim()||String(f.name||'').trim();
+    if(_pk&&typeof nhPlacePhotoPrefetch==='function')nhPlacePhotoPrefetch(f.lat,f.lng,_pk);
+  }catch(e){}
   /* 영역 무대 (v2.68, 콘솔 D233) — 내보내기에 region(행정동 키들·폴리곤 링들)이 실려
      오면 나선(원) 대신 그 안에 깐다. 판정·수열은 재생 쪽(nhSpreadRegion)과 같은 것 —
      화면에서 본 배치와 관리자 콘솔로 깐 배치가 같은 규칙이어야 한다. */
@@ -8827,10 +8839,16 @@ function sgImportStage(){
     var probe=nhAreaFrom({lat:f.lat,lng:f.lng,dongs:reg.dongs,rings:reg.rings,cells:reg.cells});
     if(probe&&(probe.dongs||probe.rings||probe.cells))rc=probe;
   }
-  var k=0, at=function(){ // 골든앵글 나선 — 결정적 배치 (Math.random 이면 재렌더마다 움직인다)
+  /* 자리 (v2.70) — 황금각 나선은 **너무 고르게** 퍼져서 "기계가 뿌린 것" 처럼 보였다
+     (사용자: "간격을 일정하게 배치해서 인위적"). 각과 반지름에 결정적 지터를 얹는다 —
+     heatJitter(같은 문자열이면 같은 값)라 재렌더·재방문에도 자리는 그대로다. */
+  var k=0, at=function(){
     var idx=k++;
     if(rc){var q=nhSpreadRegion(rc,idx);if(q)return q;}
-    var ang=idx*2.399963, r=radius*Math.sqrt((idx+0.7)/(total+0.7));
+    var j1=(typeof heatJitter==='function')?heatJitter(gid+'a'+idx):0.5;
+    var j2=(typeof heatJitter==='function')?heatJitter(gid+'r'+idx):0.5;
+    var ang=idx*2.399963+(j1-0.5)*1.1;                       // ±0.55rad — 줄이 안 보이게
+    var r=radius*Math.sqrt((idx+0.7)/(total+0.7))*(0.72+j2*0.5); // 반지름도 흔든다 (0.72~1.22배)
     return {lat:f.lat+(r*Math.cos(ang))/111320, lng:f.lng+(r*Math.sin(ang))/(111320*Math.cos(f.lat*Math.PI/180))};
   };
   spots.forEach(function(sp,i){
@@ -8843,9 +8861,17 @@ function sgImportStage(){
   });
   feeds.forEach(function(fe,i){
     var pos=at();
-    var src=/^https?:\/\//.test(String(fe.img||''))?String(fe.img).slice(0,500):seedImg(S(fe.theme,20)||'etc',S(fe.name,20)||f.name);
+    /* 사진 (v2.70) — **무조건 실사진을 먼저 찾는다** (사용자: "사진은 무조건 받아줘").
+       콘솔이 준 주소 → 근처 장소 사진(photoKw 로 받아 둔 것) → 테마별 실사진 풀
+       (NH_BURST_PHOTOS→SEED_IMG, Wikimedia) → 그래도 없으면 테마 색 카드.
+       여태는 콘솔 주소가 없으면 곧장 색 카드라 "일러스트라 사실감이 떨어진다" 였다. */
+    var thm=S(fe.theme,20)||'cafe';
+    var src=/^https?:\/\//.test(String(fe.img||''))?String(fe.img).slice(0,500)
+      :((typeof nhBurstPhoto==='function'?nhBurstPhoto(thm,gid,i,'nearby'):'')
+        ||seedImg(thm,S(fe.name,20)||f.name));
     var fd={id:'sg_'+gid+'_f'+i,src:src,region:dongAt(pos.lat,pos.lng)||f.name,zone:null,lat:pos.lat,lng:pos.lng,
-            kind:'post',desc:S(fe.desc,80)||'…',name:S(fe.name,20)||'동네주민',by:'sg_'+gid,byEmail:SEED_OWNER,
+            // 라이브 카메라 (v2.70) — 콘솔이 kind:'cam' 을 보내면 LIVE 뱃지가 붙는다 (여태 post 로 굳었다)
+            kind:(fe.kind==='cam'?'cam':'post'),desc:S(fe.desc,80)||'…',name:S(fe.name,20)||'동네주민',by:'sg_'+gid,byEmail:SEED_OWNER,
             ts:now-i*900e3,likes:{},sgroup:gid};
     if(hasLive())fbDb.collection('liveFeed').doc(fd.id).set(fd).catch(liveWriteErr);
     else{fd.type='photo';feedItems.push(fd);}
@@ -8863,6 +8889,11 @@ function sgImportStage(){
     var pos=at();
     var base={id:'sg_'+gid+'_d'+i,lat:pos.lat,lng:pos.lng,e:S(d.e||d.emoji,4)||'🏪',
               shop:S(d.shop,20)||S(d.title,20)||'가게',ts:now,seed:true,sgroup:gid};
+    /* 매장·딜 사진 (v2.70) — 콘솔 주소가 없으면 테마 실사진을 붙인다. 매장 페이지가
+       이모지 하나로 서던 자리에 사진이 든다. */
+    var dimg=/^https?:\/\//.test(String(d.img||''))?String(d.img).slice(0,500)
+      :((typeof nhBurstPhoto==='function'?nhBurstPhoto('food',gid+'d',i,'nearby'):'')||'');
+    if(dimg)base.img=dimg;
     if(d.store){base.store=true;base.title='';}
     else{
       base.title=S(d.title,40)||'오늘의 딜';
@@ -11074,12 +11105,16 @@ function nhSpreadRegion(c,i){
 function nhSpread(c,i){
   /* 영역(행정동·폴리곤)이 실려 오면 원이 아니라 그 안이다 (v2.68). */
   if(c&&(c.dongs||c.rings||c.cells)){var q=nhSpreadRegion(c,i);if(q)return q;}
-  var a=i*2.399963,r0=NH_SPREAD_R0,r1=NH_SPREAD_R1;
+  /* 자리 (v2.70) — 황금각만 쓰면 간격이 너무 고와 기계가 뿌린 티가 난다. 각·반지름에
+     결정적 지터(heatJitter)를 얹는다 — 같은 번호는 언제나 같은 자리다(시연 규칙). */
+  var _ja=(typeof heatJitter==='function')?heatJitter('sp-a'+i):0.5;
+  var _jr=(typeof heatJitter==='function')?heatJitter('sp-r'+i):0.5;
+  var a=i*2.399963+(_ja-0.5)*0.9,r0=NH_SPREAD_R0,r1=NH_SPREAD_R1;
   /* 사람이 정한 반경 (v2.66) — c.r(m) 이 있으면 그 안에 편다. 도(°) 변환은 위도 기준
      1°≈111.32km. 비율은 기본값(0.0015:0.0008, 최대 r0+2·r1)을 지켜 가장 바깥 고리가
      대략 반경에 닿는다. */
   if(c&&isFinite(c.r)&&c.r>0){var base=c.r/111320;r0=base*0.48;r1=base*0.26;}
-  var r=r0+r1*(i%3);
+  var r=(r0+r1*(i%3))*(0.78+_jr*0.44);
   return {lat:c.lat+r*Math.cos(a),lng:c.lng+r*Math.sin(a)*1.25};
 }
 /* 무대에 깔 수 있는 개수 (v2.10) — **콘솔의 MAX_SEED_* 와 같은 값이어야 한다.**
