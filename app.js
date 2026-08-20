@@ -7166,7 +7166,7 @@ function renderRequestMarkers(){
   if(!phoneMap||typeof google==='undefined')return;
   if(typeof renderDrawerDemo==='function')renderDrawerDemo();
   if(mapPinView.req.show) // v2.15 컨텐츠별 표시 설정 — 꺼도 딜·declutter 연쇄는 그대로 탄다
-  fieldRequests.filter(function(rq){return reqActive(rq)&&!rq.rewarded;}).forEach(function(rq){ // 활성(10분 내·시드) · 리워드가 지급되지 않은 것만 (v2.29). 전용 핀(답변 내용 노출 안 함)
+  fieldRequests.filter(function(rq){return reqActive(rq)&&!rq.rewarded&&!rq.hidden;}).forEach(function(rq){ // v2.69: 숨긴 그룹 제외 // 활성(10분 내·시드) · 리워드가 지급되지 않은 것만 (v2.29). 전용 핀(답변 내용 노출 안 함)
     reqMarkers.push(new ReqPin(rq,phoneMap));
   });
   if(typeof renderDealMarkers==='function')renderDealMarkers(); // v1.89 타임딜 핀도 같은 시점에
@@ -7500,7 +7500,7 @@ function renderDealMarkers(){
     /* 지도 위의 가게는 **이름표 하나**다 — 딜이든 아니든 같은 물건이 서고, 딜인 것만
        강조색·미니 라벨이 얹힌다. `dealName` 이 상호→제목→기본값으로 떨어지므로
        이름이 없어 못 서는 항목은 없다. */
-    timeDeals.filter(function(d){return dealShown(d)&&dealName(d);})
+    timeDeals.filter(function(d){return dealShown(d)&&dealName(d)&&!d.hidden;}) // v2.69: 숨긴 그룹의 가게는 안 선다
       .forEach(function(d){
         /* `o.div` 는 안 본다 — Maps 는 `setMap` 뒤 **다음 그리기 차례**에 onAdd 를 부른다.
            div 가 있어야 물려받게 하면, 쏟아짐처럼 렌더가 촘촘한 구간에서 아직 안 그려진
@@ -8682,10 +8682,31 @@ function sgGroupSetHidden(gid,v){
   feedItems.forEach(function(f){if(f.sgroup===gid){f.hidden=!!v;if(hasLive())feedUpdate(f,{hidden:!!v});}});
   demoSpots.forEach(function(s){if(s.sgroup===gid)s.hidden=!!v;});
   adminSpots.forEach(function(s){if(s.sgroup===gid)s.hidden=!!v;});
+  /* 딜·Request 도 함께 숨긴다 (v2.69) — 여태 스팟·피드에만 전파돼서, 그룹을 숨겨도
+     매장 이름표와 Request 핀은 지도에 남았다 (삭제는 다섯 배열 모두 대칭이었는데
+     숨김만 비대칭이었다). 렌더 필터도 같은 판에 넣는다. */
+  if(typeof timeDeals!=='undefined')timeDeals.forEach(function(d){if(d.sgroup===gid)d.hidden=!!v;});
+  if(typeof fieldRequests!=='undefined')fieldRequests.forEach(function(r){if(r.sgroup===gid)r.hidden=!!v;});
+  if(typeof saveDeals==='function')saveDeals();
   if(!hasLive())saveFeed();
   rebuildSpots();renderFeedMarkers();if(currentTab==='feed')renderFeed();
+  if(typeof renderRequestMarkers==='function')renderRequestMarkers();
+  if(typeof renderDealMarkers==='function')renderDealMarkers();
   if(typeof renderContentTable==='function')renderContentTable();
   renderSeedGroups();
+}
+/* 가져온 무대 일괄 표시/숨김 (v2.69, 콘솔 D236) — Persona VC 에서 가져온 그룹(src:'pvc')
+   전부를 한 번에 감춘다. 시연 중 "지금은 원래 동네를 보여주고 싶다" 가 실제로 있다. */
+function sgPvcHiddenAll(){
+  var list=seedGroups.filter(function(g){return g.src==='pvc';});
+  return list.length>0&&list.every(function(g){return g.hidden;});
+}
+function sgPvcToggleAll(){
+  if(currentRole!=='admin')return;
+  var hide=!sgPvcHiddenAll();
+  seedGroups.filter(function(g){return g.src==='pvc';}).forEach(function(g){sgGroupSetHidden(g.id,hide);});
+  var b=document.getElementById('sg-pvc-toggle');
+  if(b)b.textContent=hide?'👁 가져온 무대 다시 보이기':'🙈 가져온 무대 전부 숨기기';
 }
 function sgGroupDelete(gid){
   var g=seedGroups.filter(function(x){return x.id===gid;})[0];if(!g)return;
@@ -8871,6 +8892,11 @@ function initSeedGen(){
   gen.addEventListener('click',sgGenerate);
   var rf=document.getElementById('sg-refresh');if(rf)rf.addEventListener('click',sgSyncFocus);
   var im=document.getElementById('sg-import');if(im)im.addEventListener('click',sgImportStage);
+  var pt=document.getElementById('sg-pvc-toggle');
+  if(pt){
+    pt.addEventListener('click',sgPvcToggleAll);
+    pt.textContent=sgPvcHiddenAll()?'👁 가져온 무대 다시 보이기':'🙈 가져온 무대 전부 숨기기';
+  }
   var ic=document.getElementById('sg-code-go');if(ic)ic.addEventListener('click',sgImportCode);
   sgSyncFocus();renderSeedGroups();
 }
@@ -11063,7 +11089,7 @@ function nhSpread(c,i){
 /* dealPhoto: 딜 하나의 매장 페이지 사진 그리드 상한 (v2.17) — 시안이 3열이라 9장이면
    세 줄로 꽉 찬다. 콘솔의 MAX_DEAL_PHOTOS 와 같은 값이다. */
 /* zone (v2.21): 무대 트렌드 존 상한 — 콘솔의 MAX_SEED_ZONES 와 같은 값. */
-var NH_MAX={req:10,spot:40,feed:40,deal:10,page:12,dealPhoto:9,zone:6};
+var NH_MAX={req:24,spot:60,feed:60,deal:24,page:16,dealPhoto:9,zone:6};
 /* 존 하나가 들고 올 수 있는 칸 수 (v2.24) — 앱 zoneBookSnapshot 의 상한과 같은 값이다. */
 var NH_ZONE_CELLS_MAX=30;
 /* 자리 대역 (v2.10) — `nhSpread` 는 번호 하나로 자리를 정하므로, 종류가 겹치지 않게
@@ -11198,7 +11224,10 @@ function nhLayFeed(f,i,c,stamp){
     /* 사진: 사람이 올린 것이 있으면 그것, 없으면 테마 색으로 그린다 (v2.10 — 지면
        카드가 v2.4 에 얻은 길을 피드 카드도 갖는다). 콘솔이 Storage 에 두고 주소만
        실어 보낸다 — 시나리오 문서에 이미지를 통째로 담으면 Firestore 상한에 닿는다. */
-    src:(nhImgSrc(f.img)||(typeof seedImg==='function'?seedImg(f.theme||'cafe',f.label||''):'')),
+    /* 사진이 없으면 **웹 사진으로 채운다** (v2.69, 콘솔 D236) — 근처 장소 사진(photoKw 로
+       미리 받아 둔 것)이 있으면 그것, 없으면 테마별 실사진 풀(NH_BURST_PHOTOS), 그것도
+       없으면 여태처럼 테마 색 일러스트. burst 가 v2.62.9 에 쓰던 길을 무대 시드도 쓴다. */
+    src:(nhImgSrc(f.img)||(typeof nhBurstPhoto==='function'?nhBurstPhoto(f.theme||'cafe',String(stamp),i,'nearby'):'')||(typeof seedImg==='function'?seedImg(f.theme||'cafe',f.label||''):'')),
     region:(typeof dongAt==='function'?dongAt(p.lat,p.lng):'')||c.name,zone:null,
     // kind (v2.34) — 'cam'=라이브 카메라 · 'post'=Feed 작성. 피드 탭의 종류 필터가 이 값을 본다.
     lat:p.lat,lng:p.lng,kind:(f.kind==='cam'?'cam':'post'),
@@ -11918,6 +11947,13 @@ function nhSeedScenario(sc,token){
   }catch(e){}
   if(!sc||!sc.seed)return;
   var c=SEED_AREAS[sc.area||nhAreaKey]||SEED_AREAS.gangnam;
+  /* 무대 사진 미리 받기 (v2.69, 콘솔 D236) — 이 동네에서 주제에 맞는 실사진을 한 번 받아
+     두면 사진 없는 피드가 그 풀에서 채워진다. 표기(nhPlaceCredit)는 약관 필수이고,
+     회차가 끝나면 nhSweepTemp 가 걷는다. 늦게 도착해도 무해하다 — 그때는 테마 사진이다. */
+  try{
+    var _pkw=String(sc.seed.photoKw||'').trim();
+    if(_pkw&&typeof nhPlacePhotoPrefetch==='function')nhPlacePhotoPrefetch(c.lat,c.lng,_pkw);
+  }catch(e){}
   var stamp=Date.now();
   nhHeld.c=c;nhHeld.stamp=stamp;
   (sc.seed.reqs||[]).slice(0,NH_MAX.req).forEach(function(r,i){
@@ -12441,8 +12477,12 @@ function nhSanitize(raw){
        ⚠️ 아래 게이트 조건에도 넣는다 — 안 넣으면 **컨텐츠가 하나도 없는 데모**에서 seed 가
        통째로 null 이 되어 밝기만 정한 무대가 또 조용히 사라진다(zcard·cscale 과 같은 이유). */
     var sthm=(APP_THEMES.indexOf(String(rs.theme||''))>=0)?String(rs.theme):'';
-    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length||sfxBank||zcard||cscale||sthm)
-      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns,sfx:sfxBank,zoneCard:zcard,contentScale:cscale,theme:sthm};
+    /* 사진 키워드 (v2.69, 콘솔 D236) — 무대를 깔 때 이 말로 **근처 실사진**을 받아
+       사진 없는 피드·지면에 채운다. 없으면 여태처럼 테마 색 일러스트다.
+       ⚠️ 아래 게이트 조건에도 넣는다 (zcard·cscale·theme 이 같은 이유로 들어가 있다). */
+    var pkw=String(rs.photoKw||'').slice(0,40);
+    if(reqs.length||sps.length||fds.length||dls.length||pgs.length||zns.length||sfxBank||zcard||cscale||sthm||pkw)
+      seed={reqs:reqs,spots:sps,feeds:fds,deals:dls,pages:pgs,zones:zns,sfx:sfxBank,zoneCard:zcard,contentScale:cscale,theme:sthm,photoKw:pkw};
   }
   /* 사람이 옮긴 자리 (v2.20) — 콘솔이 들고 있다가 재생마다 실어 보낸다. 여태 이 값은
      localStorage 뿐이라 **다른 PC 에서는 없는 값**이었다(같은 데모인데 자리가 달랐다).

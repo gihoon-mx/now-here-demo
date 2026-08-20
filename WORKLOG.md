@@ -9,6 +9,19 @@
 
 ---
 
+## v2.69.0 — 무대 사진은 웹에서 · 상한 상향 · 가져온 무대 표시 토글 (2026-08-20, 콘솔 D236 짝)
+
+- **사진**: 무대 시드 피드에 img 가 없으면 nhBurstPhoto 로 채운다 — seed.photoKw(새 칸)로
+  회차 시작에 근처 장소 사진을 미리 받고(nhPlacePhotoPrefetch, 표기는 약관대로 nhPlaceCredit,
+  회차 끝에 nhSweepTemp 가 걷음), 없으면 테마별 실사진 풀, 그것도 없으면 여태의 테마 색.
+- **상한**: NH_MAX 를 req 10→24 · spot 40→60 · feed 40→60 · deal 10→24 · page 12→16 으로.
+  콘솔 MAX_SEED_* 와 짝이다(한쪽만 올리면 조용히 잘린다).
+- **그룹 숨김의 비대칭 수리**: sgGroupSetHidden 이 스팟·피드에만 전파돼 매장·Request 는
+  그룹을 숨겨도 지도에 남았다. 이제 timeDeals·fieldRequests 에도 전파하고 렌더 필터
+  (renderDealMarkers·renderRequestMarkers)가 hidden 을 본다.
+- **가져온 무대 전부 숨기기/보이기** (sgPvcToggleAll) — 관리자 › 지역 시드 생성 › 무대
+  가져오기 옆 버튼. src:'pvc' 그룹 전체를 한 번에 감춘다.
+
 ## v2.68.0~2.68.1 — 픽 실클릭 수리 · 행정동 다중 선택 · 영역(폴리곤) 배치 · 존 목록 (2026-08-20, 콘솔 D233 짝)
 
 **찍기가 안 되던 원인**: 폰 지도가 동 경계 GeoJSON(data 레이어)로 덮여 있어 서울 안쪽
