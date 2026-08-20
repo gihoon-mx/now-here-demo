@@ -8803,8 +8803,8 @@ function sgImportStage(){
      화면에서 본 배치와 관리자 콘솔로 깐 배치가 같은 규칙이어야 한다. */
   var reg=j&&j.region,rc=null;
   if(reg&&typeof nhAreaFrom==='function'){
-    var probe=nhAreaFrom({lat:f.lat,lng:f.lng,dongs:reg.dongs,rings:reg.rings});
-    if(probe&&(probe.dongs||probe.rings))rc=probe;
+    var probe=nhAreaFrom({lat:f.lat,lng:f.lng,dongs:reg.dongs,rings:reg.rings,cells:reg.cells});
+    if(probe&&(probe.dongs||probe.rings||probe.cells))rc=probe;
   }
   var k=0, at=function(){ // 골든앵글 나선 — 결정적 배치 (Math.random 이면 재렌더마다 움직인다)
     var idx=k++;
@@ -11014,6 +11014,13 @@ function nhRegionInfo(c){
       d.polys.forEach(function(p){if(p&&p[0]&&p[0].length>=3)polys.push(p[0]);});
       if(d.bbox){grow(d.bbox[0],d.bbox[1]);grow(d.bbox[2],d.bbox[3]);}
     });
+  }else if(c.cells&&Array.isArray(c.cells.centers)){
+    var gp=getHexGridParams(c.cells.radiusKm||1);
+    c.cells.centers.forEach(function(pt){
+      var ring=hexVertices(pt[1],pt[0],gp.R_lat,gp.R_lng).map(function(v){return [v.lng,v.lat];});
+      polys.push(ring);
+      ring.forEach(function(q){grow(q[0],q[1]);});
+    });
   }else if(Array.isArray(c.rings)){
     c.rings.forEach(function(ring){
       var out=ring.map(function(pt){return [pt[1],pt[0]];});
@@ -11040,7 +11047,7 @@ function nhSpreadRegion(c,i){
 }
 function nhSpread(c,i){
   /* 영역(행정동·폴리곤)이 실려 오면 원이 아니라 그 안이다 (v2.68). */
-  if(c&&(c.dongs||c.rings)){var q=nhSpreadRegion(c,i);if(q)return q;}
+  if(c&&(c.dongs||c.rings||c.cells)){var q=nhSpreadRegion(c,i);if(q)return q;}
   var a=i*2.399963,r0=NH_SPREAD_R0,r1=NH_SPREAD_R1;
   /* 사람이 정한 반경 (v2.66) — c.r(m) 이 있으면 그 안에 편다. 도(°) 변환은 위도 기준
      1°≈111.32km. 비율은 기본값(0.0015:0.0008, 최대 r0+2·r1)을 지켜 가장 바깥 고리가
@@ -12178,6 +12185,16 @@ function nhAreaFrom(p){
   if(Array.isArray(p.dongs)&&p.dongs.length){
     a.dongs=p.dongs.slice(0,12).map(function(k){return String(k).slice(0,20);}).filter(Boolean);
     if(!a.dongs.length)delete a.dongs;
+  }else if(p.cells&&Array.isArray(p.cells.centers)&&p.cells.centers.length){
+    /* 트렌드 존 (v2.68.1) — zoneBook 의 shape 는 외곽 링이 아니라 **헥사 셀 중심들**이다.
+       중심+격자 반경으로 hexVertices 가 링을 세운다 — 1~2칸 존도 성립한다. */
+    var cc=[];
+    p.cells.centers.slice(0,30).forEach(function(pt){
+      var la=Number(pt&&pt[0]),lo=Number(pt&&pt[1]);
+      if(isFinite(la)&&isFinite(lo)&&Math.abs(la)<=90&&Math.abs(lo)<=180)cc.push([la,lo]);
+    });
+    var rk=Number(p.cells.radiusKm);
+    if(cc.length)a.cells={centers:cc,radiusKm:(isFinite(rk)&&rk>0)?Math.min(3,Math.max(0.1,rk)):1};
   }else if(Array.isArray(p.rings)&&p.rings.length){
     var rings=[];
     p.rings.slice(0,12).forEach(function(ring){
@@ -12766,7 +12783,14 @@ function nhPickStop(){
 function nhShapeShow(d){
   if(!phoneMap)return false;
   if(d&&d.clear===true){(nhShapePolys||[]).forEach(function(p){try{p.setMap(null);}catch(e){}});nhShapePolys=null;return true;}
-  var rings=Array.isArray(d&&d.rings)?d.rings.slice(0,12):[];
+  var rings=Array.isArray(d&&d.rings)?d.rings.slice(0,30):[];
+  /* 존 셀 (v2.68.1) — 중심들+격자 반경이 오면 헥사 링으로 바꿔 그린다. */
+  if(d&&d.cells&&Array.isArray(d.cells.centers)){
+    var gp=getHexGridParams(Number(d.cells.radiusKm)||1);
+    rings=d.cells.centers.slice(0,30).map(function(pt){
+      return hexVertices(Number(pt[1]),Number(pt[0]),gp.R_lat,gp.R_lng).map(function(v){return [v.lat,v.lng];});
+    });
+  }
   (nhShapePolys||[]).forEach(function(p){try{p.setMap(null);}catch(e){}});nhShapePolys=[];
   var bounds=new google.maps.LatLngBounds(),n=0;
   rings.forEach(function(ring){
