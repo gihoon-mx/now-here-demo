@@ -2998,7 +2998,8 @@ function initPhoneMirror(){
   var el=document.getElementById('phone-map');if(!el||typeof google==='undefined')return;
   var isMobile=window.matchMedia('(max-width:768px)').matches;
   var opts={center:{lat:CONFIG.MAP_CENTER_LAT,lng:CONFIG.MAP_CENTER_LNG},zoom:CONFIG.MAP_ZOOM,
-    disableDefaultUI:true,gestureHandling:(isMobile||IS_APP_PAGE)?'greedy':'none',keyboardShortcuts:false,clickableIcons:false,
+    // IS_PICK (v2.67): 픽커 모드는 사람이 지도를 직접 끌어 보며 지점을 고른다 — 임베드의 '스크립트 전용' 예외.
+    disableDefaultUI:true,gestureHandling:(isMobile||IS_APP_PAGE||(typeof IS_PICK!=='undefined'&&IS_PICK))?'greedy':'none',keyboardShortcuts:false,clickableIcons:false,
     // 화면 폭 보정(nhZ)은 소수 줌을 만든다 (v2.35). 벡터 지도는 기본이 true 지만
     // 래스터 폴백(MAP_ID 없음)에서는 setZoom 이 정수로 반올림돼 보정이 통째로 사라진다.
     isFractionalZoomEnabled:true};
@@ -9032,6 +9033,10 @@ var IS_EMBED=(function(){try{return /[?&]embed=1(?:&|$)/.test(location.search);}
    그래서 이 모드는 시드를 아예 안 깐다 — 화면은 비어서 시작하고, 뜨는 것은 시나리오가
    깐 것(`nhSeedScenario`)과 재생 중 만든 것뿐이다. */
 var IS_CLEAN_EMBED=(function(){try{return IS_EMBED&&/[?&]clean=1(?:&|$)/.test(location.search);}catch(e){return false;}})();
+/* 픽커 모드 (v2.67, 콘솔 D232) — 콘솔의 「직접 지정」이 큰 모달로 띄우는 **지도만 남긴 임베드**.
+   embed=1&clean=1&pick=1 로 뜬다: 폰 UI 를 CSS 로 걷고(pick-mode), 지도 제스처를 연다 —
+   사람이 지도를 끌고 당겨 보며 nh:pick 으로 중심을 찍는 자리라서다. */
+var IS_PICK=(function(){try{return IS_EMBED&&/[?&]pick=1(?:&|$)/.test(location.search);}catch(e){return false;}})();
 
 // 명령을 받아들일 부모 오리진. 여기 없는 곳에서 온 메시지는 무시한다.
 var EMBED_ORIGINS=[
@@ -12721,6 +12726,7 @@ function nhVersion(){var el=document.getElementById('app-version');return el?el.
 /* 임베드 부팅 — 인증을 건너뛰고 지도를 띄운 뒤 시드를 무음으로 깐다. */
 function startEmbed(){
   document.body.classList.add('embed-mode','role-user'); // role-user: 관리자 UI 를 CSS 로 닫아둔다
+  if(IS_PICK)document.body.classList.add('pick-mode'); // v2.67 — 지도만 남긴다 (style.css)
   currentRole='user'; // ⚠️교차 M12: 글쓰기 앵커(addSpotContent)가 역할을 본다. 로그인은 여전히 없다
   nhEmbedIsolate();
   loadSettingsCache(); // 관리자가 적용한 스킨·설정을 데모의 기본값으로 (v2.3 — 지도 그리기 전에)
